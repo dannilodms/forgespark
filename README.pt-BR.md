@@ -38,15 +38,20 @@ _A definir._
 
 ### Visão geral
 
-Visão preliminar, a confirmar:
+Decidido até aqui (veja os ADRs abaixo):
 
 ```mermaid
 flowchart LR
-    user([Usuário]) --> web[Frontend<br/>React]
-    web --> api[Backend / API<br/>Rust]
+    user([Usuário]) --> proxy[Caddy<br/>HTTPS + arquivos do SPA React]
+    proxy -->|/api| api[Backend / API<br/>Go]
     api --> db[(PostgreSQL)]
     api --> storage[(MinIO<br/>armazenamento S3)]
+    api --> llm([Provedores de LLM])
 ```
+
+Frontend e backend ficam neste único repositório: `apps/api` (módulo Go) e `apps/web` (React, gerenciado com Vite+), com um Taskfile na raiz para desenvolvimento, build, testes e geração de código. Não é usado orquestrador de monorepo.
+
+O sistema é multilíngue: inglês é a língua padrão, com suporte também a português do Brasil e espanhol, e cada usuário escolhe a sua. Adicionar uma língua é uma mudança pequena de código, sem alterar a estrutura do banco de dados.
 
 <!-- Descreva a responsabilidade de cada componente e como eles se comunicam. Atualize o diagrama quando a arquitetura for confirmada. -->
 
@@ -54,21 +59,28 @@ flowchart LR
 
 As decisões relevantes e difíceis de reverter são registradas como ADRs (Architecture Decision Records) em `docs/adr/`, um arquivo por decisão. Este README traz apenas a visão geral e o índice abaixo.
 
-_Nenhuma decisão registrada ainda._
-
-<!-- Uma linha por ADR, por exemplo:
-- [0001 - Título](docs/adr/0001-titulo.md): resumo em uma linha
--->
+- [0001 - Go no backend](docs/adr/0001-go-for-the-backend.md): Go em vez de TypeScript e Rust, porque agentes escrevem o código e o ciclo de build precisa ser curto
+- [0002 - React como SPA, sem framework full-stack](docs/adr/0002-react-spa-without-a-full-stack-framework.md): Vite+ e TanStack Router atrás do Caddy, sem Next.js nem TanStack Start
+- [0003 - Contrato OpenAPI gerado do Go](docs/adr/0003-openapi-contract-generated-from-go.md): os tipos Go são a fonte da verdade da API REST, via Huma
+- [0004 - Provedores de LLM e agentes via HTTP](docs/adr/0004-llm-providers-and-agents-over-http.md): uma interface interna para os provedores; agentes são serviços separados que agem apenas pela API
+- [0005 - Multilíngue desde o início](docs/adr/0005-multilingual-from-the-start.md): inglês, português do Brasil e espanhol; o front traduz os códigos de erro da API; conteúdo de configuração tem uma versão por língua, texto livre é traduzido sob demanda
 
 ## Tecnologias
 
 | Tecnologia | Papel no projeto |
 | --- | --- |
-| [Rust](https://www.rust-lang.org/) | Backend e API |
-| [React](https://react.dev/) | Frontend web |
+| [Go](https://go.dev/) | Backend e API |
+| [Huma](https://huma.rocks/) | Framework HTTP que gera a especificação OpenAPI a partir dos tipos Go |
+| [React](https://react.dev/) | Frontend web (single-page app) |
+| [Vite+](https://viteplus.dev/) | Ferramentas do frontend em uma única CLI (`vp`): servidor de desenvolvimento e build (Vite, Rolldown), testes (Vitest), lint (Oxlint), formatação (Oxfmt), além do runtime Node.js e do gerenciador de pacotes |
+| [TanStack Router](https://tanstack.com/router) | Roteamento tipado no cliente |
+| [react-i18next](https://react.i18next.com/) | Traduções da interface (inglês, português do Brasil, espanhol) |
 | [PostgreSQL](https://www.postgresql.org/) | Banco de dados relacional |
 | [MinIO](https://min.io/) | Armazenamento de objetos compatível com S3 (documentos e arquivos) |
-| [Docker](https://www.docker.com/) | Empacotamento e execução dos serviços em containers |
+| [Caddy](https://caddyserver.com/) | HTTPS, arquivos estáticos do frontend e proxy reverso para a API |
+| [Docker](https://www.docker.com/) | Empacotamento e execução dos serviços em containers (Docker Compose) |
+| [Task](https://taskfile.dev/) | Executor de tarefas do repositório (desenvolvimento, build, testes, geração de código) |
+| [pnpm](https://pnpm.io/) | Gerenciador de pacotes do frontend, instalado e executado pelo Vite+ |
 
 <!-- Inclua novas tecnologias nesta tabela à medida que forem adotadas. -->
 
@@ -79,8 +91,9 @@ _Nenhuma decisão registrada ainda._
 | Ferramenta | Versão mínima |
 | --- | --- |
 | Docker | _A definir_ |
-| Rust | _A definir_ |
-| Node.js | _A definir_ |
+| Go | _A definir_ |
+| Vite+ (gerencia Node.js e pnpm) | _A definir_ |
+| Task | _A definir_ |
 
 ### Configuração
 

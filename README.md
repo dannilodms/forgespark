@@ -38,15 +38,20 @@ _TBD._
 
 ### Overview
 
-Preliminary view, to be confirmed:
+Decided so far (see the ADRs below):
 
 ```mermaid
 flowchart LR
-    user([User]) --> web[Frontend<br/>React]
-    web --> api[Backend / API<br/>Rust]
+    user([User]) --> proxy[Caddy<br/>HTTPS + React SPA files]
+    proxy -->|/api| api[Backend / API<br/>Go]
     api --> db[(PostgreSQL)]
     api --> storage[(MinIO<br/>S3 storage)]
+    api --> llm([LLM providers])
 ```
+
+Frontend and backend live in this single repository: `apps/api` (Go module) and `apps/web` (React, managed with Vite+), with a root Taskfile for dev, build, test and code generation. No monorepo orchestrator is used.
+
+The system is multilingual: English is the default, with Brazilian Portuguese and Spanish also supported, and each user chooses their language. Adding a language is a small code change with no database schema change.
 
 <!-- Describe each component's responsibility and how they communicate. Update the diagram once the architecture is confirmed. -->
 
@@ -54,21 +59,28 @@ flowchart LR
 
 Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decision Records) in `docs/adr/`, one file per decision. This README holds only the overview and the index below.
 
-_No decisions recorded yet._
-
-<!-- One line per ADR, e.g.:
-- [0001 - Title](docs/adr/0001-title.md): one-line summary
--->
+- [0001 - Go for the backend](docs/adr/0001-go-for-the-backend.md): Go over TypeScript and Rust, because agents write the code and the build loop must stay short
+- [0002 - React SPA without a full-stack framework](docs/adr/0002-react-spa-without-a-full-stack-framework.md): Vite+ and TanStack Router behind Caddy, no Next.js or TanStack Start
+- [0003 - OpenAPI contract generated from Go](docs/adr/0003-openapi-contract-generated-from-go.md): Go types are the source of truth for the REST API, via Huma
+- [0004 - LLM providers and agents over HTTP](docs/adr/0004-llm-providers-and-agents-over-http.md): one internal interface for providers; agents are separate services that act only through the API
+- [0005 - Multilingual from the start](docs/adr/0005-multilingual-from-the-start.md): English, Brazilian Portuguese and Spanish; the frontend translates API error codes; configuration content has a version per language, free text is translated on demand
 
 ## Tech stack
 
 | Technology | Role in the project |
 | --- | --- |
-| [Rust](https://www.rust-lang.org/) | Backend and API |
-| [React](https://react.dev/) | Web frontend |
+| [Go](https://go.dev/) | Backend and API |
+| [Huma](https://huma.rocks/) | HTTP framework that generates the OpenAPI spec from Go types |
+| [React](https://react.dev/) | Web frontend (single-page app) |
+| [Vite+](https://viteplus.dev/) | Frontend toolchain behind one CLI (`vp`): dev server and build (Vite, Rolldown), tests (Vitest), lint (Oxlint), format (Oxfmt), plus the Node.js runtime and package manager |
+| [TanStack Router](https://tanstack.com/router) | Typed client-side routing |
+| [react-i18next](https://react.i18next.com/) | Interface translations (English, Brazilian Portuguese, Spanish) |
 | [PostgreSQL](https://www.postgresql.org/) | Relational database |
 | [MinIO](https://min.io/) | S3-compatible object storage (documents and files) |
-| [Docker](https://www.docker.com/) | Packaging and running the services in containers |
+| [Caddy](https://caddyserver.com/) | HTTPS, static frontend files and reverse proxy to the API |
+| [Docker](https://www.docker.com/) | Packaging and running the services in containers (Docker Compose) |
+| [Task](https://taskfile.dev/) | Task runner for the repository (dev, build, test, code generation) |
+| [pnpm](https://pnpm.io/) | Frontend package manager, installed and run through Vite+ |
 
 <!-- Add new technologies to this table as they are adopted. -->
 
@@ -79,8 +91,9 @@ _No decisions recorded yet._
 | Tool | Minimum version |
 | --- | --- |
 | Docker | _TBD_ |
-| Rust | _TBD_ |
-| Node.js | _TBD_ |
+| Go | _TBD_ |
+| Vite+ (manages Node.js and pnpm) | _TBD_ |
+| Task | _TBD_ |
 
 ### Configuration
 
