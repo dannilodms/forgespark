@@ -49,7 +49,30 @@ flowchart LR
     api --> llm([LLM providers])
 ```
 
-Frontend and backend live in this single repository: `apps/api` (Go module) and `apps/web` (React, managed with Vite+), with a root Taskfile for dev, build, test and code generation. No monorepo orchestrator is used.
+Frontend and backend live in this single repository. Folders not yet in use hold only a `.gitkeep` placeholder, and the root configuration files are added when the first code arrives:
+
+```
+.
+├── apps/
+│   ├── api/          # Go backend and API
+│   ├── web/          # the real React app
+│   └── prototype/    # clickable prototype with fake data, disposable
+├── packages/
+│   └── ui/           # design system: style variables and components
+├── deploy/           # Caddyfile and deployment files
+├── docs/
+│   ├── adr/          # architecture decisions
+│   ├── agents/       # configuration for AI agents
+│   └── design/       # analysis of the visual references
+├── .scratch/         # local issues
+├── compose.yaml
+├── Taskfile.yml
+└── pnpm-workspace.yaml
+```
+
+The three JavaScript packages (`apps/web`, `apps/prototype`, `packages/ui`) form a pnpm workspace run through Vite+. A root Taskfile coordinates Go and frontend tasks: dev, build, test and code generation. No separate monorepo orchestrator is used.
+
+Screens are designed and approved in the prototype first, then rebuilt in the real app on the same design system.
 
 The system is multilingual: English is the default, with Brazilian Portuguese and Spanish also supported, and each user chooses their language. Adding a language is a small code change with no database schema change.
 
@@ -64,6 +87,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0003 - OpenAPI contract generated from Go](docs/adr/0003-openapi-contract-generated-from-go.md): Go types are the source of truth for the REST API, via Huma
 - [0004 - LLM providers and agents over HTTP](docs/adr/0004-llm-providers-and-agents-over-http.md): one internal interface for providers; agents are separate services that act only through the API
 - [0005 - Multilingual from the start](docs/adr/0005-multilingual-from-the-start.md): English, Brazilian Portuguese and Spanish; the frontend translates API error codes; configuration content has a version per language, free text is translated on demand
+- [0006 - Design system proven in a disposable prototype](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui in `packages/ui`, shared by the product and a clickable prototype whose approved screens are rebuilt, not moved
 
 ## Tech stack
 
@@ -75,6 +99,8 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [Vite+](https://viteplus.dev/) | Frontend toolchain behind one CLI (`vp`): dev server and build (Vite, Rolldown), tests (Vitest), lint (Oxlint), format (Oxfmt), plus the Node.js runtime and package manager |
 | [TanStack Router](https://tanstack.com/router) | Typed client-side routing |
 | [react-i18next](https://react.i18next.com/) | Interface translations (English, Brazilian Portuguese, Spanish) |
+| [shadcn/ui](https://ui.shadcn.com/) | Base of the design system: component code copied into `packages/ui` |
+| [Tailwind CSS](https://tailwindcss.com/) | Styling and the design system's style variables (light and dark themes) |
 | [PostgreSQL](https://www.postgresql.org/) | Relational database |
 | [MinIO](https://min.io/) | S3-compatible object storage (documents and files) |
 | [Caddy](https://caddyserver.com/) | HTTPS, static frontend files and reverse proxy to the API |
@@ -146,6 +172,7 @@ _TBD._
 
 - `docs/adr/`: architecture decisions (ADRs).
 - `GLOSSARY.md`: glossary of domain terms.
+- [`docs/design/`](docs/design/): analysis of the visual references behind the design system.
 - [`docs/agents/`](docs/agents/): configuration used by AI agents in this repository.
 
 `docs/adr/` and `GLOSSARY.md` are created as the domain and the architecture are defined.

@@ -49,7 +49,30 @@ flowchart LR
     api --> llm([Provedores de LLM])
 ```
 
-Frontend e backend ficam neste único repositório: `apps/api` (módulo Go) e `apps/web` (React, gerenciado com Vite+), com um Taskfile na raiz para desenvolvimento, build, testes e geração de código. Não é usado orquestrador de monorepo.
+Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm apenas um arquivo `.gitkeep`, e os arquivos de configuração da raiz entram junto com o primeiro código:
+
+```
+.
+├── apps/
+│   ├── api/          # backend e API em Go
+│   ├── web/          # o app React real
+│   └── prototype/    # protótipo clicável com dados falsos, descartável
+├── packages/
+│   └── ui/           # design system: variáveis de estilo e componentes
+├── deploy/           # Caddyfile e arquivos de implantação
+├── docs/
+│   ├── adr/          # decisões de arquitetura
+│   ├── agents/       # configuração para agentes de IA
+│   └── design/       # análise das referências visuais
+├── .scratch/         # issues locais
+├── compose.yaml
+├── Taskfile.yml
+└── pnpm-workspace.yaml
+```
+
+Os três pacotes JavaScript (`apps/web`, `apps/prototype`, `packages/ui`) formam um workspace pnpm executado pelo Vite+. Um Taskfile na raiz coordena as tarefas de Go e de frontend: desenvolvimento, build, testes e geração de código. Não é usado orquestrador de monorepo à parte.
+
+As telas são desenhadas e aprovadas primeiro no protótipo e depois refeitas no app real, sobre o mesmo design system.
 
 O sistema é multilíngue: inglês é a língua padrão, com suporte também a português do Brasil e espanhol, e cada usuário escolhe a sua. Adicionar uma língua é uma mudança pequena de código, sem alterar a estrutura do banco de dados.
 
@@ -64,6 +87,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0003 - Contrato OpenAPI gerado do Go](docs/adr/0003-openapi-contract-generated-from-go.md): os tipos Go são a fonte da verdade da API REST, via Huma
 - [0004 - Provedores de LLM e agentes via HTTP](docs/adr/0004-llm-providers-and-agents-over-http.md): uma interface interna para os provedores; agentes são serviços separados que agem apenas pela API
 - [0005 - Multilíngue desde o início](docs/adr/0005-multilingual-from-the-start.md): inglês, português do Brasil e espanhol; o front traduz os códigos de erro da API; conteúdo de configuração tem uma versão por língua, texto livre é traduzido sob demanda
+- [0006 - Design system validado em um protótipo descartável](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui em `packages/ui`, compartilhado pelo produto e por um protótipo clicável cujas telas aprovadas são refeitas, não movidas
 
 ## Tecnologias
 
@@ -75,6 +99,8 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [Vite+](https://viteplus.dev/) | Ferramentas do frontend em uma única CLI (`vp`): servidor de desenvolvimento e build (Vite, Rolldown), testes (Vitest), lint (Oxlint), formatação (Oxfmt), além do runtime Node.js e do gerenciador de pacotes |
 | [TanStack Router](https://tanstack.com/router) | Roteamento tipado no cliente |
 | [react-i18next](https://react.i18next.com/) | Traduções da interface (inglês, português do Brasil, espanhol) |
+| [shadcn/ui](https://ui.shadcn.com/) | Base do design system: o código dos componentes é copiado para `packages/ui` |
+| [Tailwind CSS](https://tailwindcss.com/) | Estilos e variáveis de estilo do design system (temas claro e escuro) |
 | [PostgreSQL](https://www.postgresql.org/) | Banco de dados relacional |
 | [MinIO](https://min.io/) | Armazenamento de objetos compatível com S3 (documentos e arquivos) |
 | [Caddy](https://caddyserver.com/) | HTTPS, arquivos estáticos do frontend e proxy reverso para a API |
@@ -146,6 +172,7 @@ _A definir._
 
 - `docs/adr/`: decisões de arquitetura (ADRs).
 - `GLOSSARY.md`: glossário dos termos do domínio.
+- [`docs/design/`](docs/design/): análise das referências visuais que embasam o design system.
 - [`docs/agents/`](docs/agents/): configuração usada pelos agentes de IA neste repositório.
 
 `docs/adr/` e `GLOSSARY.md` são criados conforme o domínio e a arquitetura forem definidos.
