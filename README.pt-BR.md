@@ -43,7 +43,8 @@ Decidido até aqui (veja os ADRs abaixo):
 ```mermaid
 flowchart LR
     user([Usuário]) --> proxy[Caddy<br/>HTTPS + arquivos do SPA React]
-    proxy -->|/api| api[Backend / API<br/>Go]
+    agents([Agentes de código]) -->|MCP| proxy
+    proxy -->|REST e MCP| api[Backend / API<br/>Go]
     api --> db[(PostgreSQL)]
     api --> storage[(MinIO<br/>armazenamento S3)]
     api --> llm([Provedores de LLM])
@@ -89,6 +90,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0005 - Multilíngue desde o início](docs/adr/0005-multilingual-from-the-start.md): inglês, português do Brasil e espanhol; o front traduz os códigos de erro da API; conteúdo de configuração tem uma versão por língua, texto livre é traduzido sob demanda
 - [0006 - Design system validado em um protótipo descartável](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui em `packages/ui`, compartilhado pelo produto e por um protótipo clicável cujas telas aprovadas são refeitas, não movidas
 - [0007 - Backend organizado por área de domínio](docs/adr/0007-backend-organized-by-domain-area.md): uma árvore de pacotes por área de domínio com dependências apontando para dentro, um caso de uso para cada operação, DDD tático seletivo e parte do object calisthenics
+- [0008 - Casos de uso atendidos por vários adaptadores de entrada](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md): uma API REST completa e um servidor MCP com um conjunto escolhido de ferramentas, ambos no backend Go; tokens de acesso com escopos; GraphQL, gRPC e WebSocket adiados
 
 ## Tecnologias
 
@@ -96,6 +98,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | --- | --- |
 | [Go](https://go.dev/) | Backend e API |
 | [Huma](https://huma.rocks/) | Framework HTTP que gera a especificação OpenAPI a partir dos tipos Go |
+| [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk) | Servidor MCP dentro do backend, pelo qual agentes de código operam o sistema |
 | [React](https://react.dev/) | Frontend web (single-page app) |
 | [Vite+](https://viteplus.dev/) | Ferramentas do frontend em uma única CLI (`vp`): servidor de desenvolvimento e build (Vite, Rolldown), testes (Vitest), lint (Oxlint), formatação (Oxfmt), além do runtime Node.js e do gerenciador de pacotes |
 | [TanStack Router](https://tanstack.com/router) | Roteamento tipado no cliente |

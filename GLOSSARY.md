@@ -4,6 +4,20 @@ The operational hub of a software consultancy: one place to manage clients, thei
 
 ## Language
 
+### Credentials and access
+
+**Credential**:
+An access the consultancy holds to a system of a client, such as a login and password, an API key or a server. It always belongs to a client or to one of that client's projects.
+_Avoid_: Secret, password, login
+
+**Access token**:
+What a user creates so that an agent can enter the system and act on their behalf. It has a name and a set of scopes chosen when it is created, and it can be revoked. An action taken with it is recorded as that user's, together with the access token used.
+_Avoid_: API key, personal access token
+
+**Scope**:
+What an access token is allowed to do: read or write in one area of the system. Reading the value of a credential is a scope of its own.
+_Avoid_: Permission, role
+
 ### Languages and translation
 
 **Supported language**:

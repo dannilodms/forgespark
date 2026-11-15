@@ -1,6 +1,6 @@
 # Coding standards
 
-How code in this repository is written. The reasons and the rejected alternatives are in [ADR-0007](docs/adr/0007-backend-organized-by-domain-area.md).
+How code in this repository is written. The reasons and the rejected alternatives are in [ADR-0007](docs/adr/0007-backend-organized-by-domain-area.md) and [ADR-0008](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md).
 
 ## Backend (`apps/api`)
 
@@ -11,12 +11,18 @@ apps/api/internal/
 ├── <domain area>/
 │   ├── domain/         # aggregates, value objects, domain errors
 │   ├── application/    # use cases, and the interfaces they need
-│   └── adapters/       # Huma handlers, Postgres, MinIO, other services
+│   └── adapters/
+│       ├── rest/       # inbound: Huma operations, including SSE
+│       ├── mcp/        # inbound: MCP tools
+│       ├── postgres/   # outbound
+│       └── minio/      # outbound
 ├── kernel/             # value objects used by more than one domain area
 └── platform/           # shared technical infrastructure
 ```
 
 A **domain area** is one part of the business with its own aggregates. It is the deep module of the backend: its public surface is its use cases, and everything else is internal to it.
+
+An **inbound adapter** calls use cases on behalf of an outside caller: REST for the React app and for the agents of ADR-0004, MCP for coding agents. An **outbound adapter** implements an interface that `application` declares: Postgres, MinIO, an LLM provider. `adapters` has one package per technology, one level deep, and an area creates only the ones it uses.
 
 ### Precedence
 
@@ -34,7 +40,7 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 | --- | --- |
 | `domain` | the standard library, `kernel`, its own area's `domain` |
 | `application` | its own `domain`, `kernel`, interfaces from `platform`, the `application` of other areas |
-| `adapters` | its own `application` and `domain`, `kernel`, `platform`, third-party libraries |
+| `adapters` | its own `application` and `domain`, `kernel`, `platform`, third-party libraries; no other adapter package |
 | `kernel` | the standard library |
 | `platform` | third-party libraries; no domain area |
 
@@ -47,10 +53,21 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 
 ### Use cases
 
-- Every operation the API exposes is one use case in `application`. A Huma handler parses the request, calls one use case and maps the result.
+- Every operation an inbound adapter exposes is one use case in `application`. A Huma handler or an MCP tool parses its input, calls one use case and maps the result.
 - A use case that only passes the call through is correct. So is the mapping between API types and domain types. Both are deliberate, not a middle man or duplication.
+- A use case's inputs and outputs carry no type from Huma, the MCP SDK or any other adapter library.
 - **Writes.** One use case is one transaction, opened and closed through an interface. It loads the aggregate from its repository, calls the aggregate, and saves it whole. It may save several aggregates of its own area. An effect on another area or on an external service runs after the commit.
 - **Reads.** A query use case calls a read-only interface that returns data already shaped for the caller. It builds no aggregate.
+
+### Inbound adapters
+
+- **REST is complete.** Every use case has a REST operation. Streaming to the browser is a Server-Sent Events operation in `adapters/rest`, added with the first use case that needs it.
+- **MCP is a chosen subset.** A use case becomes an MCP tool only when an agent has a real use for it. MCP exposes tools only.
+- **One tool, one use case.** A tool is designed for what the agent is trying to do, not copied from a REST operation. When it needs a composed result or a different shape, that is a new use case.
+- **Authentication in the adapter, authorization in the use case.** The inbound adapter authenticates the caller (a session or an access token) and passes the actor to the use case: the user, the scopes, and the access token when there is one. The use case checks the scopes. The actor type lives in `kernel`.
+- **MCP language.** Tool names and descriptions are in English. Configuration content is returned in the preferred language of the access token's user.
+- **Credentials over MCP.** A tool that returns the value of a credential requires the scope for reading credential values, returns one credential per call, and its use case records the read. No listing returns a value.
+- **Nothing ahead of need.** No package, mount point or abstraction is written for an inbound adapter that does not exist.
 
 ### Domain modelling
 
@@ -63,7 +80,7 @@ These rules apply inside `domain`. API types and database rows in `adapters` are
 
 ### Errors
 
-A broken rule is a typed error with a stable code and its parameters, declared beside the rule in `domain` or `application`. The HTTP adapter translates it into the status and response format of ADR-0005.
+A broken rule is a typed error with a stable code and its parameters, declared beside the rule in `domain` or `application`. Each inbound adapter translates it: REST into the status and response format of ADR-0005, MCP into a tool error carrying the same stable code and English message.
 
 ### Control flow
 
@@ -83,7 +100,7 @@ A rule that tooling can check fails the build: imports between layers and betwee
 
 ### Deferred
 
-Domain events, CQRS, event sourcing and a second bounded context each start with a new ADR, written when a concrete case needs one.
+Domain events, CQRS, event sourcing and a second bounded context each start with a new ADR, written when a concrete case needs one. So do WebSocket, GraphQL and gRPC as inbound adapters, live notifications (which need domain events), OAuth, and MCP resources and prompts.
 
 ## Frontend (`apps/web`, `apps/prototype`, `packages/ui`)
 

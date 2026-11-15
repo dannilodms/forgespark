@@ -43,7 +43,8 @@ Decided so far (see the ADRs below):
 ```mermaid
 flowchart LR
     user([User]) --> proxy[Caddy<br/>HTTPS + React SPA files]
-    proxy -->|/api| api[Backend / API<br/>Go]
+    agents([Coding agents]) -->|MCP| proxy
+    proxy -->|REST and MCP| api[Backend / API<br/>Go]
     api --> db[(PostgreSQL)]
     api --> storage[(MinIO<br/>S3 storage)]
     api --> llm([LLM providers])
@@ -89,6 +90,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0005 - Multilingual from the start](docs/adr/0005-multilingual-from-the-start.md): English, Brazilian Portuguese and Spanish; the frontend translates API error codes; configuration content has a version per language, free text is translated on demand
 - [0006 - Design system proven in a disposable prototype](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui in `packages/ui`, shared by the product and a clickable prototype whose approved screens are rebuilt, not moved
 - [0007 - Backend organized by domain area](docs/adr/0007-backend-organized-by-domain-area.md): one package tree per domain area with dependencies pointing inward, a use case for every operation, selective tactical DDD and part of object calisthenics
+- [0008 - Use cases served by several inbound adapters](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md): a complete REST API and an MCP server with a chosen set of tools, both in the Go backend; access tokens with scopes; GraphQL, gRPC and WebSocket deferred
 
 ## Tech stack
 
@@ -96,6 +98,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | --- | --- |
 | [Go](https://go.dev/) | Backend and API |
 | [Huma](https://huma.rocks/) | HTTP framework that generates the OpenAPI spec from Go types |
+| [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk) | MCP server inside the backend, through which coding agents operate the system |
 | [React](https://react.dev/) | Web frontend (single-page app) |
 | [Vite+](https://viteplus.dev/) | Frontend toolchain behind one CLI (`vp`): dev server and build (Vite, Rolldown), tests (Vitest), lint (Oxlint), format (Oxfmt), plus the Node.js runtime and package manager |
 | [TanStack Router](https://tanstack.com/router) | Typed client-side routing |
