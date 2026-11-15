@@ -88,6 +88,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0004 - Provedores de LLM e agentes via HTTP](docs/adr/0004-llm-providers-and-agents-over-http.md): uma interface interna para os provedores; agentes são serviços separados que agem apenas pela API
 - [0005 - Multilíngue desde o início](docs/adr/0005-multilingual-from-the-start.md): inglês, português do Brasil e espanhol; o front traduz os códigos de erro da API; conteúdo de configuração tem uma versão por língua, texto livre é traduzido sob demanda
 - [0006 - Design system validado em um protótipo descartável](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui em `packages/ui`, compartilhado pelo produto e por um protótipo clicável cujas telas aprovadas são refeitas, não movidas
+- [0007 - Backend organizado por área de domínio](docs/adr/0007-backend-organized-by-domain-area.md): uma árvore de pacotes por área de domínio com dependências apontando para dentro, um caso de uso para cada operação, DDD tático seletivo e parte do object calisthenics
 
 ## Tecnologias
 
@@ -172,6 +173,7 @@ _A definir._
 
 - `docs/adr/`: decisões de arquitetura (ADRs).
 - `GLOSSARY.md`: glossário dos termos do domínio.
+- [`CODING_STANDARDS.md`](CODING_STANDARDS.md): como o código é escrito, para os agentes e para a revisão.
 - [`docs/design/`](docs/design/): análise das referências visuais que embasam o design system.
 - [`docs/agents/`](docs/agents/): configuração usada pelos agentes de IA neste repositório.
 

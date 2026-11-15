@@ -88,6 +88,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0004 - LLM providers and agents over HTTP](docs/adr/0004-llm-providers-and-agents-over-http.md): one internal interface for providers; agents are separate services that act only through the API
 - [0005 - Multilingual from the start](docs/adr/0005-multilingual-from-the-start.md): English, Brazilian Portuguese and Spanish; the frontend translates API error codes; configuration content has a version per language, free text is translated on demand
 - [0006 - Design system proven in a disposable prototype](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui in `packages/ui`, shared by the product and a clickable prototype whose approved screens are rebuilt, not moved
+- [0007 - Backend organized by domain area](docs/adr/0007-backend-organized-by-domain-area.md): one package tree per domain area with dependencies pointing inward, a use case for every operation, selective tactical DDD and part of object calisthenics
 
 ## Tech stack
 
@@ -172,6 +173,7 @@ _TBD._
 
 - `docs/adr/`: architecture decisions (ADRs).
 - `GLOSSARY.md`: glossary of domain terms.
+- [`CODING_STANDARDS.md`](CODING_STANDARDS.md): how code is written, for agents and for review.
 - [`docs/design/`](docs/design/): analysis of the visual references behind the design system.
 - [`docs/agents/`](docs/agents/): configuration used by AI agents in this repository.
 

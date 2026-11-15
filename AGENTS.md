@@ -11,3 +11,7 @@ Default vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 ### Domain docs
 
 Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Coding standards
+
+Read `CODING_STANDARDS.md` before writing or reviewing code under `apps/` or `packages/`: backend layout by domain area, dependency rule, use cases, domain modelling, naming, test seam.
