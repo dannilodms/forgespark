@@ -1,0 +1,26 @@
+{
+  "login": {
+    "productName": "My Software Factory Manager",
+    "heading": "Log in",
+    "intro": "Use an account that is already registered.",
+    "continueWith": "Continue with {{provider}}",
+    "or": "or",
+    "emailLabel": "E-mail",
+    "emailPlaceholder": "you@company.com",
+    "emailInvalid": "Type a valid e-mail address.",
+    "sendCode": "Send login code",
+    "codeSentence": "If {{email}} belongs to a registered person, the code arrives in a moment.",
+    "codeLabel": "Login code",
+    "logIn": "Log in",
+    "newCode": "Send a new code",
+    "newCodeIn": "Send a new code in {{time}}",
+    "otherEmail": "Use another e-mail",
+    "footer": "Only registered people get in. Ask a person who administers the system for access.",
+    "language": "Language"
+  },
+  "signedIn": {
+    "heading": "You are logged in",
+    "body": "This page stands in for the first screen of the product.",
+    "logOut": "Log out"
+  }
+}

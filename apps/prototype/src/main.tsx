@@ -2,12 +2,14 @@ import { RouterProvider, createRouter } from "@tanstack/react-router"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 
+import { startLanguage } from "#stores/language"
 import { startTheme } from "#stores/theme"
 
 import { routeTree } from "./routeTree.gen"
 import "./styles.css"
 
 startTheme()
+startLanguage()
 
 const router = createRouter({ routeTree })
 

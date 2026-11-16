@@ -4,6 +4,11 @@ export const Route = createFileRoute("/")({ component: Home })
 
 const destinations = [
   {
+    to: "/login",
+    label: "Login screen",
+    about: "The first screen of the product: login providers or a login code.",
+  },
+  {
     to: "/gallery",
     label: "Gallery",
     about: "Every style variable and component of the design system.",

@@ -99,6 +99,9 @@
 }
 
 :root {
+  /* Scrollbars and other native controls follow the theme. */
+  color-scheme: light;
+
   --background: #f5f4f3;
   --foreground: #242529;
   --card: #fafafa;
@@ -148,6 +151,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   --background: #282c33;
   --foreground: #dce0e5;
   --card: #282c33;

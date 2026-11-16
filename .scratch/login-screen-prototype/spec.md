@@ -20,7 +20,8 @@ Do not reopen these.
 - **Only what is turned on.** Each login provider, the local provider and the login code show only when the configuration turns them on.
 - **One extra.** The status bar holds a language selector and nothing else. The screen has no theme toggle, no version number and no link to the source code.
 - **Scenarios** are chosen in the prototype bar (see Prototype in `CODING_STANDARDS.md`).
-- **After logging in**, the prototype opens the sample work screen, and that screen's user menu logs out.
+- **After logging in**, the prototype opens the sample work screen, and that screen's user menu logs out. Until that screen exists, a provisional page stands in for it, with an action that logs out.
+- **Built early.** The screen is built right after issue 03 of `.scratch/design-system-prototype/`, with only the components it uses, so the maintainer sees it before the rest of the gallery exists. Its texts are in the three languages from the start.
 
 ## The flow
 
@@ -97,8 +98,8 @@ The messages of the scenarios are written with issue 02 and follow the same voic
 
 - The prototype rules apply: fake data in plain modules, no TanStack Query, no Zod, no screen tests (see `.scratch/design-system-prototype/spec.md`).
 - The six boxes are shadcn/ui's InputOTP. It enters `packages/ui` through the shadcn CLI, with a block in the Inputs route of the gallery and a line in the component table of `DESIGN.md`, in the same change. Read the current shadcn/ui documentation for it before adding it.
-- Rule 2 of `DESIGN.md` allows one accent colour, so the marks of the login providers are drawn in a single colour. Each provider publishes rules for the button that logs in with it. Read them: where a rule forbids a single-colour mark, keep the provider's own mark and record the exception under rule 2 in `DESIGN.md`.
-- The language selector of the status bar and the one of the prototype bar set the same language.
+- Rule 2 of `DESIGN.md` allows one accent colour, but the rules of two login providers come first. Google forbids a single-colour "G" and asks for it on white; Microsoft asks that its logo is not altered. Both keep their own colours, and `DESIGN.md` records the exception under rule 2. GitHub's mark takes the colour of the text.
+- The language selector of the status bar sets the language of the whole prototype. The prototype bar gets its own selector, for the same language, with issue 06 of `.scratch/design-system-prototype/`.
 - At a 375px-wide viewport the two bars stay, and the pane takes the width of the page.
 
 ## Notes for the rebuild in `apps/web`

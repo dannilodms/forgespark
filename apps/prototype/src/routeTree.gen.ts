@@ -11,9 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GalleryRouteImport } from './routes/gallery'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SignedInRouteImport } from './routes/signed-in'
 import { Route as GalleryIndexRouteImport } from './routes/gallery/index'
 import { Route as GalleryActionsRouteImport } from './routes/gallery/actions'
+import { Route as GalleryDataDisplayRouteImport } from './routes/gallery/data-display'
 import { Route as GalleryFoundationsRouteImport } from './routes/gallery/foundations'
+import { Route as GalleryInputsRouteImport } from './routes/gallery/inputs'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,6 +27,16 @@ const IndexRoute = IndexRouteImport.update({
 const GalleryRoute = GalleryRouteImport.update({
   id: '/gallery',
   path: '/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignedInRoute = SignedInRouteImport.update({
+  id: '/signed-in',
+  path: '/signed-in',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GalleryIndexRoute = GalleryIndexRouteImport.update({
@@ -35,51 +49,95 @@ const GalleryActionsRoute = GalleryActionsRouteImport.update({
   path: '/actions',
   getParentRoute: () => GalleryRoute,
 } as any)
+const GalleryDataDisplayRoute = GalleryDataDisplayRouteImport.update({
+  id: '/data-display',
+  path: '/data-display',
+  getParentRoute: () => GalleryRoute,
+} as any)
 const GalleryFoundationsRoute = GalleryFoundationsRouteImport.update({
   id: '/foundations',
   path: '/foundations',
+  getParentRoute: () => GalleryRoute,
+} as any)
+const GalleryInputsRoute = GalleryInputsRouteImport.update({
+  id: '/inputs',
+  path: '/inputs',
   getParentRoute: () => GalleryRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/gallery': typeof GalleryRouteWithChildren
+  '/login': typeof LoginRoute
+  '/signed-in': typeof SignedInRoute
   '/gallery/actions': typeof GalleryActionsRoute
+  '/gallery/data-display': typeof GalleryDataDisplayRoute
   '/gallery/foundations': typeof GalleryFoundationsRoute
+  '/gallery/inputs': typeof GalleryInputsRoute
   '/gallery/': typeof GalleryIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/signed-in': typeof SignedInRoute
   '/gallery/actions': typeof GalleryActionsRoute
+  '/gallery/data-display': typeof GalleryDataDisplayRoute
   '/gallery/foundations': typeof GalleryFoundationsRoute
+  '/gallery/inputs': typeof GalleryInputsRoute
   '/gallery': typeof GalleryIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/gallery': typeof GalleryRouteWithChildren
+  '/login': typeof LoginRoute
+  '/signed-in': typeof SignedInRoute
   '/gallery/actions': typeof GalleryActionsRoute
+  '/gallery/data-display': typeof GalleryDataDisplayRoute
   '/gallery/foundations': typeof GalleryFoundationsRoute
+  '/gallery/inputs': typeof GalleryInputsRoute
   '/gallery/': typeof GalleryIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/gallery' | '/gallery/actions' | '/gallery/foundations' | '/gallery/'
+    | '/'
+    | '/gallery'
+    | '/login'
+    | '/signed-in'
+    | '/gallery/actions'
+    | '/gallery/data-display'
+    | '/gallery/foundations'
+    | '/gallery/inputs'
+    | '/gallery/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/gallery/actions' | '/gallery/foundations' | '/gallery'
+  to:
+    | '/'
+    | '/login'
+    | '/signed-in'
+    | '/gallery/actions'
+    | '/gallery/data-display'
+    | '/gallery/foundations'
+    | '/gallery/inputs'
+    | '/gallery'
   id:
     | '__root__'
     | '/'
     | '/gallery'
+    | '/login'
+    | '/signed-in'
     | '/gallery/actions'
+    | '/gallery/data-display'
     | '/gallery/foundations'
+    | '/gallery/inputs'
     | '/gallery/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GalleryRoute: typeof GalleryRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  SignedInRoute: typeof SignedInRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -98,6 +156,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GalleryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signed-in': {
+      id: '/signed-in'
+      path: '/signed-in'
+      fullPath: '/signed-in'
+      preLoaderRoute: typeof SignedInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/gallery/': {
       id: '/gallery/'
       path: '/'
@@ -112,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GalleryActionsRouteImport
       parentRoute: typeof GalleryRoute
     }
+    '/gallery/data-display': {
+      id: '/gallery/data-display'
+      path: '/data-display'
+      fullPath: '/gallery/data-display'
+      preLoaderRoute: typeof GalleryDataDisplayRouteImport
+      parentRoute: typeof GalleryRoute
+    }
     '/gallery/foundations': {
       id: '/gallery/foundations'
       path: '/foundations'
@@ -119,18 +198,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GalleryFoundationsRouteImport
       parentRoute: typeof GalleryRoute
     }
+    '/gallery/inputs': {
+      id: '/gallery/inputs'
+      path: '/inputs'
+      fullPath: '/gallery/inputs'
+      preLoaderRoute: typeof GalleryInputsRouteImport
+      parentRoute: typeof GalleryRoute
+    }
   }
 }
 
 interface GalleryRouteChildren {
   GalleryActionsRoute: typeof GalleryActionsRoute
+  GalleryDataDisplayRoute: typeof GalleryDataDisplayRoute
   GalleryFoundationsRoute: typeof GalleryFoundationsRoute
+  GalleryInputsRoute: typeof GalleryInputsRoute
   GalleryIndexRoute: typeof GalleryIndexRoute
 }
 
 const GalleryRouteChildren: GalleryRouteChildren = {
   GalleryActionsRoute: GalleryActionsRoute,
+  GalleryDataDisplayRoute: GalleryDataDisplayRoute,
   GalleryFoundationsRoute: GalleryFoundationsRoute,
+  GalleryInputsRoute: GalleryInputsRoute,
   GalleryIndexRoute: GalleryIndexRoute,
 }
 
@@ -140,6 +230,8 @@ const GalleryRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GalleryRoute: GalleryRouteWithChildren,
+  LoginRoute: LoginRoute,
+  SignedInRoute: SignedInRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

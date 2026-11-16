@@ -1,0 +1,26 @@
+{
+  "login": {
+    "productName": "My Software Factory Manager",
+    "heading": "Iniciar sesión",
+    "intro": "Usa una cuenta ya registrada.",
+    "continueWith": "Continuar con {{provider}}",
+    "or": "o",
+    "emailLabel": "Correo electrónico",
+    "emailPlaceholder": "tu@empresa.com",
+    "emailInvalid": "Escribe una dirección de correo válida.",
+    "sendCode": "Enviar código de inicio de sesión",
+    "codeSentence": "Si {{email}} pertenece a una persona registrada, el código llega en un momento.",
+    "codeLabel": "Código de inicio de sesión",
+    "logIn": "Iniciar sesión",
+    "newCode": "Enviar un código nuevo",
+    "newCodeIn": "Enviar un código nuevo en {{time}}",
+    "otherEmail": "Usar otro correo",
+    "footer": "Solo entran las personas registradas. Pide acceso a quien administra el sistema.",
+    "language": "Idioma"
+  },
+  "signedIn": {
+    "heading": "Has iniciado sesión",
+    "body": "Esta página ocupa el lugar de la primera pantalla del producto.",
+    "logOut": "Cerrar sesión"
+  }
+}

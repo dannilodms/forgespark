@@ -1,0 +1,26 @@
+{
+  "login": {
+    "productName": "My Software Factory Manager",
+    "heading": "Entrar",
+    "intro": "Use uma conta já cadastrada.",
+    "continueWith": "Continuar com {{provider}}",
+    "or": "ou",
+    "emailLabel": "E-mail",
+    "emailPlaceholder": "voce@empresa.com",
+    "emailInvalid": "Digite um endereço de e-mail válido.",
+    "sendCode": "Enviar código de login",
+    "codeSentence": "Se {{email}} for de uma pessoa cadastrada, o código chega em instantes.",
+    "codeLabel": "Código de login",
+    "logIn": "Entrar",
+    "newCode": "Enviar um novo código",
+    "newCodeIn": "Enviar um novo código em {{time}}",
+    "otherEmail": "Usar outro e-mail",
+    "footer": "Só pessoas cadastradas entram. Peça acesso a quem administra o sistema.",
+    "language": "Idioma"
+  },
+  "signedIn": {
+    "heading": "Você entrou",
+    "body": "Esta página fica no lugar da primeira tela do produto.",
+    "logOut": "Sair"
+  }
+}

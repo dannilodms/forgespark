@@ -9,6 +9,8 @@ Read `../spec.md` and `docs/adr/0005-multilingual-from-the-start.md` first.
 
 The prototype in English (`en-US`, default), Brazilian Portuguese (`pt-BR`) and Spanish (`es`), so the maintainer sees how each layout behaves in each language.
 
+The login screen brought the base: react-i18next, the three translation files, the list of supported languages, the stored choice and the type-checked keys are in `apps/prototype` already. Build on them.
+
 - react-i18next in `apps/prototype`, with the prototype's own translation files. They are not shared with any other package.
 - A language selector in the prototype bar, next to the theme toggle. The choice survives a reload; with no stored choice, the browser's language applies when supported, otherwise English.
 - What comes from the translation files:

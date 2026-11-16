@@ -16,9 +16,11 @@
   "dependencies": {
     "@tanstack/react-router": "catalog:",
     "@workspace/ui": "workspace:*",
+    "i18next": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "react-i18next": "catalog:",
     "zustand": "catalog:"
   },
   "devDependencies": {

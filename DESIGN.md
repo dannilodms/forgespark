@@ -33,11 +33,13 @@ The gallery renders each of these eight as a Do and Don't pair.
 7. **One primary action per group.** In a group of actions, one button is primary. The others are secondary or ghost.
 8. **Status is colour plus a sign.** A status always shows an icon or a word together with its colour.
 
+One exception to rule 2: the mark of a login provider keeps the colours its owner requires. Google forbids a single-colour "G" and asks for it on white, and Microsoft asks that its logo is not altered. GitHub's mark takes the colour of the text.
+
 ## Accessibility and layout
 
 - The style meets WCAG AA: 4.5:1 for text, 3:1 for large text, for the boundary of a control and for the focus indicator.
 - A value taken from Zed that fails is changed by the smallest step that passes. The colour table then gives both the value of Zed and the value in use. The gallery measures every pair, so a failure is visible.
-- Every interactive component is operable by keyboard and shows a visible focus state: a 3px outline with a 2px offset.
+- Every interactive component is operable by keyboard and shows a visible focus state: a 3px outline with a 2px offset. A box of InputOTP has no offset, because its neighbours touch it.
 - Motion respects `prefers-reduced-motion`.
 - Layouts are designed for desktop first and adapt down to a 375px-wide viewport with no overflow.
 - Text runs longer in Portuguese and Spanish than in English. Every component that carries text holds a long label without overflowing.
@@ -243,7 +245,7 @@ The shape of the mark and the background of the preview came from image models. 
 | Gallery section | Components |
 | --- | --- |
 | Actions | Button (with icon, with shortcut chip), Badge, Kbd |
-| Inputs | Field, Label, Input, Textarea, Select, Checkbox, RadioGroup, Switch |
+| Inputs | Field, Label, Input, InputOTP, Textarea, Select, Checkbox, RadioGroup, Switch |
 | Navigation | Tabs, Breadcrumb, Sidebar |
 | Data display | Card, Table, Avatar, Separator |
 | Feedback | Alert, Toast, Skeleton, Empty, Status indicator |

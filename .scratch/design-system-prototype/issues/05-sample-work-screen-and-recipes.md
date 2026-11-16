@@ -16,6 +16,7 @@ Some traits of the style only show in a full work surface: flush panes, density,
 - Items carry the four statuses (working, needs attention, done, error).
 - Panes are flush and split by 1px lines, with no shadow inside the work surface.
 - The Recipes route of the gallery: each recipe shown on its own in a framed preview, with one line on when to use it, and a link to the sample work screen.
+- The login screen leads here. Replace its provisional page (the `signed-in` route) with this screen, and add a user menu to the app shell with an action that logs out and returns to the login route. Record the user menu in the App shell recipe of `DESIGN.md`.
 
 ## Acceptance criteria
 

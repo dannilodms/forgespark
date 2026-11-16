@@ -9,6 +9,8 @@ Read `../spec.md`, `DESIGN.md` and `.claude/skills/shadcn/design-system-page.md`
 
 The components of the design system, each shown in the gallery, and the rules of `DESIGN.md` rendered as pairs.
 
+Field, Label, Input, InputOTP, Select and Separator are already in `packages/ui`, with a block each on the Inputs and Data display routes: the login screen needed them first. Complete those routes; do not add those components again.
+
 - Add to `packages/ui`, through the shadcn CLI, every component listed under "Components" in `DESIGN.md` that is not there yet. The gallery only composes them.
 - The status indicator, this project's own component, with its four meanings: working, needs attention, done, error.
 - The routes Actions, Inputs, Navigation, Data display, Feedback and Overlays, with the components `DESIGN.md` assigns to each. Every component gets a block built to the block anatomy in "Gallery" in `DESIGN.md`, following the Button block from issue 02.
