@@ -1,10 +1,13 @@
+import { TerminalIcon } from "lucide-react"
+
 import type { LoginProviderId } from "./login-flow"
 
 /*
  * The marks of the login providers. Google and Microsoft forbid changing the
  * colours of theirs, and Google asks for its mark on white, so these two are
  * the exception to rule 2 of DESIGN.md that the file records. GitHub's mark
- * takes the colour of the text.
+ * takes the colour of the text. The local provider has no mark of its own:
+ * it shows an icon.
  */
 
 function GoogleMark() {
@@ -64,5 +67,7 @@ export function ProviderMark({ provider }: { provider: LoginProviderId }) {
       return <MicrosoftMark />
     case "github":
       return <GitHubMark />
+    case "local":
+      return <TerminalIcon aria-hidden="true" />
   }
 }

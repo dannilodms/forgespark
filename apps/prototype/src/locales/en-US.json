@@ -16,6 +16,33 @@
     "newCodeIn": "Send a new code in {{time}}",
     "otherEmail": "Use another e-mail",
     "footer": "Only registered people get in. Ask a person who administers the system for access.",
+    "provider": {
+      "google": "Google",
+      "microsoft": "Microsoft",
+      "github": "GitHub",
+      "local": "the local provider"
+    },
+    "forDevelopment": "Development",
+    "codeWrong_one": "This code is wrong. Check it and type it again: {{count}} attempt is left.",
+    "codeWrong_other": "This code is wrong. Check it and type it again: {{count}} attempts are left.",
+    "codeEnded": "This code was wrong three times and stopped working. Ask for a new code.",
+    "codeExpired": "This code expired. Ask for a new code.",
+    "sessionEnded": {
+      "title": "Your session ended",
+      "todo": "Log in again to continue."
+    },
+    "limitReached": {
+      "title": "Too many codes were asked for",
+      "todo": "Wait a few minutes and ask again."
+    },
+    "accountNotRegistered": {
+      "title": "This account has no access",
+      "todo": "Ask a person who administers the system to give it access."
+    },
+    "providerFailed": {
+      "title": "The login with {{provider}} failed",
+      "todo": "Try again in a moment."
+    },
     "language": "Language"
   },
   "signedIn": {
