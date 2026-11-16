@@ -2,6 +2,11 @@
 
 [English](README.md) | **Português**
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/design/brand/mark-on-dark.svg">
+  <img src="docs/design/brand/mark.svg" alt="" width="72" height="72">
+</picture>
+
 # My Software Factory Manager
 
 Gerenciador de clientes e projetos: uma plataforma centralizada para gestão de clientes, projetos e demandas de desenvolvimento de software.

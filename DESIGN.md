@@ -179,6 +179,31 @@ What makes the style recognisable, beyond the values above.
 | Density | 27 to 28px bars, 32px controls, 12 to 13px interface text |
 | Display type | A light italic serif, used sparingly against the sans of the interface |
 
+## Brand mark
+
+The mark is a software factory in one solid shape: a building with a sawtooth roof and two chimneys, the code symbol `</>` cut out of its wall, standing on a conveyor belt with three rollers. It is drawn on a 64-unit square.
+
+- The mark has one colour: `brand` on a surface, or `primary-foreground` on a `primary` tile. It follows rule 2.
+- The logo is the mark and the product name. The name is set in IBM Plex Sans at weight 600, in `foreground`, and converted to outlines, so the file needs no font.
+- The smallest size of the mark is 16px. The space around it is at least a quarter of its width.
+- The mark is never stretched, rotated, outlined or given a shadow.
+
+The files are in [`docs/design/brand/`](docs/design/brand/). They are the source: an app serves copies of them.
+
+| File | Use |
+| --- | --- |
+| `mark.svg`, `mark-on-dark.svg` | The mark alone, on a light and on a dark surface |
+| `logo.svg`, `logo-on-dark.svg` | The mark and the product name, on a light and on a dark surface |
+| `favicon.svg` | The browser tab. It changes colour with the theme of the browser |
+| `favicon.ico` | The browser tab where an SVG is not accepted: 16, 32 and 48px |
+| `apple-touch-icon.png` | The home screen of iOS: 180px, the mark in white on `primary` |
+| `icon-192.png`, `icon-512.png` | The icons of the web app manifest |
+| `icon-maskable-512.png` | The maskable icon of the web app manifest, with the mark inside the safe area |
+| `social-preview.png` | The preview of a shared link and of the repository: 1280 by 640px |
+| `source/` | What the image models returned: the concept of the mark and the background of the preview |
+
+The shape of the mark and the background of the preview came from image models. The mark was then redrawn on the 64-unit square, and the name was set over the background.
+
 ## Components
 
 `packages/ui` holds shadcn/ui components on Base UI primitives. A component enters when a screen needs it, through the shadcn CLI, and it appears in the gallery in the same change. A check fails when a component of `packages/ui` is missing from the gallery.

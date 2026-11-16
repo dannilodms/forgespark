@@ -2,6 +2,11 @@
 
 **English** | [Português](README.pt-BR.md)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/design/brand/mark-on-dark.svg">
+  <img src="docs/design/brand/mark.svg" alt="" width="72" height="72">
+</picture>
+
 # My Software Factory Manager
 
 Client and project manager: a centralized platform for managing clients, projects and software development requests.
