@@ -85,6 +85,8 @@ These apply to REST. Names, identifiers, lists and error codes apply to MCP tool
 - **Values.** Timestamps in ISO 8601 UTC. Business dates without a time. Money as a decimal string beside its currency, never a float. Enums as lowercase strings.
 - **Limits.** A size limit and a read timeout on request bodies. A timeout on every outbound call, and a retry only when the call is idempotent.
 - **Sessions.** A request authenticated by the session cookie that changes state must come from the app's own origin.
+- **Compression and caching.** The API compresses no response and sets no cache header. Caddy does both (see Delivery).
+- **Credential values.** A response that carries the value of a credential repeats nothing the caller sent in the request, because responses are compressed (see Delivery).
 - **Breaking changes.** Allowed when the web client and the MCP tools change in the same commit. The path carries no version.
 
 ### Telemetry
@@ -279,7 +281,7 @@ The default test renders a whole screen in Vitest's Browser Mode, with the API s
 - `vp check` (format, lint, types) and the screen tests fail the build. `vp staged` runs format and lint on changed files at each commit.
 - Knip fails the build on unused files, exports and dependencies.
 - The build fails when an import breaks the dependency rule, when the generated client is stale, or when a language is missing a translation key (ADR-0005).
-- The size of the JavaScript of `apps/web`, initial and per route, has a limit that fails the build. The numbers are set with the first real screen.
+- The size of the JavaScript of `apps/web`, initial and per route, has a limit that fails the build. It is measured on the Brotli copies the build writes (see Delivery), which is what the browser downloads. The numbers are set with the first real screen.
 - Load and response times of the main screens (LCP, CLS, INP) are reported against the "good" Core Web Vitals thresholds (2.5 s, 0.1, 200 ms) and do not fail the build.
 
 The tools for the import rule, the size limit and the time report are chosen with the first frontend code. Once a check exists, its rule here shrinks to a pointer at the check.
@@ -291,6 +293,25 @@ For investigating performance in a real browser, agents have the Chrome DevTools
 A client for Server-Sent Events is written with the first streaming operation. Telemetry from the browser waits for users other than the maintainer.
 
 The system health screen waits for the health report (see Health in the backend rules) and is designed in the prototype first. It reads the health report when it opens and on a refresh button, with no automatic refresh and no warning on other screens.
+
+## Delivery (`deploy`)
+
+How responses travel from the server to browsers and agents. Compression and cache headers are set in one place, the `Caddyfile` in `deploy/`.
+
+### Compression
+
+- **In Caddy only.** The `Caddyfile` turns on `encode` with its defaults for the whole site: zstd or gzip, chosen from the request's `Accept-Encoding`, for a response of 512 bytes or more with a compressible content type. That covers the files of the SPA, `/api` and MCP. Request bodies are not compressed.
+- **Defaults kept.** The `match` block of `encode` is not written, because a custom block replaces the whole default list of content types. Error bodies (`application/problem+json`) are outside that list and stay uncompressed; they are small.
+- **Streams.** A Server-Sent Events response is compressed like any other, and Caddy sends each event as it is written. The first streaming operation comes with a test that goes through Caddy and checks that events arrive one by one.
+- **Brotli copies.** The build of `apps/web` writes a Brotli copy (`.br`) beside each text file it produces: JavaScript, CSS, HTML, SVG and JSON. Caddy serves the copy through `file_server` with `precompressed br`. Caddy does not compress Brotli on the fly, so a client that does not accept Brotli gets the file through `encode`.
+- **Plugin.** A Vite plugin writes the Brotli copies. It is chosen with the first frontend code; none has been tried with Vite+ (Rolldown).
+- **Risk accepted.** The size of a compressed response can reveal a secret when the same body carries text chosen by an attacker (the BREACH attack). No response is excluded from compression. The rule on credential values in the API conventions keeps the two apart.
+
+### Caching
+
+- **Files with a hash.** A file whose name carries a content hash is served with `Cache-Control: public, max-age=31536000, immutable`.
+- **Files without a hash.** `index.html`, and any other file of the SPA without a hash in its name, is served with `Cache-Control: no-cache`, so the browser revalidates it and a deploy shows on the next load.
+- **API.** Every response under `/api` carries `Cache-Control: no-store`, set by Caddy.
 
 ## Versions (the whole repository)
 
