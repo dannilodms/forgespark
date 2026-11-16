@@ -99,6 +99,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0012 - OpenTelemetry e um registro de auditoria separado](docs/adr/0012-opentelemetry-for-observability-and-a-separate-audit-log.md): traces, métricas e logs exportados para um container Grafana; operações sensíveis gravadas em um registro de auditoria somente de acréscimo
 - [0013 - Dados do frontend em coleções e consultas por cursor](docs/adr/0013-frontend-data-in-collections-and-cursor-queries.md): TanStack DB para conjuntos limitados, TanStack Query com o cursor da API para o resto, Zustand só para estado de interface, cliente e schemas Zod gerados pelo orval, TanStack Form
 - [0014 - Frontend organizado por área de domínio](docs/adr/0014-frontend-organized-by-domain-area-and-tested-through-screens.md): uma pasta por área de domínio com um módulo de dados que é o único a chamar a API; os testes renderizam telas inteiras em um navegador real com a API simulada
+- [0015 - SQL escrito à mão e verificado pelo sqlc, e migrations só para frente](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md): pgx e sqlc, migrations do goose sem caminho de volta aplicadas em um passo próprio, dois usuários do banco, PostgreSQL como único serviço de dados, sem cache e sem pool de conexões externo
 
 ## Tecnologias
 
@@ -109,6 +110,10 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk) | Servidor MCP dentro do backend, pelo qual agentes de código operam o sistema |
 | [Sqids](https://sqids.org/go) | Identificadores públicos curtos, codificados a partir dos sequenciais internos |
 | [SCS](https://github.com/alexedwards/scs) | Sessões no servidor, guardadas no PostgreSQL |
+| [pgx](https://github.com/jackc/pgx) | Driver do PostgreSQL e o pool de conexões dentro da API |
+| [sqlc](https://sqlc.dev/) | Gera código Go tipado a partir de SQL escrito à mão |
+| [goose](https://github.com/pressly/goose) | Aplica as migrations do banco, só para frente |
+| [pgtestdb](https://github.com/peterldowns/pgtestdb) | Dá a cada teste de banco o seu próprio banco temporário |
 | [OpenTelemetry](https://opentelemetry.io/) | Traces, métricas e logs do backend |
 | [Grafana otel-lgtm](https://grafana.com/docs/opentelemetry/docker-lgtm/) | Um container que coleta, guarda e mostra a telemetria |
 | [vacuum](https://quobix.com/vacuum/) e [oasdiff](https://github.com/oasdiff/oasdiff) | Lint das convenções da API e relatório de mudanças incompatíveis na especificação OpenAPI |
@@ -126,7 +131,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [react-i18next](https://react.i18next.com/) | Traduções da interface (inglês, português do Brasil, espanhol) |
 | [shadcn/ui](https://ui.shadcn.com/) | Base do design system: o código dos componentes é copiado para `packages/ui`, sobre os primitivos do [Base UI](https://base-ui.com/) |
 | [Tailwind CSS](https://tailwindcss.com/) | Estilos e variáveis de estilo do design system (temas claro e escuro) |
-| [PostgreSQL](https://www.postgresql.org/) | Banco de dados relacional |
+| [PostgreSQL](https://www.postgresql.org/) | Banco de dados relacional (versão 18) e único serviço de dados |
 | [MinIO](https://min.io/) | Armazenamento de objetos compatível com S3 (documentos e arquivos) |
 | [Caddy](https://caddyserver.com/) | HTTPS, arquivos estáticos do frontend e proxy reverso para a API |
 | [Docker](https://www.docker.com/) | Empacotamento e execução dos serviços em containers (Docker Compose) |
@@ -167,6 +172,8 @@ _A definir._
 ### Deploy
 
 Um deploy reinicia a única instância da API. A API termina as requisições em andamento antes de sair (veja Shutdown em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), então o arquivo do Compose dá a ela um `stop_grace_period` de 30 segundos, e o Caddy segura as requisições novas por até 30 segundos (`lb_try_duration`) até a nova instância aceitar conexões.
+
+Antes de a API subir, um serviço de execução única do Compose aplica as migrations pendentes do banco, e a API só sobe se ele terminar bem. Quando há migration pendente, o deploy gera um `pg_dump` antes, porque as migrations não têm caminho de volta (veja o [ADR-0015](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md)).
 
 O restante está _A definir._
 

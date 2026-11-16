@@ -18,4 +18,4 @@ Chrome DevTools MCP, for investigating performance, console and network in a rea
 
 ## Coding standards
 
-Read `CODING_STANDARDS.md` before writing or reviewing code under `apps/` or `packages/`. Backend: layout by domain area, dependency rule, use cases, domain modelling, naming, test seam. Frontend: layout by domain area, where each kind of state lives, the data module, forms, tests.
+Read `CODING_STANDARDS.md` before writing or reviewing code under `apps/` or `packages/`. Backend: layout by domain area, dependency rule, use cases, domain modelling, database access and migrations, naming, test seam. Frontend: layout by domain area, where each kind of state lives, the data module, forms, tests.

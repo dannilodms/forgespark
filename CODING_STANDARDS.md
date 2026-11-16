@@ -1,6 +1,6 @@
 # Coding standards
 
-How code in this repository is written. The reasons and the rejected alternatives are in ADRs [0007](docs/adr/0007-backend-organized-by-domain-area.md) (structure), [0008](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md) (inbound adapters), [0009](docs/adr/0009-rest-api-conventions.md) (API conventions), [0010](docs/adr/0010-sequential-identifiers-exposed-through-sqids.md) (identifiers), [0011](docs/adr/0011-login-through-external-providers-with-a-server-side-session.md) (login), [0012](docs/adr/0012-opentelemetry-for-observability-and-a-separate-audit-log.md) (observability), [0013](docs/adr/0013-frontend-data-in-collections-and-cursor-queries.md) (frontend state and data) and [0014](docs/adr/0014-frontend-organized-by-domain-area-and-tested-through-screens.md) (frontend structure and tests).
+How code in this repository is written. The reasons and the rejected alternatives are in ADRs [0007](docs/adr/0007-backend-organized-by-domain-area.md) (structure), [0008](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md) (inbound adapters), [0009](docs/adr/0009-rest-api-conventions.md) (API conventions), [0010](docs/adr/0010-sequential-identifiers-exposed-through-sqids.md) (identifiers), [0011](docs/adr/0011-login-through-external-providers-with-a-server-side-session.md) (login), [0012](docs/adr/0012-opentelemetry-for-observability-and-a-separate-audit-log.md) (observability), [0013](docs/adr/0013-frontend-data-in-collections-and-cursor-queries.md) (frontend state and data), [0014](docs/adr/0014-frontend-organized-by-domain-area-and-tested-through-screens.md) (frontend structure and tests) and [0015](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md) (database access and migrations).
 
 ## Backend (`apps/api`)
 
@@ -137,6 +137,21 @@ A broken rule is a typed error with a stable code and its parameters, declared b
 
 Every REST failure uses that format, including unknown routes, wrong methods and panics, which need their own handlers because they bypass Huma's error hook. No response carries a stack trace, SQL or an internal name.
 
+### Database
+
+PostgreSQL 18 is the only data service: one database, one schema.
+
+- **Access.** A `postgres` adapter runs SQL through pgx, version 5.13.0 or later. Its queries are SQL files inside the adapter package, and sqlc generates the Go functions and the row structs from them. The generated code is committed and never edited.
+- **Parameters.** A value reaches SQL as a parameter. No value is concatenated into SQL text.
+- **Lists.** A list is fixed SQL: an optional filter is `(parameter IS NULL OR column = parameter)`, and each allowed sort is its own query. A list that does not fit is written by hand on pgx, with a comment saying why.
+- **Pool.** One pgxpool in `platform`, shared by every domain area and by the session store. Its maximum size, the statement timeout and the idle-in-transaction timeout come from configuration. `platform` stops the session store's cleanup routine during the shutdown.
+- **Migrations.** Numbered SQL files in `apps/api/migrations`, with zero-padded numbers (`00001_create_projects.sql`), embedded in the binary and applied by goose with its lock turned on. A migration has no down part. A mistake is fixed by a new migration, and a migration that has run outside a development machine is never edited.
+- **Running them.** The `migrate` command of the API binary applies the pending migrations, as its own step before the API starts. The API never changes the schema.
+- **Roles.** The migration role owns the tables. The API role reads and writes rows; on the audit log table it can only insert and select. The migration that creates a table grants the API role its permissions in the same file.
+- **Tables.** Foreign keys cross domain areas. An identifier is a `bigint` from the sequence of its aggregate type. An instant is `timestamptz`, a business date is `date`, money is `numeric`, and a fixed set of values is `text` with a `CHECK` constraint listing the values the API uses.
+- **Extensions.** `pg_stat_statements` only. Another extension arrives in the migration of the first feature that needs it. One that the official PostgreSQL image does not ship starts with a new ADR.
+- **Traces.** pgx is traced with otelpgx. The SQL text is recorded; query parameters never are.
+
 ### Control flow
 
 Handle the exceptional case first and return, so the main path runs unindented to the end of the function. A function holds one level of nesting; a second level becomes a new function. Tooling rejects `else`.
@@ -149,17 +164,23 @@ A domain concept uses the exact term from `GLOSSARY.md`, spelled in full, in eve
 
 The default seam is the use case, exercised with in-memory implementations of its interfaces. Each real adapter (Postgres, MinIO, LLM) has its own tests against the real service.
 
+A `postgres` adapter test runs against the development PostgreSQL container. Each test gets a temporary database, cloned by pgtestdb from a template that the migrations built, so tests run in parallel and never touch the development database.
+
 ### Enforcement
 
 A rule that tooling can check fails the build: imports between layers and between areas, `else`, nesting depth, a mapping between API type, domain type and database row that leaves a field out. The tool is chosen with the first backend code.
 
-The generated OpenAPI spec is committed, and the build fails when it is stale. A lint on the spec (vacuum) fails the build on `snake_case` and plural-path violations. A breaking-change report (oasdiff) is shown and does not fail the build. Once a check exists, its rule here shrinks to a pointer at the check.
+The generated OpenAPI spec and the code generated by sqlc are committed, and the build fails when either is stale. A lint on the spec (vacuum) fails the build on `snake_case` and plural-path violations. A breaking-change report (oasdiff) is shown and does not fail the build. Once a check exists, its rule here shrinks to a pointer at the check.
 
 ### Deferred
 
 Domain events, CQRS, event sourcing and a second bounded context each start with a new ADR, written when a concrete case needs one. So do WebSocket, GraphQL and gRPC as inbound adapters, live notifications (which need domain events), OAuth for agents, and MCP resources and prompts.
 
 Asynchronous work (the 202 of the API conventions) has no mechanism yet. The first case starts with a new ADR and follows the rule in Shutdown: its state is in the database and it resumes after a restart.
+
+Nothing is cached yet. A read measured as slow first gets an in-memory cache inside the API. A cache service (Redis, Valkey) and a connection pooler (PgBouncer) each start with a new ADR.
+
+A lint for migrations and the column type for case-insensitive text are decided with the first case that needs one. How many dumps taken before a migration are kept, and where, is decided with the backup routine.
 
 `ETag` with `If-Match`, `Idempotency-Key` and rate limiting are added to the first case that needs one, without a new ADR. A version in the path waits for the first consumer that does not ship with the backend, and reopens ADR-0009.
 
