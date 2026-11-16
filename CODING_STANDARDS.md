@@ -565,6 +565,7 @@ How a change reaches `main` and the servers. The repository is public, which set
 
 - **Outside services.** The tests of the `resend` adapter and of the LLM adapter run every day and on a manual trigger, with a key of their own.
 - **Vulnerabilities.** govulncheck, `pnpm audit` and Trivy on the images run every week.
+- **New versions.** `task outdated` runs every week and its list is kept in one open issue on GitHub. The workflow rewrites the issue, adds a comment when the list changed and closes it when the list is empty. It opens no pull request. The issue is a notice: work is still tracked in `.scratch/` (see [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md)).
 - **Restore test.** Every month (see Backup).
 - **Staging sweep.** Destroys a staging server older than 24 hours.
 - **A failure warns.** A scheduled workflow that fails warns the maintainer and blocks no pull request.
@@ -623,7 +624,9 @@ Every tool, library and container image runs at a version written in a committed
 
 ### Updating
 
-- **Listing.** `task outdated` lists what has a newer release: Go modules, JavaScript packages and container images. It is written with the first code.
+- **Listing.** `task outdated` lists what has a newer release among the versions the repository pins: the Go toolchain, Go modules and tools, Node.js, pnpm, JavaScript packages, container images, Caddy plugins, pgBackRest, GitHub Actions and the tools a workflow installs, the system image of the servers and MCP servers. It is written with the first code.
+- **Every week.** A scheduled workflow runs the listing and warns the maintainer through one issue (see Scheduled workflows). Updating stays a decision of the maintainer.
+- **The machine.** `task outdated:machine` is run by hand on the maintainer's machine, which no workflow can see. It reads `docs/machine-tools.yaml` and lists the tools that have a newer release and the ones whose installed version differs from the recorded one. After an update the file is corrected (see `AGENTS.md`).
 - **One at a time.** An update is its own commit: one dependency, or one family released together (TanStack, OpenTelemetry), with the build and the tests passing.
 - **Major versions.** A major version is updated after reading its migration notes. When it changes what an ADR decided, that ADR is updated in the same commit.
 - **Pre-releases.** A library adopted before its stable release (TanStack DB) moves to the stable release as soon as there is one.

@@ -60,6 +60,9 @@ Each one names where it was recorded as not tried.
 - `/up` through Caddy, answering with the status code of readiness and no body (Health in `CODING_STANDARDS.md`).
 - A pull request from a fork: its workflow waits for approval, gets no secret and cannot be published to staging (ADR-0021).
 - actionlint and zizmor on the workflows, and every action pinned to a commit hash (Pipeline in `CODING_STANDARDS.md`).
+- `task outdated` finding a newer release for each kind of pinned version: a Go module, a JavaScript package, an image tag in a Compose file and in a Dockerfile, an action pinned to a commit hash, a tool a workflow installs, the system image of the servers and an MCP server (Versions in `CODING_STANDARDS.md`).
+- The weekly workflow that keeps that list in one issue, and whether GitHub sends the maintainer an e-mail when a workflow opens the issue or comments on it (Pipeline).
+- `task outdated:machine` on Windows, for tools installed from winget and from other sources (Versions).
 
 ## Conventions to fix
 

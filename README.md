@@ -245,7 +245,7 @@ The steps to restore by hand are _TBD_, written with the backup routine.
 
 ### Maintenance
 
-- **Dependencies.** `task outdated` lists what has a newer release. Each update is its own pull request (see Versions in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
+- **Dependencies.** `task outdated` lists what has a newer release. A weekly workflow runs it and keeps the list in one GitHub issue, which warns the maintainer; it opens no pull request. `task outdated:machine`, run by hand, does the same for the tools installed on the maintainer's machine. Each update is its own pull request (see Versions in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 - **Vulnerabilities.** A weekly workflow runs govulncheck, `pnpm audit` and Trivy on the images.
 - **Logs.** In production, the output of the containers is read on the server.
 

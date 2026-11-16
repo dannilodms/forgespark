@@ -245,7 +245,7 @@ O passo a passo para restaurar à mão está _A definir_ e será escrito com a r
 
 ### Manutenção
 
-- **Dependências.** `task outdated` lista o que tem versão mais nova. Cada atualização é um pull request próprio (veja Versions em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
+- **Dependências.** `task outdated` lista o que tem versão mais nova. Um workflow semanal roda esse comando e mantém a lista em uma única issue no GitHub, que avisa quem mantém o sistema; ele não abre pull request. `task outdated:machine`, rodado à mão, faz o mesmo para as ferramentas instaladas na máquina de quem mantém. Cada atualização é um pull request próprio (veja Versions em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 - **Vulnerabilidades.** Um workflow semanal roda govulncheck, `pnpm audit` e Trivy nas imagens.
 - **Logs.** Em produção, a saída dos containers é lida no servidor.
 
