@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "skills": {
+    "db-core": {
+      "source": "TanStack/db",
+      "sourceType": "github",
+      "skillPath": "packages/db/skills/db-core/SKILL.md",
+      "computedHash": "3504491ee5f4b3800670d5a8d47338ebcc645b13dee5af3b955391a0a871fb0a",
+      "installMode": "copy"
+    },
+    "react-db": {
+      "source": "TanStack/db",
+      "sourceType": "github",
+      "skillPath": "packages/react-db/skills/react-db/SKILL.md",
+      "computedHash": "d0042bfb59a50b2357254814422c714f1a9c92bff8073606b765d2d5cede2fb6",
+      "installMode": "copy"
+    },
+    "shadcn": {
+      "source": "shadcn-ui/ui",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "388962d16c7a4f13aaeee0d8f128e50a87df8553d42ef7988c39c0e1c74a40e8",
+      "installMode": "copy"
+    }
+  }
+}
