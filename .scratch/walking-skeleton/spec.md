@@ -63,6 +63,7 @@ Each one names where it was recorded as not tried.
 - `task outdated` finding a newer release for each kind of pinned version: a Go module, a JavaScript package, an image tag in a Compose file and in a Dockerfile, an action pinned to a commit hash, a tool a workflow installs, the system image of the servers and an MCP server (Versions in `CODING_STANDARDS.md`).
 - The weekly workflow that keeps that list in one issue, and whether GitHub sends the maintainer an e-mail when a workflow opens the issue or comments on it (Pipeline).
 - `task outdated:machine` on Windows, for tools installed from winget and from other sources (Versions).
+- The first release, 0.1.0: the pull request that changes `VERSION` and `CHANGELOG.md`, the tag and the GitHub Release created after the publish, the number added to images already in the registry without a new build, the ruleset that refuses moving or deleting a tag, and going back to a release (ADR-0023).
 
 ## Conventions to fix
 
@@ -75,6 +76,8 @@ Each is recorded in `CODING_STANDARDS.md` when the skeleton settles it.
 - The tools behind Enforcement, backend and frontend, and the Go linter and formatter.
 - The rate-limit plugin of Caddy and the numbers of the limit.
 - The hosted monitor that calls `/up` and receives the signal of the backups.
+- How the Go build and the web build read `VERSION`.
+- The headings of a section of `CHANGELOG.md`.
 
 ## Out of scope
 

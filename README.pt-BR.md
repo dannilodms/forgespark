@@ -205,6 +205,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0020 - PostgreSQL com backup pelo pgBackRest, e arquivos de produção no Backblaze B2](docs/adr/0020-postgresql-backed-up-by-pgbackrest-and-production-files-in-backblaze-b2.md): backups contínuos e cifrados em outro provedor, com um teste mensal de restauração, e os arquivos de produção em um bucket com versionamento; o Garage continua em desenvolvimento e na homologação
 - [0021 - Um repositório público sob a AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): público no plano gratuito do GitHub, com as regras que isso impõe aos commits e à pipeline
 - [0022 - Um registro com ciclo de vida é uma máquina de estados no domínio](docs/adr/0022-a-record-with-a-lifecycle-is-a-state-machine-in-the-domain.md): um conjunto fixo de status e uma tabela de transições por agregado, em Go puro; as ações permitidas saem da mesma tabela, e só o nome de um status é conteúdo de configuração
+- [0023 - Uma release dá nome a um marco que já está em produção](docs/adr/0023-a-release-names-a-milestone-already-in-production.md): uma versão para o sistema inteiro em um arquivo `VERSION`; uma release é um pull request que muda esse arquivo e o `CHANGELOG.md`, e a pipeline cria a tag depois da publicação
 
 ## Tecnologias
 
@@ -321,7 +322,7 @@ Os outros comandos estão _A definir_ e serão escritos com o primeiro código.
 - **Caddy e PostgreSQL.** As duas imagens são construídas neste repositório: a do Caddy com um plugin de limite de requisições, a do PostgreSQL com o pgBackRest.
 - **Código gerado.** A pipeline verifica se ele está atualizado: o código Go que o sqlc gera a partir dos arquivos SQL e o cliente que o orval gera a partir da especificação OpenAPI.
 - **Versões.** O build instala a partir do `go.sum` e do `pnpm-lock.yaml` e falha quando eles mudariam.
-- **Imagens.** O GitHub Actions as constrói, marca cada uma com o hash do commit e envia para o registro de containers do GitHub. A produção só roda imagem construída a partir da `main`.
+- **Imagens.** O GitHub Actions as constrói, marca cada uma com o hash do commit e envia para o registro de containers do GitHub. A produção só roda imagem construída a partir da `main`. As imagens de uma release levam também o número dela.
 
 Os comandos estão _A definir_ e serão escritos com o primeiro código.
 
@@ -331,7 +332,9 @@ Toda mudança chega à `main` por um pull request, e um merge na `main` é publi
 
 Para ver uma branch antes do merge, dê ao pull request dela o rótulo `staging`. Um servidor é criado com a branch, um banco novo e os dados do seed. Ele é destruído quando o rótulo sai ou o pull request fecha, e nunca vive mais de 24 horas.
 
-Voltar a uma versão anterior é um workflow manual que publica um commit anterior da `main`.
+Voltar a uma versão anterior é um workflow manual que publica um commit anterior da `main`, indicado pelo hash ou por uma release.
+
+Uma release dá um número e notas a um marco que já está em produção. Ela é um pull request que muda o `VERSION` e o `CHANGELOG.md`. Depois que ele é publicado, a pipeline cria a tag, a release no GitHub e a marca numerada nas imagens (veja o [ADR-0023](docs/adr/0023-a-release-names-a-milestone-already-in-production.md)). A primeira release, a 0.1.0, ainda está por vir.
 
 Um deploy reinicia a única instância da API. A API termina as requisições em andamento antes de sair (veja Shutdown em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), então o arquivo do Compose dá a ela um `stop_grace_period` de 30 segundos, e o Caddy segura as requisições novas por até 30 segundos (`lb_try_duration`) até a nova instância aceitar conexões.
 
@@ -380,7 +383,7 @@ O restante está _A definir._
 - [`docs/design/`](docs/design/): análise das referências visuais que embasam o design system.
 - [`docs/agents/`](docs/agents/): configuração usada pelos agentes de IA neste repositório.
 
-`docs/adr/` e `GLOSSARY.md` são criados conforme o domínio e a arquitetura forem definidos.
+`docs/adr/` e `GLOSSARY.md` são criados conforme o domínio e a arquitetura forem definidos. O `CHANGELOG.md`, com o que mudou em cada release, é criado com a release 0.1.0.
 
 ## Licença
 
