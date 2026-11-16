@@ -13,7 +13,7 @@ The backend reaches PostgreSQL through pgx. SQL is written by hand in files, and
 - **Three database roles.** The migration role owns the tables. The API role reads and writes rows and cannot change the schema. On the audit log table (ADR-0012) it can only insert and select, so the database itself keeps that table append-only. The monitoring role reads the statistics of the server and no table, and only the telemetry collector uses it (ADR-0012).
 - **One database, one schema.** Foreign keys cross domain areas. The areas are one bounded context (ADR-0007), and the database guards the integrity between them.
 - **PostgreSQL is the only data service.** The API runs as one instance, so the pool inside it (pgxpool) is enough, and nothing needs a cache yet. A connection pooler and a cache service each start with a new ADR.
-- **PostgreSQL 18, from the official Debian image.** `pg_stat_statements` is the only extension from the start. Another one arrives with the first feature that needs it, and one that the official image does not ship (pgvector, pg_cron, pgaudit) starts with a new ADR, because it changes the image.
+- **PostgreSQL 18, from the official Debian image.** `pg_stat_statements` is the only extension from the start. Another one arrives with the first feature that needs it, and one that the official image does not ship (pgvector, pg_cron, pgaudit) starts with a new ADR, because it changes the image. The image is built in this repository, to add pgBackRest for the backups (ADR-0020).
 - **Adapter tests use the development container.** Each test gets a temporary database cloned from a template that the same migrations built (pgtestdb). The development database is never touched.
 
 ## Considered Options
@@ -34,7 +34,7 @@ The backend reaches PostgreSQL through pgx. SQL is written by hand in files, and
 
 ## Consequences
 
-- Returning to the previous version of the API after a migration that drops or rewrites data means restoring the dump taken before it. How many dumps are kept, and where, is decided with the backup routine.
+- Returning to the previous version of the API after a migration that drops or rewrites data means restoring the dump taken before it. The last three dumps are kept on the server (ADR-0020).
 - sqlc builds no dynamic SQL. A list with many sort options multiplies its queries, and an `IS NULL OR` filter can get a worse plan than a tailored query. Both are accepted at this size.
 - sqlc releases slowly: v1.31.1, from April 2026, was the latest when this was decided.
 - pgx is 5.13.0 or later. Version 5.12.0 fixed two high-severity security issues.

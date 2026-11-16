@@ -6,7 +6,7 @@ Status: needs-triage
 
 The ADRs name many joints between tools that were read in documentation and never run. The walking skeleton is the first backend code: one thin slice that crosses every one of them, before any feature, so a joint that does not hold changes a decision and not a delivery.
 
-It is written after the deploy tools are decided, because it includes the Compose files and the pipeline. This spec is a first list. The issues are written then.
+It includes the Compose files and the pipeline, which ADR-0019, ADR-0020 and ADR-0021 now decide. This spec is a first list. The issues are still to be written.
 
 ## The slice
 
@@ -26,7 +26,10 @@ Each one names where it was recorded as not tried.
 - pgtestdb with the version of goose in use (ADR-0015).
 - The migration role creating `pg_stat_statements` without being a superuser (ADR-0015).
 - The AWS SDK for Go v2 against Garage: path-style addresses, checksum settings, and a URL signed for the public host name (ADR-0017).
-- Login with a login code read from Mailpit, and through the local provider (ADR-0011).
+- The AWS SDK for Go v2 against Backblaze B2: the default checksum and the setting that turns it off, a signed URL for each part of an upload in parts, the bucket's cross-origin rule, and a lifecycle rule that removes old versions after 30 days (ADR-0020). If one fails, the same tests run against Scaleway or OVHcloud.
+- Login with a login code read from Mailpit, and through the local provider with Dex (ADR-0011).
+- The LLM stand-in: a fixed answer, a streamed answer and the list of models, through the adapter of ADR-0004 (ADR-0019).
+- The seed creating its data through use cases, twice on an empty database with the same result (ADR-0019).
 - A call to the LLM provider that spends no tokens, for the health report (ADR-0012).
 
 ### Frontend
@@ -43,6 +46,21 @@ Each one names where it was recorded as not tried.
 - The Caddy image built with a rate-limit plugin, and its 429 in the error format of the API (Delivery).
 - The items ADR-0012 lists as read and not tried: the folder from which Grafana loads alert rules, the retention of Tempo, the mounts of the collector, a GitHub login that accepts one account, the metrics endpoint of Garage, and the removal of the IP address and the query string from spans.
 
+### Environments and pipeline
+
+- Three Compose files extending one base, with the tag of every image in the base only (Environments in `CODING_STANDARDS.md`).
+- A server created from `deploy/cloud-init.yaml` by the provider's command-line tool, and whether the plan chosen can be ordered (ADR-0019).
+- The staging lifecycle: the label creates the server, a push publishes again with a fresh database and the seed, removing the label destroys it, and the sweep destroys an old one (ADR-0019).
+- The reserved IP address moving from one staging server to the next, and its price (ADR-0019).
+- Caddy's certificate data saved to a private bucket and restored on the next staging server (ADR-0019).
+- Mailpit behind a password on a host name of its own, and a login code read there (ADR-0019).
+- The publish: the variables file written from the secrets of a GitHub Environment, and the stop when a name in `.env.example` has no value (ADR-0019).
+- The PostgreSQL image with pgBackRest: archiving to Backblaze B2, a backup started by a timer, and the signal to the monitor (ADR-0020).
+- The restore test on a server created for it, and what it checks (ADR-0020).
+- `/up` through Caddy, answering with the status code of readiness and no body (Health in `CODING_STANDARDS.md`).
+- A pull request from a fork: its workflow waits for approval, gets no secret and cannot be published to staging (ADR-0021).
+- actionlint and zizmor on the workflows, and every action pinned to a commit hash (Pipeline in `CODING_STANDARDS.md`).
+
 ## Conventions to fix
 
 Each is recorded in `CODING_STANDARDS.md` when the skeleton settles it.
@@ -52,6 +70,8 @@ Each is recorded in `CODING_STANDARDS.md` when the skeleton settles it.
 - The assertion library of the tests.
 - Whether a record is deleted or archived.
 - The tools behind Enforcement, backend and frontend, and the Go linter and formatter.
+- The rate-limit plugin of Caddy and the numbers of the limit.
+- The hosted monitor that calls `/up` and receives the signal of the backups.
 
 ## Out of scope
 

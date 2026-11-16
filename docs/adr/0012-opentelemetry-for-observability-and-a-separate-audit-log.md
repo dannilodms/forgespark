@@ -17,6 +17,8 @@ The API and the worker are instrumented with OpenTelemetry for traces and metric
 - **Grafana faces the internet, for the maintainer alone.** It has a host name of its own in Caddy and a login through GitHub that accepts one account. The image starts with anonymous access as administrator and with a default password; both are turned off. The other ports of `otel-lgtm` have no login and are never published.
 - **Dashboards and alerts are files.** Dashboards, alert rules and the contact point live in `deploy/`, and Grafana loads them when it starts. Grafana evaluates the rules over the telemetry it already has and warns by e-mail. The first rules are five: the API or the worker stopped sending metrics, the rate of 5xx is high, the disk is over 80% full, PostgreSQL is down or near its connection limit, and an optional part is down.
 - **Thirty days.** Logs, traces and metrics are kept for 30 days, and the metrics also have a size limit. The image keeps logs forever and has no limit on disk by default.
+- **Not in production yet.** The two telemetry containers run in development only, in a Compose profile that is off by default. Production and staging do not declare them until someone other than the maintainer uses the system (ADR-0019). The API and the worker are instrumented all the same: with no address to send to, they export nothing. Until then production has the output of its containers, kept in Docker's files, and the monitor below.
+- **A monitor outside the server.** A hosted monitor calls `/up`, a path that Caddy forwards to the readiness of the API and that answers with the status code alone. Each backup signals the same monitor when it ends (ADR-0020). The monitor warns the maintainer by e-mail when the system does not answer or when a backup does not report.
 - **Health.** Liveness touches no part. Readiness fails when PostgreSQL is down or when the database schema is not the version the binary expects, and feeds the Compose health check. The file storage, the LLM provider, the telemetry collector, the job worker and the e-mail server are optional parts: one of them down leaves the system degraded and still serving. Their state is shown by the health report, an authenticated API operation built once users are modelled. The state of the telemetry collector is the last export of metrics, which the API records. The rules are in Health in [`CODING_STANDARDS.md`](../../CODING_STANDARDS.md).
 
 The **audit log** is a different thing and lives in the database. It is the permanent, append-only record of sensitive operations: reading the value of a credential, logging in, and creating or revoking an access token. It is not telemetry, which may be lost, and it is not the history of work that screens show.
@@ -40,7 +42,8 @@ The **audit log** is a different thing and lives in the database. It is the perm
 - **Grafana behind the session of the app.** One login, but it needs the modelling of users and new code.
 - **Dashboards and alerts made on Grafana's screens.** Faster to try, but they live only in the container's volume and have no history.
 - **Alerts by Telegram or a webhook.** No mail server to configure. The maintainer chose e-mail.
-- **A monitor outside the server.** The only thing that can warn when the whole server is down. Left for when someone other than the maintainer uses the system.
+- **No monitor outside the server.** The first version of this decision left it for later, counting on the alerts of Grafana. With no telemetry in production, nothing would warn of anything.
+- **The monitor reading the home page, or a signal sent by the worker.** The first shows only that Caddy answers. The second needs no public path, at the cost of one more job and one more outbound call.
 - **Probing the collector, or leaving it out of the health report.** A probe says the collector is up, not that telemetry arrives.
 - **The API role for the collector in PostgreSQL.** No new role, but the collector would hold a credential that reads and writes business data.
 - **Auditing every write.** A complete trail, but it overlaps the history of work and grows fast.
@@ -52,7 +55,10 @@ The **audit log** is a different thing and lives in the database. It is the perm
 
 - Grafana describes `grafana/otel-lgtm` as intended for development, demo and testing, and points production use to its cloud service. It is accepted here because losing telemetry loses no business data, and because the collector stands between the system and it: moving to another backend or a hosted service changes the collector's configuration and no code.
 - The deployment has two more containers to run and keep updated. `otel-lgtm` asks for 2 GB of memory and releases almost every week (0.41.0 when this was decided).
-- Nobody is warned when the whole server is down, or when `otel-lgtm` is, because the alerts come from inside it.
+- Everything this decision says about the collector, Grafana, the alerts and the retention describes the deployment once it has the telemetry containers. Until then a failure in production is investigated in the output of the containers, on the server, and there are no traces or metrics of it.
+- The readiness of the API is reachable from the internet through `/up`. It tells whether the system is ready and nothing else.
+- The hosted monitor is one more account. Which one is chosen with the deploy.
+- Once Grafana runs in production, nobody is warned when `otel-lgtm` is down, because its alerts come from inside it. The monitor outside the server covers the server as a whole.
 - The alerts reach nobody until Grafana has an SMTP server, taken from the deploy configuration. Whether the SMTP service of Resend serves it was not tried.
 - The collector mounts, read-only, the server's file system and Docker's log folder.
 - With the collector down, the logs wait in Docker's files, which rotate by size. A long outage loses the oldest lines.

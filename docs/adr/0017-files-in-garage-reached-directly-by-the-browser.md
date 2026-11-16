@@ -8,11 +8,12 @@ Files live in S3-compatible storage. The server is Garage, which replaces MinIO,
 
 - **MinIO is no longer an option.** Its community repository was archived in April 2026 and gets no fixes. The official images left Docker Hub, and the last one published has a known privilege-escalation flaw. Where an earlier document names MinIO, it means the file storage.
 - **Only the S3 API.** The backend uses nothing that one server alone offers, such as bucket notifications. Changing the server is a change of configuration.
+- **Garage in development and staging, a provider in production.** In production the files are in Backblaze B2 (ADR-0020). What this decision says about signed URLs, confirmation, parts and keys holds for both.
 - **The bytes never pass through the API.** A video or an audio file can have gigabytes. Through the API, an upload would hold a request for minutes, and it would hit the body size limit and the drain deadline of the shutdown. The use case checks the permission and returns a signed URL.
 - **The browser confirms an upload.** The API then checks the object in the storage, its size and its type, and only then is the file available. A periodic job (ADR-0016) removes uploads that were never confirmed.
 - **A large file goes in parts**, each sent with its own signed URL.
 - **One private bucket, random keys.** An object key never contains the file's name or an identifier.
-- **The storage has an address of its own.** Caddy forwards a host name to Garage, and the bucket accepts cross-origin requests from the app's origin only.
+- **The storage has an address of its own.** In development and staging Caddy forwards a host name to Garage. In production the browser reaches the provider's own host name. Either way the bucket accepts cross-origin requests from the app's origin only.
 
 ## Considered Options
 
@@ -27,7 +28,7 @@ Files live in S3-compatible storage. The server is Garage, which replaces MinIO,
 ## Consequences
 
 - Garage has no object versioning, no bucket notifications and no official web panel, and a small team maintains it (v2.5.0 when this was decided). Its licence is AGPLv3. It runs as a separate service, so the licence does not reach this repository's code.
-- Without versioning, an object deleted or overwritten in the storage is gone. The backup routine has to cover the files, and it is not decided yet.
+- Without versioning, an object deleted or overwritten in Garage is gone. That is accepted in development and staging, which hold no real file. Production keeps its files in a provider with versioning (ADR-0020).
 - The AWS SDK for Go v2 was not tried against Garage. S3-compatible servers sometimes need adjustments in the client, such as path-style addresses and checksum settings.
 - The storage is reachable from the internet. What protects a file is the signature and the expiry of each URL: whoever holds a signed URL can use it until it expires, so the expiry is minutes.
 - A signed upload URL cannot limit the size of what is sent. The API checks the size when the upload is confirmed and removes an object over the limit.

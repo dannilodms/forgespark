@@ -21,8 +21,8 @@ The value of a credential (a password, an API key, a private key, a certificate)
 
 ## Consequences
 
-- Losing the key loses every credential value. The key has to be kept apart from the database dumps, and the backup routine, not decided yet, has to say where.
-- The key is one more secret in the deploy configuration. How a secret reaches a container is decided with the deploy.
+- Losing the key loses every credential value. The key is never in the bucket that holds the database backups (ADR-0020). GitHub does not give a secret back, so the key is also kept in the maintainer's password manager.
+- The key is one more secret in the deploy configuration. It is a secret of the GitHub Environment, written to the variables file on the server by the publish (ADR-0019).
 - The API process holds the key in memory. Whoever controls the API reads the values.
 - A value cannot be searched or compared in SQL.
 - The upload of a credential file is a request body, under the body size limit of ADR-0009.

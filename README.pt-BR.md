@@ -45,7 +45,7 @@ flowchart LR
     user([Usuário]) --> proxy[Caddy<br/>HTTPS + arquivos do SPA React]
     agents([Agentes de código]) -->|MCP| proxy
     proxy -->|REST e MCP| api[Backend / API<br/>Go]
-    proxy -->|URLs assinadas| storage[(Garage<br/>armazenamento S3)]
+    user -->|URLs assinadas| storage[(Armazenamento S3<br/>Backblaze B2 em produção)]
     api --> db[(PostgreSQL<br/>dados e fila de trabalhos)]
     api --> storage
     api --> llm([Provedores de LLM])
@@ -63,7 +63,11 @@ flowchart LR
 
 O worker executa os trabalhos em segundo plano que a API grava no PostgreSQL: envio de e-mail, processamento de arquivos e chamadas a provedores de LLM que ninguém espera na tela. O navegador envia e baixa arquivos direto do armazenamento, com URLs assinadas emitidas pela API.
 
-A telemetria passa pelo coletor: traces e métricas da API, do worker e do Caddy, a saída de todos os containers e as métricas do servidor, do PostgreSQL e do armazenamento. Ele repassa tudo ao Grafana otel-lgtm, que guarda por 30 dias e envia os alertas por e-mail. O Grafana tem um endereço próprio atrás do Caddy, com login pelo GitHub.
+Em produção os arquivos ficam no Backblaze B2. Em desenvolvimento e na homologação ficam no Garage, atrás de um endereço do Caddy.
+
+A telemetria passa pelo coletor: traces e métricas da API, do worker e do Caddy, a saída de todos os containers e as métricas do servidor, do PostgreSQL e do armazenamento. Ele repassa tudo ao Grafana otel-lgtm, que guarda por 30 dias e envia os alertas por e-mail. O Grafana tem um endereço próprio atrás do Caddy, com login pelo GitHub. Por enquanto os dois containers de telemetria rodam só em desenvolvimento: a produção passa a tê-los quando alguém além do mantenedor usar o sistema, e até lá um monitor hospedado fora do servidor a vigia.
+
+O sistema roda em três ambientes: desenvolvimento na máquina do mantenedor, homologação (staging) em um servidor criado para um pull request e destruído depois, e produção em um servidor sempre ligado.
 
 Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm apenas um arquivo `.gitkeep`, e os arquivos de configuração da raiz entram junto com o primeiro código:
 
@@ -75,13 +79,14 @@ Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm
 │   └── prototype/    # protótipo clicável com dados falsos, descartável
 ├── packages/
 │   └── ui/           # design system: variáveis de estilo e componentes
-├── deploy/           # Caddyfile e arquivos de implantação
+├── deploy/           # Caddyfile, arquivos Compose dos servidores, cloud-init
+├── .github/          # workflows da pipeline
 ├── docs/
 │   ├── adr/          # decisões de arquitetura
 │   ├── agents/       # configuração para agentes de IA
 │   └── design/       # análise das referências visuais
 ├── .scratch/         # issues locais
-├── compose.yaml
+├── compose.yaml      # desenvolvimento
 ├── Taskfile.yml
 └── pnpm-workspace.yaml
 ```
@@ -116,6 +121,9 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0016 - Trabalhos em segundo plano no PostgreSQL, executados por um comando worker](docs/adr/0016-background-jobs-in-postgresql-run-by-a-worker-command.md): River, o trabalho gravado na transação do seu caso de uso, um comando `worker` do mesmo binário, poucas tentativas e depois uma falha visível
 - [0017 - Arquivos no Garage, acessados direto pelo navegador](docs/adr/0017-files-in-garage-reached-directly-by-the-browser.md): Garage no lugar do MinIO, apenas a API S3 pelo AWS SDK para Go v2, uploads e downloads com URLs assinadas de curta duração
 - [0018 - Valores de credenciais cifrados pela API](docs/adr/0018-credential-values-encrypted-by-the-api.md): AES-256-GCM no binário Go com uma chave vinda da configuração do deploy, nunca no banco; uma credencial em arquivo é guardada do mesmo modo
+- [0019 - Três ambientes, com a homologação em um servidor criado sob demanda](docs/adr/0019-three-environments-with-staging-on-a-server-created-on-demand.md): desenvolvimento na máquina, um servidor de homologação criado para um pull request rotulado e populado pelo seed a cada publicação, produção em um servidor da Hetzner; o GitHub Actions publica por SSH, com os segredos nos Environments do GitHub
+- [0020 - PostgreSQL com backup pelo pgBackRest, e arquivos de produção no Backblaze B2](docs/adr/0020-postgresql-backed-up-by-pgbackrest-and-production-files-in-backblaze-b2.md): backups contínuos e cifrados em outro provedor, com um teste mensal de restauração, e os arquivos de produção em um bucket com versionamento; o Garage continua em desenvolvimento e na homologação
+- [0021 - Um repositório público sob a AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): público no plano gratuito do GitHub, com as regras que isso impõe aos commits e à pipeline
 
 ## Tecnologias
 
@@ -155,7 +163,13 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [shadcn/ui](https://ui.shadcn.com/) | Base do design system: o código dos componentes é copiado para `packages/ui`, sobre os primitivos do [Base UI](https://base-ui.com/) |
 | [Tailwind CSS](https://tailwindcss.com/) | Estilos e variáveis de estilo do design system (temas claro e escuro) |
 | [PostgreSQL](https://www.postgresql.org/) | Banco de dados relacional (versão 18) e único serviço de dados |
-| [Garage](https://garagehq.deuxfleurs.fr/) | Armazenamento de objetos compatível com S3 (documentos e arquivos) |
+| [Garage](https://garagehq.deuxfleurs.fr/) | Armazenamento de objetos compatível com S3 (documentos e arquivos) em desenvolvimento e na homologação |
+| [Backblaze B2](https://www.backblaze.com/cloud-storage) | Armazenamento de objetos compatível com S3 em produção: os arquivos e os backups do banco |
+| [pgBackRest](https://pgbackrest.org/) | Backup contínuo e cifrado do PostgreSQL, com restauração para um ponto no tempo |
+| [Dex](https://dexidp.io/) | Container de identidade por trás do provedor de login local, em desenvolvimento e nos testes |
+| [Hetzner Cloud](https://www.hetzner.com/cloud) | O servidor de produção e o servidor de homologação criado sob demanda |
+| [GitHub Actions](https://docs.github.com/actions) | A pipeline: verificações em cada pull request, publicação e testes agendados |
+| [GitHub CLI](https://cli.github.com/) | Como os agentes acessam o GitHub: pull requests, execuções e segredos |
 | [Caddy](https://caddyserver.com/) | HTTPS, arquivos estáticos do frontend, proxy reverso para a API, cabeçalhos de segurança e o limite do código de login |
 | [Docker](https://www.docker.com/) | Empacotamento e execução dos serviços em containers (Docker Compose) |
 | [Task](https://taskfile.dev/) | Executor de tarefas do repositório (desenvolvimento, build, testes, geração de código) |
@@ -173,6 +187,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | Go | _A definir_ |
 | Vite+ (gerencia Node.js e pnpm) | _A definir_ |
 | Task | _A definir_ |
+| GitHub CLI | _A definir_ |
 
 ### Configuração
 
@@ -194,15 +209,19 @@ _A definir._
 
 ### Deploy
 
+Toda mudança chega à `main` por um pull request, e um merge na `main` é publicado em produção assim que a pipeline passa. O GitHub Actions constrói as imagens, envia para o registro de containers do GitHub e entra no servidor por SSH para baixá-las e reiniciar os serviços do Compose. Os segredos de cada ambiente ficam nos Environments do GitHub, e a publicação os grava em um arquivo de variáveis no servidor (veja o [ADR-0019](docs/adr/0019-three-environments-with-staging-on-a-server-created-on-demand.md)).
+
+Para ver uma branch antes do merge, dê ao pull request dela o rótulo `staging`. Um servidor é criado com a branch, um banco novo e os dados do seed. Ele é destruído quando o rótulo sai ou o pull request fecha, e nunca vive mais de 24 horas.
+
+Voltar a uma versão anterior é um workflow manual que publica um commit anterior da `main`.
+
 Um deploy reinicia a única instância da API. A API termina as requisições em andamento antes de sair (veja Shutdown em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), então o arquivo do Compose dá a ela um `stop_grace_period` de 30 segundos, e o Caddy segura as requisições novas por até 30 segundos (`lb_try_duration`) até a nova instância aceitar conexões.
 
 Antes de a API subir, um serviço de execução única do Compose aplica as migrations pendentes do banco, e a API só sobe se ele terminar bem. Quando há migration pendente, o deploy gera um `pg_dump` antes, porque as migrations não têm caminho de volta (veja o [ADR-0015](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md)).
 
 O worker é um segundo serviço da mesma imagem, iniciado com o comando `worker`. Em um deploy ele para de pegar trabalhos e dá tempo para os que estão rodando terminarem. Um trabalho interrompido roda de novo depois (veja o [ADR-0016](docs/adr/0016-background-jobs-in-postgresql-run-by-a-worker-command.md)).
 
-O restante está _A definir._
-
-<!-- Onde a aplicação roda, como publicar uma nova versão e como reverter para a anterior. -->
+Os comandos estão _A definir_ e serão escritos com o primeiro código.
 
 ## Backup e manutenção
 
@@ -210,28 +229,36 @@ O restante está _A definir._
 
 | O quê | Como | Frequência | Retenção |
 | --- | --- | --- | --- |
-| Banco de dados (PostgreSQL) | _A definir_ | _A definir_ | _A definir_ |
-| Arquivos (Garage) | _A definir_ | _A definir_ | _A definir_ |
+| Banco de dados (PostgreSQL) | pgBackRest, cifrado, em um bucket no Backblaze B2 | WAL continuamente, um backup diferencial por dia e um completo por semana | 30 dias, com restauração para qualquer momento |
+| Banco de dados, antes de uma migration | `pg_dump` gerado pela publicação, guardado no servidor | Cada publicação com migration pendente | Os três últimos |
+| Arquivos (Backblaze B2) | Versionamento de objetos no bucket de produção | A cada mudança | Uma versão antiga por 30 dias |
 
-<!-- Informe também onde os backups ficam armazenados, de preferência fora do servidor da aplicação. -->
+Os backups ficam em um provedor diferente do servidor. A chave que cifra os valores das credenciais e a senha dos backups nunca são guardadas junto com eles: são segredos do Environment do GitHub, com uma cópia no gerenciador de senhas do mantenedor. Um monitor fora do servidor avisa quando um backup não dá sinal (veja o [ADR-0020](docs/adr/0020-postgresql-backed-up-by-pgbackrest-and-production-files-in-backblaze-b2.md)).
 
 ### Restauração
 
-_A definir._
+Todo mês um workflow agendado cria um servidor, restaura nele o último backup, confere o resultado e destrói o servidor.
 
-<!-- Passo a passo para restaurar o banco e os arquivos a partir de um backup. Teste a restauração periodicamente: backup que nunca foi restaurado não é garantia. -->
+O passo a passo para restaurar à mão está _A definir_ e será escrito com a rotina de backup.
+
+<!-- Passo a passo para restaurar o banco e os arquivos a partir de um backup. -->
 
 ### Manutenção
 
-_A definir._
+- **Dependências.** `task outdated` lista o que tem versão mais nova. Cada atualização é um pull request próprio (veja Versions em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
+- **Vulnerabilidades.** Um workflow semanal roda govulncheck, `pnpm audit` e Trivy nas imagens.
+- **Logs.** Em produção, a saída dos containers é lida no servidor.
 
-<!-- Rotinas recorrentes: migrações de banco, atualização de dependências e imagens Docker, rotação de credenciais, monitoramento e logs. -->
+O restante está _A definir._
+
+<!-- Rotinas recorrentes ainda por descrever: rotação de credenciais, atualização dos servidores. -->
 
 ## Documentação
 
 - `docs/adr/`: decisões de arquitetura (ADRs).
 - `GLOSSARY.md`: glossário dos termos do domínio.
 - [`CODING_STANDARDS.md`](CODING_STANDARDS.md): como o código é escrito, para os agentes e para a revisão.
+- [`docs/providers.md`](docs/providers.md): os serviços externos de que o sistema depende, com o motivo, o custo e o que está configurado em cada um.
 - [`docs/design/`](docs/design/): análise das referências visuais que embasam o design system.
 - [`docs/agents/`](docs/agents/): configuração usada pelos agentes de IA neste repositório.
 
@@ -239,4 +266,4 @@ _A definir._
 
 ## Licença
 
-_A definir._
+[GNU Affero General Public License, versão 3](LICENSE). Veja o [ADR-0021](docs/adr/0021-a-public-repository-under-agplv3.md).

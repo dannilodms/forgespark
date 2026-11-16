@@ -45,7 +45,7 @@ flowchart LR
     user([User]) --> proxy[Caddy<br/>HTTPS + React SPA files]
     agents([Coding agents]) -->|MCP| proxy
     proxy -->|REST and MCP| api[Backend / API<br/>Go]
-    proxy -->|signed URLs| storage[(Garage<br/>S3 storage)]
+    user -->|signed URLs| storage[(S3 storage<br/>Backblaze B2 in production)]
     api --> db[(PostgreSQL<br/>data and job queue)]
     api --> storage
     api --> llm([LLM providers])
@@ -63,7 +63,11 @@ flowchart LR
 
 The worker runs the background jobs that the API saves in PostgreSQL: sending e-mail, processing files, calls to LLM providers that nobody waits for on a screen. The browser sends and fetches files straight to and from the storage, with signed URLs issued by the API.
 
-Telemetry goes through the collector: traces and metrics from the API, the worker and Caddy, the output of every container, and the metrics of the server, PostgreSQL and the storage. It forwards everything to Grafana otel-lgtm, which keeps it for 30 days and sends the alerts by e-mail. Grafana has a host name of its own behind Caddy, with a login through GitHub.
+In production the files are in Backblaze B2. In development and staging they are in Garage, behind a host name of Caddy.
+
+Telemetry goes through the collector: traces and metrics from the API, the worker and Caddy, the output of every container, and the metrics of the server, PostgreSQL and the storage. It forwards everything to Grafana otel-lgtm, which keeps it for 30 days and sends the alerts by e-mail. Grafana has a host name of its own behind Caddy, with a login through GitHub. The two telemetry containers run in development only for now: production gets them when someone other than the maintainer uses the system, and until then a hosted monitor outside the server watches it.
+
+The system runs in three environments: development on the maintainer's machine, staging on a server created for one pull request and destroyed afterwards, and production on one server that is always on.
 
 Frontend and backend live in this single repository. Folders not yet in use hold only a `.gitkeep` placeholder, and the root configuration files are added when the first code arrives:
 
@@ -75,13 +79,14 @@ Frontend and backend live in this single repository. Folders not yet in use hold
 │   └── prototype/    # clickable prototype with fake data, disposable
 ├── packages/
 │   └── ui/           # design system: style variables and components
-├── deploy/           # Caddyfile and deployment files
+├── deploy/           # Caddyfile, Compose files of the servers, cloud-init
+├── .github/          # pipeline workflows
 ├── docs/
 │   ├── adr/          # architecture decisions
 │   ├── agents/       # configuration for AI agents
 │   └── design/       # analysis of the visual references
 ├── .scratch/         # local issues
-├── compose.yaml
+├── compose.yaml      # development
 ├── Taskfile.yml
 └── pnpm-workspace.yaml
 ```
@@ -116,6 +121,9 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0016 - Background jobs in PostgreSQL, run by a worker command](docs/adr/0016-background-jobs-in-postgresql-run-by-a-worker-command.md): River, a job saved in the transaction of its use case, a `worker` command of the same binary, few attempts and then a visible failure
 - [0017 - Files in Garage, reached directly by the browser](docs/adr/0017-files-in-garage-reached-directly-by-the-browser.md): Garage in place of MinIO, only the S3 API through the AWS SDK for Go v2, uploads and downloads with short-lived signed URLs
 - [0018 - Credential values encrypted by the API](docs/adr/0018-credential-values-encrypted-by-the-api.md): AES-256-GCM in the Go binary with a key from the deploy configuration, never in the database; a credential file is stored the same way
+- [0019 - Three environments, with staging on a server created on demand](docs/adr/0019-three-environments-with-staging-on-a-server-created-on-demand.md): development on the machine, a staging server created for a labelled pull request and seeded on every publish, production on one Hetzner server; GitHub Actions publishes over SSH, with secrets in GitHub Environments
+- [0020 - PostgreSQL backed up by pgBackRest, and production files in Backblaze B2](docs/adr/0020-postgresql-backed-up-by-pgbackrest-and-production-files-in-backblaze-b2.md): continuous encrypted backups at another provider with a monthly restore test, and production files in a versioned bucket; Garage stays in development and staging
+- [0021 - A public repository under AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): public on GitHub's free plan, with the rules that being public sets for commits and for the pipeline
 
 ## Tech stack
 
@@ -155,7 +163,13 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [shadcn/ui](https://ui.shadcn.com/) | Base of the design system: component code copied into `packages/ui`, on [Base UI](https://base-ui.com/) primitives |
 | [Tailwind CSS](https://tailwindcss.com/) | Styling and the design system's style variables (light and dark themes) |
 | [PostgreSQL](https://www.postgresql.org/) | Relational database (version 18) and the only data service |
-| [Garage](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage (documents and files) |
+| [Garage](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage (documents and files) in development and staging |
+| [Backblaze B2](https://www.backblaze.com/cloud-storage) | S3-compatible object storage in production: the files and the database backups |
+| [pgBackRest](https://pgbackrest.org/) | Continuous, encrypted backup of PostgreSQL, restorable to a point in time |
+| [Dex](https://dexidp.io/) | Identity container behind the local login provider, in development and tests |
+| [Hetzner Cloud](https://www.hetzner.com/cloud) | The production server, and the staging server created on demand |
+| [GitHub Actions](https://docs.github.com/actions) | The pipeline: checks on every pull request, publishing, scheduled tests |
+| [GitHub CLI](https://cli.github.com/) | How agents reach GitHub: pull requests, runs, secrets |
 | [Caddy](https://caddyserver.com/) | HTTPS, static frontend files, reverse proxy to the API, security headers and the limit on the login code |
 | [Docker](https://www.docker.com/) | Packaging and running the services in containers (Docker Compose) |
 | [Task](https://taskfile.dev/) | Task runner for the repository (dev, build, test, code generation) |
@@ -173,6 +187,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | Go | _TBD_ |
 | Vite+ (manages Node.js and pnpm) | _TBD_ |
 | Task | _TBD_ |
+| GitHub CLI | _TBD_ |
 
 ### Configuration
 
@@ -194,15 +209,19 @@ _TBD._
 
 ### Deploy
 
+Every change reaches `main` through a pull request, and a merge into `main` is published to production once the pipeline passes. GitHub Actions builds the images, pushes them to the GitHub container registry and logs in to the server over SSH to pull them and restart the Compose services. The secrets of each environment are in GitHub Environments, and the publish writes them to a variables file on the server (see [ADR-0019](docs/adr/0019-three-environments-with-staging-on-a-server-created-on-demand.md)).
+
+To look at a branch before merging it, give its pull request the `staging` label. A server is created with the branch on it, a fresh database and the seed data. It is destroyed when the label is removed or the pull request closes, and never lives longer than 24 hours.
+
+Going back to an earlier version is a manual workflow that publishes an earlier commit of `main`.
+
 A deploy restarts the single API instance. The API finishes the requests in flight before it exits (see Shutdown in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), so the Compose file gives it a `stop_grace_period` of 30 seconds, and Caddy holds new requests for up to 30 seconds (`lb_try_duration`) until the new instance accepts connections.
 
 Before the API starts, a one-shot Compose service applies the pending database migrations, and the API starts only when it succeeds. When a migration is pending, the deploy takes a `pg_dump` first, because migrations have no way back (see [ADR-0015](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md)).
 
 The worker is a second service of the same image, started with the `worker` command. On a deploy it stops taking jobs and gives the running ones time to finish. A job that is cut runs again later (see [ADR-0016](docs/adr/0016-background-jobs-in-postgresql-run-by-a-worker-command.md)).
 
-The rest is _TBD._
-
-<!-- Where the application runs, how to ship a new version and how to roll back to the previous one. -->
+The commands are _TBD_, written with the first code.
 
 ## Backup and maintenance
 
@@ -210,28 +229,36 @@ The rest is _TBD._
 
 | What | How | Frequency | Retention |
 | --- | --- | --- | --- |
-| Database (PostgreSQL) | _TBD_ | _TBD_ | _TBD_ |
-| Files (Garage) | _TBD_ | _TBD_ | _TBD_ |
+| Database (PostgreSQL) | pgBackRest, encrypted, to a bucket at Backblaze B2 | Write-ahead log continuously, a differential backup every day, a full one every week | 30 days, restorable to any moment |
+| Database, before a migration | `pg_dump` taken by the publish, kept on the server | Each publish with a pending migration | The last three |
+| Files (Backblaze B2) | Object versioning on the production bucket | Every change | An old version for 30 days |
 
-<!-- Also state where backups are stored, preferably off the application server. -->
+The backups are at a provider other than the one of the server. The key that encrypts credential values and the passphrase of the backups are never stored with them: they are secrets of the GitHub Environment, with a copy in the maintainer's password manager. A monitor outside the server warns when a backup does not report (see [ADR-0020](docs/adr/0020-postgresql-backed-up-by-pgbackrest-and-production-files-in-backblaze-b2.md)).
 
 ### Restore
 
-_TBD._
+Every month a scheduled workflow creates a server, restores the latest backup there, checks it and destroys the server.
 
-<!-- Step by step to restore the database and files from a backup. Test restores periodically: a backup that has never been restored is not a guarantee. -->
+The steps to restore by hand are _TBD_, written with the backup routine.
+
+<!-- Step by step to restore the database and files from a backup. -->
 
 ### Maintenance
 
-_TBD._
+- **Dependencies.** `task outdated` lists what has a newer release. Each update is its own pull request (see Versions in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
+- **Vulnerabilities.** A weekly workflow runs govulncheck, `pnpm audit` and Trivy on the images.
+- **Logs.** In production, the output of the containers is read on the server.
 
-<!-- Recurring routines: database migrations, dependency and Docker image updates, credential rotation, monitoring and logs. -->
+The rest is _TBD._
+
+<!-- Recurring routines still to describe: credential rotation, updating the servers. -->
 
 ## Documentation
 
 - `docs/adr/`: architecture decisions (ADRs).
 - `GLOSSARY.md`: glossary of domain terms.
 - [`CODING_STANDARDS.md`](CODING_STANDARDS.md): how code is written, for agents and for review.
+- [`docs/providers.md`](docs/providers.md): the outside services the system depends on, with the reason, the cost and what is configured at each.
 - [`docs/design/`](docs/design/): analysis of the visual references behind the design system.
 - [`docs/agents/`](docs/agents/): configuration used by AI agents in this repository.
 
@@ -239,4 +266,4 @@ _TBD._
 
 ## License
 
-_TBD._
+[GNU Affero General Public License, version 3](LICENSE). See [ADR-0021](docs/adr/0021-a-public-repository-under-agplv3.md).
