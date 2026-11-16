@@ -1,0 +1,70 @@
+# Tools installed on the maintainer's machine that no other file of the
+# repository declares, with the version in use.
+#
+# Each version was read from the tool itself on the date in `checked`.
+# Versions the project pins have their own homes: see "Versions" in
+# CODING_STANDARDS.md. The minimum version of each prerequisite is in the
+# prerequisites table of README.md.
+
+checked: 2026-11-16
+platform: Windows 11 Home 10.0.26200, amd64
+
+tools:
+  - name: Git
+    command: git
+    version: 2.55.0.windows.5
+    source: winget Git.Git
+
+  - name: GitHub CLI
+    command: gh
+    version: 2.104.0
+    source: winget GitHub.cli
+
+  - name: Go
+    command: go
+    version: 1.27.4
+    source: winget GoLang.Go
+
+  - name: Task
+    command: task
+    version: 3.54.0
+    source: winget Task.Task
+
+  - name: Vite+
+    command: vp
+    version: 1.6.0
+    source: https://vite.plus/ps1
+
+  - name: Docker Desktop
+    version: 4.43.2
+    source: winget Docker.DockerDesktop
+
+  - name: Docker Engine
+    command: docker
+    version: 28.3.2
+    source: Docker Desktop
+
+  - name: Docker Compose
+    command: docker compose
+    version: 2.38.2-desktop.1
+    source: Docker Desktop
+
+  - name: NVM for Windows
+    command: nvm
+    version: 1.1.11
+    source: winget CoreyButler.NVMforWindows
+
+  - name: Node.js
+    command: node
+    version: 22.23.3
+    source: NVM for Windows
+
+  - name: Corepack
+    command: corepack
+    version: 0.36.0
+    source: npm, global package
+
+  - name: pnpm
+    command: pnpm
+    version: 11.22.0
+    source: Corepack
