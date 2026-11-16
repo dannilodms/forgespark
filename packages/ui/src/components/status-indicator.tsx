@@ -20,18 +20,24 @@ const signs = {
   error: CircleXIcon,
 }
 
+/*
+ * The sign always takes the status colour, which reaches 3:1 on every fill a
+ * row can have. The word takes it only in a badge, on the subtle background
+ * of its colour: on a hovered or a selected row a status colour is below
+ * 4.5:1, so a plain word is set in the text colour.
+ */
 const statusIndicatorVariants = cva(
   "inline-flex max-w-full min-w-0 shrink-0 items-center gap-1.5 align-middle text-sm font-medium [&>svg]:pointer-events-none [&>svg]:size-3.5 [&>svg]:shrink-0",
   {
     variants: {
       status: {
-        working: "text-status-working",
-        attention: "text-status-attention",
-        done: "text-status-done",
-        error: "text-status-error",
+        working: "[&>svg]:text-status-working",
+        attention: "[&>svg]:text-status-attention",
+        done: "[&>svg]:text-status-done",
+        error: "[&>svg]:text-status-error",
       },
       variant: {
-        plain: "",
+        plain: "text-foreground",
         badge: "h-5 gap-1 rounded-sm px-1.5 text-xs [&>svg]:size-3",
       },
     },
@@ -39,18 +45,22 @@ const statusIndicatorVariants = cva(
       {
         status: "working",
         variant: "badge",
-        className: "bg-status-working-subtle",
+        className: "bg-status-working-subtle text-status-working",
       },
       {
         status: "attention",
         variant: "badge",
-        className: "bg-status-attention-subtle",
+        className: "bg-status-attention-subtle text-status-attention",
       },
-      { status: "done", variant: "badge", className: "bg-status-done-subtle" },
+      {
+        status: "done",
+        variant: "badge",
+        className: "bg-status-done-subtle text-status-done",
+      },
       {
         status: "error",
         variant: "badge",
-        className: "bg-status-error-subtle",
+        className: "bg-status-error-subtle text-status-error",
       },
     ],
     defaultVariants: {
@@ -62,7 +72,8 @@ const statusIndicatorVariants = cva(
 /**
  * A status: its colour, its sign and the word for it. The sign is fixed for
  * each meaning and the word is the children, so a status never shows as
- * colour alone (rule 8 of DESIGN.md).
+ * colour alone (rule 8 of DESIGN.md). Plain, the sign carries the colour;
+ * as a badge, the sign and the word both do.
  */
 function StatusIndicator({
   status,

@@ -63,7 +63,7 @@ The names and roles below are the contract. The colour names are those of shadcn
 | `accent` / `accent-foreground` | The hover wash. This is shadcn/ui's name; it is not the accent colour of rule 2. |
 | `selected` (added) | The fill of a selected row or item, one step stronger than `accent`. |
 | `faint-foreground` (added) | Tertiary text: placeholder, disabled text, an index. |
-| `border` | The line between surfaces. |
+| `border` | The line between surfaces, and the edge of a floating surface. |
 | `input` | The border of a field. It reaches 3:1 against the surface, which `border` does not have to. |
 | `border-subtle` (added) | A lighter line inside a surface, between rows or groups. |
 | `ring` | The focus indicator. |
@@ -115,7 +115,7 @@ What each adjustment had to reach:
 - `faint-foreground`: 4.5:1 on the page, a pane and the sidebar. It was 3.31:1 at the lowest.
 - `input`: 3:1 on the page and on a pane. The line of Zed is 1.5:1, which is enough between surfaces and not for the border of a field.
 - `ring`: 3:1 on the page, a pane and the sidebar. In dark the blue of Zed cannot reach it at any opacity, so the focus takes the accent colour as text.
-- `destructive` and the status colours: 4.5:1 as a word on the page, on a pane and on the subtle background of a badge.
+- `destructive` and the status colours: 4.5:1 as a word on the page, on a pane and on the subtle background of a badge, and 3:1 as a sign on a hovered row, on a selected row and on a bar.
 
 `popover`, `muted` and `page-grid` have no value in the reference. `popover` and `muted` take Zed's panel surface, and `page-grid` is derived.
 
@@ -133,6 +133,8 @@ What each adjustment had to reach:
 | `status-error-subtle` | `#fbdfd9` | the status colour at 10% opacity |
 
 `destructive` and `status-error` are the same red.
+
+A status colour is a word only where it reaches 4.5:1: on the page, on a pane and in a badge. On a hovered or a selected row it does not: the lowest is amber on `selected` in light, at 3.06:1. The colours were not darkened a second time, which would take them further from Zed. In a row and in a bar the sign carries the colour, where a sign needs 3:1 and has it on every fill, and the word beside it is set in `foreground`. Zed shows a status in a list the same way: a coloured sign beside plain text.
 
 ### Type roles
 
@@ -188,9 +190,11 @@ Button, input, select and tab heights move together, so a form stays aligned.
 | --- | --- | --- |
 | Flat | Page, chrome | None |
 | Hairline | Pane, card, control | 1px border |
-| Floating | Popover, dialog, menu, tooltip, command palette, toast | The one shadow recipe, in `shadow-floating` |
+| Floating | Popover, dialog, menu, tooltip, command palette, toast, sheet | A 1px edge and the one shadow recipe, both in `shadow-floating` |
 
-`shadow-floating` is `0 0 0 1px rgb(0 0 0 / 0.06), 0 8px 24px -8px rgb(0 0 0 / 0.28)`, in both themes. It is derived: the reference shows no floating surface. `shadow-xs`, which shadcn/ui puts on fields, is set to none.
+`shadow-floating` is `0 0 0 1px var(--border), 0 8px 24px -8px rgb(0 0 0 / 0.28)`. It is derived: the reference shows no floating surface. `shadow-xs`, which shadcn/ui puts on fields, is set to none.
+
+The edge of a floating surface is a line in `border`, as rule 1 asks, so it shows in both themes: an edge of black at 6% did not show in dark. The utility draws it, and a floating surface adds no border of its own. Like every line between surfaces, the edge has no contrast level to reach.
 
 A button has no shadow. Its depth is a 2px inset bottom edge, drawn by the `button-edge` and `button-edge-primary` utilities.
 
@@ -254,7 +258,7 @@ The shape of the mark and the background of the preview came from image models. 
 | Feedback | Alert, Toast, Skeleton, Empty, Status indicator |
 | Overlays | Dialog, DropdownMenu, Popover, Tooltip, Command, Sheet |
 
-The status indicator is this project's own component: a sign and a word in one of the four status colours. The sign belongs to the meaning: a dashed circle for working, a triangle for needs attention, a check for done, a cross for error. It is plain in a row, and a badge on the subtle background of its colour where it stands alone.
+The status indicator is this project's own component: a sign in one of the four status colours, and a word. The sign belongs to the meaning: a dashed circle for working, a triangle for needs attention, a check for done, a cross for error. It is plain in a row, where the sign carries the colour and the word is set in `foreground`. It is a badge where it stands alone, with the sign and the word in the colour, on its subtle background. A badge is not put on a row that can be hovered or selected.
 
 InputGroup and Sheet are in the list because Command and Sidebar are built on them. Command is built on the `cmdk` library, which brings its own primitives.
 
@@ -291,5 +295,3 @@ The gallery has one route per section, with side navigation, in this order: Foun
 - The reference shows no command palette and no product table. Those components follow the rules above, with nothing to match.
 - Hover, focus and active states come from the reference's CSS. None was seen in motion.
 - The reference's light theme was read from its site and from an HTML mock of the application, never from the real application.
-- A status colour as a word on a selected row, or on a row under the hover wash, is below 4.5:1 in places: the lowest is amber on `selected` in light, at 3.06:1, and red on `selected` in dark, at 3.36:1. The Foundations route does not measure these pairs.
-- In dark, the 1px edge of `shadow-floating` does not show, so a floating surface stands out by its fill and its shadow alone.

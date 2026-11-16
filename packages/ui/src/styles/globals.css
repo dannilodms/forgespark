@@ -83,10 +83,12 @@
   --radius-pane: 4px;
   --radius-floating: 6px;
 
-  /* Borders carry the structure: only a floating surface has a shadow. */
+  /*
+   * Borders carry the structure: only a floating surface has a shadow, and
+   * its edge is a 1px line in `border`, which shows in both themes.
+   */
   --shadow-xs: 0 0 #0000;
-  --shadow-floating:
-    0 0 0 1px rgb(0 0 0 / 0.06), 0 8px 24px -8px rgb(0 0 0 / 0.28);
+  --shadow-floating: 0 0 0 1px var(--border), 0 8px 24px -8px rgb(0 0 0 / 0.28);
 
   /* An overlay opens along this curve. A colour change keeps the default. */
   --ease-overlay: cubic-bezier(0.2, 0.8, 0.2, 1);

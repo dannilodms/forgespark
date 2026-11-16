@@ -1,5 +1,5 @@
 import { cn } from "@workspace/ui/lib/utils"
-import { CheckIcon, TriangleAlertIcon } from "lucide-react"
+import { CheckIcon, CircleCheckIcon, TriangleAlertIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 type Rgb = [number, number, number]
@@ -44,8 +44,10 @@ function contrast(a: Rgb, b: Rgb) {
 
 /**
  * A foreground on a surface, with the contrast measured in the browser and
- * the level it has to reach: 4.5:1 for text, 3:1 for the border of a control
- * and for the focus indicator. The measure is taken again when the theme
+ * the level it has to reach: 4.5:1 for text, 3:1 for the border of a control,
+ * for the focus indicator and for the sign of a status. A line between
+ * surfaces has no level to reach (`minimum` is `null`): its contrast is
+ * measured and shown all the same. The measure is taken again when the theme
  * changes.
  */
 export function ColorPair({
@@ -58,8 +60,8 @@ export function ColorPair({
   name: string
   background: string
   foreground: string
-  minimum?: 3 | 4.5
-  kind?: "text" | "line"
+  minimum?: 3 | 4.5 | null
+  kind?: "text" | "line" | "sign"
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [measure, setMeasure] = useState<{
@@ -90,16 +92,18 @@ export function ColorPair({
     return () => observer.disconnect()
   }, [])
 
-  const passes = measure ? measure.ratio >= minimum : true
+  const passes = measure && minimum ? measure.ratio >= minimum : true
   const level = !measure
     ? ""
-    : !passes
-      ? `fails ${minimum}:1`
-      : minimum === 3
-        ? "passes 3:1"
-        : measure.ratio >= 7
-          ? "AAA"
-          : "AA"
+    : minimum === null
+      ? "no level to reach"
+      : !passes
+        ? `fails ${minimum}:1`
+        : minimum === 3
+          ? "passes 3:1"
+          : measure.ratio >= 7
+            ? "AAA"
+            : "AA"
 
   return (
     <div
@@ -116,6 +120,8 @@ export function ColorPair({
       >
         {kind === "text" ? (
           <span className="type-title">Aa</span>
+        ) : kind === "sign" ? (
+          <CircleCheckIcon className="size-4" />
         ) : (
           <span className="h-7 w-14 rounded-lg border-2 border-current" />
         )}

@@ -10,8 +10,8 @@ export type PairSpec = {
   name: string
   background: string
   foreground: string
-  minimum?: 3 | 4.5
-  kind?: "text" | "line"
+  minimum?: 3 | 4.5 | null
+  kind?: "text" | "line" | "sign"
 }
 
 export type PairGroup = { title: string; note: string; pairs: PairSpec[] }
@@ -215,6 +215,96 @@ export const pairGroups: PairGroup[] = [
     ],
   },
   {
+    title: "Status signs",
+    note: "In a row and in a bar the sign of a status carries the colour, and the word beside it is set in the text colour. A sign has to reach 3:1 on every fill it sits on.",
+    pairs: [
+      {
+        name: "Working sign on a hovered row",
+        background: "accent",
+        foreground: "status-working",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Working sign on a selected row",
+        background: "selected",
+        foreground: "status-working",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Working sign on a bar",
+        background: "chrome",
+        foreground: "status-working",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Attention sign on a hovered row",
+        background: "accent",
+        foreground: "status-attention",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Attention sign on a selected row",
+        background: "selected",
+        foreground: "status-attention",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Attention sign on a bar",
+        background: "chrome",
+        foreground: "status-attention",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Done sign on a hovered row",
+        background: "accent",
+        foreground: "status-done",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Done sign on a selected row",
+        background: "selected",
+        foreground: "status-done",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Done sign on a bar",
+        background: "chrome",
+        foreground: "status-done",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Error sign on a hovered row",
+        background: "accent",
+        foreground: "status-error",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Error sign on a selected row",
+        background: "selected",
+        foreground: "status-error",
+        minimum: 3,
+        kind: "sign",
+      },
+      {
+        name: "Error sign on a bar",
+        background: "chrome",
+        foreground: "status-error",
+        minimum: 3,
+        kind: "sign",
+      },
+    ],
+  },
+  {
     title: "Control borders and focus",
     note: "The border of a field and the focus indicator have to reach 3:1 against the surface they sit on.",
     pairs: [
@@ -256,6 +346,38 @@ export const pairGroups: PairGroup[] = [
     ],
   },
 ]
+
+/**
+ * The line that splits two surfaces, measured against each. A line between
+ * surfaces has no level to reach, unlike the border of a field.
+ */
+export const surfaceLines: PairGroup = {
+  title: "Lines between surfaces",
+  note: "The 1px line that splits panes and draws the edge of a floating surface. It has no level to reach, and it has to show in both themes.",
+  pairs: [
+    {
+      name: "Line on the page",
+      background: "background",
+      foreground: "border",
+      minimum: null,
+      kind: "line",
+    },
+    {
+      name: "Line on a pane",
+      background: "card",
+      foreground: "border",
+      minimum: null,
+      kind: "line",
+    },
+    {
+      name: "Edge of a floating surface",
+      background: "popover",
+      foreground: "border",
+      minimum: null,
+      kind: "line",
+    },
+  ],
+}
 
 /** Colours that separate or decorate. None of them carries text, so none has a contrast to reach. */
 export const lines = [

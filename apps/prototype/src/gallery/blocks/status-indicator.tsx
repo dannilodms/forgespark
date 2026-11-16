@@ -1,4 +1,5 @@
 import { StatusIndicator } from "@workspace/ui/components/status-indicator"
+import { cn } from "@workspace/ui/lib/utils"
 
 import { Frame, Part, Section } from "../parts"
 
@@ -56,7 +57,7 @@ export function StatusIndicatorBlock() {
   return (
     <Section
       title="Status indicator"
-      note="The status of a record: a sign and a word in one of the four status colours. The sign belongs to the meaning, and the word comes from the screen."
+      note="The status of a record: a sign in one of the four status colours, and a word. The sign belongs to the meaning, and the word comes from the screen."
     >
       <Part title="Typical">
         <Frame className="max-w-md justify-between">
@@ -84,7 +85,7 @@ export function StatusIndicatorBlock() {
 
       <Part
         title="Variants"
-        note="Plain in a row or a table, where the line already separates. A badge beside a title, where the status stands alone."
+        note="Plain in a row or a table, where the line already separates: the sign carries the colour and the word is set in the text colour. A badge beside a title, where the status stands alone: the sign and the word take the colour, on its subtle background."
       >
         <Frame className="flex-col items-start">
           <div className="flex flex-wrap items-center gap-4">
@@ -123,6 +124,33 @@ export function StatusIndicatorBlock() {
               </StatusIndicator>
             </div>
           ))}
+        </Frame>
+      </Part>
+
+      <Part
+        title="On a hovered and a selected row"
+        note="A row changes its fill, and the status on it stays readable: the word is text, and the sign keeps 3:1 on both fills."
+      >
+        <Frame className="max-w-xl flex-col flex-nowrap items-stretch gap-0 p-0">
+          {(["bg-accent", "bg-selected"] as const).map((fill) =>
+            requests.map(({ id, title, status, label }) => (
+              <div
+                key={`${fill}-${id}`}
+                className={cn(
+                  "flex min-h-7 items-center gap-3 border-b border-border-subtle px-3 py-1 last:border-b-0",
+                  fill
+                )}
+              >
+                <span className="shrink-0 type-code text-muted-foreground">
+                  {id}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{title}</span>
+                <StatusIndicator status={status} className="shrink">
+                  {label}
+                </StatusIndicator>
+              </div>
+            ))
+          )}
         </Frame>
       </Part>
 

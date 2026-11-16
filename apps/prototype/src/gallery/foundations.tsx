@@ -19,6 +19,7 @@ import {
   radiusRoles,
   shadows,
   spacingSteps,
+  surfaceLines,
   typeRoles,
   typefaces,
 } from "./style-variables"
@@ -98,7 +99,7 @@ export function Foundations() {
       title="Foundations"
       lead="Every style variable of the design system, with the value it has in the current theme. Colours are shown on the surface they are used on, with the contrast measured here."
     >
-      {pairGroups.map((group) => (
+      {[...pairGroups, surfaceLines].map((group) => (
         <Section key={group.title} title={group.title} note={group.note}>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-3">
             {group.pairs.map((pair) => (
@@ -263,7 +264,8 @@ export function Foundations() {
               Floating
             </span>
             <span className="type-caption text-muted-foreground">
-              Popover, dialog, command palette and toast.
+              Popover, dialog, command palette and toast. A 1px edge and the one
+              shadow.
             </span>
           </div>
         </div>
