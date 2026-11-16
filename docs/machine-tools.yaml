@@ -25,6 +25,11 @@ tools:
     version: 1.27.4
     source: winget GoLang.Go
 
+  - name: gopls
+    command: gopls
+    version: 0.24.0
+    source: go install golang.org/x/tools/gopls
+
   - name: Task
     command: task
     version: 3.54.0
