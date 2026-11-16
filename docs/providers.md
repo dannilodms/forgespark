@@ -12,7 +12,7 @@ Prices were read on the providers' own pages on 2026-11-16, without tax. Only th
 
 | Provider | Used for | Environments | Approximate cost | State |
 | --- | --- | --- | --- | --- |
-| [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; environments and required checks not set yet |
+| [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; environments not created yet |
 | [Hetzner Cloud](#hetzner-cloud) | The servers | staging, production | € 5.99 a month, plus cents for staging | Decided, not created |
 | [Backblaze B2](#backblaze-b2) | Production files, database backups | production, staging (certificates only) | Free under 10 GB, about US$ 0.63 a month at 100 GB | Decided, not created |
 | [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | _not known_ | Registrar not chosen |
@@ -35,10 +35,14 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 | Account or organisation | `dannilodms`, a personal account |
 | Repository | [`dannilodms/software-factory-manager`](https://github.com/dannilodms/software-factory-manager), public |
 | Licence | AGPLv3 |
-| Branch protection on `main` | The `main` ruleset: no direct push, a pull request with a squash merge, no force push, no deletion. Merging only with the checks passing is added with the first workflow |
-| Environments | `staging` and `production`; `production` restricted to `main` |
+| Branch protection on `main` | The `main` ruleset: no direct push, a pull request with a squash merge, no force push, no deletion, and a merge only when the `Checks` check of GitHub Actions has passed |
+| Merge | Squash only; the branch is deleted after the merge |
+| Environments | `staging` and `production`; `production` restricted to `main`. _Not created_ |
 | Secret scanning with push protection | On |
-| Workflows of outside contributors | Run only after approval |
+| Dependabot alerts | On. Its automatic pull requests are off |
+| Private vulnerability reporting | On; the way to report is in [`SECURITY.md`](../SECURITY.md) |
+| Actions | An action runs only when pinned to a full commit hash. The token of a workflow is read-only unless the workflow asks for more, and cannot approve a pull request |
+| Workflows of outside contributors | Run only after approval, for every outside contributor |
 | Container registry (GHCR) | Public images, tagged with the commit hash |
 | Label that creates the staging server | `staging` |
 | Commit address | The maintainer's `noreply` address |
