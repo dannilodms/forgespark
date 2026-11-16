@@ -15,8 +15,12 @@ What a user creates so that an agent can enter the system and act on their behal
 _Avoid_: API key, personal access token
 
 **Login code**:
-A six-digit code the system sends to a user's e-mail so that they can log in without an external provider. It works once, for a short time, and stops working after three wrong attempts.
+A six-digit code the system sends to a user's e-mail so that they can log in without a login provider. It works once, for a short time, and stops working after three wrong attempts.
 _Avoid_: Token, OTP, PIN, verification code
+
+**Login provider**:
+An outside service through which a user proves who they are in order to log in, such as Google, Microsoft or GitHub.
+_Avoid_: Identity provider, SSO, social login, external provider
 
 **Scope**:
 What an access token is allowed to do: read or write in one area of the system. Reading the value of a credential is a scope of its own.

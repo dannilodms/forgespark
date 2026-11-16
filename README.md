@@ -156,7 +156,7 @@ Frontend and backend live in this single repository. Folders not yet in use hold
 ├── apps/
 │   ├── api/          # Go backend and API
 │   ├── web/          # the real React app
-│   └── prototype/    # clickable prototype with fake data, disposable
+│   └── prototype/    # clickable prototype with fake data, and the gallery
 ├── packages/
 │   └── ui/           # design system: style variables and components
 ├── deploy/           # Caddyfile, Compose files of the servers, cloud-init
@@ -173,7 +173,7 @@ Frontend and backend live in this single repository. Folders not yet in use hold
 
 The three JavaScript packages (`apps/web`, `apps/prototype`, `packages/ui`) form a pnpm workspace run through Vite+. A root Taskfile coordinates Go and frontend tasks: dev, build, test and code generation. No separate monorepo orchestrator is used.
 
-Screens are designed and approved in the prototype first, then rebuilt in the real app on the same design system.
+Screens are designed and approved in the prototype first, then rebuilt in the real app on the same design system. The design system is written in [`DESIGN.md`](DESIGN.md) and shown in the prototype's gallery, which stays as the reference while the prototype's screens come and go.
 
 The system is multilingual: English is the default, with Brazilian Portuguese and Spanish also supported, and each user chooses their language. Adding a language is a small code change with no database schema change.
 
@@ -379,6 +379,7 @@ The rest is _TBD._
 - `docs/adr/`: architecture decisions (ADRs).
 - `GLOSSARY.md`: glossary of domain terms.
 - [`CODING_STANDARDS.md`](CODING_STANDARDS.md): how code is written, for agents and for review.
+- [`DESIGN.md`](DESIGN.md): the design system: its rules, style variables, components and recipes.
 - [`docs/providers.md`](docs/providers.md): the outside services the system depends on, with the reason, the cost and what is configured at each.
 - [`docs/design/`](docs/design/): analysis of the visual references behind the design system.
 - [`docs/agents/`](docs/agents/): configuration used by AI agents in this repository.

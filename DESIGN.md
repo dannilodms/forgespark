@@ -1,0 +1,230 @@
+# Design system
+
+How the product looks, and the rules every screen follows. This file is the source: the code in `packages/ui` implements it, and the gallery in `apps/prototype` renders it. When the two disagree with this file, this file is right and the code is fixed.
+
+The style follows Zed, its site and its application. The evidence behind every value is in section 1 of [`docs/design/references.md`](docs/design/references.md). Why Zed, and what else was considered, is in ADR-0006. The work is tracked in `.scratch/design-system-prototype/`.
+
+A change to a style variable, a component or a recipe updates this file in the same change.
+
+## Vocabulary
+
+**Style variable**:
+A CSS custom property that holds one style value: a colour, a radius, a font, a spacing step, a shadow. Components read style variables and nothing else.
+
+**Theme**:
+Light or dark. Every style variable that changes with the theme has a value in each.
+
+**Gallery**:
+The section of the prototype that shows every style variable and every component of `packages/ui`, in every variant and state. It is permanent: it is the reference for every screen.
+
+**Recipe**:
+A named composition of components that several screens reuse, such as the app shell.
+
+## Rules
+
+The gallery renders each of these eight as a Do and Don't pair.
+
+1. **Borders carry the structure.** Surfaces are separated by 1px lines. A shadow appears only on a floating surface: popover, dialog, command palette, toast.
+2. **One accent, and colour means status.** The one accent colour is blue. Any other colour is a status colour with a fixed meaning: blue is working, amber needs attention, green is done, red is an error. A status colour is never decoration.
+3. **Mono is for metadata.** Shortcuts, counts, paths and identifiers are set in the mono typeface. Running text is set in the interface typeface.
+4. **Decoration frames the page.** The grid texture and the diamond nodes belong to the page framing. The inside of a component is plain.
+5. **Motion is short and plain.** A colour change takes 100 to 150ms. A control moves at most 1 to 2px. An overlay opens in 200 to 250ms.
+6. **Every value is a style variable.** A component takes each colour, radius, font, spacing step and shadow from a style variable, and hardcodes none.
+7. **One primary action per group.** In a group of actions, one button is primary. The others are secondary or ghost.
+8. **Status is colour plus a sign.** A status always shows an icon or a word together with its colour.
+
+## Accessibility and layout
+
+- The style meets WCAG AA: 4.5:1 for text, 3:1 for large text, for the boundary of a control and for the focus indicator.
+- A value taken from Zed that fails is changed by the smallest step that passes. The colour table then gives both the value of Zed and the value in use. The gallery measures every pair, so a failure is visible.
+- Every interactive component is operable by keyboard and shows a visible focus state: a 3px outline with a 2px offset.
+- Motion respects `prefers-reduced-motion`.
+- Layouts are designed for desktop first and adapt down to a 375px-wide viewport with no overflow.
+- Text runs longer in Portuguese and Spanish than in English. Every component that carries text holds a long label without overflowing.
+
+## Style variables
+
+The names and roles below are the contract. The colour names are those of shadcn/ui, with the additions marked.
+
+### Colour roles
+
+| Style variable | Role |
+| --- | --- |
+| `background` / `foreground` | The page, behind and between panes. Default text. |
+| `card` / `card-foreground` | A pane or a card. |
+| `sidebar` / `sidebar-foreground` | Chrome: sidebar, title bar, status bar. |
+| `popover` / `popover-foreground` | A floating surface. |
+| `primary` / `primary-foreground` | The primary button. |
+| `secondary` / `secondary-foreground` | A raised control: secondary button, active tab, chip. |
+| `muted` / `muted-foreground` | A sunken or quiet fill. Secondary text. |
+| `accent` / `accent-foreground` | The hover wash. This is shadcn/ui's name; it is not the accent colour of rule 2. |
+| `selected` (added) | The fill of a selected row or item, one step stronger than `accent`. |
+| `faint-foreground` (added) | Tertiary text: placeholder, disabled text, an index. |
+| `border`, `input` | The line between surfaces. The border of a control. |
+| `border-subtle` (added) | A lighter line inside a surface, between rows or groups. |
+| `ring` | The focus indicator. |
+| `brand` / `brand-foreground` (added) | The accent colour of rule 2 where it is not a button: a link, an icon, a highlighted word. |
+| `destructive` | A destructive action and a validation error. |
+| `status-working`, `status-attention`, `status-done`, `status-error` (added) | The four status colours of rule 2. |
+| `status-*-subtle` (added) | The background of a status badge. |
+| `button-edge` (added) | The inset bottom edge of a button. |
+
+The four status colours are visual meanings. Which status of a record shows which meaning is decided with each screen.
+
+### Colours
+
+| Style variable | Light | Dark |
+| --- | --- | --- |
+| `background` | `#f5f4f3` | `#282c33` |
+| `card` | `#fafafa` | `#282c33` |
+| `sidebar` | `#ebebec`; title and status bars `#dcdcdd` | `#2f343e`; title and status bars `#3b414d` |
+| `secondary` | `#ebebec` | `#2e343e` |
+| `accent` | `#dfdfe0` | `#363c46` |
+| `selected` | `#cacaca` | `#454a56` |
+| `foreground` | `#242529` | `#dce0e5` |
+| `muted-foreground` | `#58585a` | `#a9afbc` |
+| `faint-foreground` | `#7e8086` | `#878a98` |
+| `border`, `input` | `#c9c9ca` | `#464b57` |
+| `border-subtle` | `#dfdfe0` | `#363c46` |
+| `primary` | `#1348dc` | `#1348dc` |
+| `primary-foreground` | `#ffffff` | `#ffffff` |
+| `brand` | `#1348dc` | `#74ade8` |
+| `ring` | `#094ece` at 50% | `#094ece` at 50% |
+| `destructive` | `#d36151` | `#d07277` |
+| `button-edge` | `hsl(219 93% 30%)`, 2px inset, on the primary button; `hsl(218 13% 50% / 0.1)` on the others | the same |
+
+### Status colours
+
+| Style variable | Light | Dark |
+| --- | --- | --- |
+| `status-working` | `#5c78e2` | `#74ade8` |
+| `status-attention` | `#a48819` | `#dec184` |
+| `status-done` | `#669f59` | `#a1c181` |
+| `status-error` | `#d36151` | `#d07277` |
+| `status-working-subtle` | `#e2e2fa` | the status colour at 10% opacity |
+| `status-attention-subtle` | `#faf2e6` | the status colour at 10% opacity |
+| `status-done-subtle` | `#dfeadb` | the status colour at 10% opacity |
+| `status-error-subtle` | `#fbdfd9` | the status colour at 10% opacity |
+
+### Type roles
+
+Each role is a `type-*` utility that sets family, size, line height, weight and tracking together.
+
+| Token | Use | Typeface |
+| --- | --- | --- |
+| `type-display` | A page title, the headline of an empty state. Used sparingly. | display |
+| `type-title` | The title of a section, a card or a dialog. | interface |
+| `type-body` | Running text and descriptions. | interface |
+| `type-ui` | Controls, rows, menus, tabs. | interface |
+| `type-label` | A small label, in sentence case: table header, field group, section index. | interface |
+| `type-caption` | Secondary information under or beside something. | interface |
+| `type-code` | Shortcuts, counts, paths, identifiers, code. | mono |
+
+| Typeface | Family | Notes |
+| --- | --- | --- |
+| Display | IBM Plex Serif | Light italic, weight 320 to 390 |
+| Interface | IBM Plex Sans | 12 to 13px |
+| Mono | Lilex | |
+
+### Spacing and control sizes
+
+The base unit is 4px. Spacing steps are multiples of it.
+
+| Size | Use |
+| --- | --- |
+| 24px | Chip, small badge row |
+| 27 to 28px | Title bar, status bar, toolbar, row, small button |
+| 32px | Default control |
+| 36px | Prominent control |
+| 12 to 16px | Icon |
+
+Button, input, select and tab heights move together, so a form stays aligned.
+
+### Radius
+
+| Role | Value | Used by |
+| --- | --- | --- |
+| `radius-chip` | 2px | Badge, shortcut chip |
+| `radius-tab` | 4px | Tab, menu item |
+| `radius-control` | 4px | Button, input, select |
+| `radius-pane` | 4px | Pane, card |
+| `radius-floating` | 6px | Dialog, popover, command palette |
+
+### Elevation
+
+| Level | Surfaces | Treatment |
+| --- | --- | --- |
+| Flat | Page, chrome | None |
+| Hairline | Pane, card, control | 1px border |
+| Floating | Popover, dialog, command palette, toast | The one shadow recipe, in `shadow-floating` |
+
+A button has no shadow. Its depth is the inset bottom edge in `button-edge`.
+
+### Motion and icons
+
+- Colour and opacity: 100 to 150ms, `cubic-bezier(.4, 0, .2, 1)`.
+- Overlays: 200 to 250ms, `cubic-bezier(.2, .8, .2, 1)`, opening from scale .96 to .98.
+- Icons are Lucide, at 12 to 16px.
+
+## Traits
+
+What makes the style recognisable, beyond the values above.
+
+| Trait | How it shows |
+| --- | --- |
+| Primary button | Blue fill, inset darker bottom edge, and a shortcut chip inside when the action has a shortcut |
+| Panes | Flush, split by 1px lines. No gap and no card between them |
+| Depth | No shadow inside the work surface |
+| Page framing | A 10px grid texture and diamond nodes where lines meet |
+| Density | 27 to 28px bars, 32px controls, 12 to 13px interface text |
+| Display type | A light italic serif, used sparingly against the sans of the interface |
+
+## Components
+
+`packages/ui` holds shadcn/ui components on Base UI primitives. A component enters when a screen needs it, through the shadcn CLI, and it appears in the gallery in the same change. A check fails when a component of `packages/ui` is missing from the gallery.
+
+| Gallery section | Components |
+| --- | --- |
+| Actions | Button (with icon, with shortcut chip), Badge, Kbd |
+| Inputs | Field, Label, Input, Textarea, Select, Checkbox, RadioGroup, Switch |
+| Navigation | Tabs, Breadcrumb, Sidebar |
+| Data display | Card, Table, Avatar, Separator |
+| Feedback | Alert, Toast, Skeleton, Empty, Status indicator |
+| Overlays | Dialog, DropdownMenu, Popover, Tooltip, Command |
+
+The status indicator is this project's own component: a sign and a word in one of the four status colours.
+
+A component is restyled through style variables and through its variants.
+
+## Recipes
+
+The sample work screen of the prototype is built from these four.
+
+| Recipe | What it is |
+| --- | --- |
+| App shell | A title bar, sidebar navigation, a top bar with breadcrumb and a command palette trigger, a main area of flush panes, and a status bar. |
+| List pane | A filter, a list of rows that each carry a status indicator, and an empty state. Selecting a row drives the detail pane. |
+| Detail pane | A header with the title and the actions of the selected item, and tabs that switch its content. |
+| Form dialog | A dialog with fields, one primary action and a cancel action. It reports a validation error on the field. |
+
+A recipe is added when a second screen needs the same composition.
+
+## Gallery
+
+The gallery has one route per section, with side navigation, in this order: Foundations, Actions, Inputs, Navigation, Data display, Feedback, Overlays, Do and Don't, Recipes.
+
+- **Foundations** shows every style variable: colour roles as surface and text pairs with the measured contrast, type roles as a specimen table, spacing, radius, elevation, motion and icons.
+- **A component block** shows, in order: the name with one line on when to use it, the typical case in real content, the variants, the sizes, the icon forms, the states, and the edge cases (long label, empty, error, loading, disabled).
+- **States** are pinned side by side without interaction: default, hover, focus, active, disabled, plus loading for Button and invalid for fields.
+- **Do and Don't** renders the eight rules as pairs.
+- The theme and the language are chosen in the prototype bar, which applies to every route (see Prototype in `CODING_STANDARDS.md`).
+- Navigation and the sample content inside components are in the three supported languages. Explanatory text is in English.
+
+## Known gaps
+
+- The size, line height and weight of each type role are set when the style is built, inside the ranges above, and recorded here.
+- `muted`, `popover` and `shadow-floating` have no value in the reference. They are derived when the style is built, and recorded here.
+- The values that fail WCAG AA are not adjusted yet. The tertiary text on the light page is the known case.
+- The reference shows no command palette and no product table. Those components follow the rules above, with nothing to match.
+- Hover, focus and active states come from the reference's CSS. None was seen in motion.
+- The reference's light theme was read from its site and from an HTML mock of the application, never from the real application.
