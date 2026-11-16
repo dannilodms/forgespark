@@ -21,7 +21,7 @@ const signs = {
 }
 
 const statusIndicatorVariants = cva(
-  "inline-flex max-w-full min-w-0 shrink-0 items-center gap-1.5 text-sm font-medium [&>svg]:pointer-events-none [&>svg]:size-3.5 [&>svg]:shrink-0",
+  "inline-flex max-w-full min-w-0 shrink-0 items-center gap-1.5 align-middle text-sm font-medium [&>svg]:pointer-events-none [&>svg]:size-3.5 [&>svg]:shrink-0",
   {
     variants: {
       status: {
