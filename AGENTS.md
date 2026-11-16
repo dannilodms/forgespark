@@ -20,6 +20,10 @@ Chrome DevTools MCP, for investigating performance, console and network in a rea
 
 Read `CODING_STANDARDS.md` before writing or reviewing code under `apps/`, `packages/`, `deploy/` or `.github/`. Backend: layout by domain area, dependency rule, use cases, domain modelling, login, configuration, database access and migrations, background jobs, files, credentials, e-mail, naming, test seam. Frontend: layout by domain area, where each kind of state lives, the data module, forms, tests. Delivery: response compression, cache headers, security headers and the limit on the login code, all set in the `Caddyfile`. Observability: how telemetry is collected, kept and shown, and what must never appear in it; read it before changing the collector, Grafana or what a container logs. Environments: the list of providers in `docs/providers.md`, what development, staging and production each run, the seed, the servers, secrets and backup; read it before changing a Compose file or anything in `deploy/`. Pipeline: how a change reaches `main` and the servers, how a release is made, and the rules a public repository sets; read it before changing a workflow in `.github/` or making a release. Versions: where the version of each tool, library and container image is recorded, and how it is updated; read it before adding or updating a dependency.
 
+## Design system
+
+Read `DESIGN.md` before writing or reviewing interface code under `packages/ui`, `apps/prototype` or `apps/web`. It holds the rules of the look, the names, roles and values of the style variables, the components and the recipes. A change to any of them updates `DESIGN.md` in the same change.
+
 ## Records to keep current
 
 Two files record what lives outside the code. When a task adds, replaces, updates or removes one of the things below, update its file in the same change. The task is done when the file matches what is installed or configured.

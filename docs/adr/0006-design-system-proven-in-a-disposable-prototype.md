@@ -10,6 +10,8 @@ A screen approved in the prototype is rebuilt in `apps/web` against the real API
 
 The look comes from three references: Zed, FigCraft and Herdr, analysed in `docs/design/references.md`. A gallery page in the prototype shows the same components under one style variation per reference. The maintainer compares them and picks or mixes traits into the final style.
 
+The design system is written in `DESIGN.md` at the repository root: its rules, the style variables and their values, the components and the recipes. The gallery renders that document and stays after the final style is chosen, as the reference for every screen. What is disposable in the prototype is its screens, not the gallery.
+
 ## Considered Options
 
 - **Prototyping inside `apps/web` with a mocked API.** Nothing is rebuilt, but unapproved screens and mocking code live next to production code.
@@ -23,3 +25,4 @@ The look comes from three references: Zed, FigCraft and Herdr, analysed in `docs
 
 - The frontend becomes a pnpm workspace with three packages (`apps/web`, `apps/prototype`, `packages/ui`), run through Vite+. There is still no separate monorepo orchestrator.
 - Rebuilding approved screens is deliberate duplicated effort. Do not "fix" it by importing prototype screens into the product.
+- The gallery has to stay complete to be a reference. A check fails when a component of `packages/ui` is missing from it.

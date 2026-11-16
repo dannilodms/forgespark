@@ -156,7 +156,7 @@ Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm
 ├── apps/
 │   ├── api/          # backend e API em Go
 │   ├── web/          # o app React real
-│   └── prototype/    # protótipo clicável com dados falsos, descartável
+│   └── prototype/    # protótipo clicável com dados falsos, e a galeria
 ├── packages/
 │   └── ui/           # design system: variáveis de estilo e componentes
 ├── deploy/           # Caddyfile, arquivos Compose dos servidores, cloud-init
@@ -173,7 +173,7 @@ Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm
 
 Os três pacotes JavaScript (`apps/web`, `apps/prototype`, `packages/ui`) formam um workspace pnpm executado pelo Vite+. Um Taskfile na raiz coordena as tarefas de Go e de frontend: desenvolvimento, build, testes e geração de código. Não é usado orquestrador de monorepo à parte.
 
-As telas são desenhadas e aprovadas primeiro no protótipo e depois refeitas no app real, sobre o mesmo design system.
+As telas são desenhadas e aprovadas primeiro no protótipo e depois refeitas no app real, sobre o mesmo design system. O design system está escrito em [`DESIGN.md`](DESIGN.md) e é mostrado na galeria do protótipo, que fica como referência enquanto as telas do protótipo vêm e vão.
 
 O sistema é multilíngue: inglês é a língua padrão, com suporte também a português do Brasil e espanhol, e cada usuário escolhe a sua. Adicionar uma língua é uma mudança pequena de código, sem alterar a estrutura do banco de dados.
 
@@ -379,6 +379,7 @@ O restante está _A definir._
 - `docs/adr/`: decisões de arquitetura (ADRs).
 - `GLOSSARY.md`: glossário dos termos do domínio.
 - [`CODING_STANDARDS.md`](CODING_STANDARDS.md): como o código é escrito, para os agentes e para a revisão.
+- [`DESIGN.md`](DESIGN.md): o design system: suas regras, variáveis de estilo, componentes e receitas.
 - [`docs/providers.md`](docs/providers.md): os serviços externos de que o sistema depende, com o motivo, o custo e o que está configurado em cada um.
 - [`docs/design/`](docs/design/): análise das referências visuais que embasam o design system.
 - [`docs/agents/`](docs/agents/): configuração usada pelos agentes de IA neste repositório.
