@@ -88,6 +88,9 @@
   --shadow-floating:
     0 0 0 1px rgb(0 0 0 / 0.06), 0 8px 24px -8px rgb(0 0 0 / 0.28);
 
+  /* An overlay opens along this curve. A colour change keeps the default. */
+  --ease-overlay: cubic-bezier(0.2, 0.8, 0.2, 1);
+
   --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "IBM Plex Serif", ui-serif, Georgia, serif;
   --font-mono:
@@ -290,5 +293,16 @@
 
   body {
     @apply bg-background text-foreground type-body;
+  }
+
+  /* Motion respects the setting of the system: nothing moves or fades. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }

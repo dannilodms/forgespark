@@ -176,11 +176,11 @@ Button, input, select and tab heights move together, so a form stays aligned.
 
 | Role | Value | Used by |
 | --- | --- | --- |
-| `radius-chip` | 2px | Badge, shortcut chip |
+| `radius-chip` | 2px | Badge, shortcut chip, checkbox |
 | `radius-tab` | 4px | Tab, menu item |
 | `radius-control` | 4px | Button, input, select |
 | `radius-pane` | 4px | Pane, card |
-| `radius-floating` | 6px | Dialog, popover, command palette |
+| `radius-floating` | 6px | Dialog, popover, menu, tooltip, command palette, toast |
 
 ### Elevation
 
@@ -188,7 +188,7 @@ Button, input, select and tab heights move together, so a form stays aligned.
 | --- | --- | --- |
 | Flat | Page, chrome | None |
 | Hairline | Pane, card, control | 1px border |
-| Floating | Popover, dialog, command palette, toast | The one shadow recipe, in `shadow-floating` |
+| Floating | Popover, dialog, menu, tooltip, command palette, toast | The one shadow recipe, in `shadow-floating` |
 
 `shadow-floating` is `0 0 0 1px rgb(0 0 0 / 0.06), 0 8px 24px -8px rgb(0 0 0 / 0.28)`, in both themes. It is derived: the reference shows no floating surface. `shadow-xs`, which shadcn/ui puts on fields, is set to none.
 
@@ -197,7 +197,8 @@ A button has no shadow. Its depth is a 2px inset bottom edge, drawn by the `butt
 ### Motion and icons
 
 - Colour and opacity: 100 to 150ms, `cubic-bezier(.4, 0, .2, 1)`.
-- Overlays: 200 to 250ms, `cubic-bezier(.2, .8, .2, 1)`, opening from scale .96 to .98.
+- Overlays: 200 to 250ms, opening from scale .96 to .98 along `ease-overlay`, which is `cubic-bezier(.2, .8, .2, 1)`.
+- With `prefers-reduced-motion`, no animation and no transition runs: every state is reached at once.
 - Icons are Lucide, at 12 to 16px.
 
 ## Traits
@@ -245,13 +246,15 @@ The shape of the mark and the background of the preview came from image models. 
 | Gallery section | Components |
 | --- | --- |
 | Actions | Button (with icon, with shortcut chip), Badge, Kbd |
-| Inputs | Field, Label, Input, InputOTP, Textarea, Select, Checkbox, RadioGroup, Switch |
+| Inputs | Field, Label, Input, InputOTP, Textarea, Select, Checkbox, RadioGroup, Switch, InputGroup |
 | Navigation | Tabs, Breadcrumb, Sidebar |
 | Data display | Card, Table, Avatar, Separator |
 | Feedback | Alert, Toast, Skeleton, Empty, Status indicator |
 | Overlays | Dialog, DropdownMenu, Popover, Tooltip, Command |
 
-The status indicator is this project's own component: a sign and a word in one of the four status colours.
+The status indicator is this project's own component: a sign and a word in one of the four status colours. The sign belongs to the meaning: a dashed circle for working, a triangle for needs attention, a check for done, a cross for error. It is plain in a row, and a badge on the subtle background of its colour where it stands alone.
+
+InputGroup is in the list because Command is built on it.
 
 A component is restyled through style variables and through its variants.
 

@@ -11,6 +11,7 @@ import { ColorPair } from "./color-pair"
 import { Frame, GalleryPage, Part, Section } from "./parts"
 import {
   controlSizes,
+  easings,
   lines,
   motion,
   pairGroups,
@@ -314,6 +315,17 @@ export function Foundations() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
+          {easings.map((easing) => (
+            <div key={easing.variable} className="flex flex-col">
+              <span className="type-code">{easing.variable}</span>
+              <span className="type-caption text-muted-foreground">
+                {easing.role}
+              </span>
+              <Value variable={easing.variable} />
+            </div>
+          ))}
         </div>
       </Section>
 

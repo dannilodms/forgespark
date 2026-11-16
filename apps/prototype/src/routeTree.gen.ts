@@ -16,6 +16,7 @@ import { Route as SignedInRouteImport } from './routes/signed-in'
 import { Route as GalleryIndexRouteImport } from './routes/gallery/index'
 import { Route as GalleryActionsRouteImport } from './routes/gallery/actions'
 import { Route as GalleryDataDisplayRouteImport } from './routes/gallery/data-display'
+import { Route as GalleryFeedbackRouteImport } from './routes/gallery/feedback'
 import { Route as GalleryFoundationsRouteImport } from './routes/gallery/foundations'
 import { Route as GalleryInputsRouteImport } from './routes/gallery/inputs'
 
@@ -54,6 +55,11 @@ const GalleryDataDisplayRoute = GalleryDataDisplayRouteImport.update({
   path: '/data-display',
   getParentRoute: () => GalleryRoute,
 } as any)
+const GalleryFeedbackRoute = GalleryFeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
+  getParentRoute: () => GalleryRoute,
+} as any)
 const GalleryFoundationsRoute = GalleryFoundationsRouteImport.update({
   id: '/foundations',
   path: '/foundations',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/signed-in': typeof SignedInRoute
   '/gallery/actions': typeof GalleryActionsRoute
   '/gallery/data-display': typeof GalleryDataDisplayRoute
+  '/gallery/feedback': typeof GalleryFeedbackRoute
   '/gallery/foundations': typeof GalleryFoundationsRoute
   '/gallery/inputs': typeof GalleryInputsRoute
   '/gallery/': typeof GalleryIndexRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/signed-in': typeof SignedInRoute
   '/gallery/actions': typeof GalleryActionsRoute
   '/gallery/data-display': typeof GalleryDataDisplayRoute
+  '/gallery/feedback': typeof GalleryFeedbackRoute
   '/gallery/foundations': typeof GalleryFoundationsRoute
   '/gallery/inputs': typeof GalleryInputsRoute
   '/gallery': typeof GalleryIndexRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/signed-in': typeof SignedInRoute
   '/gallery/actions': typeof GalleryActionsRoute
   '/gallery/data-display': typeof GalleryDataDisplayRoute
+  '/gallery/feedback': typeof GalleryFeedbackRoute
   '/gallery/foundations': typeof GalleryFoundationsRoute
   '/gallery/inputs': typeof GalleryInputsRoute
   '/gallery/': typeof GalleryIndexRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/signed-in'
     | '/gallery/actions'
     | '/gallery/data-display'
+    | '/gallery/feedback'
     | '/gallery/foundations'
     | '/gallery/inputs'
     | '/gallery/'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/signed-in'
     | '/gallery/actions'
     | '/gallery/data-display'
+    | '/gallery/feedback'
     | '/gallery/foundations'
     | '/gallery/inputs'
     | '/gallery'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/signed-in'
     | '/gallery/actions'
     | '/gallery/data-display'
+    | '/gallery/feedback'
     | '/gallery/foundations'
     | '/gallery/inputs'
     | '/gallery/'
@@ -191,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GalleryDataDisplayRouteImport
       parentRoute: typeof GalleryRoute
     }
+    '/gallery/feedback': {
+      id: '/gallery/feedback'
+      path: '/feedback'
+      fullPath: '/gallery/feedback'
+      preLoaderRoute: typeof GalleryFeedbackRouteImport
+      parentRoute: typeof GalleryRoute
+    }
     '/gallery/foundations': {
       id: '/gallery/foundations'
       path: '/foundations'
@@ -211,6 +230,7 @@ declare module '@tanstack/react-router' {
 interface GalleryRouteChildren {
   GalleryActionsRoute: typeof GalleryActionsRoute
   GalleryDataDisplayRoute: typeof GalleryDataDisplayRoute
+  GalleryFeedbackRoute: typeof GalleryFeedbackRoute
   GalleryFoundationsRoute: typeof GalleryFoundationsRoute
   GalleryInputsRoute: typeof GalleryInputsRoute
   GalleryIndexRoute: typeof GalleryIndexRoute
@@ -219,6 +239,7 @@ interface GalleryRouteChildren {
 const GalleryRouteChildren: GalleryRouteChildren = {
   GalleryActionsRoute: GalleryActionsRoute,
   GalleryDataDisplayRoute: GalleryDataDisplayRoute,
+  GalleryFeedbackRoute: GalleryFeedbackRoute,
   GalleryFoundationsRoute: GalleryFoundationsRoute,
   GalleryInputsRoute: GalleryInputsRoute,
   GalleryIndexRoute: GalleryIndexRoute,

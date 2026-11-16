@@ -326,18 +326,21 @@ export const pinnedSizes = [
 ]
 
 export const radiusRoles = [
-  { variable: "radius-chip", usedBy: "Badge, shortcut chip" },
+  { variable: "radius-chip", usedBy: "Badge, shortcut chip, checkbox" },
   { variable: "radius-tab", usedBy: "Tab, menu item" },
   { variable: "radius-control", usedBy: "Button, input, select" },
   { variable: "radius-pane", usedBy: "Pane, card" },
-  { variable: "radius-floating", usedBy: "Dialog, popover, command palette" },
+  {
+    variable: "radius-floating",
+    usedBy: "Dialog, popover, menu, tooltip, command palette, toast",
+  },
   { variable: "radius", usedBy: "The base step shadcn/ui expects to exist" },
 ]
 
 export const shadows = [
   {
     variable: "shadow-floating",
-    usedBy: "Popover, dialog, command palette, toast",
+    usedBy: "Popover, dialog, menu, tooltip, command palette, toast",
   },
   { variable: "shadow-xs", usedBy: "Nothing: a control has no shadow" },
 ]
@@ -378,4 +381,8 @@ export const motion = [
     duration: "at once",
     easing: "moves 1px down",
   },
+]
+
+export const easings = [
+  { variable: "ease-overlay", role: "The curve an overlay opens along" },
 ]
