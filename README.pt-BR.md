@@ -204,6 +204,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0019 - Três ambientes, com a homologação em um servidor criado sob demanda](docs/adr/0019-three-environments-with-staging-on-a-server-created-on-demand.md): desenvolvimento na máquina, um servidor de homologação criado para um pull request rotulado e populado pelo seed a cada publicação, produção em um servidor da Hetzner; o GitHub Actions publica por SSH, com os segredos nos Environments do GitHub
 - [0020 - PostgreSQL com backup pelo pgBackRest, e arquivos de produção no Backblaze B2](docs/adr/0020-postgresql-backed-up-by-pgbackrest-and-production-files-in-backblaze-b2.md): backups contínuos e cifrados em outro provedor, com um teste mensal de restauração, e os arquivos de produção em um bucket com versionamento; o Garage continua em desenvolvimento e na homologação
 - [0021 - Um repositório público sob a AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): público no plano gratuito do GitHub, com as regras que isso impõe aos commits e à pipeline
+- [0022 - Um registro com ciclo de vida é uma máquina de estados no domínio](docs/adr/0022-a-record-with-a-lifecycle-is-a-state-machine-in-the-domain.md): um conjunto fixo de status e uma tabela de transições por agregado, em Go puro; as ações permitidas saem da mesma tabela, e só o nome de um status é conteúdo de configuração
 
 ## Tecnologias
 

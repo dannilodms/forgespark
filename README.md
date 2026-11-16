@@ -204,6 +204,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0019 - Three environments, with staging on a server created on demand](docs/adr/0019-three-environments-with-staging-on-a-server-created-on-demand.md): development on the machine, a staging server created for a labelled pull request and seeded on every publish, production on one Hetzner server; GitHub Actions publishes over SSH, with secrets in GitHub Environments
 - [0020 - PostgreSQL backed up by pgBackRest, and production files in Backblaze B2](docs/adr/0020-postgresql-backed-up-by-pgbackrest-and-production-files-in-backblaze-b2.md): continuous encrypted backups at another provider with a monthly restore test, and production files in a versioned bucket; Garage stays in development and staging
 - [0021 - A public repository under AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): public on GitHub's free plan, with the rules that being public sets for commits and for the pipeline
+- [0022 - A record with a lifecycle is a state machine in the domain](docs/adr/0022-a-record-with-a-lifecycle-is-a-state-machine-in-the-domain.md): a fixed set of statuses and one transition table per aggregate, in plain Go; the allowed actions come from the same table, and only the name of a status is configuration content
 
 ## Tech stack
 
