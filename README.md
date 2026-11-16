@@ -310,7 +310,16 @@ The seed fills the database with fictitious data, the same on every run. To work
 
 The pipeline calls the same Task targets, so a check that fails there fails the same way on the machine.
 
-The other commands are _TBD_, written with the first code.
+The frontend commands, run from the repository root:
+
+| Command | What it does |
+| --- | --- |
+| `task install` | Installs the JavaScript dependencies. Vite+ downloads the versions of Node.js and pnpm that the root `package.json` names |
+| `task prototype` | Starts the clickable prototype at `http://localhost:5173` |
+| `task check` | Runs the format, lint and type checks of the JavaScript workspace |
+| `task check:fix` | Runs the same checks and fixes what can be fixed |
+
+The other commands are _TBD_, written with the first backend code.
 
 <!-- Commands to bring up the local environment from scratch: clone, configure, start the services and open the app. -->
 

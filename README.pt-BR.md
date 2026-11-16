@@ -310,7 +310,16 @@ O seed preenche o banco com dados fictícios, os mesmos a cada execução. Para 
 
 A pipeline chama os mesmos alvos do Task, então uma verificação que falha nela falha do mesmo jeito na máquina.
 
-Os outros comandos estão _A definir_ e serão escritos com o primeiro código.
+Os comandos do frontend, executados na raiz do repositório:
+
+| Comando | O que faz |
+| --- | --- |
+| `task install` | Instala as dependências JavaScript. O Vite+ baixa as versões de Node.js e pnpm que o `package.json` da raiz indica |
+| `task prototype` | Inicia o protótipo clicável em `http://localhost:5173` |
+| `task check` | Roda as verificações de formato, lint e tipos do workspace JavaScript |
+| `task check:fix` | Roda as mesmas verificações e corrige o que for possível |
+
+Os outros comandos estão _A definir_ e serão escritos com o primeiro código do backend.
 
 <!-- Comandos para subir o ambiente local do zero: clonar, configurar, iniciar os serviços e acessar a aplicação. -->
 

@@ -21,11 +21,11 @@ The folders `packages/ui` and `apps/prototype` already exist with a `.gitkeep` p
 
 ## Acceptance criteria
 
-- [ ] One command from the repository root installs dependencies; one command starts the prototype.
-- [ ] The home page shows a Button imported from `packages/ui`, not defined in the app.
-- [ ] The toggle in the prototype bar switches between light and dark, and the choice survives a reload. With no stored choice, the system preference applies.
-- [ ] The prototype bar is on every route, can be reached by keyboard, and covers no control of the page at desktop and 375px widths.
-- [ ] Changing a style variable in `packages/ui` changes the Button in the running prototype without a restart.
-- [ ] Every style variable named in `DESIGN.md` exists in the stylesheet, in light and dark.
-- [ ] Format, lint and type checks pass through the task runner.
-- [ ] Both READMEs document the commands.
+- [x] One command from the repository root installs dependencies; one command starts the prototype.
+- [x] The home page shows a Button imported from `packages/ui`, not defined in the app.
+- [x] The toggle in the prototype bar switches between light and dark, and the choice survives a reload. With no stored choice, the system preference applies.
+- [x] The prototype bar is on every route, can be reached by keyboard, and covers no control of the page at desktop and 375px widths.
+- [x] Changing a style variable in `packages/ui` changes the Button in the running prototype without a restart.
+- [x] Every style variable named in `DESIGN.md` exists in the stylesheet, in light and dark.
+- [x] Format, lint and type checks pass through the task runner.
+- [x] Both READMEs document the commands.

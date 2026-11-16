@@ -367,7 +367,7 @@ The frontend formats values with the browser's `Intl`, in the user's language, a
 
 - `packages/ui` holds the design system: shadcn/ui components on Base UI primitives, styled with Tailwind CSS. Every colour, radius, font, spacing step and shadow is a CSS custom property.
 - [`DESIGN.md`](DESIGN.md) is the source of the design system: its rules, the style variables with their roles and values, the components and the recipes. Code that disagrees with it is fixed, and a change to any of these updates it in the same change.
-- A component enters `packages/ui` when a screen needs it, through the shadcn CLI, and is shown in the gallery in the same change.
+- A component enters `packages/ui` when a screen needs it, through the shadcn CLI, and is shown in the gallery in the same change. The CLI is run in `apps/prototype`, with its exact version. It writes each dependency of the component as a range, and into the app: move it to `packages/ui` as `catalog:` and add its exact version to the catalog.
 - A specialised library (charts, rich text, drag and drop, calendar) is added when the first screen needs it. The one shadcn/ui already wraps is the first candidate.
 - React Compiler memoizes components. Do not write `useMemo`, `useCallback` or `memo`.
 
@@ -629,8 +629,8 @@ Every tool, library and container image runs at a version written in a committed
 | Go toolchain | the `go` and `toolchain` lines of `go.mod` |
 | Go libraries | `go.mod` and `go.sum` |
 | Go command-line tools (sqlc, vacuum, oasdiff, the River CLI) | `tool` lines of `go.mod`, run with `go tool` |
-| Node.js | `.node-version` at the root |
-| pnpm | `packageManager` in the root `package.json` |
+| Node.js | `devEngines.runtime` in the root `package.json`, written by `vp env pin` |
+| pnpm | `devEngines.packageManager` in the root `package.json`, written by `vp env pin` |
 | JavaScript libraries and tools, Vite+ included | the catalog in `pnpm-workspace.yaml`, and `pnpm-lock.yaml` |
 | Container images (PostgreSQL, Garage, Mailpit, Dex, Caddy, OpenTelemetry Collector, Grafana otel-lgtm) | the image tag in `deploy/compose.base.yaml` and in each Dockerfile |
 | Caddy plugins | the Dockerfile that builds the Caddy image |
