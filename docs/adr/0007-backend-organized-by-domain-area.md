@@ -32,4 +32,4 @@ AI agents write the backend and a single maintainer reviews it. Every session ha
 - The stable error codes of ADR-0005 are declared beside the rule that raises them, in `domain` or `application`. The HTTP adapter only translates them.
 - An effect on another area or on an external service happens after the transaction commits. A case that needs both to succeed or fail together reopens the decision on domain events.
 - Rules that tooling can check are automated from the first backend code. The tool is not chosen yet.
-- The frontend takes only the glossary's vocabulary from this decision. Its own standards are still to be written.
+- The frontend takes the glossary's vocabulary and the names of the domain areas from this decision. Its own structure is decided in ADR-0014.

@@ -51,7 +51,11 @@ The `herdr` light theme is not evidenced by the reference. Mark it as derived in
 ## Technical notes
 
 - Frontend tooling is Vite+; use `vp` for install, dev, build, test and checks. It is newer than plain Vite, so read its documentation at viteplus.dev instead of assuming Vite or Vitest commands.
-- Follow shadcn/ui's documented monorepo layout: a `components.json` in each workspace, shared code imported from the UI package, and the `tailwind.config` field left empty for Tailwind CSS v4.
+- Follow shadcn/ui's documented monorepo layout: a `components.json` in each workspace, shared code imported from the UI package, and the `tailwind.config` field left empty for Tailwind CSS v4. Do not keep Turborepo if the shadcn CLI scaffolds it: this repository uses no monorepo orchestrator (ADR-0006).
+- Components are generated on Base UI primitives, shadcn/ui's current default, not on Radix. Base UI is newer than what you remember: read the current shadcn/ui and Base UI documentation.
+- The prototype uses React, TanStack Router, react-i18next and `packages/ui`, with fake data in plain modules. A Zustand store may hold the theme and the style variation. No TanStack DB, TanStack Query, TanStack Form, Zod, orval or screen tests: those belong to `apps/web` (ADR-0013, ADR-0014).
+- React Compiler is enabled in the build, through the Babel preset that react.dev documents. Do not write `useMemo`, `useCallback` or `memo`.
+- `vp check` type-checks with TypeScript 7. Its type-aware linter was reported not to support `baseUrl` in `tsconfig`; confirm in the Vite+ documentation before configuring path aliases.
 - Every colour, radius, font, spacing step and shadow is a CSS custom property. Components never hardcode a value.
 - Theme (light or dark) and style variation are two independent switches on the root element. Both persist across reloads.
 - Fonts are open-licensed and installed from npm packages, not loaded from a third-party CDN at runtime. Confirm each licence when adding it.
