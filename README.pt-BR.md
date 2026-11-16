@@ -48,6 +48,8 @@ flowchart LR
     api --> db[(PostgreSQL)]
     api --> storage[(MinIO<br/>armazenamento S3)]
     api --> llm([Provedores de LLM])
+    api --> idp([Google, Microsoft, GitHub<br/>login])
+    api -->|OTLP| telemetry[Grafana otel-lgtm<br/>logs, traces, métricas]
 ```
 
 Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm apenas um arquivo `.gitkeep`, e os arquivos de configuração da raiz entram junto com o primeiro código:
@@ -91,6 +93,10 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0006 - Design system validado em um protótipo descartável](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui em `packages/ui`, compartilhado pelo produto e por um protótipo clicável cujas telas aprovadas são refeitas, não movidas
 - [0007 - Backend organizado por área de domínio](docs/adr/0007-backend-organized-by-domain-area.md): uma árvore de pacotes por área de domínio com dependências apontando para dentro, um caso de uso para cada operação, DDD tático seletivo e parte do object calisthenics
 - [0008 - Casos de uso atendidos por vários adaptadores de entrada](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md): uma API REST completa e um servidor MCP com um conjunto escolhido de ferramentas, ambos no backend Go; tokens de acesso com escopos; GraphQL, gRPC e WebSocket adiados
+- [0009 - Convenções da API REST](docs/adr/0009-rest-api-conventions.md): snake_case, operações nomeadas sem PATCH, entrada estrita, erros em problem+json, paginação por cursor, sem versionamento enquanto todo consumidor sair junto com o backend
+- [0010 - Identificadores sequenciais expostos via Sqids](docs/adr/0010-sequential-identifiers-exposed-through-sqids.md): inteiros por dentro, prefixo de tipo mais codificação Sqids por fora (`prj_Xk9fQ2mB`), com alfabetos fixos no código
+- [0011 - Login por provedores externos](docs/adr/0011-login-through-external-providers-with-a-server-side-session.md): Google, Microsoft e GitHub, sessão no servidor atrás de um cookie opaco, apenas usuários cadastrados
+- [0012 - OpenTelemetry e um registro de auditoria separado](docs/adr/0012-opentelemetry-for-observability-and-a-separate-audit-log.md): traces, métricas e logs exportados para um container Grafana; operações sensíveis gravadas em um registro de auditoria somente de acréscimo
 
 ## Tecnologias
 
@@ -99,6 +105,11 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [Go](https://go.dev/) | Backend e API |
 | [Huma](https://huma.rocks/) | Framework HTTP que gera a especificação OpenAPI a partir dos tipos Go |
 | [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk) | Servidor MCP dentro do backend, pelo qual agentes de código operam o sistema |
+| [Sqids](https://sqids.org/go) | Identificadores públicos curtos, codificados a partir dos sequenciais internos |
+| [SCS](https://github.com/alexedwards/scs) | Sessões no servidor, guardadas no PostgreSQL |
+| [OpenTelemetry](https://opentelemetry.io/) | Traces, métricas e logs do backend |
+| [Grafana otel-lgtm](https://grafana.com/docs/opentelemetry/docker-lgtm/) | Um container que coleta, guarda e mostra a telemetria |
+| [vacuum](https://quobix.com/vacuum/) e [oasdiff](https://github.com/oasdiff/oasdiff) | Lint das convenções da API e relatório de mudanças incompatíveis na especificação OpenAPI |
 | [React](https://react.dev/) | Frontend web (single-page app) |
 | [Vite+](https://viteplus.dev/) | Ferramentas do frontend em uma única CLI (`vp`): servidor de desenvolvimento e build (Vite, Rolldown), testes (Vitest), lint (Oxlint), formatação (Oxfmt), além do runtime Node.js e do gerenciador de pacotes |
 | [TanStack Router](https://tanstack.com/router) | Roteamento tipado no cliente |

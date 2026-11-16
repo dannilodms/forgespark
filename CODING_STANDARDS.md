@@ -1,6 +1,6 @@
 # Coding standards
 
-How code in this repository is written. The reasons and the rejected alternatives are in [ADR-0007](docs/adr/0007-backend-organized-by-domain-area.md) and [ADR-0008](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md).
+How code in this repository is written. The reasons and the rejected alternatives are in ADRs [0007](docs/adr/0007-backend-organized-by-domain-area.md) (structure), [0008](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md) (inbound adapters), [0009](docs/adr/0009-rest-api-conventions.md) (API conventions), [0010](docs/adr/0010-sequential-identifiers-exposed-through-sqids.md) (identifiers), [0011](docs/adr/0011-login-through-external-providers-with-a-server-side-session.md) (login) and [0012](docs/adr/0012-opentelemetry-for-observability-and-a-separate-audit-log.md) (observability).
 
 ## Backend (`apps/api`)
 
@@ -69,18 +69,44 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 - **Credentials over MCP.** A tool that returns the value of a credential requires the scope for reading credential values, returns one credential per call, and its use case records the read. No listing returns a value.
 - **Nothing ahead of need.** No package, mount point or abstraction is written for an inbound adapter that does not exist.
 
+### API conventions
+
+These apply to REST. Names, identifiers, lists and error codes apply to MCP tools as well.
+
+- **Names.** `snake_case` in bodies, query parameters, error fields and tool arguments.
+- **Identifiers.** An identifier leaves the backend as a type prefix plus the Sqids encoding of the integer, at least 8 characters: `prj_Xk9fQ2mB`. An inbound adapter rejects a wrong prefix, decodes on the way in and encodes on the way out. `platform` holds the encoder and the prefix and alphabet of each aggregate type; neither ever changes. The integer appears in no response.
+- **Paths.** Resources are plural nouns. A state change is a `POST` ending in the verb of its use case: `POST /projects/{id}/cancel`.
+- **Editing details.** A `PUT` with every editable field required. No `PATCH`. A narrower edit that an agent needs is its own use case.
+- **Input.** Unknown body properties and unknown query parameters are rejected.
+- **Status.** 201 with `Location` for a creation, 202 for asynchronous work, 400 for malformed input, 422 for failed validation or a broken business rule, 409 for a conflict.
+- **Lists.** An envelope with an opaque cursor. `limit` has a default and a ceiling, sorting accepts only listed fields, filters are query parameters, the total is computed only when asked for. No field selection.
+- **Single resource.** It is the root of the body. No `success` wrapper.
+- **Allowed actions.** When a screen or a tool needs to know what can be done now, the query use case returns `allowed_actions`. The client never derives it from the status.
+- **Values.** Timestamps in ISO 8601 UTC. Business dates without a time. Money as a decimal string beside its currency, never a float. Enums as lowercase strings.
+- **Limits.** A size limit and a read timeout on request bodies. A timeout on every outbound call, and a retry only when the call is idempotent.
+- **Sessions.** A request authenticated by the session cookie that changes state must come from the app's own origin.
+- **Breaking changes.** Allowed when the web client and the MCP tools change in the same commit. The path carries no version.
+
+### Telemetry
+
+- Logs, spans and metric labels never carry personal data, the value of a credential, an access token or a session cookie.
+- The `trace_id` in an error body is the trace identifier of the request.
+- A sensitive operation (reading the value of a credential, a login, creating or revoking an access token) writes to the audit log from its use case. The audit log is append-only and is not telemetry.
+
 ### Domain modelling
 
 These rules apply inside `domain`. API types and database rows in `adapters` are plain structs.
 
 - **Aggregate.** It guards its invariants. State changes through a method named after the business operation, and fields are unexported. Callers tell the aggregate what to do; they do not read its state to decide for it. Read accessors exist for adapters to persist and map.
 - **Value object.** A primitive becomes a value object when it carries a rule (validation, format, invariant) or is an identifier. It is built through a constructor that returns an error, and it is immutable. A collection with a rule of its own gets its own type on the same test. Free text and plain counters stay primitives.
-- **Repository.** One per aggregate, declared in `application`.
+- **Repository.** One per aggregate, declared in `application`. It reserves the next identifier from a database sequence, and the use case creates the aggregate with it, so an aggregate never exists without an identity.
 - **One call per collaborator.** An expression talks to the object it holds, and that object does the rest.
 
 ### Errors
 
-A broken rule is a typed error with a stable code and its parameters, declared beside the rule in `domain` or `application`. Each inbound adapter translates it: REST into the status and response format of ADR-0005, MCP into a tool error carrying the same stable code and English message.
+A broken rule is a typed error with a stable code and its parameters, declared beside the rule in `domain` or `application`. Each inbound adapter translates it: REST into `application/problem+json` with `code`, `params` and `trace_id`, MCP into a tool error carrying the same stable code and English message.
+
+Every REST failure uses that format, including unknown routes, wrong methods and panics, which need their own handlers because they bypass Huma's error hook. No response carries a stack trace, SQL or an internal name.
 
 ### Control flow
 
@@ -96,11 +122,15 @@ The default seam is the use case, exercised with in-memory implementations of it
 
 ### Enforcement
 
-A rule that tooling can check fails the build: imports between layers and between areas, `else`, nesting depth. The tool is chosen with the first backend code. Once a check exists, its rule here shrinks to a pointer at the check.
+A rule that tooling can check fails the build: imports between layers and between areas, `else`, nesting depth, a mapping between API type, domain type and database row that leaves a field out. The tool is chosen with the first backend code.
+
+The generated OpenAPI spec is committed, and the build fails when it is stale. A lint on the spec (vacuum) fails the build on `snake_case` and plural-path violations. A breaking-change report (oasdiff) is shown and does not fail the build. Once a check exists, its rule here shrinks to a pointer at the check.
 
 ### Deferred
 
-Domain events, CQRS, event sourcing and a second bounded context each start with a new ADR, written when a concrete case needs one. So do WebSocket, GraphQL and gRPC as inbound adapters, live notifications (which need domain events), OAuth, and MCP resources and prompts.
+Domain events, CQRS, event sourcing and a second bounded context each start with a new ADR, written when a concrete case needs one. So do WebSocket, GraphQL and gRPC as inbound adapters, live notifications (which need domain events), OAuth for agents, and MCP resources and prompts.
+
+`ETag` with `If-Match`, `Idempotency-Key` and rate limiting are added to the first case that needs one, without a new ADR. A version in the path waits for the first consumer that does not ship with the backend, and reopens ADR-0009.
 
 ## Frontend (`apps/web`, `apps/prototype`, `packages/ui`)
 

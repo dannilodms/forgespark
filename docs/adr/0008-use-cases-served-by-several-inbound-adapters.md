@@ -37,5 +37,5 @@ Keeping the door open costs rules, not code. Nothing is written for an inbound a
 - Screens that update by themselves and live notifications need the backend to announce what changed, which reopens the decision on domain events deferred in ADR-0007.
 - OAuth, MCP resources and MCP prompts are added when a consumer needs them.
 - The list of MCP tools is not decided: the domain areas for clients, projects and hours are not modelled yet.
-- How a person logs in to the React app is not decided. Whatever is chosen has to produce the same "who is acting" that an access token does.
+- How a person logs in to the React app is decided in ADR-0011. It produces the same "who is acting" that an access token does.
 - Mounting the MCP handler on the same router as Huma has not been tried yet; it rests on the SDK exposing a standard `http.Handler`.

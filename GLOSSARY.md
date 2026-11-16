@@ -18,6 +18,10 @@ _Avoid_: API key, personal access token
 What an access token is allowed to do: read or write in one area of the system. Reading the value of a credential is a scope of its own.
 _Avoid_: Permission, role
 
+**Audit log**:
+The permanent record of sensitive operations: reading the value of a credential, logging in, and creating or revoking an access token. Nothing in it is edited or deleted. It is not the history of work that screens show.
+_Avoid_: Activity history, history, log
+
 ### Languages and translation
 
 **Supported language**:
