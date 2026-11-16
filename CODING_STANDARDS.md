@@ -143,7 +143,7 @@ The terms system health, part and health report are defined in `GLOSSARY.md`.
 - **Parts.** PostgreSQL is the only essential part. The file storage, the LLM provider, the telemetry collector, the job worker and the e-mail server are optional: one of them down makes the system `degraded`, never unready. An optional part with no configuration is `not_configured` and does not degrade the system.
 - **Health report.** `GET /api/health` is a query use case in the system health area, which has no aggregate. It follows the API conventions, except that its path is singular, which the plural-path lint allows for this path only. It always answers 200, with the system health in the body: `operational`, `degraded` or `down`.
 - **Checks.** They run when the health report is asked for, in parallel, each under a timeout taken from configuration (2 seconds by default). Nothing is checked in the background and nothing is stored. The LLM provider is checked by a call that spends no tokens, such as listing its models. The telemetry collector is not probed: its state is the last export of metrics, and it is `down` when that export failed or is overdue. The job worker is checked in the database, through the leader record River keeps there. The e-mail server is checked by a call that sends nothing.
-- **Content.** For each part: its name, whether it is essential or optional, its state (`operational`, `down` or `not_configured`), the response time, the time of the check and, when it is down, a stable error code. The raw error goes to the logs only. The health report also carries the version, the commit, the build date, the time the process started, the schema version applied and the one expected, and the login providers that are turned on.
+- **Content.** For each part: its name, whether it is essential or optional, its state (`operational`, `down` or `not_configured`), the response time, the time of the check and, when it is down, a stable error code. The raw error goes to the logs only. The health report also carries the version, which is the number in `VERSION` (see Releases), the commit, the build date, the time the process started, the schema version applied and the one expected, and the login providers that are turned on.
 - **Access.** Only a user who administers the system reads the health report, through the session or through an access token that carries the read scope of the system health area.
 - **When.** Liveness and readiness are written with the first backend code. The health report waits for the modelling of users, which has to say who administers the system. Nothing provisional shows the state of the optional parts until then.
 - **Not built.** An MCP tool for the health report, a check of the login providers, an operation per part, and history, which would be a periodic job (see Jobs). Alerts come from Grafana (see Observability).
@@ -563,7 +563,7 @@ How a change reaches `main` and the servers. The repository is public, which set
 - **Nothing from outside.** A pull request runs every check that needs no outside service: format, lint, types, generated code up to date, the tests of use cases and of screens, the adapter tests against containers of PostgreSQL, Garage and Mailpit, and the end-to-end tests against the development Compose file.
 - **The same commands.** A workflow calls Task targets. A check that fails in the pipeline fails the same way on the machine.
 - **Workflows are checked too.** actionlint and zizmor run on every workflow file.
-- **Documents only.** A pull request that changes only documents skips the builds and the tests.
+- **Documents only.** A pull request that changes only documents skips the builds and the tests. `VERSION` is not a document (see Releases).
 - **One required check.** The ruleset of `main` requires a single check: the `Checks` job of `ci.yml`, which fails when a job it needs failed or was cancelled, and passes when one was skipped. A new check is a job added to its `needs`, never a change to the ruleset.
 
 ### Scheduled workflows
@@ -580,7 +580,23 @@ How a change reaches `main` and the servers. The repository is public, which set
 - **Images.** GitHub Actions builds the images, tags each with the hash of its commit and pushes it to the GitHub container registry, where it is public. Production runs only an image built from `main`.
 - **On the server.** The workflow logs in over SSH, writes the variables file, pulls the images and restarts the Compose services, in the order the README describes: the dump when a migration is pending, the migration, then the API and the worker.
 - **Staging.** The same workflow publishes a labelled pull request, then recreates the database and runs the seed.
-- **Going back.** A manual workflow publishes an earlier commit of `main`.
+- **Going back.** A manual workflow publishes an earlier commit of `main`, named by its hash or by a release.
+
+### Releases
+
+A release gives a number and notes to a milestone that is already in production. It publishes nothing new (ADR-0023).
+
+- **One number.** The whole system has one version, in the `VERSION` file at the root: three numbers, with no `v` and nothing after them.
+- **Numbering.** Below 1.0.0 the number reads `0.MILESTONE.FIX`. A milestone raises the middle number and sets the last to zero. A release that only fixes raises the last.
+- **When.** The maintainer decides, when a deliverable is complete in production. Nothing makes a release by itself.
+- **A pull request.** A release is a pull request that changes `VERSION` and `CHANGELOG.md` and nothing else. An agent opens it when asked, proposing the number and the notes. It runs every check and is published like any other.
+- **Notes.** `CHANGELOG.md` is in English, with the newest release first. Each section is written from the pull requests merged since the last release: what changed for someone who uses the system and, under a heading of its own, what someone who installs it has to do, such as setting a new variable. It has no section for what is not released yet.
+- **Tag.** After a publish to production succeeds, when no tag exists for the number in `VERSION`, the publish workflow creates the tag `v` plus the number on that commit and a GitHub Release with that version's section of `CHANGELOG.md`. Nobody creates a tag by hand.
+- **Images.** The same step adds the number, without the `v`, as a second tag to the images of that commit. It builds nothing. Production keeps running images by their commit hash.
+- **A failed publish.** It creates no tag. The tag goes to the next commit published with that number.
+- **Between releases.** The build takes its version from `VERSION`, so it shows the last release it contains. The commit tells one build from another.
+- **Only forward.** A tag is never moved or deleted, and a ruleset on GitHub refuses both. A fix goes into `main` and becomes a new release. There are no release branches and no pre-releases.
+- **Permission.** Only the job that creates the tag may write to the repository contents and add a tag to an image.
 
 ### Public repository
 
@@ -596,12 +612,13 @@ Agents reach GitHub through the `gh` command-line tool: pull requests, runs and 
 
 ## Versions (the whole repository)
 
-Every tool, library and container image runs at a version written in a committed file. Each version has one home, and an update is a change to that file.
+Every tool, library and container image runs at a version written in a committed file, and so does the system itself. Each version has one home, and an update is a change to that file.
 
 ### Where each version lives
 
 | What | Home |
 | --- | --- |
+| The system itself | `VERSION` at the root (see Releases) |
 | Go toolchain | the `go` and `toolchain` lines of `go.mod` |
 | Go libraries | `go.mod` and `go.sum` |
 | Go command-line tools (sqlc, vacuum, oasdiff, the River CLI) | `tool` lines of `go.mod`, run with `go tool` |

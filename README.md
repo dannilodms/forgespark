@@ -205,6 +205,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0020 - PostgreSQL backed up by pgBackRest, and production files in Backblaze B2](docs/adr/0020-postgresql-backed-up-by-pgbackrest-and-production-files-in-backblaze-b2.md): continuous encrypted backups at another provider with a monthly restore test, and production files in a versioned bucket; Garage stays in development and staging
 - [0021 - A public repository under AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): public on GitHub's free plan, with the rules that being public sets for commits and for the pipeline
 - [0022 - A record with a lifecycle is a state machine in the domain](docs/adr/0022-a-record-with-a-lifecycle-is-a-state-machine-in-the-domain.md): a fixed set of statuses and one transition table per aggregate, in plain Go; the allowed actions come from the same table, and only the name of a status is configuration content
+- [0023 - A release names a milestone already in production](docs/adr/0023-a-release-names-a-milestone-already-in-production.md): one version for the whole system in a `VERSION` file; a release is a pull request that changes it and `CHANGELOG.md`, and the pipeline creates the tag after the publish
 
 ## Tech stack
 
@@ -321,7 +322,7 @@ The other commands are _TBD_, written with the first code.
 - **Caddy and PostgreSQL.** Both images are built in this repository: Caddy with a rate-limit plugin, PostgreSQL with pgBackRest.
 - **Generated code.** The pipeline checks that it is up to date: the Go code sqlc generates from the SQL files, and the client orval generates from the OpenAPI spec.
 - **Versions.** The build installs from `go.sum` and `pnpm-lock.yaml` and fails when they would change.
-- **Images.** GitHub Actions builds them, tags each with the hash of its commit and pushes it to the GitHub container registry. Production runs only an image built from `main`.
+- **Images.** GitHub Actions builds them, tags each with the hash of its commit and pushes it to the GitHub container registry. Production runs only an image built from `main`. The images of a release also carry its number.
 
 The commands are _TBD_, written with the first code.
 
@@ -331,7 +332,9 @@ Every change reaches `main` through a pull request, and a merge into `main` is p
 
 To look at a branch before merging it, give its pull request the `staging` label. A server is created with the branch on it, a fresh database and the seed data. It is destroyed when the label is removed or the pull request closes, and never lives longer than 24 hours.
 
-Going back to an earlier version is a manual workflow that publishes an earlier commit of `main`.
+Going back to an earlier version is a manual workflow that publishes an earlier commit of `main`, named by its hash or by a release.
+
+A release gives a number and notes to a milestone that is already in production. It is a pull request that changes `VERSION` and `CHANGELOG.md`. After it is published, the pipeline creates the tag, the GitHub Release and the numbered tag on the images (see [ADR-0023](docs/adr/0023-a-release-names-a-milestone-already-in-production.md)). The first release, 0.1.0, is still to come.
 
 A deploy restarts the single API instance. The API finishes the requests in flight before it exits (see Shutdown in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), so the Compose file gives it a `stop_grace_period` of 30 seconds, and Caddy holds new requests for up to 30 seconds (`lb_try_duration`) until the new instance accepts connections.
 
@@ -380,7 +383,7 @@ The rest is _TBD._
 - [`docs/design/`](docs/design/): analysis of the visual references behind the design system.
 - [`docs/agents/`](docs/agents/): configuration used by AI agents in this repository.
 
-`docs/adr/` and `GLOSSARY.md` are created as the domain and the architecture are defined.
+`docs/adr/` and `GLOSSARY.md` are created as the domain and the architecture are defined. `CHANGELOG.md`, with what changed in each release, is created with release 0.1.0.
 
 ## License
 

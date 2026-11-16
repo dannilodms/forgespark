@@ -43,7 +43,9 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 | Private vulnerability reporting | On; the way to report is in [`SECURITY.md`](../SECURITY.md) |
 | Actions | An action runs only when pinned to a full commit hash. The token of a workflow is read-only unless the workflow asks for more, and cannot approve a pull request |
 | Workflows of outside contributors | Run only after approval, for every outside contributor |
-| Container registry (GHCR) | Public images, tagged with the commit hash |
+| Tag protection | A ruleset on the tags that start with `v`: no update and no deletion (ADR-0023). _Not created_ |
+| Releases | Created by the publish workflow, one for each tag, with the notes from `CHANGELOG.md` and no attached file. _None yet_ |
+| Container registry (GHCR) | Public images, tagged with the commit hash. The images of a release also carry its number |
 | Label that creates the staging server | `staging` |
 | Commit address | The maintainer's `noreply` address |
 
