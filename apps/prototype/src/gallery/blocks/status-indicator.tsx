@@ -108,7 +108,7 @@ export function StatusIndicatorBlock() {
         title="In a list"
         note="Each row carries its status at the end, so a column of them can be read down."
       >
-        <Frame className="max-w-xl flex-col items-stretch gap-0 p-0">
+        <Frame className="max-w-xl flex-col flex-nowrap items-stretch gap-0 p-0">
           {requests.map(({ id, title, status, label }) => (
             <div
               key={id}

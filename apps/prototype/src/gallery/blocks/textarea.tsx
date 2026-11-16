@@ -96,7 +96,7 @@ export function InputGroupBlock() {
         title="What can be attached"
         note="A text at the start or the end, a button at the end, and a row of actions under a textarea."
       >
-        <Frame className="max-w-sm flex-col items-stretch">
+        <Frame className="max-w-sm flex-col flex-nowrap items-stretch">
           <InputGroup>
             <InputGroupAddon>
               <InputGroupText className="font-mono">https://</InputGroupText>

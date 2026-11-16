@@ -32,7 +32,7 @@ export function SkeletonBlock() {
         title="A list that is loading"
         note="One skeleton per row, with widths that differ as real text does."
       >
-        <Frame className="max-w-md flex-col items-stretch gap-0 p-0">
+        <Frame className="max-w-md flex-col flex-nowrap items-stretch gap-0 p-0">
           {(["w-3/5", "w-4/5", "w-2/5", "w-3/4"] as const).map((width) => (
             <div
               key={width}

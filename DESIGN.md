@@ -291,3 +291,5 @@ The gallery has one route per section, with side navigation, in this order: Foun
 - The reference shows no command palette and no product table. Those components follow the rules above, with nothing to match.
 - Hover, focus and active states come from the reference's CSS. None was seen in motion.
 - The reference's light theme was read from its site and from an HTML mock of the application, never from the real application.
+- A status colour as a word on a selected row, or on a row under the hover wash, is below 4.5:1 in places: the lowest is amber on `selected` in light, at 3.06:1, and red on `selected` in dark, at 3.36:1. The Foundations route does not measure these pairs.
+- In dark, the 1px edge of `shadow-floating` does not show, so a floating surface stands out by its fill and its shadow alone.

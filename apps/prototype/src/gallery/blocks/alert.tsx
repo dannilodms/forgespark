@@ -31,7 +31,7 @@ export function AlertBlock() {
         title="Variants"
         note="The destructive variant reports an error. It always carries an icon, so it does not depend on colour."
       >
-        <Frame className="max-w-xl flex-col items-stretch">
+        <Frame className="max-w-xl flex-col flex-nowrap items-stretch">
           <Alert>
             <InfoIcon />
             <AlertTitle>This project is archived</AlertTitle>
@@ -53,7 +53,7 @@ export function AlertBlock() {
         title="What it can carry"
         note="A title alone, a description alone, and an action at the end."
       >
-        <Frame className="max-w-xl flex-col items-stretch">
+        <Frame className="max-w-xl flex-col flex-nowrap items-stretch">
           <Alert>
             <InfoIcon />
             <AlertTitle>Two people are editing this request.</AlertTitle>
