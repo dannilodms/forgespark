@@ -8,4 +8,5 @@ export const gallerySections = [
   { to: "/gallery/feedback", label: "Feedback" },
   { to: "/gallery/overlays", label: "Overlays" },
   { to: "/gallery/do-and-dont", label: "Do and Don't" },
+  { to: "/gallery/recipes", label: "Recipes" },
 ] as const

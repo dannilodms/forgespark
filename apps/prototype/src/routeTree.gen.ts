@@ -22,6 +22,7 @@ import { Route as GalleryFoundationsRouteImport } from './routes/gallery/foundat
 import { Route as GalleryInputsRouteImport } from './routes/gallery/inputs'
 import { Route as GalleryNavigationRouteImport } from './routes/gallery/navigation'
 import { Route as GalleryOverlaysRouteImport } from './routes/gallery/overlays'
+import { Route as GalleryRecipesRouteImport } from './routes/gallery/recipes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +89,11 @@ const GalleryOverlaysRoute = GalleryOverlaysRouteImport.update({
   path: '/overlays',
   getParentRoute: () => GalleryRoute,
 } as any)
+const GalleryRecipesRoute = GalleryRecipesRouteImport.update({
+  id: '/recipes',
+  path: '/recipes',
+  getParentRoute: () => GalleryRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/gallery/inputs': typeof GalleryInputsRoute
   '/gallery/navigation': typeof GalleryNavigationRoute
   '/gallery/overlays': typeof GalleryOverlaysRoute
+  '/gallery/recipes': typeof GalleryRecipesRoute
   '/gallery/': typeof GalleryIndexRoute
 }
 export interface FileRoutesByTo {
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/gallery/inputs': typeof GalleryInputsRoute
   '/gallery/navigation': typeof GalleryNavigationRoute
   '/gallery/overlays': typeof GalleryOverlaysRoute
+  '/gallery/recipes': typeof GalleryRecipesRoute
   '/gallery': typeof GalleryIndexRoute
 }
 export interface FileRoutesById {
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/gallery/inputs': typeof GalleryInputsRoute
   '/gallery/navigation': typeof GalleryNavigationRoute
   '/gallery/overlays': typeof GalleryOverlaysRoute
+  '/gallery/recipes': typeof GalleryRecipesRoute
   '/gallery/': typeof GalleryIndexRoute
 }
 export interface FileRouteTypes {
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/gallery/inputs'
     | '/gallery/navigation'
     | '/gallery/overlays'
+    | '/gallery/recipes'
     | '/gallery/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/gallery/inputs'
     | '/gallery/navigation'
     | '/gallery/overlays'
+    | '/gallery/recipes'
     | '/gallery'
   id:
     | '__root__'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/gallery/inputs'
     | '/gallery/navigation'
     | '/gallery/overlays'
+    | '/gallery/recipes'
     | '/gallery/'
   fileRoutesById: FileRoutesById
 }
@@ -281,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GalleryOverlaysRouteImport
       parentRoute: typeof GalleryRoute
     }
+    '/gallery/recipes': {
+      id: '/gallery/recipes'
+      path: '/recipes'
+      fullPath: '/gallery/recipes'
+      preLoaderRoute: typeof GalleryRecipesRouteImport
+      parentRoute: typeof GalleryRoute
+    }
   }
 }
 
@@ -293,6 +312,7 @@ interface GalleryRouteChildren {
   GalleryInputsRoute: typeof GalleryInputsRoute
   GalleryNavigationRoute: typeof GalleryNavigationRoute
   GalleryOverlaysRoute: typeof GalleryOverlaysRoute
+  GalleryRecipesRoute: typeof GalleryRecipesRoute
   GalleryIndexRoute: typeof GalleryIndexRoute
 }
 
@@ -305,6 +325,7 @@ const GalleryRouteChildren: GalleryRouteChildren = {
   GalleryInputsRoute: GalleryInputsRoute,
   GalleryNavigationRoute: GalleryNavigationRoute,
   GalleryOverlaysRoute: GalleryOverlaysRoute,
+  GalleryRecipesRoute: GalleryRecipesRoute,
   GalleryIndexRoute: GalleryIndexRoute,
 }
 
