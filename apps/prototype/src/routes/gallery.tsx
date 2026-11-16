@@ -29,7 +29,8 @@ function GalleryLayout() {
           </Link>
         ))}
       </nav>
-      <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+      {/* `relative` keeps a visually hidden label inside the scrolling area. */}
+      <div className="relative min-h-0 min-w-0 flex-1 overflow-auto">
         <Outlet />
       </div>
     </div>

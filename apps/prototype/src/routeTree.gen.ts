@@ -19,6 +19,7 @@ import { Route as GalleryDataDisplayRouteImport } from './routes/gallery/data-di
 import { Route as GalleryFeedbackRouteImport } from './routes/gallery/feedback'
 import { Route as GalleryFoundationsRouteImport } from './routes/gallery/foundations'
 import { Route as GalleryInputsRouteImport } from './routes/gallery/inputs'
+import { Route as GalleryOverlaysRouteImport } from './routes/gallery/overlays'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +71,11 @@ const GalleryInputsRoute = GalleryInputsRouteImport.update({
   path: '/inputs',
   getParentRoute: () => GalleryRoute,
 } as any)
+const GalleryOverlaysRoute = GalleryOverlaysRouteImport.update({
+  id: '/overlays',
+  path: '/overlays',
+  getParentRoute: () => GalleryRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/gallery/feedback': typeof GalleryFeedbackRoute
   '/gallery/foundations': typeof GalleryFoundationsRoute
   '/gallery/inputs': typeof GalleryInputsRoute
+  '/gallery/overlays': typeof GalleryOverlaysRoute
   '/gallery/': typeof GalleryIndexRoute
 }
 export interface FileRoutesByTo {
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/gallery/feedback': typeof GalleryFeedbackRoute
   '/gallery/foundations': typeof GalleryFoundationsRoute
   '/gallery/inputs': typeof GalleryInputsRoute
+  '/gallery/overlays': typeof GalleryOverlaysRoute
   '/gallery': typeof GalleryIndexRoute
 }
 export interface FileRoutesById {
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/gallery/feedback': typeof GalleryFeedbackRoute
   '/gallery/foundations': typeof GalleryFoundationsRoute
   '/gallery/inputs': typeof GalleryInputsRoute
+  '/gallery/overlays': typeof GalleryOverlaysRoute
   '/gallery/': typeof GalleryIndexRoute
 }
 export interface FileRouteTypes {
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/gallery/feedback'
     | '/gallery/foundations'
     | '/gallery/inputs'
+    | '/gallery/overlays'
     | '/gallery/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/gallery/feedback'
     | '/gallery/foundations'
     | '/gallery/inputs'
+    | '/gallery/overlays'
     | '/gallery'
   id:
     | '__root__'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/gallery/feedback'
     | '/gallery/foundations'
     | '/gallery/inputs'
+    | '/gallery/overlays'
     | '/gallery/'
   fileRoutesById: FileRoutesById
 }
@@ -224,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GalleryInputsRouteImport
       parentRoute: typeof GalleryRoute
     }
+    '/gallery/overlays': {
+      id: '/gallery/overlays'
+      path: '/overlays'
+      fullPath: '/gallery/overlays'
+      preLoaderRoute: typeof GalleryOverlaysRouteImport
+      parentRoute: typeof GalleryRoute
+    }
   }
 }
 
@@ -233,6 +252,7 @@ interface GalleryRouteChildren {
   GalleryFeedbackRoute: typeof GalleryFeedbackRoute
   GalleryFoundationsRoute: typeof GalleryFoundationsRoute
   GalleryInputsRoute: typeof GalleryInputsRoute
+  GalleryOverlaysRoute: typeof GalleryOverlaysRoute
   GalleryIndexRoute: typeof GalleryIndexRoute
 }
 
@@ -242,6 +262,7 @@ const GalleryRouteChildren: GalleryRouteChildren = {
   GalleryFeedbackRoute: GalleryFeedbackRoute,
   GalleryFoundationsRoute: GalleryFoundationsRoute,
   GalleryInputsRoute: GalleryInputsRoute,
+  GalleryOverlaysRoute: GalleryOverlaysRoute,
   GalleryIndexRoute: GalleryIndexRoute,
 }
 

@@ -194,6 +194,8 @@ Button, input, select and tab heights move together, so a form stays aligned.
 
 A button has no shadow. Its depth is a 2px inset bottom edge, drawn by the `button-edge` and `button-edge-primary` utilities.
 
+Behind a dialog or a sheet, the page is covered by `background` at 70% opacity. A tooltip has no arrow.
+
 ### Motion and icons
 
 - Colour and opacity: 100 to 150ms, `cubic-bezier(.4, 0, .2, 1)`.
@@ -250,11 +252,11 @@ The shape of the mark and the background of the preview came from image models. 
 | Navigation | Tabs, Breadcrumb, Sidebar |
 | Data display | Card, Table, Avatar, Separator |
 | Feedback | Alert, Toast, Skeleton, Empty, Status indicator |
-| Overlays | Dialog, DropdownMenu, Popover, Tooltip, Command |
+| Overlays | Dialog, DropdownMenu, Popover, Tooltip, Command, Sheet |
 
 The status indicator is this project's own component: a sign and a word in one of the four status colours. The sign belongs to the meaning: a dashed circle for working, a triangle for needs attention, a check for done, a cross for error. It is plain in a row, and a badge on the subtle background of its colour where it stands alone.
 
-InputGroup is in the list because Command is built on it.
+InputGroup and Sheet are in the list because Command and Sidebar are built on them. Command is built on the `cmdk` library, which brings its own primitives.
 
 A component is restyled through style variables and through its variants.
 
