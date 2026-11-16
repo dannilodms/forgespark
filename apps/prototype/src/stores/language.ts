@@ -3,27 +3,35 @@ import { initReactI18next } from "react-i18next"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-import enUS from "../locales/en-US.json"
-import es from "../locales/es.json"
-import ptBR from "../locales/pt-BR.json"
+import type enUS from "../locales/en-US.json"
+import { formatFor } from "../locales/format"
+import {
+  type Language,
+  defaultLanguage,
+  supportedLanguages,
+} from "../locales/languages"
 
-/** The supported languages. Adding one means adding it here and delivering its file. */
-export const supportedLanguages = [
-  { code: "en-US", name: "English" },
-  { code: "pt-BR", name: "Português (Brasil)" },
-  { code: "es", name: "Español" },
-] as const
-
-export type Language = (typeof supportedLanguages)[number]["code"]
-
-const defaultLanguage: Language = "en-US"
-
+// The keys of the English file are the keys of the app: `t` accepts no other.
 declare module "i18next" {
   interface CustomTypeOptions {
     defaultNS: "translation"
     resources: { translation: typeof enUS }
   }
 }
+
+/** The file of each language in `locales`, by its path from this file. */
+const files = import.meta.glob<Record<string, unknown>>("../locales/*.json", {
+  eager: true,
+  import: "default",
+})
+
+/** The texts of every supported language. A language is loaded by being in the list. */
+const resources = Object.fromEntries(
+  supportedLanguages.map(({ code }) => [
+    code,
+    { translation: files[`../locales/${code}.json`] ?? {} },
+  ])
+)
 
 type LanguageState = {
   /** The language chosen by the person. `null` follows the browser. */
@@ -72,11 +80,7 @@ function applyLanguage() {
 /** Loads the texts and keeps the language in force. Call once, before the first render. */
 export function startLanguage() {
   void i18n.use(initReactI18next).init({
-    resources: {
-      "en-US": { translation: enUS },
-      "pt-BR": { translation: ptBR },
-      es: { translation: es },
-    },
+    resources,
     lng: currentLanguage(),
     fallbackLng: defaultLanguage,
     interpolation: { escapeValue: false },
@@ -89,4 +93,9 @@ export function startLanguage() {
 export function useLanguage(): Language {
   const chosen = useLanguageStore((state) => state.chosen)
   return chosen ?? browserLanguage()
+}
+
+/** Dates and numbers written for the language in force. */
+export function useFormat() {
+  return formatFor(useLanguage())
 }

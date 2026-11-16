@@ -9,11 +9,8 @@ import {
 import { GlobeIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import {
-  supportedLanguages,
-  useLanguage,
-  useLanguageStore,
-} from "../stores/language"
+import { supportedLanguages } from "../locales/languages"
+import { useLanguage, useLanguageStore } from "../stores/language"
 
 const items = supportedLanguages.map(({ code, name }) => ({
   value: code,

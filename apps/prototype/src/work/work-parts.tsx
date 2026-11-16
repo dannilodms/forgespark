@@ -48,7 +48,7 @@ import { useTranslation } from "react-i18next"
 import { DetailPane } from "../recipes/detail-pane"
 import { FormDialog, FormDialogError } from "../recipes/form-dialog"
 import { ListPane } from "../recipes/list-pane"
-import { useLanguage } from "../stores/language"
+import { useFormat } from "../stores/language"
 import { useStatusWord } from "./status-word"
 import {
   type Draft,
@@ -59,13 +59,6 @@ import {
   statuses,
   titleMaxLength,
 } from "./work-items"
-
-/** A day such as `2026-11-02`, written for the language in force. */
-function useDay() {
-  const language = useLanguage()
-  const format = new Intl.DateTimeFormat(language, { dateStyle: "medium" })
-  return (day: string) => format.format(new Date(`${day}T00:00:00`))
-}
 
 /** The list pane of a place: `shown` is what the filter left of its items. */
 export function ItemList({
@@ -193,7 +186,7 @@ export function ItemDetail({
 }) {
   const { t } = useTranslation()
   const statusWord = useStatusWord()
-  const day = useDay()
+  const { day } = useFormat()
 
   const facts = [
     { label: t("work.detail.owner"), value: item.owner },
