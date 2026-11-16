@@ -16,6 +16,33 @@
     "newCodeIn": "Enviar un código nuevo en {{time}}",
     "otherEmail": "Usar otro correo",
     "footer": "Solo entran las personas registradas. Pide acceso a quien administra el sistema.",
+    "provider": {
+      "google": "Google",
+      "microsoft": "Microsoft",
+      "github": "GitHub",
+      "local": "el proveedor local"
+    },
+    "forDevelopment": "Desarrollo",
+    "codeWrong_one": "Este código es incorrecto. Revísalo y escríbelo de nuevo: queda {{count}} intento.",
+    "codeWrong_other": "Este código es incorrecto. Revísalo y escríbelo de nuevo: quedan {{count}} intentos.",
+    "codeEnded": "Este código se escribió mal tres veces y dejó de funcionar. Pide un código nuevo.",
+    "codeExpired": "Este código expiró. Pide un código nuevo.",
+    "sessionEnded": {
+      "title": "Tu sesión terminó",
+      "todo": "Inicia sesión de nuevo para continuar."
+    },
+    "limitReached": {
+      "title": "Se pidieron demasiados códigos",
+      "todo": "Espera unos minutos y pide otro."
+    },
+    "accountNotRegistered": {
+      "title": "Esta cuenta no tiene acceso",
+      "todo": "Pide a quien administra el sistema que le dé acceso."
+    },
+    "providerFailed": {
+      "title": "El inicio de sesión con {{provider}} falló",
+      "todo": "Inténtalo de nuevo en un momento."
+    },
     "language": "Idioma"
   },
   "work": {

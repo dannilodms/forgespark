@@ -13,10 +13,11 @@ tasks:
       - vp dev
 
   check:
-    desc: Format, lint and type checks, and the coverage of the gallery
+    desc: Format, lint and type checks, the coverage of the gallery and the tests of the prototype
     cmds:
       - vp check
       - vp node apps/prototype/scripts/gallery-coverage.mjs
+      - vp test run --root apps/prototype
 
   check:fix:
     desc: The same checks, fixing what can be fixed

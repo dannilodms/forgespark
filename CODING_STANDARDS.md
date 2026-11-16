@@ -383,7 +383,9 @@ The default test renders a whole screen in Vitest's Browser Mode, with the API s
 
 `apps/prototype` uses React, TanStack Router, react-i18next and `packages/ui`, with fake data in plain modules and its own translation files. A Zustand store may hold the theme and the scenario. Nothing is imported from it into `apps/web` (ADR-0006).
 
-The prototype bar is a small floating bar shown over every route, outside the page it floats over. It holds the theme, the language and the scenarios of the current screen. A scenario is a named condition a screen can be put in, such as an expired login code: a screen declares its scenarios, in groups when two of them can hold at once, and its fake data answers according to the ones chosen. A screen carries no control that exists only because it is in the prototype.
+The prototype bar is a small floating bar shown over every route, outside the page it floats over. It holds the theme, the language and the scenarios of the current screen. A scenario is a named condition a screen can be put in, such as an expired login code: a screen declares its scenarios, in groups when two of them can hold at once, and its fake data answers according to the ones chosen. The route of the screen carries the groups in its `staticData`, the bar lists the groups of the current route, and only the fake data of the screen reads a scenario by name (see `apps/prototype/src/stores/scenarios.ts`). A choice lasts until the page is reloaded. A screen carries no control that exists only because it is in the prototype.
+
+The prototype has no screen tests. The reducer of a flow and the fake data of a screen have their tests beside them, and `task check` runs them.
 
 The gallery is the permanent part of the prototype: it shows every style variable and every component of `packages/ui`, as `DESIGN.md` describes. The screens around it are disposable. The stylesheet that pins hover, focus and active for the gallery stays in `apps/prototype`.
 
