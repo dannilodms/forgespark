@@ -7,4 +7,5 @@ export const gallerySections = [
   { to: "/gallery/data-display", label: "Data display" },
   { to: "/gallery/feedback", label: "Feedback" },
   { to: "/gallery/overlays", label: "Overlays" },
+  { to: "/gallery/do-and-dont", label: "Do and Don't" },
 ] as const
