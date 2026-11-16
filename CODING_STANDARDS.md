@@ -291,3 +291,42 @@ For investigating performance in a real browser, agents have the Chrome DevTools
 A client for Server-Sent Events is written with the first streaming operation. Telemetry from the browser waits for users other than the maintainer.
 
 The system health screen waits for the health report (see Health in the backend rules) and is designed in the prototype first. It reads the health report when it opens and on a refresh button, with no automatic refresh and no warning on other screens.
+
+## Versions (the whole repository)
+
+Every tool, library and container image runs at a version written in a committed file. Each version has one home, and an update is a change to that file.
+
+### Where each version lives
+
+| What | Home |
+| --- | --- |
+| Go toolchain | the `go` and `toolchain` lines of `go.mod` |
+| Go libraries | `go.mod` and `go.sum` |
+| Go command-line tools (sqlc, vacuum, oasdiff) | `tool` lines of `go.mod`, run with `go tool` |
+| Node.js | `.node-version` at the root |
+| pnpm | `packageManager` in the root `package.json` |
+| JavaScript libraries and tools, Vite+ included | the catalog in `pnpm-workspace.yaml`, and `pnpm-lock.yaml` |
+| Container images (PostgreSQL, MinIO, Caddy, Grafana otel-lgtm) | the image tag in `compose.yaml` and in each Dockerfile |
+| MCP servers for agents | `.mcp.json` |
+| Docker, Task and the global `vp` | the prerequisites table of `README.md`, as a minimum version |
+
+### Rules
+
+- **Exact.** A version is exact: no range (`^`, `~`), no `latest`, no floating tag such as `postgres:18`. Only the prerequisites table holds minimums.
+- **Catalog.** The three JavaScript packages take their versions from the pnpm catalog (`catalog:`), so a library has one version in the whole workspace.
+- **Lockfiles.** `go.sum` and `pnpm-lock.yaml` are committed. The build installs from them and fails when they would change.
+- **Nothing global.** A tool the build uses runs from its home above (`go tool`, `vp`), never from a copy installed on the machine. Docker, Task and the global `vp` are the only exceptions.
+- **One-off commands.** A command that downloads what it runs (`npx`, `pnpm dlx`, `go run` with a module path) carries an exact version.
+- **Copied code.** The shadcn/ui components in `packages/ui` have no version. Updating one means running the shadcn CLI again for that component and reviewing the diff.
+- **Prose.** A document names a version only when a rule depends on it, as a minimum (PostgreSQL 18, pgx 5.13.0 or later). The version in force is read from its home. A number that must appear in two files is listed in both as such, as in [`docs/agents/browser-tools.md`](docs/agents/browser-tools.md).
+
+### Updating
+
+- **Listing.** `task outdated` lists what has a newer release: Go modules, JavaScript packages and container images. It is written with the first code.
+- **One at a time.** An update is its own commit: one dependency, or one family released together (TanStack, OpenTelemetry), with the build and the tests passing.
+- **Major versions.** A major version is updated after reading its migration notes. When it changes what an ADR decided, that ADR is updated in the same commit.
+- **Pre-releases.** A library adopted before its stable release (TanStack DB) moves to the stable release as soon as there is one.
+
+### Enforcement
+
+The check that rejects a range, `latest` or a floating tag is chosen with the first code. Once it exists, the rules here shrink to a pointer at the check.
