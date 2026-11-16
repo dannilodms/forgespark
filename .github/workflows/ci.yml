@@ -1,0 +1,79 @@
+name: CI
+
+# The checks of a pull request, run again on `main` after the merge.
+# Rules: Pipeline in CODING_STANDARDS.md.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  ACTIONLINT_VERSION: 1.7.12
+  ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+  ZIZMOR_VERSION: 1.32.0
+
+jobs:
+  workflows:
+    name: Workflow files
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install actionlint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          gh release download "v${ACTIONLINT_VERSION}" \
+            --repo rhysd/actionlint \
+            --pattern "$archive" \
+            --dir "$RUNNER_TEMP"
+          echo "${ACTIONLINT_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" actionlint
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Run actionlint
+        run: actionlint -color
+
+      - name: Run zizmor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pipx run --spec "zizmor==${ZIZMOR_VERSION}" zizmor --color=always .
+
+  # The only check the ruleset of `main` requires. A new check is a job
+  # added to `needs`, so the ruleset never changes.
+  checks:
+    name: Checks
+    if: ${{ always() }}
+    needs:
+      - workflows
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - name: Fail when a check failed or was cancelled
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            case "$result" in
+              success | skipped) ;;
+              *)
+                echo "A check ended as: $result"
+                exit 1
+                ;;
+            esac
+          done

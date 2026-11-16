@@ -564,6 +564,7 @@ How a change reaches `main` and the servers. The repository is public, which set
 - **The same commands.** A workflow calls Task targets. A check that fails in the pipeline fails the same way on the machine.
 - **Workflows are checked too.** actionlint and zizmor run on every workflow file.
 - **Documents only.** A pull request that changes only documents skips the builds and the tests.
+- **One required check.** The ruleset of `main` requires a single check: the `Checks` job of `ci.yml`, which fails when a job it needs failed or was cancelled, and passes when one was skipped. A new check is a job added to its `needs`, never a change to the ruleset.
 
 ### Scheduled workflows
 
