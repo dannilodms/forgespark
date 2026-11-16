@@ -166,7 +166,9 @@ _TBD._
 
 ### Deploy
 
-_TBD._
+A deploy restarts the single API instance. The API finishes the requests in flight before it exits (see Shutdown in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), so the Compose file gives it a `stop_grace_period` of 30 seconds, and Caddy holds new requests for up to 30 seconds (`lb_try_duration`) until the new instance accepts connections.
+
+The rest is _TBD._
 
 <!-- Where the application runs, how to ship a new version and how to roll back to the previous one. -->
 

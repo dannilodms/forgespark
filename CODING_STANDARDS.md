@@ -56,7 +56,7 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 - Every operation an inbound adapter exposes is one use case in `application`. A Huma handler or an MCP tool parses its input, calls one use case and maps the result.
 - A use case that only passes the call through is correct. So is the mapping between API types and domain types. Both are deliberate, not a middle man or duplication.
 - A use case's inputs and outputs carry no type from Huma, the MCP SDK or any other adapter library.
-- **Writes.** One use case is one transaction, opened and closed through an interface. It loads the aggregate from its repository, calls the aggregate, and saves it whole. It may save several aggregates of its own area. An effect on another area or on an external service runs after the commit.
+- **Writes.** One use case is one transaction, opened and closed through an interface. It loads the aggregate from its repository, calls the aggregate, and saves it whole. It may save several aggregates of its own area. An effect on another area or on an external service runs after the commit and before the response, inside the request.
 - **Reads.** A query use case calls a read-only interface that returns data already shaped for the caller. It builds no aggregate.
 
 ### Inbound adapters
@@ -92,6 +92,20 @@ These apply to REST. Names, identifiers, lists and error codes apply to MCP tool
 - Logs, spans and metric labels never carry personal data, the value of a credential, an access token or a session cookie.
 - The `trace_id` in an error body is the trace identifier of the request.
 - A sensitive operation (reading the value of a credential, a login, creating or revoking an access token) writes to the audit log from its use case. The audit log is append-only and is not telemetry.
+
+### Shutdown
+
+The API stops without cutting work short. It runs as one instance, so a deploy is a restart, and a few seconds without service are accepted.
+
+- **Signal.** `SIGTERM` or `SIGINT` starts the shutdown. A second signal exits at once.
+- **Ownership.** `platform` owns the process lifecycle and exports the shutdown notice. No domain area handles a signal.
+- **Health.** Readiness fails from the signal on. Liveness keeps answering.
+- **Requests.** New connections are refused. A request in flight, an MCP tool call included, has the drain deadline to finish: 20 seconds, taken from configuration. No timeout on a non-streaming outbound call exceeds the drain deadline.
+- **Streams.** A stream closes when the shutdown starts: an LLM answer being streamed, a progress stream, the MCP listening stream. A streaming operation watches the shutdown notice. An SSE operation first sends a final error event with the code `service_restarting`, carrying the fields of the error format. The MCP listening stream closes with no event, because MCP defines its own reconnection.
+- **Deadline reached.** The context of each remaining request is cancelled, which rolls back its transaction, and the API logs how many requests were cut.
+- **Exit.** The API then closes its connections to PostgreSQL, flushes telemetry under a short deadline of its own and exits: with status zero when every request finished, non-zero when one was cut.
+- **No goroutine outlives its request.** Work that must survive the request keeps its state in the database and can be resumed after a restart. The shutdown does not wait for it.
+- **Test.** A test in `platform` holds a slow request and a stream open, sends the signal and checks that the request finishes, the stream receives its final event, a new connection is refused, and a reached deadline cancels what is left. It is written with the first backend code.
 
 ### Domain modelling
 
@@ -129,6 +143,8 @@ The generated OpenAPI spec is committed, and the build fails when it is stale. A
 ### Deferred
 
 Domain events, CQRS, event sourcing and a second bounded context each start with a new ADR, written when a concrete case needs one. So do WebSocket, GraphQL and gRPC as inbound adapters, live notifications (which need domain events), OAuth for agents, and MCP resources and prompts.
+
+Asynchronous work (the 202 of the API conventions) has no mechanism yet. The first case starts with a new ADR and follows the rule in Shutdown: its state is in the database and it resumes after a restart.
 
 `ETag` with `If-Match`, `Idempotency-Key` and rate limiting are added to the first case that needs one, without a new ADR. A version in the path waits for the first consumer that does not ship with the backend, and reopens ADR-0009.
 

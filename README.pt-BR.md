@@ -166,7 +166,9 @@ _A definir._
 
 ### Deploy
 
-_A definir._
+Um deploy reinicia a única instância da API. A API termina as requisições em andamento antes de sair (veja Shutdown em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), então o arquivo do Compose dá a ela um `stop_grace_period` de 30 segundos, e o Caddy segura as requisições novas por até 30 segundos (`lb_try_duration`) até a nova instância aceitar conexões.
+
+O restante está _A definir._
 
 <!-- Onde a aplicação roda, como publicar uma nova versão e como reverter para a anterior. -->
 
