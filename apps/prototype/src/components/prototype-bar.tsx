@@ -16,9 +16,9 @@ export function PrototypeBar() {
   return (
     <aside
       aria-label="Prototype bar"
-      className="flex items-center gap-2 rounded-control border bg-card py-1 pr-1 pl-3 text-xs text-muted-foreground shadow-floating"
+      className="flex items-center gap-2 rounded-control border bg-card py-1 pr-1 pl-3 type-caption text-muted-foreground shadow-floating"
     >
-      <span className="font-mono">Prototype</span>
+      <span className="type-code">Prototype</span>
       <Button
         variant="ghost"
         size="sm"

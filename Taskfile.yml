@@ -13,9 +13,10 @@ tasks:
       - vp dev
 
   check:
-    desc: Format, lint and type checks of the JavaScript workspace
+    desc: Format, lint and type checks, and the coverage of the gallery
     cmds:
       - vp check
+      - vp node apps/prototype/scripts/gallery-coverage.mjs
 
   check:fix:
     desc: The same checks, fixing what can be fixed

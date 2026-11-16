@@ -1,15 +1,17 @@
 /*
- * The style variables of the design system. Their names and roles are the
- * contract in DESIGN.md, under "Style variables".
+ * The style variables of the design system. Their names, roles and values are
+ * the contract in DESIGN.md: a change here changes that file too.
  *
- * The values below are placeholders: shadcn/ui's neutral theme, plus a first
- * guess for each variable DESIGN.md adds. Issue 03 of
- * .scratch/design-system-prototype/ replaces them with the values of DESIGN.md.
+ * A value marked "adjusted" replaces the one Zed uses, which fails WCAG AA.
+ * DESIGN.md gives both.
  */
 
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@fontsource-variable/ibm-plex-sans/wght.css";
+@import "@fontsource/ibm-plex-serif/300-italic.css";
+@import "@fontsource-variable/lilex/wght.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -46,6 +48,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* Added by DESIGN.md. */
+  --color-chrome: var(--chrome);
   --color-selected: var(--selected);
   --color-faint-foreground: var(--faint-foreground);
   --color-border-subtle: var(--border-subtle);
@@ -59,132 +62,228 @@
   --color-status-attention-subtle: var(--status-attention-subtle);
   --color-status-done-subtle: var(--status-done-subtle);
   --color-status-error-subtle: var(--status-error-subtle);
-  --color-button-edge: var(--button-edge);
 
-  /* The scale shadcn/ui components use, derived from --radius. */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* The scale shadcn/ui components use, mapped onto the radius roles. */
+  --radius-sm: var(--radius-chip);
+  --radius-md: var(--radius-tab);
+  --radius-lg: var(--radius-control);
+  --radius-xl: var(--radius-pane);
+  --radius-2xl: var(--radius-floating);
+  --radius-3xl: var(--radius-floating);
+  --radius-4xl: var(--radius-chip);
 
   --font-heading: var(--font-sans);
 }
 
 /* The same in both themes. `static` keeps a variable that nothing uses yet. */
 @theme static {
-  --radius-chip: 0.25rem;
-  --radius-tab: 0.375rem;
-  --radius-control: 0.5rem;
-  --radius-pane: 0.625rem;
-  --radius-floating: 0.75rem;
+  --radius-chip: 2px;
+  --radius-tab: 4px;
+  --radius-control: 4px;
+  --radius-pane: 4px;
+  --radius-floating: 6px;
 
-  --shadow-floating: 0 8px 24px rgb(0 0 0 / 0.16);
+  /* Borders carry the structure: only a floating surface has a shadow. */
+  --shadow-xs: 0 0 #0000;
+  --shadow-floating:
+    0 0 0 1px rgb(0 0 0 / 0.06), 0 8px 24px -8px rgb(0 0 0 / 0.28);
 
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
-  --font-serif: ui-serif, Georgia, serif;
-  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "IBM Plex Serif", ui-serif, Georgia, serif;
+  --font-mono:
+    "Lilex Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* shadcn/ui components set their text in `text-sm`: the interface size. */
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.125rem;
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #f5f4f3;
+  --foreground: #242529;
+  --card: #fafafa;
+  --card-foreground: #242529;
+  --popover: #ebebec;
+  --popover-foreground: #242529;
+  --primary: #1348dc;
+  --primary-foreground: #ffffff;
+  --secondary: #ebebec;
+  --secondary-foreground: #242529;
+  --muted: #ebebec;
+  --muted-foreground: #555557; /* adjusted */
+  --accent: #dfdfe0;
+  --accent-foreground: #242529;
+  --destructive: #b14234; /* adjusted */
+  --border: #c9c9ca;
+  --input: #8d8d8e; /* adjusted */
+  --ring: rgb(9 78 206 / 0.65); /* adjusted */
+  --radius: 4px;
+  --sidebar: #ebebec;
+  --sidebar-foreground: #242529;
+  --sidebar-primary: #1348dc;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #dfdfe0;
+  --sidebar-accent-foreground: #242529;
+  --sidebar-border: #c9c9ca;
+  --sidebar-ring: rgb(9 78 206 / 0.65);
 
   /* Added by DESIGN.md. */
-  --selected: oklch(0.922 0 0);
-  --faint-foreground: oklch(0.708 0 0);
-  --border-subtle: oklch(0.97 0 0);
-  --brand: oklch(0.488 0.243 264.376);
-  --brand-foreground: oklch(0.985 0 0);
-  --status-working: oklch(0.546 0.245 262.881);
-  --status-attention: oklch(0.666 0.179 58.318);
-  --status-done: oklch(0.527 0.154 150.069);
-  --status-error: oklch(0.577 0.245 27.325);
-  --status-working-subtle: oklch(0.546 0.245 262.881 / 12%);
-  --status-attention-subtle: oklch(0.666 0.179 58.318 / 12%);
-  --status-done-subtle: oklch(0.527 0.154 150.069 / 12%);
-  --status-error-subtle: oklch(0.577 0.245 27.325 / 12%);
-  --button-edge: oklch(0.145 0 0 / 10%);
+  --chrome: #dcdcdd;
+  --selected: #cacaca;
+  --faint-foreground: #696a70; /* adjusted */
+  --border-subtle: #dfdfe0;
+  --brand: #1348dc;
+  --brand-foreground: #ffffff;
+  --status-working: #455dc5; /* adjusted */
+  --status-attention: #886c00; /* adjusted */
+  --status-done: #3d7430; /* adjusted */
+  --status-error: #b14234; /* adjusted */
+  --status-working-subtle: #e2e2fa;
+  --status-attention-subtle: #faf2e6;
+  --status-done-subtle: #dfeadb;
+  --status-error-subtle: #fbdfd9;
+  --button-edge: hsl(218 13% 50% / 0.1);
+  --button-edge-primary: hsl(219 93% 30%);
+  --page-grid: rgb(36 37 41 / 0.05);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #282c33;
+  --foreground: #dce0e5;
+  --card: #282c33;
+  --card-foreground: #dce0e5;
+  --popover: #2f343e;
+  --popover-foreground: #dce0e5;
+  --primary: #1348dc;
+  --primary-foreground: #ffffff;
+  --secondary: #2e343e;
+  --secondary-foreground: #dce0e5;
+  --muted: #2f343e;
+  --muted-foreground: #b3b9c6; /* adjusted */
+  --accent: #363c46;
+  --accent-foreground: #dce0e5;
+  --destructive: #e48488; /* adjusted */
+  --border: #464b57;
+  --input: #6f7582; /* adjusted */
+  --ring: #74ade8; /* adjusted */
+  --sidebar: #2f343e;
+  --sidebar-foreground: #dce0e5;
+  --sidebar-primary: #1348dc;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #363c46;
+  --sidebar-accent-foreground: #dce0e5;
+  --sidebar-border: #464b57;
+  --sidebar-ring: #74ade8;
 
   /* Added by DESIGN.md. */
-  --selected: oklch(0.371 0 0);
-  --faint-foreground: oklch(0.556 0 0);
-  --border-subtle: oklch(1 0 0 / 6%);
-  --brand: oklch(0.707 0.165 254.624);
-  --brand-foreground: oklch(0.145 0 0);
-  --status-working: oklch(0.707 0.165 254.624);
-  --status-attention: oklch(0.828 0.189 84.429);
-  --status-done: oklch(0.792 0.209 151.711);
-  --status-error: oklch(0.704 0.191 22.216);
-  --status-working-subtle: oklch(0.707 0.165 254.624 / 12%);
-  --status-attention-subtle: oklch(0.828 0.189 84.429 / 12%);
-  --status-done-subtle: oklch(0.792 0.209 151.711 / 12%);
-  --status-error-subtle: oklch(0.704 0.191 22.216 / 12%);
-  --button-edge: oklch(1 0 0 / 10%);
+  --chrome: #3b414d;
+  --selected: #454a56;
+  --faint-foreground: #989ba9; /* adjusted */
+  --border-subtle: #363c46;
+  --brand: #74ade8;
+  --brand-foreground: #1b1e23;
+  --status-working: #74ade8;
+  --status-attention: #dec184;
+  --status-done: #a1c181;
+  --status-error: #e48488; /* adjusted */
+  --status-working-subtle: rgb(116 173 232 / 0.1);
+  --status-attention-subtle: rgb(222 193 132 / 0.1);
+  --status-done-subtle: rgb(161 193 129 / 0.1);
+  --status-error-subtle: rgb(228 132 136 / 0.1);
+  --button-edge: hsl(218 13% 50% / 0.1);
+  --button-edge-primary: hsl(219 93% 30%);
+  --page-grid: rgb(220 224 229 / 0.045);
+}
+
+/* The type roles. Each sets family, size, line height, weight and tracking. */
+@utility type-display {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+@utility type-title {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+@utility type-body {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+@utility type-ui {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+@utility type-label {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+@utility type-caption {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+@utility type-code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* The inset bottom edge of a button. */
+@utility button-edge {
+  box-shadow: inset 0 -2px 0 var(--button-edge);
+}
+
+@utility button-edge-primary {
+  box-shadow: inset 0 -2px 0 var(--button-edge-primary);
+}
+
+/* The page framing. A page opts in; a component never does. */
+@utility page-framing {
+  background-image:
+    linear-gradient(to right, var(--page-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--page-grid) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+
+@utility frame-node {
+  width: 7px;
+  height: 7px;
+  rotate: 45deg;
+  border: 1px solid var(--border);
+  background-color: var(--background);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground type-body;
   }
 }

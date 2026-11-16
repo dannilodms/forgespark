@@ -10,33 +10,76 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GalleryRouteImport } from './routes/gallery'
+import { Route as GalleryIndexRouteImport } from './routes/gallery/index'
+import { Route as GalleryActionsRouteImport } from './routes/gallery/actions'
+import { Route as GalleryFoundationsRouteImport } from './routes/gallery/foundations'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GalleryRoute = GalleryRouteImport.update({
+  id: '/gallery',
+  path: '/gallery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GalleryIndexRoute = GalleryIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GalleryRoute,
+} as any)
+const GalleryActionsRoute = GalleryActionsRouteImport.update({
+  id: '/actions',
+  path: '/actions',
+  getParentRoute: () => GalleryRoute,
+} as any)
+const GalleryFoundationsRoute = GalleryFoundationsRouteImport.update({
+  id: '/foundations',
+  path: '/foundations',
+  getParentRoute: () => GalleryRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/gallery': typeof GalleryRouteWithChildren
+  '/gallery/actions': typeof GalleryActionsRoute
+  '/gallery/foundations': typeof GalleryFoundationsRoute
+  '/gallery/': typeof GalleryIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/gallery/actions': typeof GalleryActionsRoute
+  '/gallery/foundations': typeof GalleryFoundationsRoute
+  '/gallery': typeof GalleryIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/gallery': typeof GalleryRouteWithChildren
+  '/gallery/actions': typeof GalleryActionsRoute
+  '/gallery/foundations': typeof GalleryFoundationsRoute
+  '/gallery/': typeof GalleryIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    '/' | '/gallery' | '/gallery/actions' | '/gallery/foundations' | '/gallery/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/gallery/actions' | '/gallery/foundations' | '/gallery'
+  id:
+    | '__root__'
+    | '/'
+    | '/gallery'
+    | '/gallery/actions'
+    | '/gallery/foundations'
+    | '/gallery/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GalleryRoute: typeof GalleryRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +91,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/gallery': {
+      id: '/gallery'
+      path: '/gallery'
+      fullPath: '/gallery'
+      preLoaderRoute: typeof GalleryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gallery/': {
+      id: '/gallery/'
+      path: '/'
+      fullPath: '/gallery/'
+      preLoaderRoute: typeof GalleryIndexRouteImport
+      parentRoute: typeof GalleryRoute
+    }
+    '/gallery/actions': {
+      id: '/gallery/actions'
+      path: '/actions'
+      fullPath: '/gallery/actions'
+      preLoaderRoute: typeof GalleryActionsRouteImport
+      parentRoute: typeof GalleryRoute
+    }
+    '/gallery/foundations': {
+      id: '/gallery/foundations'
+      path: '/foundations'
+      fullPath: '/gallery/foundations'
+      preLoaderRoute: typeof GalleryFoundationsRouteImport
+      parentRoute: typeof GalleryRoute
+    }
   }
 }
 
+interface GalleryRouteChildren {
+  GalleryActionsRoute: typeof GalleryActionsRoute
+  GalleryFoundationsRoute: typeof GalleryFoundationsRoute
+  GalleryIndexRoute: typeof GalleryIndexRoute
+}
+
+const GalleryRouteChildren: GalleryRouteChildren = {
+  GalleryActionsRoute: GalleryActionsRoute,
+  GalleryFoundationsRoute: GalleryFoundationsRoute,
+  GalleryIndexRoute: GalleryIndexRoute,
+}
+
+const GalleryRouteWithChildren =
+  GalleryRoute._addFileChildren(GalleryRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GalleryRoute: GalleryRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

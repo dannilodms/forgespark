@@ -52,7 +52,8 @@ The names and roles below are the contract. The colour names are those of shadcn
 | --- | --- |
 | `background` / `foreground` | The page, behind and between panes. Default text. |
 | `card` / `card-foreground` | A pane or a card. |
-| `sidebar` / `sidebar-foreground` | Chrome: sidebar, title bar, status bar. |
+| `sidebar` / `sidebar-foreground` | The sidebar. |
+| `chrome` (added) | The title bar and the status bar, one step stronger than `sidebar`. |
 | `popover` / `popover-foreground` | A floating surface. |
 | `primary` / `primary-foreground` | The primary button. |
 | `secondary` / `secondary-foreground` | A raised control: secondary button, active tab, chip. |
@@ -60,71 +61,100 @@ The names and roles below are the contract. The colour names are those of shadcn
 | `accent` / `accent-foreground` | The hover wash. This is shadcn/ui's name; it is not the accent colour of rule 2. |
 | `selected` (added) | The fill of a selected row or item, one step stronger than `accent`. |
 | `faint-foreground` (added) | Tertiary text: placeholder, disabled text, an index. |
-| `border`, `input` | The line between surfaces. The border of a control. |
+| `border` | The line between surfaces. |
+| `input` | The border of a field. It reaches 3:1 against the surface, which `border` does not have to. |
 | `border-subtle` (added) | A lighter line inside a surface, between rows or groups. |
 | `ring` | The focus indicator. |
 | `brand` / `brand-foreground` (added) | The accent colour of rule 2 where it is not a button: a link, an icon, a highlighted word. |
 | `destructive` | A destructive action and a validation error. |
 | `status-working`, `status-attention`, `status-done`, `status-error` (added) | The four status colours of rule 2. |
 | `status-*-subtle` (added) | The background of a status badge. |
-| `button-edge` (added) | The inset bottom edge of a button. |
+| `button-edge`, `button-edge-primary` (added) | The inset bottom edge of a button, and that of the primary button. |
+| `page-grid` (added) | The lines of the grid texture of the page framing. |
 
 The four status colours are visual meanings. Which status of a record shows which meaning is decided with each screen.
 
 ### Colours
 
+The values in use. Where a value of Zed failed WCAG AA, the value in use is followed by the one it replaces.
+
 | Style variable | Light | Dark |
 | --- | --- | --- |
 | `background` | `#f5f4f3` | `#282c33` |
 | `card` | `#fafafa` | `#282c33` |
-| `sidebar` | `#ebebec`; title and status bars `#dcdcdd` | `#2f343e`; title and status bars `#3b414d` |
+| `popover` | `#ebebec` | `#2f343e` |
+| `sidebar` | `#ebebec` | `#2f343e` |
+| `chrome` | `#dcdcdd` | `#3b414d` |
 | `secondary` | `#ebebec` | `#2e343e` |
+| `muted` | `#ebebec` | `#2f343e` |
 | `accent` | `#dfdfe0` | `#363c46` |
 | `selected` | `#cacaca` | `#454a56` |
 | `foreground` | `#242529` | `#dce0e5` |
-| `muted-foreground` | `#58585a` | `#a9afbc` |
-| `faint-foreground` | `#7e8086` | `#878a98` |
-| `border`, `input` | `#c9c9ca` | `#464b57` |
+| `muted-foreground` | `#555557` (Zed: `#58585a`) | `#b3b9c6` (Zed: `#a9afbc`) |
+| `faint-foreground` | `#696a70` (Zed: `#7e8086`) | `#989ba9` (Zed: `#878a98`) |
+| `border` | `#c9c9ca` | `#464b57` |
+| `input` | `#8d8d8e` (Zed: `#c9c9ca`) | `#6f7582` (Zed: `#464b57`) |
 | `border-subtle` | `#dfdfe0` | `#363c46` |
 | `primary` | `#1348dc` | `#1348dc` |
 | `primary-foreground` | `#ffffff` | `#ffffff` |
 | `brand` | `#1348dc` | `#74ade8` |
-| `ring` | `#094ece` at 50% | `#094ece` at 50% |
-| `destructive` | `#d36151` | `#d07277` |
-| `button-edge` | `hsl(219 93% 30%)`, 2px inset, on the primary button; `hsl(218 13% 50% / 0.1)` on the others | the same |
+| `brand-foreground` | `#ffffff` | `#1b1e23` |
+| `ring` | `#094ece` at 65% (Zed: at 50%) | `#74ade8` (Zed: `#094ece` at 50%) |
+| `destructive` | `#b14234` (Zed: `#d36151`) | `#e48488` (Zed: `#d07277`) |
+| `button-edge` | `hsl(218 13% 50% / 0.1)` | the same |
+| `button-edge-primary` | `hsl(219 93% 30%)` | the same |
+| `page-grid` | `foreground` at 5% | `foreground` at 4.5% |
+
+The text colours of a surface (`card-foreground`, `popover-foreground`, `secondary-foreground`, `accent-foreground`, `sidebar-foreground`) are `foreground`. The `sidebar-*` variables that shadcn/ui expects take the values of their plain counterparts.
+
+What each adjustment had to reach:
+
+- `muted-foreground`: 4.5:1 on a selected row, where it was 4.33:1 in light and 4.03:1 in dark.
+- `faint-foreground`: 4.5:1 on the page, a pane and the sidebar. It was 3.31:1 at the lowest.
+- `input`: 3:1 on the page and on a pane. The line of Zed is 1.5:1, which is enough between surfaces and not for the border of a field.
+- `ring`: 3:1 on the page, a pane and the sidebar. In dark the blue of Zed cannot reach it at any opacity, so the focus takes the accent colour as text.
+- `destructive` and the status colours: 4.5:1 as a word on the page, on a pane and on the subtle background of a badge.
+
+`popover`, `muted` and `page-grid` have no value in the reference. `popover` and `muted` take Zed's panel surface, and `page-grid` is derived.
 
 ### Status colours
 
 | Style variable | Light | Dark |
 | --- | --- | --- |
-| `status-working` | `#5c78e2` | `#74ade8` |
-| `status-attention` | `#a48819` | `#dec184` |
-| `status-done` | `#669f59` | `#a1c181` |
-| `status-error` | `#d36151` | `#d07277` |
+| `status-working` | `#455dc5` (Zed: `#5c78e2`) | `#74ade8` |
+| `status-attention` | `#886c00` (Zed: `#a48819`) | `#dec184` |
+| `status-done` | `#3d7430` (Zed: `#669f59`) | `#a1c181` |
+| `status-error` | `#b14234` (Zed: `#d36151`) | `#e48488` (Zed: `#d07277`) |
 | `status-working-subtle` | `#e2e2fa` | the status colour at 10% opacity |
 | `status-attention-subtle` | `#faf2e6` | the status colour at 10% opacity |
 | `status-done-subtle` | `#dfeadb` | the status colour at 10% opacity |
 | `status-error-subtle` | `#fbdfd9` | the status colour at 10% opacity |
 
+`destructive` and `status-error` are the same red.
+
 ### Type roles
 
 Each role is a `type-*` utility that sets family, size, line height, weight and tracking together.
 
-| Token | Use | Typeface |
-| --- | --- | --- |
-| `type-display` | A page title, the headline of an empty state. Used sparingly. | display |
-| `type-title` | The title of a section, a card or a dialog. | interface |
-| `type-body` | Running text and descriptions. | interface |
-| `type-ui` | Controls, rows, menus, tabs. | interface |
-| `type-label` | A small label, in sentence case: table header, field group, section index. | interface |
-| `type-caption` | Secondary information under or beside something. | interface |
-| `type-code` | Shortcuts, counts, paths, identifiers, code. | mono |
+| Token | Use | Typeface | Size / line height / weight |
+| --- | --- | --- | --- |
+| `type-display` | A page title, the headline of an empty state. Used sparingly. | display | 28 to 36px / 1.15 / 300 italic, tracking -0.01em |
+| `type-title` | The title of a section, a card or a dialog. | interface | 15px / 20px / 600 |
+| `type-body` | Running text and descriptions. | interface | 13px / 20px / 400 |
+| `type-ui` | Controls, rows, menus, tabs. | interface | 13px / 16px / 400 |
+| `type-label` | A small label, in sentence case: table header, field group, section index. | interface | 12px / 16px / 500 |
+| `type-caption` | Secondary information under or beside something. | interface | 12px / 16px / 400 |
+| `type-code` | Shortcuts, counts, paths, identifiers, code. | mono | 12px / 16px / 400 |
 
-| Typeface | Family | Notes |
-| --- | --- | --- |
-| Display | IBM Plex Serif | Light italic, weight 320 to 390 |
-| Interface | IBM Plex Sans | 12 to 13px |
-| Mono | Lilex | |
+The display size grows with the width of the viewport, between its two ends.
+
+| Typeface | Style variable | Family | Notes |
+| --- | --- | --- | --- |
+| Display | `font-serif` | IBM Plex Serif | Light italic, weight 300 |
+| Interface | `font-sans` | IBM Plex Sans | 12 to 13px |
+| Mono | `font-mono` | Lilex | |
+
+The three families are under the SIL Open Font License 1.1 and are installed from npm packages. A shadcn/ui component sets its text in `text-sm`, which is pinned to the interface size: 13px with an 18px line.
 
 ### Spacing and control sizes
 
@@ -158,7 +188,9 @@ Button, input, select and tab heights move together, so a form stays aligned.
 | Hairline | Pane, card, control | 1px border |
 | Floating | Popover, dialog, command palette, toast | The one shadow recipe, in `shadow-floating` |
 
-A button has no shadow. Its depth is the inset bottom edge in `button-edge`.
+`shadow-floating` is `0 0 0 1px rgb(0 0 0 / 0.06), 0 8px 24px -8px rgb(0 0 0 / 0.28)`, in both themes. It is derived: the reference shows no floating surface. `shadow-xs`, which shadcn/ui puts on fields, is set to none.
+
+A button has no shadow. Its depth is a 2px inset bottom edge, drawn by the `button-edge` and `button-edge-primary` utilities.
 
 ### Motion and icons
 
@@ -175,7 +207,7 @@ What makes the style recognisable, beyond the values above.
 | Primary button | Blue fill, inset darker bottom edge, and a shortcut chip inside when the action has a shortcut |
 | Panes | Flush, split by 1px lines. No gap and no card between them |
 | Depth | No shadow inside the work surface |
-| Page framing | A 10px grid texture and diamond nodes where lines meet |
+| Page framing | A 10px grid texture and diamond nodes where lines meet. A page opts in with the `page-framing` utility, and places each node with `frame-node` |
 | Density | 27 to 28px bars, 32px controls, 12 to 13px interface text |
 | Display type | A light italic serif, used sparingly against the sans of the interface |
 
@@ -247,9 +279,8 @@ The gallery has one route per section, with side navigation, in this order: Foun
 
 ## Known gaps
 
-- The size, line height and weight of each type role are set when the style is built, inside the ranges above, and recorded here.
-- `muted`, `popover` and `shadow-floating` have no value in the reference. They are derived when the style is built, and recorded here.
-- The values that fail WCAG AA are not adjusted yet. The tertiary text on the light page is the known case.
+- The display type of the reference has a weight between 320 and 390. IBM Plex Serif on npm has no weight between 300 and 400, so display type is set at 300.
+- The hover of the primary button is its fill at 90%. The reference does not show one.
 - The reference shows no command palette and no product table. Those components follow the rules above, with nothing to match.
 - Hover, focus and active states come from the reference's CSS. None was seen in motion.
 - The reference's light theme was read from its site and from an HTML mock of the application, never from the real application.

@@ -1,0 +1,19 @@
+/*
+ * Lets the gallery pin an interaction state with data-preview="hover", "focus"
+ * or "active", so the state matrices show every state side by side.
+ *
+ * This file belongs to the prototype. It must not reach packages/ui, which
+ * the product also uses.
+ */
+@custom-variant hover {
+  @media (hover: hover) {
+    &:hover {
+      @slot;
+    }
+  }
+  &[data-preview~="hover"] {
+    @slot;
+  }
+}
+@custom-variant focus-visible (&:focus-visible, &[data-preview~="focus"]);
+@custom-variant active (&:active, &[data-preview~="active"]);

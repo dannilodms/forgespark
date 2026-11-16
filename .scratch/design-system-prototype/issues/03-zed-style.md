@@ -20,10 +20,10 @@ Do not add a second set of values or a way to switch between sets (see `../spec.
 
 ## Acceptance criteria
 
-- [ ] The Foundations route and the Button block match `DESIGN.md`: surfaces, accent, status colours, radius, the three typefaces, the button edge and the shortcut chip.
-- [ ] No colour pair on the Foundations route fails WCAG AA, in light or in dark.
-- [ ] Every adjusted value is recorded in `DESIGN.md` beside the value of Zed it replaces.
-- [ ] The focus indicator is a 3px outline with a 2px offset, and it passes 3:1 against the surfaces it appears on.
-- [ ] Fonts are installed from npm packages, with their licences confirmed.
-- [ ] No component file holds a colour, a radius, a font or a shadow as a literal.
-- [ ] The items this issue settles are removed from "Known gaps" in `DESIGN.md`.
+- [x] The Foundations route and the Button block match `DESIGN.md`: surfaces, accent, status colours, radius, the three typefaces, the button edge and the shortcut chip.
+- [x] No colour pair on the Foundations route fails WCAG AA, in light or in dark.
+- [x] Every adjusted value is recorded in `DESIGN.md` beside the value of Zed it replaces.
+- [x] The focus indicator is a 3px outline with a 2px offset, and it passes 3:1 against the surfaces it appears on.
+- [x] Fonts are installed from npm packages, with their licences confirmed.
+- [x] No component file holds a colour, a radius, a font or a shadow as a literal.
+- [x] The items this issue settles are removed from "Known gaps" in `DESIGN.md`.

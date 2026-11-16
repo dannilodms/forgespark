@@ -21,11 +21,11 @@ The gallery as a section of the prototype, with its first two routes and the pie
 
 ## Acceptance criteria
 
-- [ ] The gallery is reachable from the prototype's navigation, and each section has its own address.
-- [ ] Every style variable defined in `packages/ui` appears on the Foundations route; adding one makes it appear without editing the page by hand, or the page documents the single place to register it.
-- [ ] Every colour pair shows its measured contrast, and the measure updates when the theme changes.
-- [ ] The Button block shows variants, sizes, icon forms, the state matrix with loading, and a long label.
-- [ ] Removing Button from the gallery makes the coverage check fail and name the component.
-- [ ] Both routes are correct in light and dark.
-- [ ] Nothing overflows or overlaps at a 375px-wide viewport.
-- [ ] The gallery contains no lorem ipsum, and no state name is written inside a component.
+- [x] The gallery is reachable from the prototype's navigation, and each section has its own address.
+- [x] Every style variable defined in `packages/ui` appears on the Foundations route; adding one makes it appear without editing the page by hand, or the page documents the single place to register it.
+- [x] Every colour pair shows its measured contrast, and the measure updates when the theme changes.
+- [x] The Button block shows variants, sizes, icon forms, the state matrix with loading, and a long label.
+- [x] Removing Button from the gallery makes the coverage check fail and name the component.
+- [x] Both routes are correct in light and dark.
+- [x] Nothing overflows or overlaps at a 375px-wide viewport.
+- [x] The gallery contains no lorem ipsum, and no state name is written inside a component.
