@@ -17,3 +17,13 @@
 }
 @custom-variant focus-visible (&:focus-visible, &[data-preview~="focus"]);
 @custom-variant active (&:active, &[data-preview~="active"]);
+
+/*
+ * An input group shows the focus of the control inside it through `:has()`,
+ * which the variants above do not reach.
+ */
+[data-slot="input-group"]:has(
+  [data-slot="input-group-control"][data-preview~="focus"]
+) {
+  @apply outline-3 outline-offset-2 outline-ring outline-solid;
+}

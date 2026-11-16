@@ -5,6 +5,8 @@ import {
   InputOTPSeparator,
   InputOTPSlot,
 } from "@workspace/ui/components/input-otp"
+import { useState } from "react"
+import type { ReactNode } from "react"
 
 import { Frame, Part, Section } from "../parts"
 import { StateMatrix, previewState } from "../state-matrix"
@@ -55,6 +57,31 @@ export function InputBlock() {
   )
 }
 
+/**
+ * A code field that starts filled. It holds its own value, because the
+ * library under InputOTP warns in the console when it is given a default one.
+ */
+export function FilledInputOTP({
+  initial,
+  children,
+  ...props
+}: {
+  initial: string
+  maxLength: number
+  children: ReactNode
+  id?: string
+  disabled?: boolean
+  "aria-label"?: string
+  "aria-invalid"?: boolean
+}) {
+  const [value, setValue] = useState(initial)
+  return (
+    <InputOTP value={value} onChange={setValue} {...props}>
+      {children}
+    </InputOTP>
+  )
+}
+
 function Slots({ from }: { from: number }) {
   return (
     <InputOTPGroup>
@@ -83,35 +110,35 @@ export function InputOTPBlock() {
 
       <Part title="Filled, invalid and disabled">
         <Frame className="gap-6">
-          <InputOTP
+          <FilledInputOTP
             aria-label="Login code, filled"
             maxLength={6}
-            defaultValue="481027"
+            initial="481027"
           >
             <Slots from={0} />
             <InputOTPSeparator />
             <Slots from={3} />
-          </InputOTP>
-          <InputOTP
+          </FilledInputOTP>
+          <FilledInputOTP
             aria-label="Login code, wrong"
             maxLength={6}
-            defaultValue="481027"
+            initial="481027"
             aria-invalid
           >
             <Slots from={0} />
             <InputOTPSeparator />
             <Slots from={3} />
-          </InputOTP>
-          <InputOTP
+          </FilledInputOTP>
+          <FilledInputOTP
             aria-label="Login code, disabled"
             maxLength={6}
-            defaultValue="481"
+            initial="481"
             disabled
           >
             <Slots from={0} />
             <InputOTPSeparator />
             <Slots from={3} />
-          </InputOTP>
+          </FilledInputOTP>
         </Frame>
       </Part>
     </Section>
