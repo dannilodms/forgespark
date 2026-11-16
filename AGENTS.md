@@ -24,7 +24,7 @@ Read `CODING_STANDARDS.md` before writing or reviewing code under `apps/`, `pack
 
 Two files record what lives outside the code. When a task adds, replaces, updates or removes one of the things below, update its file in the same change. The task is done when the file matches what is installed or configured.
 
-- **`machine-tools.yaml`**: a tool on the maintainer's machine (a command-line tool, a runtime, a package manager). Write the version the tool itself reports and where it was installed from. `checked` dates the whole file: move it only after reading every version again. A tool whose version the project pins is recorded in its home instead, listed in Versions in `CODING_STANDARDS.md`.
+- **`docs/machine-tools.yaml`**: a tool on the maintainer's machine (a command-line tool, a runtime, a package manager). Write the version the tool itself reports and where it was installed from. `checked` dates the whole file: move it only after reading every version again. A tool whose version the project pins is recorded in its home instead, listed in Versions in `CODING_STANDARDS.md`.
 - **`docs/providers.md`**: an outside service the system depends on, and anything set at one (plan, region, server, bucket, host name, DNS record, cost). Update its section and its row in the summary table; a new provider gets a section with why it was chosen and what it costs. Write addresses and names; a key, token or password stays in the secrets store.
 
 When a suggestion or a decision in the conversation would change either file and the change is still to be made, say so in the report.

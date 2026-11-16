@@ -609,7 +609,7 @@ Every tool, library and container image runs at a version written in a committed
 | The system image of the servers | `deploy/cloud-init.yaml` and the workflow that creates a server |
 | MCP servers for agents | `.mcp.json` |
 | Docker, Task, the global `vp`, the installed Go and the GitHub CLI | the prerequisites table of `README.md`, as a minimum version |
-| What the maintainer's machine has installed (the prerequisites above, Git, Node.js and its version manager, pnpm) | `machine-tools.yaml` at the root, as the version in use |
+| What the maintainer's machine has installed (the prerequisites above, Git, Node.js and its version manager, pnpm) | `docs/machine-tools.yaml`, as the version in use |
 
 ### Rules
 

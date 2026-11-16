@@ -1,0 +1,26 @@
+# Local environment variables. `.env.example` is committed.
+.env
+.env.*
+!.env.example
+
+# JavaScript dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Go build and test output
+*.exe
+*.test
+*.out
+
+# Task
+.task/
+
+# Local notes and agent settings
+.todo.txt
+.claude/settings.local.json
+
+# Operating system
+.DS_Store
+Thumbs.db
