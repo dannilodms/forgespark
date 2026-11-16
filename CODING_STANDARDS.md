@@ -94,9 +94,21 @@ These apply to REST. Names, identifiers, lists and error codes apply to MCP tool
 
 ### Telemetry
 
-- Logs, spans and metric labels never carry personal data, the value of a credential, an access token or a session cookie.
-- The `trace_id` in an error body is the trace identifier of the request.
-- A sensitive operation (reading the value of a credential, a login, creating or revoking an access token) writes to the audit log from its use case. The audit log is append-only and is not telemetry.
+How the telemetry is collected, kept and shown is in Observability.
+
+- **Nothing sensitive.** Logs, spans and metric labels never carry personal data, the value of a credential, an access token or a session cookie. A test proves it for logs.
+- **Where.** Spans, metrics and logs are created in `adapters` and `platform` only. `application` and `domain` create none: a use case returns a typed error, and the inbound adapter records it.
+- **Spans.** An inbound adapter opens the span: of a request, of an MCP tool call (in a middleware of the MCP adapter), of a job (see Jobs). Outbound adapters are instrumented: pgx (see Database) and the HTTP clients.
+- **Actor.** A span and a log line carry the public identifiers of the user, the access token, the client and the project. A metric label carries none of them.
+- **Logs.** JSON lines on the container output, each with the trace identifier. Nothing is sent as OTLP logs. The level comes from configuration and is `info` by default.
+- **What is logged.** A 5xx or a panic with its raw error, a failed outbound call, the start and the stop of the process, the requests cut by a shutdown. A successful request and a 4xx write no line. No line carries a body, a query string or a header.
+- **Metrics.** HTTP requests, the Go runtime, the database pool and the use of LLM providers. No business metric until a case needs one.
+- **Traces.** Every trace is kept. Nothing is sampled.
+- **LLM calls.** A call records the provider, the model, the input and output tokens, the duration and the outcome, on its span and as metrics, under the `gen_ai` names of the OpenTelemetry semantic conventions. It never records the prompt or the answer.
+- **Trace identifier.** The `trace_id` in an error body is the trace identifier of the request. An incoming `traceparent` is honoured. An outbound call carries it only to the agents of ADR-0004, never to an LLM provider, a login provider or the e-mail service.
+- **Export.** Traces and metrics leave over OTLP, to an address taken from configuration. With no address, nothing is exported and the telemetry collector is `not_configured`. `platform` wraps the metric exporter and keeps the time and the error of the last export (see Health).
+- **Tests.** Tests run with no telemetry.
+- **Audit log.** A sensitive operation (reading the value of a credential, a login, creating or revoking an access token) writes to the audit log from its use case. The audit log is append-only and is not telemetry.
 
 ### Health
 
@@ -107,11 +119,11 @@ The terms system health, part and health report are defined in `GLOSSARY.md`.
 - **Outside the contract.** Liveness and readiness live in `platform`, outside `/api` and outside the OpenAPI spec. They need no authentication and answer with the status code alone. Caddy forwards only `/api`, so they are reachable only inside the Compose network.
 - **Parts.** PostgreSQL is the only essential part. The file storage, the LLM provider, the telemetry collector, the job worker and the e-mail server are optional: one of them down makes the system `degraded`, never unready. An optional part with no configuration is `not_configured` and does not degrade the system.
 - **Health report.** `GET /api/health` is a query use case in the system health area, which has no aggregate. It follows the API conventions, except that its path is singular, which the plural-path lint allows for this path only. It always answers 200, with the system health in the body: `operational`, `degraded` or `down`.
-- **Checks.** They run when the health report is asked for, in parallel, each under a timeout taken from configuration (2 seconds by default). Nothing is checked in the background and nothing is stored. The LLM provider is checked by a call that spends no tokens, such as listing its models. The telemetry collector is not probed: its state is the result of the last export. The job worker is checked in the database, through the leader record River keeps there. The e-mail server is checked by a call that sends nothing.
+- **Checks.** They run when the health report is asked for, in parallel, each under a timeout taken from configuration (2 seconds by default). Nothing is checked in the background and nothing is stored. The LLM provider is checked by a call that spends no tokens, such as listing its models. The telemetry collector is not probed: its state is the last export of metrics, and it is `down` when that export failed or is overdue. The job worker is checked in the database, through the leader record River keeps there. The e-mail server is checked by a call that sends nothing.
 - **Content.** For each part: its name, whether it is essential or optional, its state (`operational`, `down` or `not_configured`), the response time, the time of the check and, when it is down, a stable error code. The raw error goes to the logs only. The health report also carries the version, the commit, the build date, the time the process started, and the schema version applied and the one expected.
 - **Access.** Only a user who administers the system reads the health report, through the session or through an access token that carries the read scope of the system health area.
 - **When.** Liveness and readiness are written with the first backend code. The health report waits for the modelling of users, which has to say who administers the system. Nothing provisional shows the state of the optional parts until then.
-- **Not built.** An MCP tool for the health report, a check of the login providers, an operation per part, history and alerts. History and alerts would be periodic jobs (see Jobs).
+- **Not built.** An MCP tool for the health report, a check of the login providers, an operation per part, and history, which would be a periodic job (see Jobs). Alerts come from Grafana (see Observability).
 
 ### Shutdown
 
@@ -152,7 +164,7 @@ PostgreSQL 18 is the only data service: one database, one schema.
 - **Pool.** One pgxpool in `platform`, shared by every domain area and by the session store. Its maximum size, the statement timeout and the idle-in-transaction timeout come from configuration. `platform` stops the session store's cleanup routine during the shutdown.
 - **Migrations.** Numbered SQL files in `apps/api/migrations`, with zero-padded numbers (`00001_create_projects.sql`), embedded in the binary and applied by goose with its lock turned on. A migration has no down part. A mistake is fixed by a new migration, and a migration that has run outside a development machine is never edited.
 - **Running them.** The `migrate` command of the API binary applies the pending migrations, as its own step before the API starts. The API never changes the schema.
-- **Roles.** The migration role owns the tables. The API role reads and writes rows; on the audit log table it can only insert and select. The migration that creates a table grants the API role its permissions in the same file.
+- **Roles.** The migration role owns the tables. The API role reads and writes rows; on the audit log table it can only insert and select. The migration that creates a table grants the API role its permissions in the same file. The monitoring role reads the statistics of the server (`pg_monitor`) and no table; only the telemetry collector uses it.
 - **Tables.** Foreign keys cross domain areas. An identifier is a `bigint` from the sequence of its aggregate type. An instant is `timestamptz`, a business date is `date`, money is `numeric`, and a fixed set of values is `text` with a `CHECK` constraint listing the values the API uses.
 - **Extensions.** `pg_stat_statements` only. Another extension arrives in the migration of the first feature that needs it. One that the official PostgreSQL image does not ship starts with a new ADR.
 - **Traces.** pgx is traced with otelpgx. The SQL text is recorded; query parameters never are.
@@ -363,6 +375,51 @@ How responses travel from the server to browsers and agents. Compression and cac
 - **Files without a hash.** `index.html`, and any other file of the SPA without a hash in its name, is served with `Cache-Control: no-cache`, so the browser revalidates it and a deploy shows on the next load.
 - **API.** Every response under `/api` carries `Cache-Control: no-store`, set by Caddy.
 
+## Observability (`deploy`)
+
+How telemetry is collected, kept and shown. The configuration of the collector and the dashboards, alert rules and contact point of Grafana are files in `deploy/`. What the backend emits is in Telemetry, in the backend rules. The reasons are in ADR-0012.
+
+### Collection
+
+- **Two containers.** An OpenTelemetry Collector gathers the telemetry and forwards it to `grafana/otel-lgtm`, which stores and shows it. The API and the worker send to the collector, never to `otel-lgtm`.
+- **Collector.** It has no public port. It mounts, read-only, the server's file system and Docker's log folder. The Docker socket is never mounted.
+- **Sources.** The traces and metrics of the API, the worker and Caddy. The output of every container, read from Docker's log files. The metrics of the server (disk, memory, CPU), PostgreSQL, Caddy and the file storage.
+- **PostgreSQL.** The collector connects with the monitoring role (see Database).
+- **File storage.** Its metrics endpoint is read with a token.
+- **Docker logs.** The log files of every container rotate by size, set in `compose.yaml`.
+
+### Privacy
+
+The rule that telemetry carries nothing sensitive covers every container.
+
+- **Caddy.** Tracing is on for the app's site, so the trace starts in Caddy and its identifier is in the access log. The access log carries the caller's IP address cut down to its network, and no query string.
+- **Spans.** A span carries the caller's IP address cut down to its network, and no query string. The collector removes what a source cannot leave out.
+- **PostgreSQL.** It logs an error without its detail (`log_error_verbosity = terse`), because the detail can carry the values of a row.
+
+### Storage
+
+- **Retention.** Logs, traces and metrics are kept for 30 days. The metrics also have a size limit. Both are set in `compose.yaml`, because the image keeps logs forever by default.
+- **Volume.** One volume holds the stored telemetry. It is not in the backup.
+
+### Grafana
+
+- **Address.** Grafana has a host name of its own in the `Caddyfile`. No other port of `otel-lgtm` is published, because none of them has a login.
+- **Login.** Through GitHub, for the maintainer's account only, as administrator. Anonymous access and the password form are turned off; the image starts with both on.
+- **Files.** Dashboards, alert rules and the contact point are loaded from `deploy/` when Grafana starts. A change to one of them is a commit. Nothing made on Grafana's screens is kept.
+- **Alerts.** Grafana evaluates the rules and warns by e-mail, through an SMTP server taken from the deploy configuration. The first rules are five: the API or the worker stopped sending metrics, the rate of 5xx is high, the disk is over 80% full, PostgreSQL is down or near its connection limit, and an optional part is down. The thresholds are set with the first real traffic.
+
+### Development
+
+The two telemetry containers are in a Compose profile that is off by default. Without them the API and the worker run as usual, and their logs are on the container output.
+
+### Deferred
+
+A monitor outside the server, the only thing that can warn when the whole server or `otel-lgtm` is down, waits for users other than the maintainer.
+
+Logs over OTLP wait for stable exporters in the Go SDK.
+
+The cost of LLM calls per client or per project is decided with the first LLM feature. If it matters, it is business data in the database, with its own ADR.
+
 ## Versions (the whole repository)
 
 Every tool, library and container image runs at a version written in a committed file. Each version has one home, and an update is a change to that file.
@@ -377,7 +434,7 @@ Every tool, library and container image runs at a version written in a committed
 | Node.js | `.node-version` at the root |
 | pnpm | `packageManager` in the root `package.json` |
 | JavaScript libraries and tools, Vite+ included | the catalog in `pnpm-workspace.yaml`, and `pnpm-lock.yaml` |
-| Container images (PostgreSQL, Garage, Mailpit, Caddy, Grafana otel-lgtm) | the image tag in `compose.yaml` and in each Dockerfile |
+| Container images (PostgreSQL, Garage, Mailpit, Caddy, OpenTelemetry Collector, Grafana otel-lgtm) | the image tag in `compose.yaml` and in each Dockerfile |
 | MCP servers for agents | `.mcp.json` |
 | Docker, Task and the global `vp` | the prerequisites table of `README.md`, as a minimum version |
 
