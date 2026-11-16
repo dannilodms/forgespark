@@ -1,6 +1,6 @@
 # Coding standards
 
-How code in this repository is written. The reasons and the rejected alternatives are in ADRs [0007](docs/adr/0007-backend-organized-by-domain-area.md) (structure), [0008](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md) (inbound adapters), [0009](docs/adr/0009-rest-api-conventions.md) (API conventions), [0010](docs/adr/0010-sequential-identifiers-exposed-through-sqids.md) (identifiers), [0011](docs/adr/0011-login-through-external-providers-with-a-server-side-session.md) (login), [0012](docs/adr/0012-opentelemetry-for-observability-and-a-separate-audit-log.md) (observability), [0013](docs/adr/0013-frontend-data-in-collections-and-cursor-queries.md) (frontend state and data), [0014](docs/adr/0014-frontend-organized-by-domain-area-and-tested-through-screens.md) (frontend structure and tests) and [0015](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md) (database access and migrations).
+How code in this repository is written. The reasons and the rejected alternatives are in ADRs [0007](docs/adr/0007-backend-organized-by-domain-area.md) (structure), [0008](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md) (inbound adapters), [0009](docs/adr/0009-rest-api-conventions.md) (API conventions), [0010](docs/adr/0010-sequential-identifiers-exposed-through-sqids.md) (identifiers), [0011](docs/adr/0011-login-through-external-providers-with-a-server-side-session.md) (login), [0012](docs/adr/0012-opentelemetry-for-observability-and-a-separate-audit-log.md) (observability), [0013](docs/adr/0013-frontend-data-in-collections-and-cursor-queries.md) (frontend state and data), [0014](docs/adr/0014-frontend-organized-by-domain-area-and-tested-through-screens.md) (frontend structure and tests), [0015](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md) (database access and migrations), [0016](docs/adr/0016-background-jobs-in-postgresql-run-by-a-worker-command.md) (background jobs) and [0017](docs/adr/0017-files-in-garage-reached-directly-by-the-browser.md) (files).
 
 ## Backend (`apps/api`)
 
@@ -14,15 +14,18 @@ apps/api/internal/
 │   └── adapters/
 │       ├── rest/       # inbound: Huma operations, including SSE
 │       ├── mcp/        # inbound: MCP tools
+│       ├── river/      # inbound: job workers; outbound: saving a job
 │       ├── postgres/   # outbound
-│       └── minio/      # outbound
+│       ├── s3/         # outbound
+│       ├── smtp/       # outbound
+│       └── resend/     # outbound: sending; inbound: bounce notices
 ├── kernel/             # value objects used by more than one domain area
 └── platform/           # shared technical infrastructure
 ```
 
 A **domain area** is one part of the business with its own aggregates. It is the deep module of the backend: its public surface is its use cases, and everything else is internal to it.
 
-An **inbound adapter** calls use cases on behalf of an outside caller: REST for the React app and for the agents of ADR-0004, MCP for coding agents. An **outbound adapter** implements an interface that `application` declares: Postgres, MinIO, an LLM provider. `adapters` has one package per technology, one level deep, and an area creates only the ones it uses.
+An **inbound adapter** calls use cases on behalf of an outside caller: REST for the React app and for the agents of ADR-0004, MCP for coding agents, a job worker for work that runs in the background. An **outbound adapter** implements an interface that `application` declares: Postgres, the S3 storage, an LLM provider. `adapters` has one package per technology, one level deep, and an area creates only the ones it uses.
 
 ### Precedence
 
@@ -56,7 +59,7 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 - Every operation an inbound adapter exposes is one use case in `application`. A Huma handler or an MCP tool parses its input, calls one use case and maps the result.
 - A use case that only passes the call through is correct. So is the mapping between API types and domain types. Both are deliberate, not a middle man or duplication.
 - A use case's inputs and outputs carry no type from Huma, the MCP SDK or any other adapter library.
-- **Writes.** One use case is one transaction, opened and closed through an interface. It loads the aggregate from its repository, calls the aggregate, and saves it whole. It may save several aggregates of its own area. An effect on another area or on an external service runs after the commit and before the response, inside the request.
+- **Writes.** One use case is one transaction, opened and closed through an interface. It loads the aggregate from its repository, calls the aggregate, and saves it whole. It may save several aggregates of its own area. An effect on another area runs after the commit and before the response, inside the request. So does an effect on an external service whose result the caller waits to see, such as a streamed LLM answer or an on-demand translation. Any other effect on an external service is a job, saved inside the transaction (see Jobs).
 - **Reads.** A query use case calls a read-only interface that returns data already shaped for the caller. It builds no aggregate.
 
 ### Inbound adapters
@@ -102,13 +105,13 @@ The terms system health, part and health report are defined in `GLOSSARY.md`.
 - **Liveness.** `GET /livez` answers 200 and touches no part.
 - **Readiness.** `GET /readyz` answers 200 when PostgreSQL answers and the database schema is the version the binary expects, and 503 otherwise. It feeds the Compose health check.
 - **Outside the contract.** Liveness and readiness live in `platform`, outside `/api` and outside the OpenAPI spec. They need no authentication and answer with the status code alone. Caddy forwards only `/api`, so they are reachable only inside the Compose network.
-- **Parts.** PostgreSQL is the only essential part. MinIO, the LLM provider and the telemetry collector are optional: one of them down makes the system `degraded`, never unready. An optional part with no configuration is `not_configured` and does not degrade the system.
+- **Parts.** PostgreSQL is the only essential part. The file storage, the LLM provider, the telemetry collector, the job worker and the e-mail server are optional: one of them down makes the system `degraded`, never unready. An optional part with no configuration is `not_configured` and does not degrade the system.
 - **Health report.** `GET /api/health` is a query use case in the system health area, which has no aggregate. It follows the API conventions, except that its path is singular, which the plural-path lint allows for this path only. It always answers 200, with the system health in the body: `operational`, `degraded` or `down`.
-- **Checks.** They run when the health report is asked for, in parallel, each under a timeout taken from configuration (2 seconds by default). Nothing is checked in the background and nothing is stored. The LLM provider is checked by a call that spends no tokens, such as listing its models. The telemetry collector is not probed: its state is the result of the last export.
+- **Checks.** They run when the health report is asked for, in parallel, each under a timeout taken from configuration (2 seconds by default). Nothing is checked in the background and nothing is stored. The LLM provider is checked by a call that spends no tokens, such as listing its models. The telemetry collector is not probed: its state is the result of the last export. The job worker is checked in the database, through the leader record River keeps there. The e-mail server is checked by a call that sends nothing.
 - **Content.** For each part: its name, whether it is essential or optional, its state (`operational`, `down` or `not_configured`), the response time, the time of the check and, when it is down, a stable error code. The raw error goes to the logs only. The health report also carries the version, the commit, the build date, the time the process started, and the schema version applied and the one expected.
 - **Access.** Only a user who administers the system reads the health report, through the session or through an access token that carries the read scope of the system health area.
 - **When.** Liveness and readiness are written with the first backend code. The health report waits for the modelling of users, which has to say who administers the system. Nothing provisional shows the state of the optional parts until then.
-- **Not built.** An MCP tool for the health report, a check of the login providers, an operation per part, history and alerts. History and alerts need work that runs outside a request (see Deferred).
+- **Not built.** An MCP tool for the health report, a check of the login providers, an operation per part, history and alerts. History and alerts would be periodic jobs (see Jobs).
 
 ### Shutdown
 
@@ -121,7 +124,7 @@ The API stops without cutting work short. It runs as one instance, so a deploy i
 - **Streams.** A stream closes when the shutdown starts: an LLM answer being streamed, a progress stream, the MCP listening stream. A streaming operation watches the shutdown notice. An SSE operation first sends a final error event with the code `service_restarting`, carrying the fields of the error format. The MCP listening stream closes with no event, because MCP defines its own reconnection.
 - **Deadline reached.** The context of each remaining request is cancelled, which rolls back its transaction, and the API logs how many requests were cut.
 - **Exit.** The API then closes its connections to PostgreSQL, flushes telemetry under a short deadline of its own and exits: with status zero when every request finished, non-zero when one was cut.
-- **No goroutine outlives its request.** Work that must survive the request keeps its state in the database and can be resumed after a restart. The shutdown does not wait for it.
+- **No goroutine outlives its request.** Work that must survive the request is a job (see Jobs). The shutdown of the API does not wait for it.
 - **Test.** A test in `platform` holds a slow request and a stream open, sends the signal and checks that the request finishes, the stream receives its final event, a new connection is refused, and a reached deadline cancels what is left. It is written with the first backend code.
 
 ### Domain modelling
@@ -154,6 +157,49 @@ PostgreSQL 18 is the only data service: one database, one schema.
 - **Extensions.** `pg_stat_statements` only. Another extension arrives in the migration of the first feature that needs it. One that the official PostgreSQL image does not ship starts with a new ADR.
 - **Traces.** pgx is traced with otelpgx. The SQL text is recorded; query parameters never are.
 
+### Jobs
+
+Work that nobody waits for on a screen runs as a job. Jobs are stored in PostgreSQL by River.
+
+- **Saving.** A use case saves a job through an interface it declares, inside its own transaction. The API saves jobs and never runs one.
+- **Running.** The `worker` command of the API binary runs the jobs, as its own service. A job worker lives in `adapters/river`: it reads the job's arguments and calls one use case.
+- **Arguments.** A job's arguments are identifiers. They never carry personal data or the value of a credential, because the River panel and the telemetry show them.
+- **Idempotent.** A job can run more than once. A second run changes nothing that the first one already did.
+- **Attempts.** Five by default. A job kind that needs more attempts, or more time than River's default timeout, declares it. When the attempts run out, the domain record is marked as failed, and a person can ask for a new attempt.
+- **Queues.** Light work and heavy work run in separate queues, each with a limit of concurrent jobs taken from configuration.
+- **Periodic work.** A periodic job is declared in the worker and scheduled by River. It tolerates a missed run.
+- **Answer.** An operation that starts a job answers 202 with the resource, whose status says the work is in progress. The screen reads the resource again while it is.
+- **Kept.** River deletes finished jobs. What must be kept is a domain record, never a job.
+- **Shutdown.** The worker handles the signal as the API does. It stops taking jobs, gives the running ones a deadline taken from configuration, then cancels them. A cancelled job returns an error, so River runs it again later.
+- **Tables.** River's tables come from SQL exported by the River CLI, one migration per River schema version. An update of River that changes its schema brings the new migration in the same commit. The worker uses the API role, which gets row permissions on these tables.
+- **Traces.** River is traced with its OpenTelemetry middleware.
+- **Panel.** The River panel is served by the API, behind the session, only to a user who administers the system, and outside the OpenAPI spec. In production it waits for the modelling of users. Until then it runs in development only.
+
+### Files
+
+Files live in S3 storage, served by Garage.
+
+- **Access.** An `s3` adapter uses the AWS SDK for Go v2 and only what the S3 API defines: no bucket notification, nothing that one server alone offers.
+- **Bucket.** One private bucket. An object key is random and never contains the file's name or an identifier.
+- **Upload.** The use case checks the permission and returns a signed URL that expires in minutes. The browser sends the bytes to the storage. A large file goes in parts, each with its own signed URL.
+- **Confirmation.** The browser then tells the API that the upload ended. The use case checks the object in the storage, its size and its type, and only then is the file available. An object over the size limit is removed.
+- **Never confirmed.** A periodic job removes the uploads that were never confirmed.
+- **Download.** The use case checks the permission and returns a signed URL that expires in minutes. No file passes through the API.
+- **Address.** The browser reaches the storage through a host name of its own in the `Caddyfile`. The bucket accepts cross-origin requests from the app's origin only.
+- **Processing.** A job reads a file from the storage and writes its result there. Nothing stays on the local disk after the job ends.
+
+### E-mail
+
+The system sends e-mail and receives none.
+
+- **Record.** Every e-mail is a row: the recipient, the subject, what it refers to and its state, which is `queued`, `sent`, `failed` or `bounced`. The use case creates the row and saves the sending job in the same transaction.
+- **Sending.** The job sends through one interface with two adapters, chosen by configuration: `smtp` (go-mail), which development and tests point at Mailpit, and `resend` (the Resend API), used in production.
+- **Once.** The `resend` adapter sends the identifier of the e-mail record as the idempotency key and as a tag, and stores the identifier that Resend returns.
+- **Bounces.** Resend reports a bounce to an operation under `/api`, outside the OpenAPI spec. The operation verifies the signature on the raw body with a secret taken from configuration, ignores an event it has already seen, and calls the use case that marks the e-mail as `bounced`.
+- **Text.** Each e-mail is a template in the backend, with an HTML part and a plain-text part. Its texts are in translation files for every supported language, and the build fails when a language is missing a key. The language is the recipient's preferred language, or the default language when it is not known.
+- **Privacy.** An address is in the e-mail record. It never appears in logs, spans, metric labels or job arguments.
+- **Not built.** Attachments, links for people outside the system, receiving e-mail, and events other than a bounce.
+
 ### Control flow
 
 Handle the exceptional case first and return, so the main path runs unindented to the end of the function. A function holds one level of nesting; a second level becomes a new function. Tooling rejects `else`.
@@ -164,9 +210,11 @@ A domain concept uses the exact term from `GLOSSARY.md`, spelled in full, in eve
 
 ### Tests
 
-The default seam is the use case, exercised with in-memory implementations of its interfaces. Each real adapter (Postgres, MinIO, LLM) has its own tests against the real service.
+The default seam is the use case, exercised with in-memory implementations of its interfaces. Each real adapter (Postgres, the S3 storage, SMTP, LLM) has its own tests against the real service.
 
 A `postgres` adapter test runs against the development PostgreSQL container. Each test gets a temporary database, cloned by pgtestdb from a template that the migrations built, so tests run in parallel and never touch the development database.
+
+A use case that saves a job is tested with an in-memory implementation of the interface that saves it. A job worker in `adapters/river` is tested with River's test helpers, in a temporary database. The `smtp` adapter is tested against Mailpit, and the `resend` adapter against Resend's test addresses, which deliver nothing.
 
 ### Enforcement
 
@@ -178,7 +226,9 @@ The generated OpenAPI spec and the code generated by sqlc are committed, and the
 
 Domain events, CQRS, event sourcing and a second bounded context each start with a new ADR, written when a concrete case needs one. So do WebSocket, GraphQL and gRPC as inbound adapters, live notifications (which need domain events), OAuth for agents, and MCP resources and prompts.
 
-Asynchronous work (the 202 of the API conventions) has no mechanism yet. The first case starts with a new ADR and follows the rule in Shutdown: its state is in the database and it resumes after a restart.
+Running more than one instance of the API, and Kubernetes, are intended and not built. They start with a new ADR. The known obstacles are listed in ADR-0016.
+
+How the document processing pipeline keeps its state, and where files are converted, are decided when the processors are implemented. How the system writes to a project's Git repository starts with its own decision. The domain area that owns e-mails is named with the first e-mail, and the language of a client's contact with the modelling of contacts. Progress pushed to the browser waits for a case that a periodic read does not serve.
 
 Nothing is cached yet. A read measured as slow first gets an in-memory cache inside the API. A cache service (Redis, Valkey) and a connection pooler (PgBouncer) each start with a new ADR.
 
@@ -323,11 +373,11 @@ Every tool, library and container image runs at a version written in a committed
 | --- | --- |
 | Go toolchain | the `go` and `toolchain` lines of `go.mod` |
 | Go libraries | `go.mod` and `go.sum` |
-| Go command-line tools (sqlc, vacuum, oasdiff) | `tool` lines of `go.mod`, run with `go tool` |
+| Go command-line tools (sqlc, vacuum, oasdiff, the River CLI) | `tool` lines of `go.mod`, run with `go tool` |
 | Node.js | `.node-version` at the root |
 | pnpm | `packageManager` in the root `package.json` |
 | JavaScript libraries and tools, Vite+ included | the catalog in `pnpm-workspace.yaml`, and `pnpm-lock.yaml` |
-| Container images (PostgreSQL, MinIO, Caddy, Grafana otel-lgtm) | the image tag in `compose.yaml` and in each Dockerfile |
+| Container images (PostgreSQL, Garage, Mailpit, Caddy, Grafana otel-lgtm) | the image tag in `compose.yaml` and in each Dockerfile |
 | MCP servers for agents | `.mcp.json` |
 | Docker, Task and the global `vp` | the prerequisites table of `README.md`, as a minimum version |
 

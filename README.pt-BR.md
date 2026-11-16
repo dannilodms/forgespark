@@ -45,12 +45,20 @@ flowchart LR
     user([Usuário]) --> proxy[Caddy<br/>HTTPS + arquivos do SPA React]
     agents([Agentes de código]) -->|MCP| proxy
     proxy -->|REST e MCP| api[Backend / API<br/>Go]
-    api --> db[(PostgreSQL)]
-    api --> storage[(MinIO<br/>armazenamento S3)]
+    proxy -->|URLs assinadas| storage[(Garage<br/>armazenamento S3)]
+    api --> db[(PostgreSQL<br/>dados e fila de trabalhos)]
+    api --> storage
     api --> llm([Provedores de LLM])
     api --> idp([Google, Microsoft, GitHub<br/>login])
     api -->|OTLP| telemetry[Grafana otel-lgtm<br/>logs, traces, métricas]
+    worker[Worker<br/>mesmo binário Go] --> db
+    worker --> storage
+    worker --> llm
+    worker --> mail([Resend<br/>e-mail])
+    worker -->|OTLP| telemetry
 ```
+
+O worker executa os trabalhos em segundo plano que a API grava no PostgreSQL: envio de e-mail, processamento de arquivos e chamadas a provedores de LLM que ninguém espera na tela. O navegador envia e baixa arquivos direto do armazenamento, com URLs assinadas emitidas pela API.
 
 Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm apenas um arquivo `.gitkeep`, e os arquivos de configuração da raiz entram junto com o primeiro código:
 
@@ -100,6 +108,8 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0013 - Dados do frontend em coleções e consultas por cursor](docs/adr/0013-frontend-data-in-collections-and-cursor-queries.md): TanStack DB para conjuntos limitados, TanStack Query com o cursor da API para o resto, Zustand só para estado de interface, cliente e schemas Zod gerados pelo orval, TanStack Form
 - [0014 - Frontend organizado por área de domínio](docs/adr/0014-frontend-organized-by-domain-area-and-tested-through-screens.md): uma pasta por área de domínio com um módulo de dados que é o único a chamar a API; os testes renderizam telas inteiras em um navegador real com a API simulada
 - [0015 - SQL escrito à mão e verificado pelo sqlc, e migrations só para frente](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md): pgx e sqlc, migrations do goose sem caminho de volta aplicadas em um passo próprio, dois usuários do banco, PostgreSQL como único serviço de dados, sem cache e sem pool de conexões externo
+- [0016 - Trabalhos em segundo plano no PostgreSQL, executados por um comando worker](docs/adr/0016-background-jobs-in-postgresql-run-by-a-worker-command.md): River, o trabalho gravado na transação do seu caso de uso, um comando `worker` do mesmo binário, poucas tentativas e depois uma falha visível
+- [0017 - Arquivos no Garage, acessados direto pelo navegador](docs/adr/0017-files-in-garage-reached-directly-by-the-browser.md): Garage no lugar do MinIO, apenas a API S3 pelo AWS SDK para Go v2, uploads e downloads com URLs assinadas de curta duração
 
 ## Tecnologias
 
@@ -114,6 +124,11 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [sqlc](https://sqlc.dev/) | Gera código Go tipado a partir de SQL escrito à mão |
 | [goose](https://github.com/pressly/goose) | Aplica as migrations do banco, só para frente |
 | [pgtestdb](https://github.com/peterldowns/pgtestdb) | Dá a cada teste de banco o seu próprio banco temporário |
+| [River](https://riverqueue.com/) | Trabalhos em segundo plano guardados no PostgreSQL e executados pelo comando `worker`, com um painel web |
+| [AWS SDK para Go v2](https://github.com/aws/aws-sdk-go-v2) | Cliente do armazenamento S3; assina as URLs de upload e download |
+| [go-mail](https://github.com/wneessen/go-mail) | Envia e-mail por SMTP em desenvolvimento e nos testes |
+| [Resend](https://resend.com/) | Envia os e-mails em produção e avisa das devoluções |
+| [Mailpit](https://mailpit.axllent.org/) | Container que captura os e-mails enviados em desenvolvimento e nos testes |
 | [OpenTelemetry](https://opentelemetry.io/) | Traces, métricas e logs do backend |
 | [Grafana otel-lgtm](https://grafana.com/docs/opentelemetry/docker-lgtm/) | Um container que coleta, guarda e mostra a telemetria |
 | [vacuum](https://quobix.com/vacuum/) e [oasdiff](https://github.com/oasdiff/oasdiff) | Lint das convenções da API e relatório de mudanças incompatíveis na especificação OpenAPI |
@@ -132,7 +147,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [shadcn/ui](https://ui.shadcn.com/) | Base do design system: o código dos componentes é copiado para `packages/ui`, sobre os primitivos do [Base UI](https://base-ui.com/) |
 | [Tailwind CSS](https://tailwindcss.com/) | Estilos e variáveis de estilo do design system (temas claro e escuro) |
 | [PostgreSQL](https://www.postgresql.org/) | Banco de dados relacional (versão 18) e único serviço de dados |
-| [MinIO](https://min.io/) | Armazenamento de objetos compatível com S3 (documentos e arquivos) |
+| [Garage](https://garagehq.deuxfleurs.fr/) | Armazenamento de objetos compatível com S3 (documentos e arquivos) |
 | [Caddy](https://caddyserver.com/) | HTTPS, arquivos estáticos do frontend e proxy reverso para a API |
 | [Docker](https://www.docker.com/) | Empacotamento e execução dos serviços em containers (Docker Compose) |
 | [Task](https://taskfile.dev/) | Executor de tarefas do repositório (desenvolvimento, build, testes, geração de código) |
@@ -155,7 +170,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 
 _A definir._
 
-<!-- Liste as variáveis de ambiente (conexão com o PostgreSQL, credenciais e buckets do MinIO etc.) e mantenha um `.env.example` versionado, sem segredos reais. -->
+<!-- Liste as variáveis de ambiente (conexão com o PostgreSQL, credenciais e bucket do armazenamento, servidor de e-mail etc.) e mantenha um `.env.example` versionado, sem segredos reais. -->
 
 ### Ambiente de desenvolvimento
 
@@ -175,6 +190,8 @@ Um deploy reinicia a única instância da API. A API termina as requisições em
 
 Antes de a API subir, um serviço de execução única do Compose aplica as migrations pendentes do banco, e a API só sobe se ele terminar bem. Quando há migration pendente, o deploy gera um `pg_dump` antes, porque as migrations não têm caminho de volta (veja o [ADR-0015](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md)).
 
+O worker é um segundo serviço da mesma imagem, iniciado com o comando `worker`. Em um deploy ele para de pegar trabalhos e dá tempo para os que estão rodando terminarem. Um trabalho interrompido roda de novo depois (veja o [ADR-0016](docs/adr/0016-background-jobs-in-postgresql-run-by-a-worker-command.md)).
+
 O restante está _A definir._
 
 <!-- Onde a aplicação roda, como publicar uma nova versão e como reverter para a anterior. -->
@@ -186,7 +203,7 @@ O restante está _A definir._
 | O quê | Como | Frequência | Retenção |
 | --- | --- | --- | --- |
 | Banco de dados (PostgreSQL) | _A definir_ | _A definir_ | _A definir_ |
-| Arquivos (MinIO) | _A definir_ | _A definir_ | _A definir_ |
+| Arquivos (Garage) | _A definir_ | _A definir_ | _A definir_ |
 
 <!-- Informe também onde os backups ficam armazenados, de preferência fora do servidor da aplicação. -->
 
