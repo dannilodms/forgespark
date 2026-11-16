@@ -264,29 +264,66 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 
 | Ferramenta | Versão mínima |
 | --- | --- |
-| Docker | _A definir_ |
-| Go | _A definir_ |
-| Vite+ (gerencia Node.js e pnpm) | _A definir_ |
-| Task | _A definir_ |
-| GitHub CLI | _A definir_ |
+| Docker | Engine 28.3.2 com Compose 2.38.2 (Docker Desktop 4.43.2) |
+| Go | 1.27.4 |
+| Vite+ (gerencia Node.js e pnpm) | 1.6.0 |
+| Task | 3.54.0 |
+| GitHub CLI | 2.104.0 |
+
+Cada mínimo é a versão em uso na máquina do mantenedor, registrada em [`docs/machine-tools.yaml`](docs/machine-tools.yaml). Nenhuma versão anterior foi testada.
+
+O Go instalado só baixa o toolchain que o `go.mod` indica. Todas as outras versões usadas pelo build são fixadas no repositório (veja Versions em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
 ### Configuração
 
-_A definir._
+O binário da API lê a configuração apenas de variáveis de ambiente, uma única vez, ao iniciar. Um valor ausente ou inválido encerra o processo antes de ele atender qualquer coisa, com uma linha que cita a variável e nunca o valor. O binário não lê `.env` nem arquivo de configuração: o Task e o Compose carregam as variáveis.
 
-<!-- Liste as variáveis de ambiente (conexão com o PostgreSQL, credenciais e bucket do armazenamento, servidor de e-mail etc.) e mantenha um `.env.example` versionado, sem segredos reais. -->
+Toda variável está listada no `.env.example` versionado, sem segredos reais.
+
+| Ambiente | Onde ficam os valores |
+| --- | --- |
+| Desenvolvimento | Um arquivo `.env` copiado do `.env.example`, nunca versionado |
+| Homologação e produção | O Environment do GitHub de cada um: um segredo para o que é secreto, uma variável para o restante. A publicação os grava em um arquivo de variáveis no servidor, que só o usuário de deploy consegue ler |
+
+Uma variável nova precisa ter o valor definido nos dois Environments do GitHub antes do merge. A publicação compara os nomes do `.env.example` com os valores que tem e para, antes de reiniciar qualquer coisa, quando falta algum.
+
+A lista de variáveis está _A definir_ e será escrita com o `.env.example`.
+
+<!-- Liste as variáveis de ambiente (conexão com o PostgreSQL, credenciais e bucket do armazenamento, servidor de e-mail etc.). -->
 
 ### Ambiente de desenvolvimento
 
-_A definir._
+Go, Vite+ e Task rodam na máquina, então um teste roda sem passar pelo Docker. `task dev` roda a API, o worker e o Vite. O `compose.yaml` da raiz roda os serviços com que eles conversam:
+
+| Serviço | Em desenvolvimento |
+| --- | --- |
+| Proxy reverso | Caddy |
+| Banco de dados | PostgreSQL |
+| Armazenamento de arquivos | Garage |
+| E-mail | Mailpit, que captura o que é enviado |
+| Login | Dex como provedor local, ou um código de login lido no Mailpit |
+| Provedor de LLM | Um substituto escrito neste repositório, com respostas fixas |
+| Telemetria | O OpenTelemetry Collector e o Grafana otel-lgtm, em um perfil do Compose desligado por padrão |
+
+O seed preenche o banco com dados fictícios, os mesmos a cada execução. Para trabalhar em um prompt com um provedor de LLM real, altere o `.env` local.
+
+A pipeline chama os mesmos alvos do Task, então uma verificação que falha nela falha do mesmo jeito na máquina.
+
+Os outros comandos estão _A definir_ e serão escritos com o primeiro código.
 
 <!-- Comandos para subir o ambiente local do zero: clonar, configurar, iniciar os serviços e acessar a aplicação. -->
 
 ### Build
 
-_A definir._
+- **Backend.** Um binário Go, em uma imagem: a API e os comandos `worker` e `migrate`. As migrations vão embutidas nele.
+- **Seed e substituto do provedor de LLM.** Cada um é um pacote `main` próprio no mesmo módulo Go, com a própria imagem. A produção não roda nenhum dos dois.
+- **Frontend.** O Vite+ gera os arquivos estáticos de `apps/web`, com uma cópia Brotli ao lado de cada arquivo de texto. O Caddy os serve.
+- **Caddy e PostgreSQL.** As duas imagens são construídas neste repositório: a do Caddy com um plugin de limite de requisições, a do PostgreSQL com o pgBackRest.
+- **Código gerado.** A pipeline verifica se ele está atualizado: o código Go que o sqlc gera a partir dos arquivos SQL e o cliente que o orval gera a partir da especificação OpenAPI.
+- **Versões.** O build instala a partir do `go.sum` e do `pnpm-lock.yaml` e falha quando eles mudariam.
+- **Imagens.** O GitHub Actions as constrói, marca cada uma com o hash do commit e envia para o registro de containers do GitHub. A produção só roda imagem construída a partir da `main`.
 
-<!-- Como gerar os artefatos de produção: binário do backend, bundle do frontend, imagens Docker. -->
+Os comandos estão _A definir_ e serão escritos com o primeiro código.
 
 ### Deploy
 

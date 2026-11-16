@@ -264,29 +264,66 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 
 | Tool | Minimum version |
 | --- | --- |
-| Docker | _TBD_ |
-| Go | _TBD_ |
-| Vite+ (manages Node.js and pnpm) | _TBD_ |
-| Task | _TBD_ |
-| GitHub CLI | _TBD_ |
+| Docker | Engine 28.3.2 with Compose 2.38.2 (Docker Desktop 4.43.2) |
+| Go | 1.27.4 |
+| Vite+ (manages Node.js and pnpm) | 1.6.0 |
+| Task | 3.54.0 |
+| GitHub CLI | 2.104.0 |
+
+Each minimum is the version in use on the maintainer's machine, recorded in [`docs/machine-tools.yaml`](docs/machine-tools.yaml). No earlier version has been tried.
+
+The installed Go only downloads the toolchain that `go.mod` names. Every other version the build uses is pinned in the repository (see Versions in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
 ### Configuration
 
-_TBD._
+The API binary reads its configuration from environment variables only, once, when it starts. A missing or invalid value stops the process before it serves anything, with a line that names the variable and never its value. The binary reads no `.env` and no configuration file: Task and Compose load the variables.
 
-<!-- List the environment variables (PostgreSQL connection, storage credentials and bucket, e-mail server, etc.) and keep a versioned `.env.example` with no real secrets. -->
+Every variable is listed in the committed `.env.example`, with no real secret.
+
+| Environment | Where the values are |
+| --- | --- |
+| Development | A `.env` file copied from `.env.example`, never committed |
+| Staging and production | The GitHub Environment of each one: a secret for what is secret, a variable for the rest. The publish writes them to a variables file on the server, readable by the deploy user alone |
+
+A new variable needs its value set in both GitHub Environments before the merge. The publish compares the names in `.env.example` with the values it has and stops, before restarting anything, when one is missing.
+
+The list of variables is _TBD_, written with `.env.example`.
+
+<!-- List the environment variables (PostgreSQL connection, storage credentials and bucket, e-mail server, etc.). -->
 
 ### Local development
 
-_TBD._
+Go, Vite+ and Task run on the machine, so a test runs without going through Docker. `task dev` runs the API, the worker and Vite. The `compose.yaml` at the root runs the services they talk to:
+
+| Service | In development |
+| --- | --- |
+| Reverse proxy | Caddy |
+| Database | PostgreSQL |
+| File storage | Garage |
+| E-mail | Mailpit, which captures what is sent |
+| Login | Dex as the local provider, or a login code read from Mailpit |
+| LLM provider | A stand-in written in this repository, with fixed answers |
+| Telemetry | The OpenTelemetry Collector and Grafana otel-lgtm, in a Compose profile that is off by default |
+
+The seed fills the database with fictitious data, the same on every run. To work on a prompt against a real LLM provider, change the local `.env`.
+
+The pipeline calls the same Task targets, so a check that fails there fails the same way on the machine.
+
+The other commands are _TBD_, written with the first code.
 
 <!-- Commands to bring up the local environment from scratch: clone, configure, start the services and open the app. -->
 
 ### Build
 
-_TBD._
+- **Backend.** One Go binary, in one image: the API, plus the `worker` and `migrate` commands. The migrations are embedded in it.
+- **Seed and LLM stand-in.** Each is a `main` package of its own in the same Go module, built into its own image. Production runs neither.
+- **Frontend.** Vite+ builds `apps/web` into static files, with a Brotli copy beside each text file. Caddy serves them.
+- **Caddy and PostgreSQL.** Both images are built in this repository: Caddy with a rate-limit plugin, PostgreSQL with pgBackRest.
+- **Generated code.** The pipeline checks that it is up to date: the Go code sqlc generates from the SQL files, and the client orval generates from the OpenAPI spec.
+- **Versions.** The build installs from `go.sum` and `pnpm-lock.yaml` and fails when they would change.
+- **Images.** GitHub Actions builds them, tags each with the hash of its commit and pushes it to the GitHub container registry. Production runs only an image built from `main`.
 
-<!-- How to produce the production artifacts: backend binary, frontend bundle, Docker images. -->
+The commands are _TBD_, written with the first code.
 
 ### Deploy
 
