@@ -98,7 +98,7 @@ These apply to REST. Names, identifiers, lists and error codes apply to MCP tool
 
 The term login code is defined in `GLOSSARY.md`. The reasons are in ADR-0011.
 
-- **Two ways in.** An external provider (Google, Microsoft, GitHub) or a login code sent by e-mail. Both end in the same session, and both accept registered users only.
+- **Two ways in.** A login provider (Google, Microsoft, GitHub) or a login code sent by e-mail. Both end in the same session, and both accept registered users only.
 - **Login code.** Six digits, valid for 10 minutes, usable once, and only in the browser that asked for it. The third wrong attempt ends it.
 - **Nothing stored.** The code is computed with HMAC from a key in the configuration and a random value stored with the request for the code. The job that sends the e-mail and the operation that checks the code compute it again, and the check compares in constant time. The code is in no table, job argument, log or span.
 - **Same answer.** Asking for a code answers the same way whether or not the e-mail belongs to a user. For an unknown e-mail nothing is sent.
@@ -334,7 +334,7 @@ Each kind of state has one home:
 
 - **Data from the API** lives in the area's `data` module, never in a store or in component state.
 - **Filters, sorting and the current page** are search parameters in the URL, typed by TanStack Router and validated with Zod.
-- **Interface state shared between screens** (theme, style variation, open panels, drafts) is a Zustand store, small and about one subject.
+- **Interface state shared between screens** (theme, open panels, drafts) is a Zustand store, small and about one subject.
 - **A flow with several steps** on a screen, such as an upload in parts or the login code, is one reducer in the component, whose state is a union of named steps. No state machine library.
 - **Everything else** is React state in the component that uses it.
 
@@ -381,7 +381,9 @@ The default test renders a whole screen in Vitest's Browser Mode, with the API s
 
 ### Prototype
 
-`apps/prototype` uses React, TanStack Router, react-i18next and `packages/ui`, with fake data in plain modules and its own translation files. A Zustand store may hold the theme and the style variation. Nothing is imported from it into `apps/web` (ADR-0006).
+`apps/prototype` uses React, TanStack Router, react-i18next and `packages/ui`, with fake data in plain modules and its own translation files. A Zustand store may hold the theme and the scenario. Nothing is imported from it into `apps/web` (ADR-0006).
+
+The prototype bar is a small floating bar shown over every route, outside the page it floats over. It holds the theme, the language and the scenarios of the current screen. A scenario is a named condition a screen can be put in, such as an expired login code: a screen declares its scenarios, in groups when two of them can hold at once, and its fake data answers according to the ones chosen. A screen carries no control that exists only because it is in the prototype.
 
 The gallery is the permanent part of the prototype: it shows every style variable and every component of `packages/ui`, as `DESIGN.md` describes. The screens around it are disposable. The stylesheet that pins hover, focus and active for the gallery stays in `apps/prototype`.
 

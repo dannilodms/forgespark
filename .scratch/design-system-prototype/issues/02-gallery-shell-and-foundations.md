@@ -9,7 +9,7 @@ Read `../spec.md`, `DESIGN.md` and `.claude/skills/shadcn/design-system-page.md`
 
 The gallery as a section of the prototype, with its first two routes and the pieces every later route reuses.
 
-- The gallery shell: one route per section and a side navigation that works at desktop and phone widths. The navigation lists the routes that exist; later issues add theirs.
+- The gallery shell: one route per section and a side navigation that works at desktop and phone widths. The navigation lists the routes that exist; later issues add theirs. The theme is chosen in the prototype bar from issue 01; the gallery has no selector of its own.
 - The showcase helpers from `.claude/skills/shadcn/assets/showcase/`, copied into the prototype: `ColorPair`, which measures contrast live, and `StateMatrix` with `previewState`, which pin hover, focus and active side by side. The stylesheet that pins the states belongs to the prototype, never to `packages/ui`.
 - The Foundations route, following "Foundations" in the skill file and "Style variables" in `DESIGN.md`:
   - Colour roles as surface and text pairs, each with its style variable names, its resolved value, the measured contrast and the WCAG level. A pair below 4.5:1 is marked as failing.

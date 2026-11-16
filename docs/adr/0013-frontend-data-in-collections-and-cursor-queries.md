@@ -10,7 +10,7 @@ The React app reads and writes only through the REST API. Agents write its code,
 - **An unbounded set is read through TanStack Query with the API's cursor.** A set is unbounded when it grows with activity: hours logged, comments, the audit log. ADR-0009 stands: the API keeps its opaque cursor.
 - **Optimistic writes are for simple, reversible edits only.** A creation waits for the server, because the identifier comes from the database (ADR-0010). An operation with a business rule waits too, because the new status and the allowed actions come from the server. When the server refuses, the screen rolls back and shows the error.
 - **Filters, sorting and the current page live in the URL**, as search parameters typed by TanStack Router.
-- **Zustand holds interface state only**: theme, style variation, open panels, drafts. No data from the API enters a store. Stores are small, one per subject.
+- **Zustand holds interface state only**: theme, open panels, drafts. No data from the API enters a store. Stores are small, one per subject.
 - **The client is generated from the contract.** orval reads the committed OpenAPI spec and produces typed fetch functions, Zod schemas and simulated responses for tests. The output is committed, is never edited by hand, and the build fails when it is stale.
 - **A form validates what the contract declares** (required, format, length), with the generated Zod schemas, through TanStack Form. Business rules exist only in the backend; a 422 is shown on the field it names.
 - **The frontend formats values and computes none.** Totals arrive ready from a query use case. Formatting uses the browser's `Intl`.

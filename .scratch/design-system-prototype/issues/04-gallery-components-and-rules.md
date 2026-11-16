@@ -1,7 +1,7 @@
-# 03 - Gallery components and the Do and Don't route
+# 04 - Gallery components and the Do and Don't route
 
 Status: ready-for-agent
-Blocked by: 02
+Blocked by: 03
 
 Read `../spec.md`, `DESIGN.md` and `.claude/skills/shadcn/design-system-page.md` first.
 
