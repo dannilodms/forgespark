@@ -12,7 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GalleryRouteImport } from './routes/gallery'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as SignedInRouteImport } from './routes/signed-in'
+import { Route as WorkRouteImport } from './routes/work'
 import { Route as GalleryIndexRouteImport } from './routes/gallery/index'
 import { Route as GalleryActionsRouteImport } from './routes/gallery/actions'
 import { Route as GalleryDataDisplayRouteImport } from './routes/gallery/data-display'
@@ -38,9 +38,9 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SignedInRoute = SignedInRouteImport.update({
-  id: '/signed-in',
-  path: '/signed-in',
+const WorkRoute = WorkRouteImport.update({
+  id: '/work',
+  path: '/work',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GalleryIndexRoute = GalleryIndexRouteImport.update({
@@ -93,7 +93,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/gallery': typeof GalleryRouteWithChildren
   '/login': typeof LoginRoute
-  '/signed-in': typeof SignedInRoute
+  '/work': typeof WorkRoute
   '/gallery/actions': typeof GalleryActionsRoute
   '/gallery/data-display': typeof GalleryDataDisplayRoute
   '/gallery/do-and-dont': typeof GalleryDoAndDontRoute
@@ -107,7 +107,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/signed-in': typeof SignedInRoute
+  '/work': typeof WorkRoute
   '/gallery/actions': typeof GalleryActionsRoute
   '/gallery/data-display': typeof GalleryDataDisplayRoute
   '/gallery/do-and-dont': typeof GalleryDoAndDontRoute
@@ -123,7 +123,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/gallery': typeof GalleryRouteWithChildren
   '/login': typeof LoginRoute
-  '/signed-in': typeof SignedInRoute
+  '/work': typeof WorkRoute
   '/gallery/actions': typeof GalleryActionsRoute
   '/gallery/data-display': typeof GalleryDataDisplayRoute
   '/gallery/do-and-dont': typeof GalleryDoAndDontRoute
@@ -140,7 +140,7 @@ export interface FileRouteTypes {
     | '/'
     | '/gallery'
     | '/login'
-    | '/signed-in'
+    | '/work'
     | '/gallery/actions'
     | '/gallery/data-display'
     | '/gallery/do-and-dont'
@@ -154,7 +154,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
-    | '/signed-in'
+    | '/work'
     | '/gallery/actions'
     | '/gallery/data-display'
     | '/gallery/do-and-dont'
@@ -169,7 +169,7 @@ export interface FileRouteTypes {
     | '/'
     | '/gallery'
     | '/login'
-    | '/signed-in'
+    | '/work'
     | '/gallery/actions'
     | '/gallery/data-display'
     | '/gallery/do-and-dont'
@@ -185,7 +185,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GalleryRoute: typeof GalleryRouteWithChildren
   LoginRoute: typeof LoginRoute
-  SignedInRoute: typeof SignedInRoute
+  WorkRoute: typeof WorkRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -211,11 +211,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/signed-in': {
-      id: '/signed-in'
-      path: '/signed-in'
-      fullPath: '/signed-in'
-      preLoaderRoute: typeof SignedInRouteImport
+    '/work': {
+      id: '/work'
+      path: '/work'
+      fullPath: '/work'
+      preLoaderRoute: typeof WorkRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gallery/': {
@@ -315,7 +315,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GalleryRoute: GalleryRouteWithChildren,
   LoginRoute: LoginRoute,
-  SignedInRoute: SignedInRoute,
+  WorkRoute: WorkRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

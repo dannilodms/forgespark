@@ -39,7 +39,7 @@ One exception to rule 2: the mark of a login provider keeps the colours its owne
 
 - The style meets WCAG AA: 4.5:1 for text, 3:1 for large text, for the boundary of a control and for the focus indicator.
 - A value taken from Zed that fails is changed by the smallest step that passes. The colour table then gives both the value of Zed and the value in use. The gallery measures every pair, so a failure is visible.
-- Every interactive component is operable by keyboard and shows a visible focus state: a 3px outline with a 2px offset. A box of InputOTP has no offset, because its neighbours touch it.
+- Every interactive component is operable by keyboard and shows a visible focus state: a 3px outline with a 2px offset. A box of InputOTP has no offset, because its neighbours touch it. A row of a list pane and a control in a 28px bar draw the outline inside themselves, because the pane or the bar would cut it.
 - Motion respects `prefers-reduced-motion`.
 - Layouts are designed for desktop first and adapt down to a 375px-wide viewport with no overflow.
 - Text runs longer in Portuguese and Spanish than in English. Every component that carries text holds a long label without overflowing.
@@ -134,7 +134,7 @@ What each adjustment had to reach:
 
 `destructive` and `status-error` are the same red.
 
-A status colour is a word only where it reaches 4.5:1: on the page, on a pane and in a badge. On a hovered or a selected row it does not: the lowest is amber on `selected` in light, at 3.06:1. The colours were not darkened a second time, which would take them further from Zed. In a row and in a bar the sign carries the colour, where a sign needs 3:1 and has it on every fill, and the word beside it is set in `foreground`. Zed shows a status in a list the same way: a coloured sign beside plain text.
+A status colour is a word only where it reaches 4.5:1: on the page, on a pane and in a badge. On a hovered or a selected row it does not: the lowest is amber on `selected` in light, at 3.06:1. The colours were not darkened a second time, which would take them further from Zed. In a row and in a bar the sign carries the colour, where a sign needs 3:1 and has it on every fill, and the word beside it is set in `foreground`, at the weight of text. Zed shows a status in a list the same way: a coloured sign beside plain text.
 
 ### Type roles
 
@@ -258,7 +258,7 @@ The shape of the mark and the background of the preview came from image models. 
 | Feedback | Alert, Toast, Skeleton, Empty, Status indicator |
 | Overlays | Dialog, DropdownMenu, Popover, Tooltip, Command, Sheet |
 
-The status indicator is this project's own component: a sign in one of the four status colours, and a word. The sign belongs to the meaning: a dashed circle for working, a triangle for needs attention, a check for done, a cross for error. It is plain in a row, where the sign carries the colour and the word is set in `foreground`. It is a badge where it stands alone, with the sign and the word in the colour, on its subtle background. A badge is not put on a row that can be hovered or selected.
+The status indicator is this project's own component: a sign in one of the four status colours, and a word. The sign belongs to the meaning: a dashed circle for working, a triangle for needs attention, a check for done, a cross for error. It is plain in a row, where the sign carries the colour and the word is set in `foreground`, at the weight of text. It is a badge where it stands alone, with the sign and the word in the colour, on its subtle background. A badge is not put on a row that can be hovered or selected.
 
 InputGroup and Sheet are in the list because Command and Sidebar are built on them. Command is built on the `cmdk` library, which brings its own primitives.
 
@@ -270,12 +270,29 @@ The sample work screen of the prototype is built from these four.
 
 | Recipe | What it is |
 | --- | --- |
-| App shell | A title bar, sidebar navigation, a top bar with breadcrumb and a command palette trigger, a main area of flush panes, and a status bar. |
+| App shell | A title bar with the user menu, sidebar navigation, a top bar with breadcrumb and a command palette trigger, a main area of flush panes, and a status bar. |
 | List pane | A filter, a list of rows that each carry a status indicator, and an empty state. Selecting a row drives the detail pane. |
 | Detail pane | A header with the title and the actions of the selected item, and tabs that switch its content. |
 | Form dialog | A dialog with fields, one primary action and a cancel action. It reports a validation error on the field. |
 
-A recipe is added when a second screen needs the same composition.
+A recipe is added when a second screen needs the same composition. In the prototype the four are in `apps/prototype/src/recipes`, and the Recipes route of the gallery shows each on its own.
+
+**App shell.** The title bar and the status bar are 28px high, on `chrome`. The top bar is 28px high, on `card`, and its controls are 24px high. The shell takes the height it is given and never scrolls: each pane scrolls inside itself.
+
+- The user menu sits at the end of the title bar. Its button shows the name of the person who is logged in. The menu shows the name and the e-mail, then the actions on the session. Logging out is the last of them, and it leads to the login screen.
+- The button at the start of the top bar, or Ctrl B, collapses the sidebar to its icons. Under 768px the sidebar is a sheet that the same button opens.
+- The command palette opens from its trigger in the top bar, or with Ctrl K. It lists the places to go, the actions of the screen and the items to open.
+- The status bar holds counts: a status there is its sign and a number, with the word for whoever does not see the sign.
+
+**List pane.** A row is 28px high: an identifier in mono, the title, and a plain status indicator at the end. A hovered row takes `accent` and the selected one takes `selected`.
+
+- The filter keeps the rows that hold every word typed, whatever the case and the accents. The one action of the pane, creating an item, sits beside it.
+- The arrow keys, Home and End move between the rows, and Enter selects one.
+- When the filter leaves nothing, the empty state says what was typed and offers to clear it.
+
+**Detail pane.** The header holds the identifier in mono, the status as a badge, the actions at its end, and the title under them, which wraps. The tabs are the `line` variant, across the pane. Under 1024px the list and the detail do not fit side by side: the screen shows the list, then the detail of the item picked, with a button that leads back.
+
+**Form dialog.** The fields, then a footer with the cancel action and the primary action. Enter in a field submits. A validation error shows under its field, in the error colour, with a sign and a sentence that says what to do; the field is marked and takes the focus. A dialog that closes keeps nothing of what was typed.
 
 ## Gallery
 
@@ -285,6 +302,7 @@ The gallery has one route per section, with side navigation, in this order: Foun
 - **A component block** shows, in order: the name with one line on when to use it, the typical case in real content, the variants, the sizes, the icon forms, the states, and the edge cases (long label, empty, error, loading, disabled).
 - **States** are pinned side by side without interaction: default, hover, focus, active, disabled, plus loading for Button and invalid for fields.
 - **Do and Don't** renders the eight rules as pairs.
+- **Recipes** shows each recipe on its own in a framed preview, with one line on when to use it, and links to the sample work screen.
 - The theme and the language are chosen in the prototype bar, which applies to every route (see Prototype in `CODING_STANDARDS.md`).
 - Navigation and the sample content inside components are in the three supported languages. Explanatory text is in English.
 

@@ -24,21 +24,25 @@ const signs = {
  * The sign always takes the status colour, which reaches 3:1 on every fill a
  * row can have. The word takes it only in a badge, on the subtle background
  * of its colour: on a hovered or a selected row a status colour is below
- * 4.5:1, so a plain word is set in the text colour.
+ * 4.5:1, so a plain word is set in the text colour, at the weight of text.
+ *
+ * The colour of the sign is set on its stroke, not on the text colour, so a
+ * menu item that recolours its content when it is highlighted leaves the
+ * sign as it is.
  */
 const statusIndicatorVariants = cva(
-  "inline-flex max-w-full min-w-0 shrink-0 items-center gap-1.5 align-middle text-sm font-medium [&>svg]:pointer-events-none [&>svg]:size-3.5 [&>svg]:shrink-0",
+  "inline-flex max-w-full min-w-0 shrink-0 items-center gap-1.5 align-middle text-sm [&>svg]:pointer-events-none [&>svg]:size-3.5 [&>svg]:shrink-0",
   {
     variants: {
       status: {
-        working: "[&>svg]:text-status-working",
-        attention: "[&>svg]:text-status-attention",
-        done: "[&>svg]:text-status-done",
-        error: "[&>svg]:text-status-error",
+        working: "[&>svg]:stroke-status-working",
+        attention: "[&>svg]:stroke-status-attention",
+        done: "[&>svg]:stroke-status-done",
+        error: "[&>svg]:stroke-status-error",
       },
       variant: {
         plain: "text-foreground",
-        badge: "h-5 gap-1 rounded-sm px-1.5 text-xs [&>svg]:size-3",
+        badge: "h-5 gap-1 rounded-sm px-1.5 text-xs font-medium [&>svg]:size-3",
       },
     },
     compoundVariants: [

@@ -18,9 +18,102 @@
     "footer": "Only registered people get in. Ask a person who administers the system for access.",
     "language": "Language"
   },
-  "signedIn": {
-    "heading": "You are logged in",
-    "body": "This page stands in for the first screen of the product.",
-    "logOut": "Log out"
+  "work": {
+    "productName": "My Software Factory Manager",
+    "navigation": {
+      "label": "Main navigation",
+      "group": "Work",
+      "toggle": "Show or hide the navigation"
+    },
+    "places": {
+      "requests": "Requests",
+      "projects": "Projects"
+    },
+    "userMenu": {
+      "label": "Account of {{name}}",
+      "logOut": "Log out"
+    },
+    "commands": {
+      "trigger": "Search or run a command",
+      "placeholder": "Search for a place, an item or an action",
+      "description": "Go to a place, open an item or run an action.",
+      "empty": "Nothing matches this search.",
+      "goTo": "Go to",
+      "actions": "Actions",
+      "open": "Open"
+    },
+    "filter": {
+      "label": {
+        "requests": "Filter the requests",
+        "projects": "Filter the projects"
+      },
+      "placeholder": "Filter by title, identifier or status",
+      "clear": "Clear the filter"
+    },
+    "new": {
+      "requests": "New request",
+      "projects": "New project"
+    },
+    "noMatch": {
+      "title": "Nothing matches",
+      "description": "No item was found for"
+    },
+    "detail": {
+      "label": "Details of {{id}}",
+      "back": "Back to the list",
+      "changeStatus": "Change status",
+      "status": "Status",
+      "owner": "Owner",
+      "group": {
+        "requests": "Project",
+        "projects": "Client"
+      },
+      "updated": "Last change",
+      "noDescription": "No description was written.",
+      "tabs": {
+        "details": "Details",
+        "activity": "Activity"
+      }
+    },
+    "activity": {
+      "opened": "{{who}} opened it.",
+      "statusChanged": "{{who}} changed the status to {{status}}."
+    },
+    "form": {
+      "heading": {
+        "requests": "New request",
+        "projects": "New project"
+      },
+      "intro": "It opens as work in progress, with you as its owner.",
+      "titleLabel": "Title",
+      "descriptionLabel": "Description",
+      "descriptionHint": "Optional. What is needed, and why.",
+      "errors": {
+        "required": "Type a title.",
+        "tooLong": "Use at most {{max}} characters."
+      },
+      "submit": {
+        "requests": "Create request",
+        "projects": "Create project"
+      },
+      "cancel": "Cancel"
+    },
+    "statusBar": {
+      "showing": "Showing {{shown}} of {{total}}"
+    },
+    "status": {
+      "requests": {
+        "working": "In progress",
+        "attention": "Waiting for the client",
+        "done": "Delivered",
+        "error": "Failed"
+      },
+      "projects": {
+        "working": "Active",
+        "attention": "At risk",
+        "done": "Closed",
+        "error": "Blocked"
+      }
+    }
   }
 }

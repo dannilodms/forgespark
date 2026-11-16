@@ -9,6 +9,12 @@ const destinations = [
     about: "The first screen of the product: login providers or a login code.",
   },
   {
+    to: "/work",
+    label: "Sample work screen",
+    about:
+      "A full work surface over sample data, built from the four recipes: where the login leads.",
+  },
+  {
     to: "/gallery",
     label: "Gallery",
     about: "Every style variable and component of the design system.",

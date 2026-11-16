@@ -18,9 +18,102 @@
     "footer": "Só pessoas cadastradas entram. Peça acesso a quem administra o sistema.",
     "language": "Idioma"
   },
-  "signedIn": {
-    "heading": "Você entrou",
-    "body": "Esta página fica no lugar da primeira tela do produto.",
-    "logOut": "Sair"
+  "work": {
+    "productName": "My Software Factory Manager",
+    "navigation": {
+      "label": "Navegação principal",
+      "group": "Trabalho",
+      "toggle": "Mostrar ou ocultar a navegação"
+    },
+    "places": {
+      "requests": "Solicitações",
+      "projects": "Projetos"
+    },
+    "userMenu": {
+      "label": "Conta de {{name}}",
+      "logOut": "Sair"
+    },
+    "commands": {
+      "trigger": "Buscar ou executar um comando",
+      "placeholder": "Busque um lugar, um item ou uma ação",
+      "description": "Vá para um lugar, abra um item ou execute uma ação.",
+      "empty": "Nada corresponde a esta busca.",
+      "goTo": "Ir para",
+      "actions": "Ações",
+      "open": "Abrir"
+    },
+    "filter": {
+      "label": {
+        "requests": "Filtrar as solicitações",
+        "projects": "Filtrar os projetos"
+      },
+      "placeholder": "Filtre por título, identificador ou status",
+      "clear": "Limpar o filtro"
+    },
+    "new": {
+      "requests": "Nova solicitação",
+      "projects": "Novo projeto"
+    },
+    "noMatch": {
+      "title": "Nada encontrado",
+      "description": "Nenhum item foi encontrado para"
+    },
+    "detail": {
+      "label": "Detalhes de {{id}}",
+      "back": "Voltar para a lista",
+      "changeStatus": "Alterar status",
+      "status": "Status",
+      "owner": "Responsável",
+      "group": {
+        "requests": "Projeto",
+        "projects": "Cliente"
+      },
+      "updated": "Última alteração",
+      "noDescription": "Nenhuma descrição foi escrita.",
+      "tabs": {
+        "details": "Detalhes",
+        "activity": "Atividade"
+      }
+    },
+    "activity": {
+      "opened": "{{who}} abriu o item.",
+      "statusChanged": "{{who}} alterou o status para {{status}}."
+    },
+    "form": {
+      "heading": {
+        "requests": "Nova solicitação",
+        "projects": "Novo projeto"
+      },
+      "intro": "O item é aberto em andamento, e você fica como responsável.",
+      "titleLabel": "Título",
+      "descriptionLabel": "Descrição",
+      "descriptionHint": "Opcional. O que é necessário, e por quê.",
+      "errors": {
+        "required": "Digite um título.",
+        "tooLong": "Use no máximo {{max}} caracteres."
+      },
+      "submit": {
+        "requests": "Criar solicitação",
+        "projects": "Criar projeto"
+      },
+      "cancel": "Cancelar"
+    },
+    "statusBar": {
+      "showing": "Mostrando {{shown}} de {{total}}"
+    },
+    "status": {
+      "requests": {
+        "working": "Em andamento",
+        "attention": "Aguardando o cliente",
+        "done": "Entregue",
+        "error": "Com falha"
+      },
+      "projects": {
+        "working": "Ativo",
+        "attention": "Em risco",
+        "done": "Encerrado",
+        "error": "Bloqueado"
+      }
+    }
   }
 }

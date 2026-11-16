@@ -18,9 +18,102 @@
     "footer": "Solo entran las personas registradas. Pide acceso a quien administra el sistema.",
     "language": "Idioma"
   },
-  "signedIn": {
-    "heading": "Has iniciado sesión",
-    "body": "Esta página ocupa el lugar de la primera pantalla del producto.",
-    "logOut": "Cerrar sesión"
+  "work": {
+    "productName": "My Software Factory Manager",
+    "navigation": {
+      "label": "Navegación principal",
+      "group": "Trabajo",
+      "toggle": "Mostrar u ocultar la navegación"
+    },
+    "places": {
+      "requests": "Solicitudes",
+      "projects": "Proyectos"
+    },
+    "userMenu": {
+      "label": "Cuenta de {{name}}",
+      "logOut": "Cerrar sesión"
+    },
+    "commands": {
+      "trigger": "Buscar o ejecutar un comando",
+      "placeholder": "Busca un lugar, un elemento o una acción",
+      "description": "Ve a un lugar, abre un elemento o ejecuta una acción.",
+      "empty": "Nada coincide con esta búsqueda.",
+      "goTo": "Ir a",
+      "actions": "Acciones",
+      "open": "Abrir"
+    },
+    "filter": {
+      "label": {
+        "requests": "Filtrar las solicitudes",
+        "projects": "Filtrar los proyectos"
+      },
+      "placeholder": "Filtra por título, identificador o estado",
+      "clear": "Borrar el filtro"
+    },
+    "new": {
+      "requests": "Nueva solicitud",
+      "projects": "Nuevo proyecto"
+    },
+    "noMatch": {
+      "title": "Sin resultados",
+      "description": "No se encontró ningún elemento para"
+    },
+    "detail": {
+      "label": "Detalles de {{id}}",
+      "back": "Volver a la lista",
+      "changeStatus": "Cambiar estado",
+      "status": "Estado",
+      "owner": "Responsable",
+      "group": {
+        "requests": "Proyecto",
+        "projects": "Cliente"
+      },
+      "updated": "Último cambio",
+      "noDescription": "No se escribió ninguna descripción.",
+      "tabs": {
+        "details": "Detalles",
+        "activity": "Actividad"
+      }
+    },
+    "activity": {
+      "opened": "{{who}} abrió el elemento.",
+      "statusChanged": "{{who}} cambió el estado a {{status}}."
+    },
+    "form": {
+      "heading": {
+        "requests": "Nueva solicitud",
+        "projects": "Nuevo proyecto"
+      },
+      "intro": "El elemento se abre en curso, contigo como responsable.",
+      "titleLabel": "Título",
+      "descriptionLabel": "Descripción",
+      "descriptionHint": "Opcional. Qué se necesita y por qué.",
+      "errors": {
+        "required": "Escribe un título.",
+        "tooLong": "Usa como máximo {{max}} caracteres."
+      },
+      "submit": {
+        "requests": "Crear solicitud",
+        "projects": "Crear proyecto"
+      },
+      "cancel": "Cancelar"
+    },
+    "statusBar": {
+      "showing": "Mostrando {{shown}} de {{total}}"
+    },
+    "status": {
+      "requests": {
+        "working": "En curso",
+        "attention": "Esperando al cliente",
+        "done": "Entregada",
+        "error": "Con error"
+      },
+      "projects": {
+        "working": "Activo",
+        "attention": "En riesgo",
+        "done": "Cerrado",
+        "error": "Bloqueado"
+      }
+    }
   }
 }

@@ -263,7 +263,7 @@ export function LoginScreen() {
   const navigate = useNavigate()
   const [state, dispatch] = useReducer(loginReducer, initialLoginState)
 
-  const openTheProduct = () => void navigate({ to: "/signed-in" })
+  const openTheProduct = () => void navigate({ to: "/work" })
 
   return (
     <div className="flex min-h-full flex-col">
