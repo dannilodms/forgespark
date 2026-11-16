@@ -34,6 +34,65 @@ _A definir._
 
 <!-- Descreva a dor atual: onde as informações de clientes e projetos ficam hoje, o que se perde ou se duplica, e quem sofre com isso. -->
 
+### Quem usa e como
+
+```mermaid
+flowchart TB
+    subgraph callers ["Quem usa"]
+        person(["Pessoa<br/>um usuário cadastrado"])
+        coding(["Agentes de código<br/>Claude Code, Codex, OpenCode, pi"])
+        custom(["Agentes próprios<br/>serviços separados, criados depois"])
+    end
+
+    subgraph interfaces ["Interfaces"]
+        web["App web<br/>SPA React no navegador"]
+        mcp["Servidor MCP<br/>um conjunto escolhido de ferramentas"]
+        rest["API REST<br/>todas as operações"]
+    end
+
+    subgraph backend ["Backend"]
+        usecases["Casos de uso<br/>conferem quem está agindo<br/>e o que é permitido"]
+        worker["Worker<br/>trabalhos em segundo plano"]
+    end
+
+    subgraph stores ["Onde os dados ficam"]
+        files[("Armazenamento<br/>de arquivos")]
+        db[("PostgreSQL<br/>dados, sessões, trabalhos,<br/>registro de auditoria")]
+    end
+
+    subgraph outside ["Serviços externos"]
+        idp(["Google, Microsoft, GitHub"])
+        llm(["Provedores de LLM"])
+        mail(["E-mail"])
+    end
+
+    person -->|"entra por um provedor<br/>ou código de login"| web
+    web -->|"cookie de sessão"| rest
+    coding -->|"token de acesso<br/>com escopos"| mcp
+    custom -->|"token de acesso<br/>com escopos"| rest
+    rest --> usecases
+    mcp --> usecases
+    web <-->|"arquivos, por<br/>URLs assinadas"| files
+    usecases -->|"lê, grava,<br/>salva trabalhos"| db
+    usecases -->|"confere o login"| idp
+    usecases --> llm
+    db -->|"trabalhos"| worker
+    worker --> llm
+    worker -->|"código de login<br/>e outros e-mails"| mail
+```
+
+Três tipos de consumidor chegam ao sistema, cada um pela sua interface:
+
+- **Uma pessoa** usa o app web no navegador. Ela entra pelo Google, pela Microsoft ou pelo GitHub, ou com um código de login enviado por e-mail, e só entra quem é usuário cadastrado.
+- **Agentes de código** usam o servidor MCP, que oferece um conjunto escolhido de ferramentas: atualizar o status de um projeto, consultar clientes e horas, buscar uma credencial.
+- **Agentes próprios**, criados depois como serviços separados, usam a API REST.
+
+Um agente entra com um token de acesso que um usuário criou para ele, limitado por escopos, e o que ele faz fica registrado como ação desse usuário. Todas as interfaces terminam nos mesmos casos de uso, que decidem se a ação é permitida, então as regras são as mesmas para qualquer consumidor.
+
+Os dados são lidos e gravados no PostgreSQL. Os arquivos vão direto do navegador para o armazenamento e de volta, por URLs assinadas emitidas pela API. O que ninguém espera na tela é salvo como um trabalho e executado pelo worker: envio de e-mail, processamento de arquivos e chamadas a provedores de LLM.
+
+Os tipos de usuário, e o que cada um pode fazer, ainda não foram modelados.
+
 ## Arquitetura
 
 ### Visão geral
@@ -41,24 +100,45 @@ _A definir._
 Decidido até aqui (veja os ADRs abaixo):
 
 ```mermaid
-flowchart LR
-    user([Usuário]) --> proxy[Caddy<br/>HTTPS + arquivos do SPA React]
-    agents([Agentes de código]) -->|MCP| proxy
-    proxy -->|REST e MCP| api[Backend / API<br/>Go]
-    user -->|URLs assinadas| storage[(Armazenamento S3<br/>Backblaze B2 em produção)]
-    api --> db[(PostgreSQL<br/>dados e fila de trabalhos)]
-    api --> storage
-    api --> llm([Provedores de LLM])
-    api --> idp([Google, Microsoft, GitHub<br/>login])
-    api -->|OTLP| collector[OpenTelemetry Collector<br/>reúne a telemetria]
-    worker[Worker<br/>mesmo binário Go] --> db
-    worker --> storage
-    worker --> llm
-    worker --> mail([Resend<br/>e-mail])
-    worker -->|OTLP| collector
-    proxy -->|OTLP| collector
-    collector --> telemetry[Grafana otel-lgtm<br/>logs, traces, métricas]
-    proxy -->|Grafana| telemetry
+flowchart TB
+    actions(["GitHub Actions<br/>constrói e publica<br/>as imagens"])
+    agents(["Agentes de código"])
+    spa["Navegador: SPA React<br/>TanStack Router, DB,<br/>Query e Form<br/>Zustand, react-i18next<br/>shadcn/ui, Tailwind CSS<br/>cliente gerado pelo orval"]
+
+    subgraph server ["Servidor: Docker Compose"]
+        caddy["Caddy<br/>HTTPS, arquivos do SPA,<br/>proxy reverso"]
+        subgraph binary ["Um único binário Go"]
+            api["API<br/>Huma (REST, OpenAPI)<br/>MCP Go SDK<br/>SCS, pgx, sqlc<br/>AWS SDK para Go v2"]
+            worker["Worker<br/>River"]
+        end
+        migrate["Migrations<br/>goose"]
+        db[("PostgreSQL 18<br/>dados, sessões,<br/>fila de trabalhos")]
+        telemetry["Telemetria<br/>por enquanto só em desenvolvimento<br/>OpenTelemetry Collector<br/>Grafana otel-lgtm"]
+    end
+
+    subgraph outside ["Serviços externos"]
+        idp(["Login<br/>Google, Microsoft, GitHub<br/>Dex em desenvolvimento"])
+        llm(["Provedores de LLM<br/>formato Chat Completions"])
+        mail(["E-mail<br/>Resend em produção<br/>Mailpit nos demais ambientes"])
+        storage[("Armazenamento S3<br/>Backblaze B2 em produção<br/>Garage nos demais ambientes")]
+    end
+
+    actions -->|"SSH"| server
+    agents -->|"MCP"| caddy
+    spa -->|"HTTPS"| caddy
+    caddy -->|"REST e MCP"| api
+    binary --> db
+    migrate --> db
+    binary & caddy -->|"OTLP"| telemetry
+    api -->|"login"| idp
+    binary --> llm
+    worker --> mail
+    binary -->|"arquivos"| storage
+    db -->|"backups,<br/>pgBackRest"| storage
+    spa -->|"arquivos, por<br/>URLs assinadas"| storage
+    db ~~~ idp
+    db ~~~ llm
+    db ~~~ mail
 ```
 
 O worker executa os trabalhos em segundo plano que a API grava no PostgreSQL: envio de e-mail, processamento de arquivos e chamadas a provedores de LLM que ninguém espera na tela. O navegador envia e baixa arquivos direto do armazenamento, com URLs assinadas emitidas pela API.
