@@ -14,6 +14,10 @@ _Avoid_: Secret, password, login
 What a user creates so that an agent can enter the system and act on their behalf. It has a name and a set of scopes chosen when it is created, and it can be revoked. An action taken with it is recorded as that user's, together with the access token used.
 _Avoid_: API key, personal access token
 
+**Login code**:
+A six-digit code the system sends to a user's e-mail so that they can log in without an external provider. It works once, for a short time, and stops working after three wrong attempts.
+_Avoid_: Token, OTP, PIN, verification code
+
 **Scope**:
 What an access token is allowed to do: read or write in one area of the system. Reading the value of a credential is a scope of its own.
 _Avoid_: Permission, role
