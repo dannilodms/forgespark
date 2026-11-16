@@ -75,7 +75,7 @@ These apply to REST. Names, identifiers, lists and error codes apply to MCP tool
 
 - **Names.** `snake_case` in bodies, query parameters, error fields and tool arguments.
 - **Identifiers.** An identifier leaves the backend as a type prefix plus the Sqids encoding of the integer, at least 8 characters: `prj_Xk9fQ2mB`. An inbound adapter rejects a wrong prefix, decodes on the way in and encodes on the way out. `platform` holds the encoder and the prefix and alphabet of each aggregate type; neither ever changes. The integer appears in no response.
-- **Paths.** Resources are plural nouns. A state change is a `POST` ending in the verb of its use case: `POST /projects/{id}/cancel`.
+- **Paths.** Resources are plural nouns. A state change is a `POST` ending in the verb of its use case: `POST /projects/{id}/cancel`. The one singular path is the health report (see Health).
 - **Editing details.** A `PUT` with every editable field required. No `PATCH`. A narrower edit that an agent needs is its own use case.
 - **Input.** Unknown body properties and unknown query parameters are rejected.
 - **Status.** 201 with `Location` for a creation, 202 for asynchronous work, 400 for malformed input, 422 for failed validation or a broken business rule, 409 for a conflict.
@@ -92,6 +92,21 @@ These apply to REST. Names, identifiers, lists and error codes apply to MCP tool
 - Logs, spans and metric labels never carry personal data, the value of a credential, an access token or a session cookie.
 - The `trace_id` in an error body is the trace identifier of the request.
 - A sensitive operation (reading the value of a credential, a login, creating or revoking an access token) writes to the audit log from its use case. The audit log is append-only and is not telemetry.
+
+### Health
+
+The terms system health, part and health report are defined in `GLOSSARY.md`.
+
+- **Liveness.** `GET /livez` answers 200 and touches no part.
+- **Readiness.** `GET /readyz` answers 200 when PostgreSQL answers and the database schema is the version the binary expects, and 503 otherwise. It feeds the Compose health check.
+- **Outside the contract.** Liveness and readiness live in `platform`, outside `/api` and outside the OpenAPI spec. They need no authentication and answer with the status code alone. Caddy forwards only `/api`, so they are reachable only inside the Compose network.
+- **Parts.** PostgreSQL is the only essential part. MinIO, the LLM provider and the telemetry collector are optional: one of them down makes the system `degraded`, never unready. An optional part with no configuration is `not_configured` and does not degrade the system.
+- **Health report.** `GET /api/health` is a query use case in the system health area, which has no aggregate. It follows the API conventions, except that its path is singular, which the plural-path lint allows for this path only. It always answers 200, with the system health in the body: `operational`, `degraded` or `down`.
+- **Checks.** They run when the health report is asked for, in parallel, each under a timeout taken from configuration (2 seconds by default). Nothing is checked in the background and nothing is stored. The LLM provider is checked by a call that spends no tokens, such as listing its models. The telemetry collector is not probed: its state is the result of the last export.
+- **Content.** For each part: its name, whether it is essential or optional, its state (`operational`, `down` or `not_configured`), the response time, the time of the check and, when it is down, a stable error code. The raw error goes to the logs only. The health report also carries the version, the commit, the build date, the time the process started, and the schema version applied and the one expected.
+- **Access.** Only a user who administers the system reads the health report, through the session or through an access token that carries the read scope of the system health area.
+- **When.** Liveness and readiness are written with the first backend code. The health report waits for the modelling of users, which has to say who administers the system. Nothing provisional shows the state of the optional parts until then.
+- **Not built.** An MCP tool for the health report, a check of the login providers, an operation per part, history and alerts. History and alerts need work that runs outside a request (see Deferred).
 
 ### Shutdown
 
@@ -253,3 +268,5 @@ For investigating performance in a real browser, agents have the Chrome DevTools
 ### Deferred
 
 A client for Server-Sent Events is written with the first streaming operation. Telemetry from the browser waits for users other than the maintainer.
+
+The system health screen waits for the health report (see Health in the backend rules) and is designed in the prototype first. It reads the health report when it opens and on a refresh button, with no automatic refresh and no warning on other screens.

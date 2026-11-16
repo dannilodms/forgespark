@@ -22,6 +22,20 @@ _Avoid_: Permission, role
 The permanent record of sensitive operations: reading the value of a credential, logging in, and creating or revoking an access token. Nothing in it is edited or deleted. It is not the history of work that screens show.
 _Avoid_: Activity history, history, log
 
+### System health
+
+**System health**:
+Whether the system can do its work right now: operational, degraded or down. It is degraded when an optional part is down, and down when an essential part is.
+_Avoid_: Status, uptime, availability
+
+**Part**:
+Something the system needs in order to work, such as its database, its file storage or an LLM provider. An essential part takes the whole system down with it; an optional part takes only the features that use it. A part is operational, down or not configured.
+_Avoid_: Component, dependency, service
+
+**Health report**:
+The state of every part at the moment it is asked for, together with the version of the system that is running. It keeps no history.
+_Avoid_: Status page, health check, diagnostics
+
 ### Languages and translation
 
 **Supported language**:
