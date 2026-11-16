@@ -34,6 +34,65 @@ _A definir._
 
 <!-- Descreva a dor atual: onde as informações de clientes e projetos ficam hoje, o que se perde ou se duplica, e quem sofre com isso. -->
 
+### Quem usa e como
+
+```mermaid
+flowchart TB
+    subgraph callers ["Quem usa"]
+        person(["Pessoa<br/>um usuário cadastrado"])
+        coding(["Agentes de código<br/>Claude Code, Codex, OpenCode, pi"])
+        custom(["Agentes próprios<br/>serviços separados, criados depois"])
+    end
+
+    subgraph interfaces ["Interfaces"]
+        web["App web<br/>SPA React no navegador"]
+        mcp["Servidor MCP<br/>um conjunto escolhido de ferramentas"]
+        rest["API REST<br/>todas as operações"]
+    end
+
+    subgraph backend ["Backend"]
+        usecases["Casos de uso<br/>conferem quem está agindo<br/>e o que é permitido"]
+        worker["Worker<br/>trabalhos em segundo plano"]
+    end
+
+    subgraph stores ["Onde os dados ficam"]
+        files[("Armazenamento<br/>de arquivos")]
+        db[("PostgreSQL<br/>dados, sessões, trabalhos,<br/>registro de auditoria")]
+    end
+
+    subgraph outside ["Serviços externos"]
+        idp(["Google, Microsoft, GitHub"])
+        llm(["Provedores de LLM"])
+        mail(["E-mail"])
+    end
+
+    person -->|"entra por um provedor<br/>ou código de login"| web
+    web -->|"cookie de sessão"| rest
+    coding -->|"token de acesso<br/>com escopos"| mcp
+    custom -->|"token de acesso<br/>com escopos"| rest
+    rest --> usecases
+    mcp --> usecases
+    web <-->|"arquivos, por<br/>URLs assinadas"| files
+    usecases -->|"lê, grava,<br/>salva trabalhos"| db
+    usecases -->|"confere o login"| idp
+    usecases --> llm
+    db -->|"trabalhos"| worker
+    worker --> llm
+    worker -->|"código de login<br/>e outros e-mails"| mail
+```
+
+Três tipos de consumidor chegam ao sistema, cada um pela sua interface:
+
+- **Uma pessoa** usa o app web no navegador. Ela entra pelo Google, pela Microsoft ou pelo GitHub, ou com um código de login enviado por e-mail, e só entra quem é usuário cadastrado.
+- **Agentes de código** usam o servidor MCP, que oferece um conjunto escolhido de ferramentas: atualizar o status de um projeto, consultar clientes e horas, buscar uma credencial.
+- **Agentes próprios**, criados depois como serviços separados, usam a API REST.
+
+Um agente entra com um token de acesso que um usuário criou para ele, limitado por escopos, e o que ele faz fica registrado como ação desse usuário. Todas as interfaces terminam nos mesmos casos de uso, que decidem se a ação é permitida, então as regras são as mesmas para qualquer consumidor.
+
+Os dados são lidos e gravados no PostgreSQL. Os arquivos vão direto do navegador para o armazenamento e de volta, por URLs assinadas emitidas pela API. O que ninguém espera na tela é salvo como um trabalho e executado pelo worker: envio de e-mail, processamento de arquivos e chamadas a provedores de LLM.
+
+Os tipos de usuário, e o que cada um pode fazer, ainda não foram modelados.
+
 ## Arquitetura
 
 ### Visão geral
@@ -41,24 +100,45 @@ _A definir._
 Decidido até aqui (veja os ADRs abaixo):
 
 ```mermaid
-flowchart LR
-    user([Usuário]) --> proxy[Caddy<br/>HTTPS + arquivos do SPA React]
-    agents([Agentes de código]) -->|MCP| proxy
-    proxy -->|REST e MCP| api[Backend / API<br/>Go]
-    user -->|URLs assinadas| storage[(Armazenamento S3<br/>Backblaze B2 em produção)]
-    api --> db[(PostgreSQL<br/>dados e fila de trabalhos)]
-    api --> storage
-    api --> llm([Provedores de LLM])
-    api --> idp([Google, Microsoft, GitHub<br/>login])
-    api -->|OTLP| collector[OpenTelemetry Collector<br/>reúne a telemetria]
-    worker[Worker<br/>mesmo binário Go] --> db
-    worker --> storage
-    worker --> llm
-    worker --> mail([Resend<br/>e-mail])
-    worker -->|OTLP| collector
-    proxy -->|OTLP| collector
-    collector --> telemetry[Grafana otel-lgtm<br/>logs, traces, métricas]
-    proxy -->|Grafana| telemetry
+flowchart TB
+    actions(["GitHub Actions<br/>constrói e publica<br/>as imagens"])
+    agents(["Agentes de código"])
+    spa["Navegador: SPA React<br/>TanStack Router, DB,<br/>Query e Form<br/>Zustand, react-i18next<br/>shadcn/ui, Tailwind CSS<br/>cliente gerado pelo orval"]
+
+    subgraph server ["Servidor: Docker Compose"]
+        caddy["Caddy<br/>HTTPS, arquivos do SPA,<br/>proxy reverso"]
+        subgraph binary ["Um único binário Go"]
+            api["API<br/>Huma (REST, OpenAPI)<br/>MCP Go SDK<br/>SCS, pgx, sqlc<br/>AWS SDK para Go v2"]
+            worker["Worker<br/>River"]
+        end
+        migrate["Migrations<br/>goose"]
+        db[("PostgreSQL 18<br/>dados, sessões,<br/>fila de trabalhos")]
+        telemetry["Telemetria<br/>por enquanto só em desenvolvimento<br/>OpenTelemetry Collector<br/>Grafana otel-lgtm"]
+    end
+
+    subgraph outside ["Serviços externos"]
+        idp(["Login<br/>Google, Microsoft, GitHub<br/>Dex em desenvolvimento"])
+        llm(["Provedores de LLM<br/>formato Chat Completions"])
+        mail(["E-mail<br/>Resend em produção<br/>Mailpit nos demais ambientes"])
+        storage[("Armazenamento S3<br/>Backblaze B2 em produção<br/>Garage nos demais ambientes")]
+    end
+
+    actions -->|"SSH"| server
+    agents -->|"MCP"| caddy
+    spa -->|"HTTPS"| caddy
+    caddy -->|"REST e MCP"| api
+    binary --> db
+    migrate --> db
+    binary & caddy -->|"OTLP"| telemetry
+    api -->|"login"| idp
+    binary --> llm
+    worker --> mail
+    binary -->|"arquivos"| storage
+    db -->|"backups,<br/>pgBackRest"| storage
+    spa -->|"arquivos, por<br/>URLs assinadas"| storage
+    db ~~~ idp
+    db ~~~ llm
+    db ~~~ mail
 ```
 
 O worker executa os trabalhos em segundo plano que a API grava no PostgreSQL: envio de e-mail, processamento de arquivos e chamadas a provedores de LLM que ninguém espera na tela. O navegador envia e baixa arquivos direto do armazenamento, com URLs assinadas emitidas pela API.
@@ -124,6 +204,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0019 - Três ambientes, com a homologação em um servidor criado sob demanda](docs/adr/0019-three-environments-with-staging-on-a-server-created-on-demand.md): desenvolvimento na máquina, um servidor de homologação criado para um pull request rotulado e populado pelo seed a cada publicação, produção em um servidor da Hetzner; o GitHub Actions publica por SSH, com os segredos nos Environments do GitHub
 - [0020 - PostgreSQL com backup pelo pgBackRest, e arquivos de produção no Backblaze B2](docs/adr/0020-postgresql-backed-up-by-pgbackrest-and-production-files-in-backblaze-b2.md): backups contínuos e cifrados em outro provedor, com um teste mensal de restauração, e os arquivos de produção em um bucket com versionamento; o Garage continua em desenvolvimento e na homologação
 - [0021 - Um repositório público sob a AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): público no plano gratuito do GitHub, com as regras que isso impõe aos commits e à pipeline
+- [0022 - Um registro com ciclo de vida é uma máquina de estados no domínio](docs/adr/0022-a-record-with-a-lifecycle-is-a-state-machine-in-the-domain.md): um conjunto fixo de status e uma tabela de transições por agregado, em Go puro; as ações permitidas saem da mesma tabela, e só o nome de um status é conteúdo de configuração
 
 ## Tecnologias
 
@@ -183,29 +264,66 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 
 | Ferramenta | Versão mínima |
 | --- | --- |
-| Docker | _A definir_ |
-| Go | _A definir_ |
-| Vite+ (gerencia Node.js e pnpm) | _A definir_ |
-| Task | _A definir_ |
-| GitHub CLI | _A definir_ |
+| Docker | Engine 28.3.2 com Compose 2.38.2 (Docker Desktop 4.43.2) |
+| Go | 1.27.4 |
+| Vite+ (gerencia Node.js e pnpm) | 1.6.0 |
+| Task | 3.54.0 |
+| GitHub CLI | 2.104.0 |
+
+Cada mínimo é a versão em uso na máquina do mantenedor, registrada em [`docs/machine-tools.yaml`](docs/machine-tools.yaml). Nenhuma versão anterior foi testada.
+
+O Go instalado só baixa o toolchain que o `go.mod` indica. Todas as outras versões usadas pelo build são fixadas no repositório (veja Versions em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
 ### Configuração
 
-_A definir._
+O binário da API lê a configuração apenas de variáveis de ambiente, uma única vez, ao iniciar. Um valor ausente ou inválido encerra o processo antes de ele atender qualquer coisa, com uma linha que cita a variável e nunca o valor. O binário não lê `.env` nem arquivo de configuração: o Task e o Compose carregam as variáveis.
 
-<!-- Liste as variáveis de ambiente (conexão com o PostgreSQL, credenciais e bucket do armazenamento, servidor de e-mail etc.) e mantenha um `.env.example` versionado, sem segredos reais. -->
+Toda variável está listada no `.env.example` versionado, sem segredos reais.
+
+| Ambiente | Onde ficam os valores |
+| --- | --- |
+| Desenvolvimento | Um arquivo `.env` copiado do `.env.example`, nunca versionado |
+| Homologação e produção | O Environment do GitHub de cada um: um segredo para o que é secreto, uma variável para o restante. A publicação os grava em um arquivo de variáveis no servidor, que só o usuário de deploy consegue ler |
+
+Uma variável nova precisa ter o valor definido nos dois Environments do GitHub antes do merge. A publicação compara os nomes do `.env.example` com os valores que tem e para, antes de reiniciar qualquer coisa, quando falta algum.
+
+A lista de variáveis está _A definir_ e será escrita com o `.env.example`.
+
+<!-- Liste as variáveis de ambiente (conexão com o PostgreSQL, credenciais e bucket do armazenamento, servidor de e-mail etc.). -->
 
 ### Ambiente de desenvolvimento
 
-_A definir._
+Go, Vite+ e Task rodam na máquina, então um teste roda sem passar pelo Docker. `task dev` roda a API, o worker e o Vite. O `compose.yaml` da raiz roda os serviços com que eles conversam:
+
+| Serviço | Em desenvolvimento |
+| --- | --- |
+| Proxy reverso | Caddy |
+| Banco de dados | PostgreSQL |
+| Armazenamento de arquivos | Garage |
+| E-mail | Mailpit, que captura o que é enviado |
+| Login | Dex como provedor local, ou um código de login lido no Mailpit |
+| Provedor de LLM | Um substituto escrito neste repositório, com respostas fixas |
+| Telemetria | O OpenTelemetry Collector e o Grafana otel-lgtm, em um perfil do Compose desligado por padrão |
+
+O seed preenche o banco com dados fictícios, os mesmos a cada execução. Para trabalhar em um prompt com um provedor de LLM real, altere o `.env` local.
+
+A pipeline chama os mesmos alvos do Task, então uma verificação que falha nela falha do mesmo jeito na máquina.
+
+Os outros comandos estão _A definir_ e serão escritos com o primeiro código.
 
 <!-- Comandos para subir o ambiente local do zero: clonar, configurar, iniciar os serviços e acessar a aplicação. -->
 
 ### Build
 
-_A definir._
+- **Backend.** Um binário Go, em uma imagem: a API e os comandos `worker` e `migrate`. As migrations vão embutidas nele.
+- **Seed e substituto do provedor de LLM.** Cada um é um pacote `main` próprio no mesmo módulo Go, com a própria imagem. A produção não roda nenhum dos dois.
+- **Frontend.** O Vite+ gera os arquivos estáticos de `apps/web`, com uma cópia Brotli ao lado de cada arquivo de texto. O Caddy os serve.
+- **Caddy e PostgreSQL.** As duas imagens são construídas neste repositório: a do Caddy com um plugin de limite de requisições, a do PostgreSQL com o pgBackRest.
+- **Código gerado.** A pipeline verifica se ele está atualizado: o código Go que o sqlc gera a partir dos arquivos SQL e o cliente que o orval gera a partir da especificação OpenAPI.
+- **Versões.** O build instala a partir do `go.sum` e do `pnpm-lock.yaml` e falha quando eles mudariam.
+- **Imagens.** O GitHub Actions as constrói, marca cada uma com o hash do commit e envia para o registro de containers do GitHub. A produção só roda imagem construída a partir da `main`.
 
-<!-- Como gerar os artefatos de produção: binário do backend, bundle do frontend, imagens Docker. -->
+Os comandos estão _A definir_ e serão escritos com o primeiro código.
 
 ### Deploy
 
@@ -245,7 +363,7 @@ O passo a passo para restaurar à mão está _A definir_ e será escrito com a r
 
 ### Manutenção
 
-- **Dependências.** `task outdated` lista o que tem versão mais nova. Cada atualização é um pull request próprio (veja Versions em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
+- **Dependências.** `task outdated` lista o que tem versão mais nova. Um workflow semanal roda esse comando e mantém a lista em uma única issue no GitHub, que avisa quem mantém o sistema; ele não abre pull request. `task outdated:machine`, rodado à mão, faz o mesmo para as ferramentas instaladas na máquina de quem mantém. Cada atualização é um pull request próprio (veja Versions em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 - **Vulnerabilidades.** Um workflow semanal roda govulncheck, `pnpm audit` e Trivy nas imagens.
 - **Logs.** Em produção, a saída dos containers é lida no servidor.
 

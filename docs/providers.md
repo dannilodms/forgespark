@@ -6,13 +6,13 @@ Every outside service this system depends on: why it was chosen, what it costs, 
 
 **Keep it true.** A change made at a provider (a new record, a new bucket, a change of plan) is written here in the same pull request, or right after when the change is made by hand.
 
-Prices were read on the providers' own pages on 2026-11-16, without tax. Nothing has been created yet: a value shown as _not created_ is filled in when the resource exists.
+Prices were read on the providers' own pages on 2026-11-16, without tax. Only the GitHub repository has been created so far: a value shown as _not created_ is filled in when the resource exists.
 
 ## Summary
 
 | Provider | Used for | Environments | Approximate cost | State |
 | --- | --- | --- | --- | --- |
-| [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Decided, not created |
+| [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; environments and required checks not set yet |
 | [Hetzner Cloud](#hetzner-cloud) | The servers | staging, production | € 5.99 a month, plus cents for staging | Decided, not created |
 | [Backblaze B2](#backblaze-b2) | Production files, database backups | production, staging (certificates only) | Free under 10 GB, about US$ 0.63 a month at 100 GB | Decided, not created |
 | [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | _not known_ | Registrar not chosen |
@@ -32,10 +32,10 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 
 | Item | Value |
 | --- | --- |
-| Account or organisation | _not created_ |
-| Repository | _not created_, public |
+| Account or organisation | `dannilodms`, a personal account |
+| Repository | [`dannilodms/software-factory-manager`](https://github.com/dannilodms/software-factory-manager), public |
 | Licence | AGPLv3 |
-| Branch protection on `main` | No direct push; merge only with the checks passing |
+| Branch protection on `main` | The `main` ruleset: no direct push, a pull request with a squash merge, no force push, no deletion. Merging only with the checks passing is added with the first workflow |
 | Environments | `staging` and `production`; `production` restricted to `main` |
 | Secret scanning with push protection | On |
 | Workflows of outside contributors | Run only after approval |
