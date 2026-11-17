@@ -62,10 +62,32 @@ tasks:
       - vp node scripts/missing-keys.mjs
       - vp test run
 
+  api:lint:
+    desc: Lint the Go code and check its format, the dependency rule, else and the level of nesting
+    dir: apps/api
+    cmds:
+      # The linter has its own module file, so its dependencies stay out of go.mod.
+      - go tool -modfile=golangci-lint.mod golangci-lint run ./...
+      - go run ./tools/guard code
+
+  api:format:
+    desc: Rewrite the Go files as the formatter asks
+    dir: apps/api
+    cmds:
+      - go tool -modfile=golangci-lint.mod golangci-lint fmt ./...
+
+  versions:check:
+    desc: Check that every version the repository pins is exact
+    dir: apps/api
+    cmds:
+      - go run ./tools/guard versions ../..
+
   check:
     desc: Every check a pull request runs, on the app and on the API
     cmds:
+      - task: versions:check
       - task: web:check
+      - task: api:lint
       - task: api:build
       - task: api:test
 

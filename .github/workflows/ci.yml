@@ -102,7 +102,10 @@ jobs:
         uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: apps/api/go.mod
-          cache-dependency-path: apps/api/go.sum
+          # The linter is built from its own module file.
+          cache-dependency-path: |
+            apps/api/go.sum
+            apps/api/golangci-lint.sum
 
       - name: Install Task
         env:
@@ -117,6 +120,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/bin"
           tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Check that every version is exact
+        run: task versions:check
+
+      - name: Lint the Go code and check its format, its imports, else and nesting
+        run: task api:lint
 
       - name: Start the services of development
         run: task services
