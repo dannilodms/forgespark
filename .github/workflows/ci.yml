@@ -19,6 +19,8 @@ env:
   ACTIONLINT_VERSION: 1.7.12
   ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
   ZIZMOR_VERSION: 1.32.0
+  TASK_VERSION: 3.54.0
+  TASK_SHA256: 680859dbb4d881a9c72d4d9a8f510825450849af8567deacd7302c01124416fb
 
 jobs:
   workflows:
@@ -54,6 +56,77 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: pipx run --spec "zizmor==${ZIZMOR_VERSION}" zizmor --color=always .
 
+  # Tells the builds and the tests whether to run. A pull request that changes
+  # only documents skips them. `VERSION` is not a document.
+  changes:
+    name: Changed files
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      - name: Look for a changed file that is not a document
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PULL_REQUEST}/files" \
+            --paginate --jq '.[].filename')"
+          documents='(\.md$|^docs/|^\.scratch/|^LICENSE$)'
+          if echo "$files" | grep --quiet --invert-match --extended-regexp "$documents"; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  backend:
+    name: Backend
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the Go toolchain that go.mod names
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Install Task
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="task_linux_amd64.tar.gz"
+          gh release download "v${TASK_VERSION}" \
+            --repo go-task/task \
+            --pattern "$archive" \
+            --dir "$RUNNER_TEMP"
+          echo "${TASK_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Start the services of development
+        run: task services
+
+      - name: Build the API binary
+        run: task api:build
+
+      - name: Run the Go tests against the PostgreSQL container
+        run: task api:test
+
   # The only check the ruleset of `main` requires. A new check is a job
   # added to `needs`, so the ruleset never changes.
   checks:
@@ -61,6 +134,8 @@ jobs:
     if: ${{ always() }}
     needs:
       - workflows
+      - changes
+      - backend
     runs-on: ubuntu-24.04
     permissions: {}
     steps:
