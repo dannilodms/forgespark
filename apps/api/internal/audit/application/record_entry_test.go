@@ -37,6 +37,44 @@ func TestRecordingAnEntryAddsItToTheAuditLog(t *testing.T) {
 	assert.Equal(t, int64(7), entries[0].Subject().Identifier())
 }
 
+func TestTheConclusionOfASetupIsRecordedWithTheSetupCodeUsedAndTheUserCreated(t *testing.T) {
+	auditLog := applicationtest.NewAuditLog()
+	recordEntry := application.NewRecordEntry(auditLog)
+
+	err := recordEntry.Execute(context.Background(), application.RecordEntryInput{
+		OccurredAt: noon,
+		Operation:  application.SetupConcluded,
+		Actor:      application.SetupCodeUsed(7),
+		Subject:    application.User(3),
+	})
+
+	require.NoError(t, err)
+	entries := auditLog.Entries()
+	require.Len(t, entries, 1)
+	assert.Equal(t, "setup_concluded", string(entries[0].Operation()))
+	assert.Equal(t, "setup_code", string(entries[0].Actor().Kind()))
+	actorID, identified := entries[0].Actor().Identifier()
+	assert.True(t, identified)
+	assert.Equal(t, int64(7), actorID)
+	assert.Equal(t, "user", string(entries[0].Subject().Kind()))
+	assert.Equal(t, int64(3), entries[0].Subject().Identifier())
+}
+
+func TestAnEntryWhoseActorIsASetupCodeWithNoIdentifierIsRefused(t *testing.T) {
+	auditLog := applicationtest.NewAuditLog()
+	recordEntry := application.NewRecordEntry(auditLog)
+
+	err := recordEntry.Execute(context.Background(), application.RecordEntryInput{
+		OccurredAt: noon,
+		Operation:  application.SetupConcluded,
+		Actor:      application.SetupCodeUsed(0),
+		Subject:    application.User(3),
+	})
+
+	assert.Error(t, err)
+	assert.Empty(t, auditLog.Entries())
+}
+
 func TestAnEntryThatDoesNotFitItsOperationIsRefusedAndNotRecorded(t *testing.T) {
 	fitting := application.RecordEntryInput{
 		OccurredAt: noon,
@@ -59,6 +97,12 @@ func TestAnEntryThatDoesNotFitItsOperationIsRefusedAndNotRecorded(t *testing.T) 
 		},
 		"no time": func(input *application.RecordEntryInput) {
 			input.OccurredAt = time.Time{}
+		},
+		"the actor of another operation": func(input *application.RecordEntryInput) {
+			input.Actor = application.SetupCodeUsed(7)
+		},
+		"the subject of another operation": func(input *application.RecordEntryInput) {
+			input.Subject = application.User(3)
 		},
 	}
 	for name, change := range cases {

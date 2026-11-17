@@ -15,16 +15,33 @@ type (
 	Entry = domain.Entry
 )
 
-// SetupCodeIssued is recorded when whoever installs the system issues a
-// setup code. Its actor is Installer and its subject is the SetupCode issued.
-const SetupCodeIssued = domain.SetupCodeIssued
+const (
+	// SetupCodeIssued is recorded when whoever installs the system issues a
+	// setup code. Its actor is Installer and its subject is the SetupCode
+	// issued.
+	SetupCodeIssued = domain.SetupCodeIssued
+	// SetupConcluded is recorded when the setup is concluded. Its actor is
+	// the SetupCodeUsed and its subject is the User created, the first
+	// administrator.
+	SetupConcluded = domain.SetupConcluded
+)
 
 // Installer is whoever installs the system, who has no identifier.
 func Installer() Actor {
 	return domain.Installer()
 }
 
+// SetupCodeUsed is the setup code with this identifier, as who acted.
+func SetupCodeUsed(identifier int64) Actor {
+	return domain.SetupCodeUsed(identifier)
+}
+
 // SetupCode is the setup code with this identifier, as what was acted on.
 func SetupCode(identifier int64) Subject {
 	return domain.SetupCode(identifier)
+}
+
+// User is the user with this identifier, as what was acted on.
+func User(identifier int64) Subject {
+	return domain.User(identifier)
 }

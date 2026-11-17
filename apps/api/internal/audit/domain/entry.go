@@ -11,16 +11,27 @@ import (
 // Operation is a sensitive operation the audit log records.
 type Operation string
 
-// SetupCodeIssued is recorded when whoever installs the system issues a
-// setup code.
-const SetupCodeIssued Operation = "setup_code_issued"
+const (
+	// SetupCodeIssued is recorded when whoever installs the system issues a
+	// setup code.
+	SetupCodeIssued Operation = "setup_code_issued"
+	// SetupConcluded is recorded when the setup is concluded: the
+	// consultancy, its first administrator and the two first roles are
+	// registered.
+	SetupConcluded Operation = "setup_concluded"
+)
 
 // ActorKind tells what kind of thing acted.
 type ActorKind string
 
-// InstallerKind is whoever installs the system: a person on the server, who
-// is not a user and has no identifier.
-const InstallerKind ActorKind = "installer"
+const (
+	// InstallerKind is whoever installs the system: a person on the server,
+	// who is not a user and has no identifier.
+	InstallerKind ActorKind = "installer"
+	// SetupCodeUsedKind is the setup code that allowed an operation. The
+	// setup code is not a user, so the operation is recorded as its own.
+	SetupCodeUsedKind ActorKind = "setup_code"
+)
 
 // Actor is who performed an operation.
 type Actor struct {
@@ -32,6 +43,11 @@ type Actor struct {
 // Installer is whoever installs the system.
 func Installer() Actor {
 	return Actor{kind: InstallerKind}
+}
+
+// SetupCodeUsed is the setup code with this identifier, as who acted.
+func SetupCodeUsed(identifier int64) Actor {
+	return Actor{kind: SetupCodeUsedKind, identifier: identifier, identified: true}
 }
 
 // Kind tells what kind of thing acted.
@@ -48,8 +64,12 @@ func (a Actor) Identifier() (int64, bool) {
 // SubjectKind tells what kind of thing was acted on.
 type SubjectKind string
 
-// SetupCodeKind is a setup code.
-const SetupCodeKind SubjectKind = "setup_code"
+const (
+	// SetupCodeKind is a setup code.
+	SetupCodeKind SubjectKind = "setup_code"
+	// UserKind is a user.
+	UserKind SubjectKind = "user"
+)
 
 // Subject is what an operation acted on.
 type Subject struct {
@@ -60,6 +80,11 @@ type Subject struct {
 // SetupCode is the setup code with this identifier.
 func SetupCode(identifier int64) Subject {
 	return Subject{kind: SetupCodeKind, identifier: identifier}
+}
+
+// User is the user with this identifier.
+func User(identifier int64) Subject {
+	return Subject{kind: UserKind, identifier: identifier}
 }
 
 // Kind tells what kind of thing was acted on.
@@ -88,11 +113,13 @@ var recorded = map[Operation]struct {
 	subject SubjectKind
 }{
 	SetupCodeIssued: {actor: InstallerKind, subject: SetupCodeKind},
+	SetupConcluded:  {actor: SetupCodeUsedKind, subject: UserKind},
 }
 
 // NewEntry builds the entry of an operation. It refuses an operation the
 // audit log does not record, an actor or a subject of another kind than the
-// operation has, a subject with no identifier and a missing time.
+// operation has, an actor or a subject with no identifier (whoever installs
+// the system has none) and a missing time.
 func NewEntry(occurredAt time.Time, operation Operation, actor Actor, subject Subject) (Entry, error) {
 	expected, known := recorded[operation]
 	if !known {
@@ -103,6 +130,9 @@ func NewEntry(occurredAt time.Time, operation Operation, actor Actor, subject Su
 	}
 	if subject.kind != expected.subject {
 		return Entry{}, fmt.Errorf("the subject of %q is %q, not %q", operation, expected.subject, subject.kind)
+	}
+	if actor.kind != InstallerKind && actor.identifier <= 0 {
+		return Entry{}, fmt.Errorf("the actor of %q has no identifier", operation)
 	}
 	if subject.identifier <= 0 {
 		return Entry{}, fmt.Errorf("the subject of %q has no identifier", operation)
