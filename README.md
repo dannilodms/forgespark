@@ -287,14 +287,26 @@ Every variable is listed in the committed `.env.example`, with no real secret.
 
 | Environment | Where the values are |
 | --- | --- |
-| Development | A `.env` file copied from `.env.example`, never committed |
+| Development | `.env.example`, whose values work as they are. A `.env` file, never committed, changes one: Task reads it first |
 | Staging and production | The GitHub Environment of each one: a secret for what is secret, a variable for the rest. The publish writes them to a variables file on the server, readable by the deploy user alone |
 
 A new variable needs its value set in both GitHub Environments before the merge. The publish compares the names in `.env.example` with the values it has and stops, before restarting anything, when one is missing.
 
-The list of variables is _TBD_, written with `.env.example`.
+A command of the binary requires only the variables it uses. The ones the binary reads today:
 
-<!-- List the environment variables (PostgreSQL connection, storage credentials and bucket, e-mail server, etc.). -->
+| Variable | What it is | Default |
+| --- | --- | --- |
+| `API_LISTEN_ADDRESS` | Where the API listens, as `host:port`. An empty host is every interface | None: the API requires it |
+| `DATABASE_URL` | Connection URL of the API role, which reads and writes rows | None: the API requires it |
+| `MIGRATION_DATABASE_URL` | Connection URL of the migration role, which owns the tables | None: `migrate` requires it |
+| `DATABASE_POOL_MAX_SIZE` | The most connections the pool of the API opens | `10` |
+| `DATABASE_STATEMENT_TIMEOUT` | How long one statement may run | `30s` |
+| `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT` | How long a transaction may sit idle | `1m` |
+| `HEALTH_CHECK_TIMEOUT` | How long the check of a part may take, readiness included | `2s` |
+
+`.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, and the connection with which the Go tests create their temporary databases.
+
+The variables of what is not built yet (the storage credentials and bucket, the e-mail server and the rest) are _TBD_, each added with the code that reads it.
 
 ### Local development
 
@@ -314,16 +326,32 @@ The seed fills the database with fictitious data, the same on every run. To work
 
 The pipeline calls the same Task targets, so a check that fails there fails the same way on the machine.
 
-The frontend commands, run from the repository root:
+Of the table above, PostgreSQL is what runs today, beside the API and the app. To start them from a fresh clone, with the prerequisites installed and Docker running, run from the repository root:
+
+1. `task install`
+2. `task services`
+3. `task migrate`
+4. `task api`
+5. `task dev`, in another terminal
+
+Nothing is configured by hand: the values of `.env.example` work as they are. The API answers liveness at `http://127.0.0.1:8080/livez` and readiness at `http://127.0.0.1:8080/readyz`, which is 503 until the migrations are applied.
+
+The commands, run from the repository root:
 
 | Command | What it does |
 | --- | --- |
 | `task install` | Installs the JavaScript dependencies. Vite+ downloads the versions of Node.js and pnpm that `apps/web/package.json` names |
+| `task services` | Starts the services of development in Docker and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
+| `task services:stop` | Stops the services of development and keeps their data |
+| `task migrate` | Applies the pending migrations to the development database. A second run applies nothing |
+| `task api` | Starts the API at `http://127.0.0.1:8080` |
 | `task dev` | Starts the app at `http://localhost:5173` |
-| `task check` | Runs the format, lint and type checks of `apps/web`, then its missing translation keys and its tests |
-| `task check:fix` | Runs the format, lint and type checks and fixes what can be fixed |
+| `task api:build` | Builds the API binary into `apps/api/bin` |
+| `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there. Arguments after `--` replace the list of packages |
+| `task check` | Runs every check of a pull request: the format, lint and type checks of `apps/web`, its missing translation keys and its tests, then the build of the API and the Go tests |
+| `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
 
-The other commands are _TBD_, written with the first backend code.
+The commands of what is not built yet (the worker, the seed, the generated code) are _TBD_, each written with its code.
 
 <!-- Commands to bring up the local environment from scratch: clone, configure, start the services and open the app. -->
 
@@ -337,7 +365,7 @@ The other commands are _TBD_, written with the first backend code.
 - **Versions.** The build installs from `go.sum` and `pnpm-lock.yaml` and fails when they would change.
 - **Images.** GitHub Actions builds them, tags each with the hash of its commit and pushes it to the GitHub container registry. Production runs only an image built from `main`. The images of a release also carry its number.
 
-The commands are _TBD_, written with the first code.
+`task api:build` builds the API binary into `apps/api/bin`. The other commands are _TBD_, each written with what it builds.
 
 ### Deploy
 

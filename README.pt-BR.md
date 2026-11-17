@@ -287,14 +287,26 @@ Toda variável está listada no `.env.example` versionado, sem segredos reais.
 
 | Ambiente | Onde ficam os valores |
 | --- | --- |
-| Desenvolvimento | Um arquivo `.env` copiado do `.env.example`, nunca versionado |
+| Desenvolvimento | O `.env.example`, cujos valores funcionam como estão. Um arquivo `.env`, nunca versionado, altera um valor: o Task o lê primeiro |
 | Homologação e produção | O Environment do GitHub de cada um: um segredo para o que é secreto, uma variável para o restante. A publicação os grava em um arquivo de variáveis no servidor, que só o usuário de deploy consegue ler |
 
 Uma variável nova precisa ter o valor definido nos dois Environments do GitHub antes do merge. A publicação compara os nomes do `.env.example` com os valores que tem e para, antes de reiniciar qualquer coisa, quando falta algum.
 
-A lista de variáveis está _A definir_ e será escrita com o `.env.example`.
+Cada comando do binário exige apenas as variáveis que usa. As que o binário lê hoje:
 
-<!-- Liste as variáveis de ambiente (conexão com o PostgreSQL, credenciais e bucket do armazenamento, servidor de e-mail etc.). -->
+| Variável | O que é | Padrão |
+| --- | --- | --- |
+| `API_LISTEN_ADDRESS` | Onde a API escuta, no formato `host:porta`. Um host vazio significa todas as interfaces | Nenhum: a API exige |
+| `DATABASE_URL` | URL de conexão do papel da API, que lê e grava linhas | Nenhum: a API exige |
+| `MIGRATION_DATABASE_URL` | URL de conexão do papel de migração, que é dono das tabelas | Nenhum: o `migrate` exige |
+| `DATABASE_POOL_MAX_SIZE` | O máximo de conexões que o pool da API abre | `10` |
+| `DATABASE_STATEMENT_TIMEOUT` | Por quanto tempo um comando SQL pode rodar | `30s` |
+| `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT` | Por quanto tempo uma transação pode ficar ociosa | `1m` |
+| `HEALTH_CHECK_TIMEOUT` | Quanto tempo a verificação de uma parte pode levar, incluída a de prontidão | `2s` |
+
+O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, e a conexão com que os testes em Go criam seus bancos temporários.
+
+As variáveis do que ainda não foi construído (as credenciais e o bucket do armazenamento, o servidor de e-mail e as demais) estão _A definir_, e cada uma entra com o código que a lê.
 
 ### Ambiente de desenvolvimento
 
@@ -314,16 +326,32 @@ O seed preenche o banco com dados fictícios, os mesmos a cada execução. Para 
 
 A pipeline chama os mesmos alvos do Task, então uma verificação que falha nela falha do mesmo jeito na máquina.
 
-Os comandos do frontend, executados na raiz do repositório:
+Da tabela acima, o PostgreSQL é o que roda hoje, ao lado da API e do app. Para iniciá-los a partir de um clone novo, com os pré-requisitos instalados e o Docker em execução, rode na raiz do repositório:
+
+1. `task install`
+2. `task services`
+3. `task migrate`
+4. `task api`
+5. `task dev`, em outro terminal
+
+Nada é configurado à mão: os valores do `.env.example` funcionam como estão. A API responde à verificação de atividade em `http://127.0.0.1:8080/livez` e à de prontidão em `http://127.0.0.1:8080/readyz`, que responde 503 até as migrations serem aplicadas.
+
+Os comandos, executados na raiz do repositório:
 
 | Comando | O que faz |
 | --- | --- |
 | `task install` | Instala as dependências JavaScript. O Vite+ baixa as versões de Node.js e pnpm que o `apps/web/package.json` indica |
+| `task services` | Inicia os serviços de desenvolvimento no Docker e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
+| `task services:stop` | Para os serviços de desenvolvimento e mantém os dados |
+| `task migrate` | Aplica as migrations pendentes no banco de desenvolvimento. Uma segunda execução não aplica nada |
+| `task api` | Inicia a API em `http://127.0.0.1:8080` |
 | `task dev` | Inicia o app em `http://localhost:5173` |
-| `task check` | Roda as verificações de formato, lint e tipos de `apps/web` e, em seguida, as chaves de tradução ausentes e os testes |
-| `task check:fix` | Roda as verificações de formato, lint e tipos e corrige o que for possível |
+| `task api:build` | Gera o binário da API em `apps/api/bin` |
+| `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário. Os argumentos depois de `--` substituem a lista de pacotes |
+| `task check` | Roda todas as verificações de um pull request: as de formato, lint e tipos de `apps/web`, as chaves de tradução ausentes e os testes do app e, em seguida, o build da API e os testes em Go |
+| `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
-Os outros comandos estão _A definir_ e serão escritos com o primeiro código do backend.
+Os comandos do que ainda não foi construído (o worker, o seed, o código gerado) estão _A definir_, e cada um será escrito com o seu código.
 
 <!-- Comandos para subir o ambiente local do zero: clonar, configurar, iniciar os serviços e acessar a aplicação. -->
 
@@ -337,7 +365,7 @@ Os outros comandos estão _A definir_ e serão escritos com o primeiro código d
 - **Versões.** O build instala a partir do `go.sum` e do `pnpm-lock.yaml` e falha quando eles mudariam.
 - **Imagens.** O GitHub Actions as constrói, marca cada uma com o hash do commit e envia para o registro de containers do GitHub. A produção só roda imagem construída a partir da `main`. As imagens de uma release levam também o número dela.
 
-Os comandos estão _A definir_ e serão escritos com o primeiro código.
+O `task api:build` gera o binário da API em `apps/api/bin`. Os outros comandos estão _A definir_, e cada um será escrito com o que ele constrói.
 
 ### Deploy
 

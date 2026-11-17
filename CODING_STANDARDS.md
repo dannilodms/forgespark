@@ -25,6 +25,8 @@ apps/api/internal/
 
 A **domain area** is one part of the business with its own aggregates. It is the deep module of the backend: its public surface is its use cases, and everything else is internal to it.
 
+Beside `internal`, `apps/api/cmd/api` holds the commands of the binary (see Commands) and `apps/api/migrations` the migrations (see Database). `platform` is a set of packages, one per concern: `config`, `database`, `health`.
+
 An **inbound adapter** calls use cases on behalf of an outside caller: REST for the React app and for the agents of ADR-0004, MCP for coding agents, a job worker for work that runs in the background. An **outbound adapter** implements an interface that `application` declares: Postgres, the S3 storage, an LLM provider. `adapters` has one package per technology, one level deep, and an area creates only the ones it uses.
 
 ### Precedence
@@ -132,10 +134,18 @@ The terms user, role, administrator, developer and scope are defined in `GLOSSAR
 - **E-mail.** It is stored in lowercase and is unique among users.
 - **Identifiers of people and companies.** A tax ID and a national ID are stored as typed, beside their country, with no rule for any country.
 
+### Commands
+
+- **One binary.** `apps/api/cmd/api` builds it. With no command it serves the API; `migrate` applies the pending migrations. Commands are parsed with the standard library, and each one is a file of that package.
+- **Wired by hand.** A command wires its own dependencies, in its file: it loads the configuration, builds the pool and the adapters, and passes each part to what uses it. No injection library is used, and no other package builds a dependency for another.
+- **Testable whole.** A command receives its arguments, the environment and its outputs, and returns the exit status: 0 when it succeeded, 1 when it failed, 2 when it was not understood. A test runs it as the process would.
+
 ### Configuration
 
 - **Environment variables only.** The binary reads its configuration from environment variables, once, when it starts, into one typed struct in `platform` (caarlos0/env). No other code reads the environment.
 - **Fails at the start.** A missing or invalid value stops the process before it serves anything, with a line that names the variable and never its value.
+- **By command.** A command requires only the variables it uses. The API never receives the connection of the migration role, and `migrate` never receives the one of the API role.
+- **Secrets do not print.** A value that carries a secret, such as a connection URL, is a type that prints as a placeholder.
 - **No file.** The binary reads no `.env` and no configuration file. Compose and Task load the variables.
 - **Passed in.** A domain area receives the values it needs when it is built. `application` and `domain` never import the configuration struct.
 - **Example.** Every variable is listed in the committed `.env.example`, with no real secret.
@@ -163,7 +173,7 @@ How the telemetry is collected, kept and shown is in Observability.
 The terms system health, part and health report are defined in `GLOSSARY.md`.
 
 - **Liveness.** `GET /livez` answers 200 and touches no part.
-- **Readiness.** `GET /readyz` answers 200 when PostgreSQL answers and the database schema is the version the binary expects, and 503 otherwise. It feeds the Compose health check.
+- **Readiness.** `GET /readyz` answers 200 when PostgreSQL answers and the database schema is the version the binary expects, and 503 otherwise. The version the binary expects is the newest migration it carries. The check runs under the timeout of a check (see Checks). It feeds the Compose health check.
 - **Outside the contract.** Liveness and readiness live in `platform`, outside `/api` and outside the OpenAPI spec. They need no authentication and answer with the status code alone. Caddy forwards only `/api`, so they are reachable only inside the Compose network.
 - **One public path.** Caddy answers `/up` with the status code of readiness and no body, for the monitor outside the server (see Observability). It is the only way to readiness from outside.
 - **Parts.** PostgreSQL is the only essential part. The file storage, the LLM provider, the telemetry collector, the job worker and the e-mail server are optional: one of them down makes the system `degraded`, never unready. An optional part with no configuration is `not_configured` and does not degrade the system.
@@ -216,9 +226,9 @@ PostgreSQL 18 is the only database, with one schema.
 - **Pool.** One pgxpool in `platform`, shared by every domain area and by the session store. Its maximum size, the statement timeout and the idle-in-transaction timeout come from configuration. `platform` stops the session store's cleanup routine during the shutdown.
 - **Migrations.** Numbered SQL files in `apps/api/migrations`, with zero-padded numbers (`00001_create_projects.sql`), embedded in the binary and applied by goose with its lock turned on. A migration has no down part. A mistake is fixed by a new migration, and a migration that has run outside a development machine is never edited.
 - **Running them.** The `migrate` command of the API binary applies the pending migrations, as its own step before the API starts. The API never changes the schema.
-- **Roles.** The migration role owns the tables. The API role reads and writes rows; on the audit log table it can only insert and select. The migration that creates a table grants the API role its permissions in the same file. The monitoring role reads the statistics of the server (`pg_monitor`) and no table; only the telemetry collector uses it.
+- **Roles.** The migration role, `migration`, owns the database and its tables. The API role, `api`, reads and writes rows; on the audit log table it can only insert and select. The superuser creates both when the data directory is created. The system never logs in as the superuser; only the tests do, to create their temporary databases. The migration that creates a table grants the API role its permissions in the same file. The monitoring role reads the statistics of the server (`pg_monitor`) and no table; only the telemetry collector uses it.
 - **Tables.** Foreign keys cross domain areas. An identifier is a `bigint` from the sequence of its aggregate type. An instant is `timestamptz`, a business date is `date`, money is `numeric`, and a fixed set of values is `text` with a `CHECK` constraint listing the values the API uses.
-- **Extensions.** `pg_stat_statements` only. Another extension arrives in the migration of the first feature that needs it. One that the official PostgreSQL image does not ship starts with a new ADR.
+- **Extensions.** `pg_stat_statements` only. PostgreSQL does not mark it as trusted, so a migration cannot create it: the superuser does, beside the roles. Another extension arrives in the migration of the first feature that needs it, which works for the ones PostgreSQL marks as trusted. One that the official PostgreSQL image does not ship starts with a new ADR.
 - **Traces.** pgx is traced with otelpgx. The SQL text is recorded; query parameters never are.
 
 ### Jobs
@@ -311,7 +321,7 @@ Nothing is cached yet. A read measured as slow first gets an in-memory cache ins
 
 A lint for migrations and the column type for case-insensitive text are decided with the first case that needs one.
 
-The first backend code is the foundation and the setup: `.scratch/foundation-and-setup/spec.md`. Two efforts follow it, each specified when the one before ends: the login and the shell of the app, then the consultancy settings, the users and the system health. There is no walking skeleton. That spec lists the joints that the ADRs record as not tried and that these three efforts do not cross; the work that builds the deploy tries most of them. Three conventions are fixed with the first code and then recorded here: where a use case takes the current time from, where dependencies are wired, and the assertion library of the tests. Whether a record is deleted or archived is fixed with the first record that is removed; a user is deactivated and never removed.
+The first backend code is the foundation and the setup: `.scratch/foundation-and-setup/spec.md`. Two efforts follow it, each specified when the one before ends: the login and the shell of the app, then the consultancy settings, the users and the system health. There is no walking skeleton. That spec lists the joints that the ADRs record as not tried and that these three efforts do not cross; the work that builds the deploy tries most of them. Three conventions are fixed with the first code and then recorded here. Where dependencies are wired is in Commands. Where a use case takes the current time from and the assertion library of the tests are recorded with the first use case. Whether a record is deleted or archived is fixed with the first record that is removed; a user is deactivated and never removed.
 
 The Go linter and formatter, the Go type for money (`kernel` imports the standard library only), the client library for LLM providers, and the templates and translation files of e-mails are each chosen with the first code that needs one.
 
@@ -525,13 +535,14 @@ Where the system runs and what each environment declares. The reasons, and the t
 ### Compose files
 
 - **Three files.** `compose.yaml` at the root is development. `deploy/compose.staging.yaml` and `deploy/compose.production.yaml` are the two servers.
-- **One base.** The three extend `deploy/compose.base.yaml`, which holds the services they share and the tag of every image, so a version keeps one home (see Versions).
+- **One base.** The three extend `deploy/compose.base.yaml`, which holds the services they share and the tag of every image, so a version keeps one home (see Versions). `extends` copies a service and nothing else: a volume or a config the service names is declared at the top level of the file that extends it.
 - **Declared or absent.** A service that an environment must not run is not declared in its file. No configuration value turns it on. Production declares no seed, no Dex, no Mailpit, no Garage and no LLM stand-in. Staging declares no Dex.
 
 ### Development
 
 - **Tools on the machine.** `task dev` runs the API, the worker and Vite on the machine. The Compose file runs the services they talk to.
-- **Variables.** A `.env` file copied from `.env.example`, never committed, loaded by Task and by Compose.
+- **Variables.** Task loads `.env`, falls back to `.env.example` for what it lacks, and passes the variables to Compose, so development runs with no `.env`. A `.env` file, never committed, changes a value. A Compose command is run through its Task target.
+- **One set of containers.** `compose.yaml` has a fixed project name, so every checkout of the repository, a Git worktree included, drives the same containers and volumes. It mounts no file of the checkout, because Compose creates a container again when `up` runs from another directory with a different path to mount. A file a container needs is a config written in the Compose file.
 - **A real LLM provider.** The stand-in is the default. Pointing at a real provider to work on a prompt is a change to the local `.env`, made by the maintainer. Nothing automated calls a real provider outside production (ADR-0019).
 
 ### Seed
@@ -657,7 +668,7 @@ Every tool, library and container image runs at a version written in a committed
 | Container images (PostgreSQL, Garage, Mailpit, Dex, Caddy, OpenTelemetry Collector, Grafana otel-lgtm) | the image tag in `deploy/compose.base.yaml` and in each Dockerfile |
 | Caddy plugins | the Dockerfile that builds the Caddy image |
 | pgBackRest | the Dockerfile that builds the PostgreSQL image |
-| GitHub Actions and the tools a workflow installs (the provider's command-line tool, actionlint, zizmor, Trivy) | the workflow file: an action by its full commit hash, a tool by its exact version |
+| GitHub Actions and the tools a workflow installs (Task, the provider's command-line tool, actionlint, zizmor, Trivy) | the workflow file: an action by its full commit hash, a tool by its exact version |
 | The system image of the servers | `deploy/cloud-init.yaml` and the workflow that creates a server |
 | MCP servers for agents | `.mcp.json` |
 | Docker, Task, the global `vp`, the installed Go and the GitHub CLI | the prerequisites table of `README.md`, as a minimum version |
