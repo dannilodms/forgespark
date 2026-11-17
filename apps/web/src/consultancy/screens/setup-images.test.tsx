@@ -1,5 +1,5 @@
 import { HttpResponse, http } from "msw"
-import { describe, expect, it } from "vite-plus/test"
+import { describe, expect, it, onTestFinished, vi } from "vite-plus/test"
 import { userEvent } from "vite-plus/test/browser"
 
 import {
@@ -705,5 +705,74 @@ describe("an image concluding refuses", () => {
     const sent = concludingRequests()
     await conclude(screen)
     expect(sent[0]?.consultancy.logo_file_id).toBe("fil_logo0002")
+  })
+})
+
+describe("the field of an image", () => {
+  it("is operated with the keys alone, its picker out of the order of the Tab key", async () => {
+    const { screen } = await openTheFirstSetup()
+    uploadsStart("fil_logo0001")
+    theStorage()
+    await textField(screen, "Postal code (optional)").click()
+
+    await userEvent.tab()
+    const choose = screen.getByRole("button", { name: "Choose a logo" })
+    await expect.element(choose).toHaveFocus()
+    // Enter opens the browser's file picker, which a test cannot drive: it
+    // sees that the picker was asked for, then chooses through it.
+    const picker = vi
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => {})
+    onTestFinished(() => picker.mockRestore())
+    await userEvent.keyboard("{Enter}")
+    expect(picker).toHaveBeenCalledOnce()
+    expect(picker.mock.contexts[0]).toHaveProperty("type", "file")
+    await chooseImage(screen, "Logo", await imageFile("acme-logo.png"))
+    await expect.element(screen.getByRole("status")).toMatchTextContent(/Sent/)
+    await expect
+      .element(screen.getByRole("button", { name: "Replace the logo" }))
+      .toHaveFocus()
+    await userEvent.tab()
+    await expect
+      .element(screen.getByRole("button", { name: "Remove the logo" }))
+      .toHaveFocus()
+    await userEvent.keyboard("{Enter}")
+
+    await expect
+      .element(screen.getByRole("img", { name: "acme-logo.png" }))
+      .not.toBeInTheDocument()
+    await expect.element(choose).toHaveFocus()
+    await userEvent.tab()
+    await expect
+      .element(screen.getByRole("button", { name: "Continue" }))
+      .toHaveFocus()
+  })
+})
+
+describe("the texts of the field of an image", () => {
+  it("are in the language of the screen, with the size as the language writes it", async () => {
+    const { screen } = await openTheFirstSetup()
+    await screen.getByRole("combobox", { name: "Language" }).click()
+    await screen.getByRole("option", { name: "Português (Brasil)" }).click()
+    const choose = screen.getByRole("button", { name: "Escolher um logotipo" })
+    await expect
+      .element(choose)
+      .toHaveAccessibleDescription(
+        "Uma imagem PNG, JPEG ou WebP de no máximo 2 MB."
+      )
+
+    await chooseImage(
+      screen,
+      "Logotipo",
+      new File([new Uint8Array(3 * 1024 * 1024)], "huge.webp", {
+        type: "image/webp",
+      })
+    )
+
+    await expect
+      .element(choose)
+      .toHaveAccessibleDescription(
+        /Este arquivo tem mais de 2 MB\. Escolha uma imagem menor\./
+      )
   })
 })
