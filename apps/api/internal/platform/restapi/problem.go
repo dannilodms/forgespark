@@ -188,6 +188,25 @@ func InField(rule Failure) Failure {
 	return fieldRule{Failure: rule}
 }
 
+// LimitedByCaddy stands for the limit Caddy sets in front of an operation for
+// each IP address (Rate limit in CODING_STANDARDS.md). Caddy answers 429 with
+// the code `too_many_requests`, in the error format, before the request
+// reaches the API. An operation under that limit lists it under 429, so the
+// spec and the client generated from it know the answer. No use case returns
+// it.
+var LimitedByCaddy Failure = limitedByCaddy{}
+
+type limitedByCaddy struct{}
+
+func (limitedByCaddy) Error() string {
+	return "too many requests from this address, answered by Caddy before the API; " +
+		"the header Retry-After says how many seconds to wait"
+}
+
+func (limitedByCaddy) Code() string {
+	return codeOfStatus(http.StatusTooManyRequests)
+}
+
 // fieldRule is a rule an operation declares about one field.
 type fieldRule struct {
 	Failure

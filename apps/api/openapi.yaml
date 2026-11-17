@@ -294,6 +294,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: "Unprocessable Entity. `setup_code_invalid`: the setup code is wrong, expired or was ended. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule. The rules of a field: `required`: the field is required. `too_long`: the text is longer than the field allows. `country_unknown`: the country is not an ISO 3166-1 alpha-2 code. `currency_unknown`: the currency is not the ISO 4217 code of a currency in circulation. `time_zone_unknown`: the time zone is not a name of the IANA time zone database. `language_unsupported`: the language is not a supported language. `email_invalid`: the text is not an e-mail address. `telephone_invalid`: the text is not a telephone in international form: a plus sign and 7 to 15 digits. `website_invalid`: the text is not an http or https address."
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Too Many Requests. `too_many_requests`: too many requests from this address, answered by Caddy before the API; the header Retry-After says how many seconds to wait."
         "500":
           content:
             application/problem+json:
@@ -326,6 +332,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: "Unprocessable Entity. `setup_code_invalid`: the setup code is wrong, expired or was ended. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule."
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Too Many Requests. `too_many_requests`: too many requests from this address, answered by Caddy before the API; the header Retry-After says how many seconds to wait."
         "500":
           content:
             application/problem+json:

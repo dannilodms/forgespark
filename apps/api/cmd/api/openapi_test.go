@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"maps"
 	"net/http"
 	"os"
 	"slices"
@@ -106,6 +107,28 @@ func assertTakesNothingOutsideTheBody(t *testing.T, path string, item *huma.Path
 func operationsOf(item *huma.PathItem) []*huma.Operation {
 	every := []*huma.Operation{item.Get, item.Put, item.Post, item.Delete, item.Options, item.Head, item.Patch, item.Trace}
 	return slices.DeleteFunc(every, func(operation *huma.Operation) bool { return operation == nil })
+}
+
+// Caddy limits the POST operations of the setup for each IP address and
+// answers 429 before the request reaches the API. The spec declares it, so the
+// client generated from it knows the answer.
+func TestEveryPostOperationOfTheSetupDeclaresTheLimitOfCaddy(t *testing.T) {
+	t.Parallel()
+	paths := generatedSpec(t).Paths
+	posts := maps.Clone(paths)
+	maps.DeleteFunc(posts, func(path string, item *huma.PathItem) bool {
+		return !strings.HasPrefix(path, "/api/setup") || item.Post == nil
+	})
+
+	require.Len(t, posts, 2, "the POST operations of the setup")
+	for path, item := range posts {
+		limited := item.Post.Responses["429"]
+		require.NotNil(t, limited, "POST %s does not declare the 429 of Caddy", path)
+		require.Contains(t, limited.Content, "application/problem+json", "the 429 of POST %s", path)
+		assert.Equal(t, "#/components/schemas/Problem", limited.Content["application/problem+json"].Schema.Ref)
+		assert.Contains(t, limited.Description, "`too_many_requests`", "the 429 of POST %s", path)
+	}
+	assert.NotContains(t, paths["/api/setup"].Get.Responses, "429", "Caddy does not limit reading the state of the setup")
 }
 
 func TestEveryFailureOfAnOperationIsDescribedByTheErrorFormat(t *testing.T) {

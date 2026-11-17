@@ -42,6 +42,7 @@ func registerSetup(api *restapi.API, useCases UseCases) {
 		Tags:        []string{setupTag},
 	}, restapi.Failures{
 		http.StatusUnprocessableEntity: {domain.SetupCodeInvalidError{}},
+		http.StatusTooManyRequests:     {restapi.LimitedByCaddy},
 	}, openSetup{useCase: useCases.OpenSetup}.handle)
 
 	restapi.Register(api, huma.Operation{
@@ -55,6 +56,7 @@ func registerSetup(api *restapi.API, useCases UseCases) {
 	}, restapi.Failures{
 		http.StatusUnprocessableEntity: append([]restapi.Failure{domain.SetupCodeInvalidError{}}, fieldRules...),
 		http.StatusConflict:            {domain.SetupAlreadyConcludedError{}},
+		http.StatusTooManyRequests:     {restapi.LimitedByCaddy},
 	}, concludeSetup{useCase: useCases.ConcludeSetup}.handle)
 }
 
