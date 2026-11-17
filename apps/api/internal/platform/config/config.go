@@ -21,6 +21,8 @@ const (
 	ServeAPI Command = "api"
 	// Migrate is the command that applies the pending migrations.
 	Migrate Command = "migrate"
+	// IssueSetupCode is the command that issues a setup code.
+	IssueSetupCode Command = "issue-setup-code"
 )
 
 // Config holds every value the binary takes from the environment. Each
@@ -33,14 +35,16 @@ type Config struct {
 	DatabaseIdleInTransactionTimeout time.Duration `env:"DATABASE_IDLE_IN_TRANSACTION_TIMEOUT" envDefault:"1m"`
 	MigrationDatabaseURL             PostgresURL   `env:"MIGRATION_DATABASE_URL"`
 	HealthCheckTimeout               time.Duration `env:"HEALTH_CHECK_TIMEOUT" envDefault:"2s"`
+	AppOrigin                        Origin        `env:"APP_ORIGIN"`
 }
 
 // requiredBy lists the variables with no default that each command needs. The
 // API never receives the connection of the migration role, and `migrate`
 // never receives the one of the API role.
 var requiredBy = map[Command][]string{
-	ServeAPI: {"API_LISTEN_ADDRESS", "DATABASE_URL"},
-	Migrate:  {"MIGRATION_DATABASE_URL"},
+	ServeAPI:       {"API_LISTEN_ADDRESS", "DATABASE_URL"},
+	Migrate:        {"MIGRATION_DATABASE_URL"},
+	IssueSetupCode: {"DATABASE_URL", "APP_ORIGIN"},
 }
 
 // Load reads the environment into a Config for one command. A variable that
@@ -142,6 +146,8 @@ func expectationOf(valueType reflect.Type) string {
 		return "host:port"
 	case reflect.TypeFor[PostgresURL]():
 		return "a PostgreSQL connection URL"
+	case reflect.TypeFor[Origin]():
+		return "an origin such as https://example.com"
 	case reflect.TypeFor[time.Duration]():
 		return "a duration such as 30s"
 	case reflect.TypeFor[int32]():

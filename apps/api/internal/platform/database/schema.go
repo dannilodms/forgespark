@@ -25,9 +25,20 @@ func CheckSchema(ctx context.Context, pool *pgxpool.Pool, migrations fs.FS) erro
 		return fmt.Errorf("PostgreSQL does not answer: %w", err)
 	}
 	if applied != expected {
-		return fmt.Errorf("the database schema is at version %d and this binary expects version %d", applied, expected)
+		return SchemaVersionError{Applied: applied, Expected: expected}
 	}
 	return nil
+}
+
+// SchemaVersionError tells that the schema is not at the version the binary
+// expects. A migration is pending when Applied is the lower of the two.
+type SchemaVersionError struct {
+	Applied  int64
+	Expected int64
+}
+
+func (e SchemaVersionError) Error() string {
+	return fmt.Sprintf("the database schema is at version %d and this binary expects version %d", e.Applied, e.Expected)
 }
 
 func newestVersion(migrations fs.FS) (int64, error) {

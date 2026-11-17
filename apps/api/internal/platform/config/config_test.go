@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ func validEnvironment() map[string]string {
 		"API_LISTEN_ADDRESS":     "127.0.0.1:8080",
 		"DATABASE_URL":           "postgres://api:api-password@localhost:5432/software_factory",
 		"MIGRATION_DATABASE_URL": "postgres://migration:migration-password@localhost:5432/software_factory",
+		"APP_ORIGIN":             "https://factory.example.com",
 	}
 }
 
@@ -65,6 +67,8 @@ func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
 		{config.ServeAPI, "API_LISTEN_ADDRESS"},
 		{config.ServeAPI, "DATABASE_URL"},
 		{config.Migrate, "MIGRATION_DATABASE_URL"},
+		{config.IssueSetupCode, "DATABASE_URL"},
+		{config.IssueSetupCode, "APP_ORIGIN"},
 	}
 	for _, c := range cases {
 		t.Run(string(c.command)+" without "+c.variable, func(t *testing.T) {
@@ -108,6 +112,11 @@ func TestLoadNamesAnInvalidVariableAndNeverShowsItsValue(t *testing.T) {
 		{"DATABASE_IDLE_IN_TRANSACTION_TIMEOUT", "0s", "configuration: DATABASE_IDLE_IN_TRANSACTION_TIMEOUT is not valid: expected more than zero"},
 		{"HEALTH_CHECK_TIMEOUT", "soon", "configuration: HEALTH_CHECK_TIMEOUT is not valid: expected a duration such as 30s"},
 		{"HEALTH_CHECK_TIMEOUT", "0s", "configuration: HEALTH_CHECK_TIMEOUT is not valid: expected more than zero"},
+		{"APP_ORIGIN", "factory.example.com", "configuration: APP_ORIGIN is not valid: expected an origin such as https://example.com"},
+		{"APP_ORIGIN", "ftp://factory.example.com", "configuration: APP_ORIGIN is not valid: expected an origin such as https://example.com"},
+		{"APP_ORIGIN", "https://factory.example.com/app", "configuration: APP_ORIGIN is not valid: expected an origin such as https://example.com"},
+		{"APP_ORIGIN", "https://factory.example.com?next=setup", "configuration: APP_ORIGIN is not valid: expected an origin such as https://example.com"},
+		{"APP_ORIGIN", "https://someone:hunter2@factory.example.com", "configuration: APP_ORIGIN is not valid: expected an origin such as https://example.com"},
 	}
 	for _, c := range cases {
 		t.Run(c.variable+"="+c.value, func(t *testing.T) {
@@ -145,4 +154,22 @@ func TestALoadedConfigurationNeverPrintsAPassword(t *testing.T) {
 		assert.NotContains(t, printed, "api-password")
 		assert.NotContains(t, printed, "migration-password")
 	}
+}
+
+func TestTheOriginOfTheAppIsReadWithoutATrailingSlash(t *testing.T) {
+	for _, value := range []string{"https://factory.example.com", "https://factory.example.com/", "http://localhost:5173"} {
+		loaded, err := config.Load(config.IssueSetupCode, with(validEnvironment(), "APP_ORIGIN", value))
+
+		require.NoError(t, err)
+		assert.Equal(t, strings.TrimSuffix(value, "/"), loaded.AppOrigin.String())
+	}
+}
+
+func TestIssueSetupCodeNeedsNeitherTheListenAddressNorTheMigrationRole(t *testing.T) {
+	_, err := config.Load(config.IssueSetupCode, map[string]string{
+		"DATABASE_URL": "postgres://api:api-password@localhost:5432/software_factory",
+		"APP_ORIGIN":   "https://factory.example.com",
+	})
+
+	require.NoError(t, err)
 }

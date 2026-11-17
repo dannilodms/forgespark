@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -63,4 +64,30 @@ func (u PostgresURL) ConnectionString() string {
 
 func (u PostgresURL) String() string {
 	return "[PostgreSQL connection URL]"
+}
+
+// Origin is the address a browser reaches a site at: a scheme, a host and
+// maybe a port, with nothing after them.
+type Origin string
+
+// UnmarshalText reads an origin from the text of a variable. One slash at
+// the end is accepted and dropped.
+func (o *Origin) UnmarshalText(text []byte) error {
+	parsed, err := url.Parse(string(text))
+	if err != nil {
+		return errNotValid
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return errNotValid
+	}
+	bare := url.URL{Scheme: parsed.Scheme, Host: parsed.Host}
+	if parsed.Host == "" || strings.TrimSuffix(string(text), "/") != bare.String() {
+		return errNotValid
+	}
+	*o = Origin(bare.String())
+	return nil
+}
+
+func (o Origin) String() string {
+	return string(o)
 }

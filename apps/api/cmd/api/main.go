@@ -1,5 +1,6 @@
 // Command api is the binary of the backend. With no command it serves the
-// API, and `migrate` applies the pending migrations.
+// API, `migrate` applies the pending migrations and `issue-setup-code` issues
+// the setup code that opens the setup.
 //
 // Each command wires its own dependencies by hand, in its own file: it reads
 // the configuration, builds what the command needs and passes each part to
@@ -22,8 +23,9 @@ import (
 const usage = `Usage: api [command]
 
 Commands:
-  (none)     Serve the API
-  migrate    Apply the pending migrations
+  (none)              Serve the API
+  migrate             Apply the pending migrations
+  issue-setup-code    Issue the setup code that opens the setup
 
 The configuration comes from environment variables: see .env.example.
 `
@@ -63,8 +65,9 @@ func run(ctx context.Context, arguments []string, environment map[string]string,
 // commands maps the first argument to the command it names. No argument
 // serves the API.
 var commands = map[string]func(ctx context.Context, environment map[string]string, stdout, stderr io.Writer) error{
-	"":        serveAPI,
-	"migrate": migrate,
+	"":                 serveAPI,
+	"migrate":          migrate,
+	"issue-setup-code": issueSetupCode,
 }
 
 // environment reads the variables of the process, once. Only the
