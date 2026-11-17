@@ -104,6 +104,28 @@ var kinds = map[string]kind{
 		exact:    []string{"caddy:2.10.2-builder", "scratch"},
 		inexact:  []string{"caddy:builder", "caddy:latest", "caddy:2-builder", "caddy"},
 	},
+	"a plugin xcaddy builds into Caddy": {
+		file:     "deploy/caddy/Dockerfile",
+		template: "FROM caddy:2.11.9-builder-alpine AS builder\nRUN xcaddy build \\\n    --with %s \\\n    --with github.com/caddy-dns/cloudflare@v0.2.1\n",
+		line:     3,
+		exact: []string{
+			"github.com/mholt/caddy-ratelimit@v0.1.0",
+			"github.com/mholt/caddy-ratelimit@v0.1.1-0.20260612195517-5625512f24f6",
+		},
+		inexact: []string{
+			"github.com/mholt/caddy-ratelimit",
+			"github.com/mholt/caddy-ratelimit@latest",
+			"github.com/mholt/caddy-ratelimit@master",
+			"github.com/mholt/caddy-ratelimit@v0.1",
+		},
+	},
+	"the Caddy xcaddy builds": {
+		file:     "deploy/caddy/Dockerfile",
+		template: "FROM caddy:2.11.9-builder-alpine AS builder\nRUN xcaddy build %s --with github.com/mholt/caddy-ratelimit@v0.1.0\n",
+		line:     2,
+		exact:    []string{"v2.11.9"},
+		inexact:  []string{"latest", "master", "v2.11"},
+	},
 	"an image a Dockerfile copies from": {
 		file:     "deploy/postgres.Dockerfile",
 		template: "FROM postgres:18.7-trixie AS base\nFROM base\nCOPY --from=%s /usr/bin/pgbackrest /usr/bin/pgbackrest\n",
