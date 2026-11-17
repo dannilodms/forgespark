@@ -87,6 +87,10 @@ function Step({
         <ConsultancyStep
           form={form}
           logo={images.logo}
+          refused={flow.refused}
+          onProblemsShown={() =>
+            dispatch({ type: "problemsShown", step: "consultancy" })
+          }
           onContinue={() => dispatch({ type: "wentTo", step: "administrator" })}
         />
       )
@@ -96,6 +100,10 @@ function Step({
           form={form}
           photo={images.photo}
           opens={flow.opened.opens}
+          refused={flow.refused}
+          onProblemsShown={() =>
+            dispatch({ type: "problemsShown", step: "administrator" })
+          }
           onContinue={() => dispatch({ type: "wentTo", step: "review" })}
           // The way back in has no step of the consultancy.
           onBack={
@@ -112,6 +120,9 @@ function Step({
           images={images}
           opened={flow.opened}
           onGoTo={(step) => dispatch({ type: "wentTo", step })}
+          onFieldsRefused={(fields) =>
+            dispatch({ type: "fieldsRefused", fields })
+          }
           onCodeStoppedWorking={() => dispatch({ type: "codeStoppedWorking" })}
         />
       )

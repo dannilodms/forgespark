@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "#ui/components/button"
@@ -9,7 +9,10 @@ import {
   TextField,
   focusTheFirstProblem,
 } from "../../shared/components/form-fields"
-import { checkTheContract } from "../../shared/errors/problems"
+import {
+  type FieldProblems,
+  checkTheContract,
+} from "../../shared/errors/problems"
 import { useLanguage } from "../../shared/locales/i18n"
 import {
   countryItems,
@@ -22,6 +25,7 @@ import {
   type SetupForm,
   fieldsWithProblems,
   suggestTheCurrency,
+  useStepOpening,
 } from "./setup-form"
 import type { SetupImageField } from "./setup-image"
 import { StepHeading } from "./step-heading"
@@ -40,11 +44,16 @@ const checkTheConsultancy = checkTheContract(
 export function ConsultancyStep({
   form,
   logo,
+  refused,
+  onProblemsShown,
   onContinue,
 }: {
   form: SetupForm
   /** The logo, which the screen holds so that it outlives the step. */
   logo: SetupImageField
+  /** The fields the API refused, which the step shows when it opens. */
+  refused: FieldProblems | undefined
+  onProblemsShown: () => void
   onContinue: () => void
 }) {
   const { t } = useTranslation("consultancy")
@@ -52,12 +61,14 @@ export function ConsultancyStep({
   const element = useRef<HTMLFormElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
 
-  // The focus goes to a field the API refused, or else to the step.
-  useEffect(() => {
-    if (!focusTheFirstProblem(element.current, fieldsWithProblems(form))) {
-      heading.current?.focus()
-    }
-  }, [form])
+  useStepOpening({
+    form,
+    step: "consultancy",
+    refused,
+    onProblemsShown,
+    element,
+    heading,
+  })
 
   return (
     <form.FormGroup

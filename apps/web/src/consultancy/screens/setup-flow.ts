@@ -1,7 +1,9 @@
+import type { FieldProblems } from "../../shared/errors/problems"
+import { type TypedStep, holds, problemsOf } from "../components/setup-form"
 import type { OpenedSetupCode } from "../data/setup"
 
 /** A step after the setup code, whose fields belong to the setup form. */
-type FormStep = "consultancy" | "administrator" | "review"
+type FormStep = TypedStep | "review"
 
 /**
  * The setup is one flow of named steps (State in CODING_STANDARDS.md): the
@@ -14,13 +16,17 @@ type FormStep = "consultancy" | "administrator" | "review"
  * four. The registration of a new administrator, the way back in, leaves out
  * the step of the consultancy: the code, the administrator and the review.
  *
+ * The fields the API refused are held here until the step that holds each
+ * one opens and shows it (`useStepOpening`): a field forgets its problems
+ * when it unmounts, so they cannot wait in the form.
+ *
  * To add a step: a member here, the action that reaches it in
  * `setupReducer`, and its branch in `SetupScreen`, which the type check then
  * asks for.
  */
 export type SetupFlow =
   | { step: "code"; resumeAt?: FormStep }
-  | { step: FormStep; opened: OpenedSetupCode }
+  | { step: FormStep; opened: OpenedSetupCode; refused?: FieldProblems }
 
 export type SetupAction =
   /** A setup code opened the setup. */
@@ -29,6 +35,10 @@ export type SetupAction =
   | { type: "wentTo"; step: FormStep }
   /** A request answered that the setup code no longer works. */
   | { type: "codeStoppedWorking" }
+  /** The API refused fields: the first step that holds one opens. */
+  | { type: "fieldsRefused"; fields: FieldProblems }
+  /** A step that opened shows the refused fields it holds. */
+  | { type: "problemsShown"; step: TypedStep }
 
 /** A screen that has just opened asks for the setup code. */
 export const startOfTheSetup: SetupFlow = { step: "code" }
@@ -45,22 +55,41 @@ function stepOpenedBy(opened: OpenedSetupCode, resumeAt?: FormStep): FormStep {
   return resumeAt ?? "consultancy"
 }
 
+/** The first step, in their order, that holds one of the fields refused. */
+function stepHolding(fields: FieldProblems, opened: OpenedSetupCode) {
+  const steps: TypedStep[] = ["consultancy", "administrator"]
+  return steps
+    .filter((step) => stepOpenedBy(opened, step) === step)
+    .find((step) => problemsOf(fields, step) !== undefined)
+}
+
 export function setupReducer(flow: SetupFlow, action: SetupAction): SetupFlow {
+  if (flow.step === "code") {
+    return action.type === "codeAccepted"
+      ? {
+          step: stepOpenedBy(action.opened, flow.resumeAt),
+          opened: action.opened,
+        }
+      : flow
+  }
   switch (action.type) {
-    case "codeAccepted":
-      return {
-        step: stepOpenedBy(
-          action.opened,
-          flow.step === "code" ? flow.resumeAt : undefined
-        ),
-        opened: action.opened,
-      }
     case "wentTo":
-      return flow.step === "code"
-        ? flow
-        : { step: stepOpenedBy(flow.opened, action.step), opened: flow.opened }
+      return { ...flow, step: stepOpenedBy(flow.opened, action.step) }
     case "codeStoppedWorking":
-      return flow.step === "code" ? flow : { step: "code", resumeAt: flow.step }
+      return { step: "code", resumeAt: flow.step }
+    case "fieldsRefused": {
+      const step = stepHolding(action.fields, flow.opened)
+      return step ? { ...flow, step, refused: action.fields } : flow
+    }
+    case "problemsShown":
+      return {
+        ...flow,
+        refused: Object.fromEntries(
+          Object.entries(flow.refused ?? {}).filter(
+            ([field]) => !holds(action.step, field)
+          )
+        ),
+      }
     default:
       return flow
   }

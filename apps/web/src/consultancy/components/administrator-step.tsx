@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "#ui/components/button"
@@ -9,12 +9,19 @@ import {
   TextField,
   focusTheFirstProblem,
 } from "../../shared/components/form-fields"
-import { checkTheContract } from "../../shared/errors/problems"
+import {
+  type FieldProblems,
+  checkTheContract,
+} from "../../shared/errors/problems"
 import { useLanguage } from "../../shared/locales/i18n"
 import { countryItems } from "../../shared/places/places"
 import { type OpenedSetupCode, administratorContract } from "../data/setup"
 import { ImageField } from "./image-field"
-import { type SetupForm, fieldsWithProblems } from "./setup-form"
+import {
+  type SetupForm,
+  fieldsWithProblems,
+  useStepOpening,
+} from "./setup-form"
 import type { SetupImageField } from "./setup-image"
 import { StepHeading } from "./step-heading"
 
@@ -39,6 +46,8 @@ export function AdministratorStep({
   form,
   photo,
   opens,
+  refused,
+  onProblemsShown,
   onContinue,
   onBack,
 }: {
@@ -47,6 +56,9 @@ export function AdministratorStep({
   photo: SetupImageField
   /** What the setup code opened. */
   opens: OpenedSetupCode["opens"]
+  /** The fields the API refused, which the step shows when it opens. */
+  refused: FieldProblems | undefined
+  onProblemsShown: () => void
   onContinue: () => void
   /** Leads to the step before, when there is one. */
   onBack?: () => void
@@ -57,12 +69,14 @@ export function AdministratorStep({
   const element = useRef<HTMLFormElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
 
-  // The focus goes to a field the API refused, or else to the step.
-  useEffect(() => {
-    if (!focusTheFirstProblem(element.current, fieldsWithProblems(form))) {
-      heading.current?.focus()
-    }
-  }, [form])
+  useStepOpening({
+    form,
+    step: "administrator",
+    refused,
+    onProblemsShown,
+    element,
+    heading,
+  })
 
   return (
     <form.FormGroup

@@ -26,12 +26,9 @@ import {
   useRegisterAdministrator,
 } from "../data/setup"
 import { ImageStatus, ImageThumbnail } from "./image-field"
-import type { SetupForm } from "./setup-form"
+import type { SetupForm, TypedStep } from "./setup-form"
 import type { SetupImage, SetupImages } from "./setup-image"
 import { StepHeading } from "./step-heading"
-
-/** A step of the setup whose fields the review shows. */
-type TypedStep = "consultancy" | "administrator"
 
 /**
  * An e-mail that belongs to a user: the API answers it as a conflict, about
@@ -45,13 +42,6 @@ function fieldsRefusedBy(error: unknown): FieldProblems | undefined {
     return { "administrator.email": emailInUse }
   }
   return refusedFields(error)
-}
-
-/** The first step, in their order, that holds one of the fields refused. */
-function stepHolding(fields: FieldProblems): TypedStep | undefined {
-  const names = Object.keys(fields)
-  const steps: TypedStep[] = ["consultancy", "administrator"]
-  return steps.find((step) => names.some((name) => name.startsWith(`${step}.`)))
 }
 
 /**
@@ -96,6 +86,7 @@ export function ReviewStep({
   images,
   opened,
   onGoTo,
+  onFieldsRefused,
   onCodeStoppedWorking,
 }: {
   form: SetupForm
@@ -103,6 +94,8 @@ export function ReviewStep({
   opened: OpenedSetupCode
   /** Goes back to a step, to change what was typed in it. */
   onGoTo: (step: TypedStep) => void
+  /** The API refused fields, which the steps that hold them show. */
+  onFieldsRefused: (fields: FieldProblems) => void
   onCodeStoppedWorking: () => void
 }) {
   const { t } = useTranslation("consultancy")
@@ -126,11 +119,8 @@ export function ReviewStep({
       return
     }
     const fields = fieldsRefusedBy(error)
-    const step = fields ? stepHolding(fields) : undefined
-    if (fields && step) {
-      // On the fields, where each step shows it when it opens.
-      form.setErrorMap({ onSubmit: { fields } })
-      onGoTo(step)
+    if (fields) {
+      onFieldsRefused(fields)
     }
   }
 

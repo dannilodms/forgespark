@@ -1,6 +1,8 @@
 import { useForm } from "@tanstack/react-form"
-import { useState } from "react"
+import { type RefObject, useEffect, useEffectEvent, useState } from "react"
 
+import { focusTheFirstProblem } from "../../shared/components/form-fields"
+import type { FieldProblems } from "../../shared/errors/problems"
 import { currencyOf, timeZoneOfTheBrowser } from "../../shared/places/places"
 import { blankSetup } from "../data/setup"
 
@@ -37,4 +39,68 @@ export function suggestTheCurrency(form: SetupForm, country: string) {
   form.setFieldValue("consultancy.currency", currencyOf(country), {
     dontUpdateMeta: true,
   })
+}
+
+/** A step whose fields are typed: a group of the form, by its name. */
+export type TypedStep = "consultancy" | "administrator"
+
+/** Whether a field, by its place in the body, belongs to a step. */
+export function holds(step: TypedStep, field: string) {
+  return field.startsWith(`${step}.`)
+}
+
+/** The refused fields a step holds, or nothing when it holds none. */
+export function problemsOf(
+  refused: FieldProblems | undefined,
+  step: TypedStep
+): FieldProblems | undefined {
+  const own = Object.entries(refused ?? {}).filter(([field]) =>
+    holds(step, field)
+  )
+  return own.length > 0 ? Object.fromEntries(own) : undefined
+}
+
+/**
+ * When a step opens, it shows the problems the API named on its fields, and
+ * the focus goes to the first of them, or else to the title of the step.
+ *
+ * The problems are put on the form here, once the fields of the step are
+ * mounted, and not before: a field of TanStack Form forgets its problems
+ * when it unmounts, and React in development mounts each new component,
+ * unmounts it and mounts it again. This effect runs again after that, with
+ * the same problems.
+ */
+export function useStepOpening({
+  form,
+  step,
+  refused,
+  onProblemsShown,
+  element,
+  heading,
+}: {
+  form: SetupForm
+  step: TypedStep
+  /** The fields the API refused, of every step. */
+  refused: FieldProblems | undefined
+  /** The step showed the refused fields it holds. */
+  onProblemsShown: () => void
+  element: RefObject<HTMLElement | null>
+  heading: RefObject<HTMLElement | null>
+}) {
+  const open = useEffectEvent(() => {
+    const own = problemsOf(refused, step)
+    if (own) {
+      form.setErrorMap({ onSubmit: { fields: own } })
+      onProblemsShown()
+    }
+    if (!focusTheFirstProblem(element.current, fieldsWithProblems(form))) {
+      heading.current?.focus()
+    }
+  })
+
+  // When the step opens, and not again: the flow forgets the problems
+  // shown, and a field changed afterwards keeps no problem.
+  useEffect(() => {
+    open()
+  }, [])
 }
