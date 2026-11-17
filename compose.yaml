@@ -8,8 +8,9 @@
 # container again when `up` runs from another directory and the container
 # mounts a file of the checkout, because the path differs. PostgreSQL mounts
 # none, so that its connections survive: the file it needs is written here, as
-# a config with its content. Caddy mounts its Caddyfile, and being created
-# again costs it nothing.
+# a config with its content. Garage does the same, so that an upload in flight
+# survives. Caddy mounts its Caddyfile, and being created again costs it
+# nothing.
 
 name: software-factory-manager
 
@@ -30,6 +31,11 @@ services:
     build:
       context: deploy/caddy
     image: software-factory-manager-caddy:development
+    depends_on:
+      # The host name of the files leads to a bucket that has its rule.
+      # `up --wait` refuses a step that exited unless a service waits for it.
+      garage-cors:
+        condition: service_completed_successfully
     ports:
       - 127.0.0.1:${CADDY_PORT:?Set CADDY_PORT, as .env.example does}:80
     volumes:
@@ -44,10 +50,98 @@ services:
       # localhost and log each failure.
       OTEL_TRACES_EXPORTER: none
 
+  # The file storage: the S3 API of Garage, on one node. The API reaches it on
+  # the machine at GARAGE_PORT; the browser reaches it at its own host name,
+  # through Caddy. When it starts, Garage creates the one bucket and its key
+  # from the variables of the API, if they do not exist yet.
+  garage:
+    extends:
+      file: deploy/compose.base.yaml
+      service: garage
+    command: [/garage, server, --single-node, --default-bucket]
+    ports:
+      - 127.0.0.1:${GARAGE_PORT:?Set GARAGE_PORT, as .env.example does}:3900
+    configs:
+      - source: garage
+        target: /etc/garage.toml
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?Set GARAGE_RPC_SECRET, as .env.example does}
+      GARAGE_DEFAULT_BUCKET: ${FILE_STORAGE_BUCKET:?Set FILE_STORAGE_BUCKET, as .env.example does}
+      GARAGE_DEFAULT_ACCESS_KEY: ${FILE_STORAGE_ACCESS_KEY_ID:?Set FILE_STORAGE_ACCESS_KEY_ID, as .env.example does}
+      GARAGE_DEFAULT_SECRET_KEY: ${FILE_STORAGE_SECRET_ACCESS_KEY:?Set FILE_STORAGE_SECRET_ACCESS_KEY, as .env.example does}
+    volumes:
+      - garage-data:/var/lib/garage
+    healthcheck:
+      # The image has no shell: Garage itself tells whether the bucket exists.
+      test: [CMD, /garage, bucket, info, "${FILE_STORAGE_BUCKET}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
+
+  # The cross-origin rule of the bucket: the browser may send and fetch files
+  # from the origin of the app only. Run again, it writes the same rule.
+  garage-cors:
+    extends:
+      file: deploy/compose.base.yaml
+      service: garage-cors
+    depends_on:
+      garage:
+        condition: service_healthy
+    entrypoint: [sh, /garage-cors.sh]
+    configs:
+      - source: garage-cors
+        target: /garage-cors.sh
+    environment:
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN, as .env.example does}
+      FILE_STORAGE_REGION: ${FILE_STORAGE_REGION:?Set FILE_STORAGE_REGION, as .env.example does}
+      FILE_STORAGE_BUCKET: ${FILE_STORAGE_BUCKET}
+      FILE_STORAGE_ACCESS_KEY_ID: ${FILE_STORAGE_ACCESS_KEY_ID}
+      FILE_STORAGE_SECRET_ACCESS_KEY: ${FILE_STORAGE_SECRET_ACCESS_KEY}
+
 volumes:
   postgres-data:
+  garage-data:
 
 configs:
+  # One node, which keeps its data in the volume and holds every copy. The
+  # secret its nodes share comes from the environment. Path-style addresses
+  # only: no root domain is set, so a bucket is never read from a host name.
+  garage:
+    content: |
+      metadata_dir = "/var/lib/garage/meta"
+      data_dir = "/var/lib/garage/data"
+      db_engine = "sqlite"
+      replication_factor = 1
+      rpc_bind_addr = "[::]:3901"
+      rpc_public_addr = "127.0.0.1:3901"
+
+      [s3_api]
+      s3_region = "${FILE_STORAGE_REGION}"
+      api_bind_addr = "[::]:3900"
+
+  # PutBucketCors of the S3 API, signed with the key of the API. A browser
+  # asks before it sends a file to another origin; Garage answers 403 to an
+  # origin the rule does not list, and the browser sends nothing.
+  garage-cors:
+    content: |
+      set -eu
+      rule="<CORSConfiguration><CORSRule>
+        <AllowedOrigin>$${APP_ORIGIN}</AllowedOrigin>
+        <AllowedMethod>PUT</AllowedMethod>
+        <AllowedMethod>GET</AllowedMethod>
+        <AllowedHeader>content-type</AllowedHeader>
+        <ExposeHeader>ETag</ExposeHeader>
+        <MaxAgeSeconds>3600</MaxAgeSeconds>
+      </CORSRule></CORSConfiguration>"
+      curl --silent --show-error --fail-with-body \
+        --aws-sigv4 "aws:amz:$${FILE_STORAGE_REGION}:s3" \
+        --user "$${FILE_STORAGE_ACCESS_KEY_ID}:$${FILE_STORAGE_SECRET_ACCESS_KEY}" \
+        --request PUT --header "Content-Type: application/xml" --data-binary "$${rule}" \
+        "http://garage:3900/$${FILE_STORAGE_BUCKET}?cors"
+      echo "the bucket $${FILE_STORAGE_BUCKET} accepts files from $${APP_ORIGIN}"
+
   # What only a superuser can do, done when the data directory is created:
   # the two roles of ADR-0015, the database handed to the migration role, and
   # pg_stat_statements, which is not a trusted extension. Everything after

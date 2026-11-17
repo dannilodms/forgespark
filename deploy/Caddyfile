@@ -1,7 +1,8 @@
 # The Caddyfile of development: one origin for the browser, on localhost.
 # Caddy forwards /api to the API and everything else to Vite, both on the
-# machine, and answers /up with the readiness of the API. Rules: Delivery and
-# Health in CODING_STANDARDS.md.
+# machine, and answers /up with the readiness of the API. The file storage
+# has a host name of its own, files.localhost. Rules: Delivery, Health and
+# Files in CODING_STANDARDS.md.
 #
 # A site is a block of its own: an address and its directives. A host name
 # for another service, such as the file storage, is a second block beside
@@ -11,7 +12,8 @@
 #
 # The upstreams can be named by the environment, as the tests of the API do.
 # Compose leaves them at their defaults: the ports of the API and of Vite on
-# the machine, which Docker reaches as host.docker.internal.
+# the machine, which Docker reaches as host.docker.internal, and Garage, a
+# container of the same network, by the name of its service.
 
 # Plain HTTP: development has no certificate, so no site redirects to HTTPS.
 http://localhost {
@@ -60,4 +62,13 @@ http://localhost {
 		header Cache-Control no-store
 		respond `{"title":"Too Many Requests","status":429,"code":"too_many_requests","params":{},"trace_id":"{http.vars.trace_id}"}` 429
 	}
+}
+
+# The file storage, at a host name of its own: the browser sends and fetches
+# the bytes of a file here, with a URL the API signed for this host name
+# (Files in CODING_STANDARDS.md). The Host header reaches Garage as the
+# browser sent it, because the signature covers it. Garage answers the
+# cross-origin requests itself, from the rule of its bucket.
+http://files.localhost {
+	reverse_proxy {$FILES_UPSTREAM:garage:3900}
 }

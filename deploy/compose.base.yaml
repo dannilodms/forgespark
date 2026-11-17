@@ -52,3 +52,15 @@ services:
     # deploy/caddy/Dockerfile, which holds the versions of Caddy and of the
     # plugin. Development builds it; each environment names it in its file.
     logging: *logging
+
+  # The file storage of development and staging (ADR-0017). Production keeps
+  # its files at a provider and declares no Garage.
+  garage:
+    image: dxflrs/garage:v2.5.0
+    logging: *logging
+
+  # The step that gives the bucket of Garage its cross-origin rule, through
+  # the S3 API, signed by curl. It runs once and exits.
+  garage-cors:
+    image: curlimages/curl:8.23.0
+    logging: *logging
