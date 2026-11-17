@@ -19,90 +19,77 @@ import {
   TableRow,
 } from "@workspace/ui/components/table"
 import { PlusIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
+import { useFormat } from "#stores/language"
+
+import { dataDisplay } from "../explanations/data-display"
+import { freeText, sampleRequests } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 
-const requests = [
-  {
-    id: "REQ-0142",
-    title: "Export leaves out archived projects",
-    client: "Northwind Traders",
-    status: "working",
-    label: "In progress",
-    hours: "6.0",
-  },
-  {
-    id: "REQ-0139",
-    title: "New logo on the invoice",
-    client: "Northwind Traders",
-    status: "attention",
-    label: "Waiting for the client",
-    hours: "1.5",
-  },
-  {
-    id: "REQ-0131",
-    title: "Login by e-mail code",
-    client: "Contoso",
-    status: "done",
-    label: "Delivered",
-    hours: "24.0",
-  },
-  {
-    id: "REQ-0127",
-    title: "Nightly import of payments",
-    client: "Fabrikam",
-    status: "error",
-    label: "Failed",
-    hours: "11.0",
-  },
-] as const
+type SampleRequest = (typeof sampleRequests)[number]
 
 function Columns() {
+  const { t } = useTranslation()
+
   return (
     <TableHeader>
       <TableRow>
-        <TableHead>Request</TableHead>
-        <TableHead>Title</TableHead>
-        <TableHead>Client</TableHead>
-        <TableHead>Status</TableHead>
-        <TableHead className="text-right">Hours</TableHead>
+        <TableHead>{t("gallery.table.request")}</TableHead>
+        <TableHead>{t("gallery.table.title")}</TableHead>
+        <TableHead>{t("gallery.common.client")}</TableHead>
+        <TableHead>{t("gallery.table.status")}</TableHead>
+        <TableHead className="text-right">
+          {t("gallery.common.places.hours")}
+        </TableHead>
       </TableRow>
     </TableHeader>
   )
 }
 
-export function TableBlock() {
+/** The cells of one sample request. The hours are written for the language. */
+function RequestCells({ request }: { request: SampleRequest }) {
+  const { t } = useTranslation()
+  const { number } = useFormat()
+
   return (
-    <Section
-      title="Table"
-      note="Records of one kind, one per row, compared column by column. An identifier and a number are set in mono, and a number is aligned to the right."
-    >
-      <Part
-        title="Typical"
-        note="The second row is selected. A row shows the hover wash under the pointer."
-      >
+    <>
+      <TableCell className="font-mono text-muted-foreground">
+        {request.id}
+      </TableCell>
+      <TableCell>{request.title}</TableCell>
+      <TableCell>{request.client}</TableCell>
+      <TableCell>
+        <StatusIndicator status={request.status}>
+          {t(`gallery.common.status.${request.status}`)}
+        </StatusIndicator>
+      </TableCell>
+      <TableCell className="text-right font-mono">
+        {number(request.hours, 1)}
+      </TableCell>
+    </>
+  )
+}
+
+export function TableBlock() {
+  const { t } = useTranslation()
+  const { number } = useFormat()
+  const text = dataDisplay.table
+  const billed = sampleRequests.slice(0, 2)
+
+  return (
+    <Section {...text.about}>
+      <Part {...text.typical}>
         <Frame className="p-0">
           <Table>
             <Columns />
             <TableBody>
-              {requests.map((request, index) => (
+              {sampleRequests.map((request, index) => (
                 <TableRow
                   key={request.id}
                   data-state={index === 1 ? "selected" : undefined}
                 >
-                  <TableCell className="font-mono text-muted-foreground">
-                    {request.id}
-                  </TableCell>
-                  <TableCell>{request.title}</TableCell>
-                  <TableCell>{request.client}</TableCell>
-                  <TableCell>
-                    <StatusIndicator status={request.status}>
-                      {request.label}
-                    </StatusIndicator>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {request.hours}
-                  </TableCell>
+                  <RequestCells request={request} />
                 </TableRow>
               ))}
             </TableBody>
@@ -110,47 +97,34 @@ export function TableBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="With a total and a caption"
-        note="The footer holds what sums the column. The caption says what the table is, for everyone."
-      >
+      <Part {...text.withTotal}>
         <Frame className="p-0 pb-3">
           <Table>
-            <TableCaption>Requests billed in March.</TableCaption>
+            <TableCaption>{t("gallery.table.caption")}</TableCaption>
             <Columns />
             <TableBody>
-              {requests.slice(0, 2).map((request) => (
+              {billed.map((request) => (
                 <TableRow key={request.id}>
-                  <TableCell className="font-mono text-muted-foreground">
-                    {request.id}
-                  </TableCell>
-                  <TableCell>{request.title}</TableCell>
-                  <TableCell>{request.client}</TableCell>
-                  <TableCell>
-                    <StatusIndicator status={request.status}>
-                      {request.label}
-                    </StatusIndicator>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {request.hours}
-                  </TableCell>
+                  <RequestCells request={request} />
                 </TableRow>
               ))}
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={4}>Total</TableCell>
-                <TableCell className="text-right font-mono">7.5</TableCell>
+                <TableCell colSpan={4}>{t("gallery.table.total")}</TableCell>
+                <TableCell className="text-right font-mono">
+                  {number(
+                    billed.reduce((sum, request) => sum + request.hours, 0),
+                    1
+                  )}
+                </TableCell>
               </TableRow>
             </TableFooter>
           </Table>
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long text is cut inside its cell, and the table scrolls sideways inside its frame when the columns do not fit. With no rows, the table keeps its header and shows an empty state. While it loads, each cell is a skeleton."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="p-0">
           <Table>
             <Columns />
@@ -160,18 +134,19 @@ export function TableBlock() {
                   REQ-0118
                 </TableCell>
                 <TableCell className="max-w-56 truncate">
-                  A exportação das solicitações não inclui os projetos
-                  arquivados nem os anexos de cada solicitação
+                  {freeText.longTitle}
                 </TableCell>
                 <TableCell className="max-w-40 truncate">
-                  Comércio e Distribuição de Alimentos Vale do Rio Doce Ltda.
+                  {freeText.longClient}
                 </TableCell>
                 <TableCell>
                   <StatusIndicator status="attention" className="max-w-40">
-                    Aguardando a aprovação do cliente
+                    {t("gallery.table.longStatus")}
                   </StatusIndicator>
                 </TableCell>
-                <TableCell className="text-right font-mono">1,240.5</TableCell>
+                <TableCell className="text-right font-mono">
+                  {number(1240.5, 1)}
+                </TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -184,15 +159,15 @@ export function TableBlock() {
                 <TableCell colSpan={5} className="whitespace-normal">
                   <Empty>
                     <EmptyHeader>
-                      <EmptyTitle>No request yet</EmptyTitle>
+                      <EmptyTitle>{t("gallery.table.emptyTitle")}</EmptyTitle>
                       <EmptyDescription>
-                        A request opened in this project appears here.
+                        {t("gallery.table.emptyDescription")}
                       </EmptyDescription>
                     </EmptyHeader>
                     <EmptyContent>
                       <Button>
                         <PlusIcon data-icon="inline-start" />
-                        New request
+                        {t("gallery.common.newRequest")}
                       </Button>
                     </EmptyContent>
                   </Empty>

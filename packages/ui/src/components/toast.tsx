@@ -113,16 +113,16 @@ function ToastAction({
   )
 }
 
+/** An icon alone: the screen names it with `aria-label`, in its own language. */
 function ToastClose({
   className,
   children,
   render = <Button variant="ghost" size="icon-sm" />,
   ...props
-}: ToastPrimitive.Close.Props) {
+}: ToastPrimitive.Close.Props & { "aria-label": string }) {
   return (
     <ToastPrimitive.Close
       data-slot="toast-close"
-      aria-label="Close toast"
       render={render}
       className={cn(
         "relative shrink-0 text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:text-foreground",
@@ -180,7 +180,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
   )
 }
 
-function ToastList() {
+function ToastList({ closeLabel }: { closeLabel: string }) {
   const { toasts } = ToastPrimitive.useToastManager()
 
   return toasts.map((toastItem) => (
@@ -192,7 +192,7 @@ function ToastList() {
           <ToastDescription />
         </div>
         <ToastAction />
-        <ToastClose />
+        <ToastClose aria-label={closeLabel} />
       </ToastContent>
     </Toast>
   ))
@@ -201,19 +201,22 @@ function ToastList() {
 /**
  * Shows the toasts added through `toast`. Mount it once, around the app.
  * `className` places the viewport, for a screen whose corner is taken.
+ * `closeLabel` names the button that closes a toast, in the language of the
+ * screen.
  */
 function Toaster({
   children,
   toastManager = toast,
   className,
+  closeLabel,
   ...props
-}: ToastPrimitive.Provider.Props & { className?: string }) {
+}: ToastPrimitive.Provider.Props & { className?: string; closeLabel: string }) {
   return (
     <ToastProvider toastManager={toastManager} {...props}>
       {children}
       <ToastPortal>
         <ToastViewport className={className}>
-          <ToastList />
+          <ToastList closeLabel={closeLabel} />
         </ToastViewport>
       </ToastPortal>
     </ToastProvider>

@@ -40,14 +40,21 @@ function DialogOverlay({
   )
 }
 
+/**
+ * The close button is an icon alone: `closeLabel` names it, in the language
+ * of the screen. A dialog with no close button takes none.
+ */
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  closeLabel,
   ...props
-}: DialogPrimitive.Popup.Props & {
-  showCloseButton?: boolean
-}) {
+}: DialogPrimitive.Popup.Props &
+  (
+    | { showCloseButton?: true; closeLabel: string }
+    | { showCloseButton: false; closeLabel?: never }
+  )) {
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -68,11 +75,11 @@ function DialogContent({
                 variant="ghost"
                 className="absolute top-2 right-2"
                 size="icon-sm"
+                aria-label={closeLabel}
               />
             }
           >
             <XIcon />
-            <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Popup>

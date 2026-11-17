@@ -42,10 +42,17 @@ import {
   UserPlusIcon,
 } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
+import { useFormat } from "#stores/language"
+
+import { overlays } from "../explanations/overlays"
+import { partTitle } from "../explanations/shared"
+import { freeText } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 
 function ViewMenu() {
+  const { t } = useTranslation()
   const [showClosed, setShowClosed] = useState(true)
   const [showArchived, setShowArchived] = useState(false)
   const [order, setOrder] = useState("recent")
@@ -53,36 +60,38 @@ function ViewMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="outline" />}>
-        Open the view menu
+        {overlays.dropdownMenu.openView}
         <ChevronDownIcon data-icon="inline-end" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Show</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("gallery.menu.show")}</DropdownMenuLabel>
           <DropdownMenuCheckboxItem
             checked={showClosed}
             onCheckedChange={setShowClosed}
           >
-            Closed requests
+            {t("gallery.common.closedRequests")}
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={showArchived}
             onCheckedChange={setShowArchived}
           >
-            Archived projects
+            {t("gallery.common.archivedProjects")}
           </DropdownMenuCheckboxItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Order by</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("gallery.menu.orderBy")}</DropdownMenuLabel>
           <DropdownMenuRadioGroup value={order} onValueChange={setOrder}>
             <DropdownMenuRadioItem value="recent">
-              Most recent
+              {t("gallery.menu.mostRecent")}
             </DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="priority">
-              Priority
+              {t("gallery.common.priority.label")}
             </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="client">Client</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="client">
+              {t("gallery.common.client")}
+            </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
       </DropdownMenuContent>
@@ -91,87 +100,77 @@ function ViewMenu() {
 }
 
 export function DropdownMenuBlock() {
+  const { t } = useTranslation()
+  const text = overlays.dropdownMenu
+
   return (
-    <Section
-      title="DropdownMenu"
-      note="The actions on one thing, behind one button. The arrow keys move through it, a letter jumps to an item, and Escape closes it."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" />}>
-              Open the request menu
+              {text.openRequest}
               <ChevronDownIcon data-icon="inline-end" />
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56">
               <DropdownMenuGroup>
                 <DropdownMenuItem>
                   <PencilIcon />
-                  Rename
+                  {t("gallery.menu.rename")}
                   <DropdownMenuShortcut>F2</DropdownMenuShortcut>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <CopyIcon />
-                  Copy the link
+                  {t("gallery.common.copyLink")}
                   <DropdownMenuShortcut>Ctrl L</DropdownMenuShortcut>
                 </DropdownMenuItem>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <UserPlusIcon />
-                    Assign to
+                    {t("gallery.menu.assignTo")}
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
-                    <DropdownMenuItem>Ana Lima</DropdownMenuItem>
-                    <DropdownMenuItem>Bruno Tavares</DropdownMenuItem>
-                    <DropdownMenuItem>Carla Mendes</DropdownMenuItem>
+                    <DropdownMenuItem>{freeText.ana}</DropdownMenuItem>
+                    <DropdownMenuItem>{freeText.bruno}</DropdownMenuItem>
+                    <DropdownMenuItem>{freeText.carla}</DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
                 <DropdownMenuItem disabled>
                   <ArchiveIcon />
-                  Archive
+                  {t("gallery.menu.archive")}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive">
                 <Trash2Icon />
-                Delete request
+                {t("gallery.menu.deleteRequest")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </Frame>
       </Part>
 
-      <Part
-        title="Options that stay chosen"
-        note="An item can be a checkbox or one of a group of radios, under a label that names the group."
-      >
+      <Part {...text.options}>
         <Frame>
           <ViewMenu />
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long item is cut with an ellipsis inside the width of the menu."
-      >
+      <Part {...text.edgeCases}>
         <Frame>
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" />}>
-              Open a menu with long items
+              {text.openLong}
               <ChevronDownIcon data-icon="inline-end" />
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64">
               <DropdownMenuItem>
                 <PencilIcon />
-                <span className="truncate">
-                  Alterar o responsável pela aprovação das solicitações
-                </span>
+                <span className="truncate">{t("gallery.menu.longChange")}</span>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CopyIcon />
-                <span className="truncate">
-                  Copiar el enlace de la solicitud al portapapeles
-                </span>
+                <span className="truncate">{t("gallery.menu.longCopy")}</span>
                 <DropdownMenuShortcut>Ctrl L</DropdownMenuShortcut>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -183,57 +182,62 @@ export function DropdownMenuBlock() {
 }
 
 export function PopoverBlock() {
+  const { t } = useTranslation()
+  const { number } = useFormat()
+  const text = overlays.popover
+
   return (
-    <Section
-      title="Popover"
-      note="A small panel beside the button that opens it, for a few fields or a detail. The page behind stays usable, and Escape closes it."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
           <Popover>
             <PopoverTrigger render={<Button variant="outline" />}>
-              Open the estimate popover
+              {text.openEstimate}
             </PopoverTrigger>
             <PopoverContent align="start">
               <PopoverHeader>
-                <PopoverTitle>Estimate</PopoverTitle>
+                <PopoverTitle>
+                  {t("gallery.popover.estimate.title")}
+                </PopoverTitle>
                 <PopoverDescription>
-                  The hours this request is expected to take.
+                  {t("gallery.popover.estimate.description")}
                 </PopoverDescription>
               </PopoverHeader>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="popover-hours">Hours</FieldLabel>
+                  <FieldLabel htmlFor="popover-hours">
+                    {t("gallery.common.places.hours")}
+                  </FieldLabel>
                   <Input
                     id="popover-hours"
-                    defaultValue="12"
+                    defaultValue={number(12)}
                     inputMode="numeric"
                   />
                 </Field>
               </FieldGroup>
               <Button size="sm" className="self-end">
-                Save estimate
+                {t("gallery.popover.estimate.save")}
               </Button>
             </PopoverContent>
           </Popover>
         </Frame>
       </Part>
 
-      <Part
-        title="Sides"
-        note="A popover opens under its button by default, and moves when there is no room."
-      >
+      <Part {...text.sides}>
         <Frame>
           {(["top", "right", "bottom", "left"] as const).map((side) => (
             <Popover key={side}>
               <PopoverTrigger render={<Button variant="outline" />}>
-                Open a popover on the {side}
+                {text.openOn[side]}
               </PopoverTrigger>
               <PopoverContent side={side} className="w-56">
                 <PopoverHeader>
-                  <PopoverTitle>Billing portal</PopoverTitle>
+                  <PopoverTitle>{freeText.project}</PopoverTitle>
                   <PopoverDescription>
-                    7 open requests, 42.5 hours this month.
+                    {t("gallery.popover.summary", {
+                      count: 7,
+                      hours: number(42.5, 1),
+                    })}
                   </PopoverDescription>
                 </PopoverHeader>
               </PopoverContent>
@@ -242,23 +246,17 @@ export function PopoverBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long text wraps inside the popover, which never grows wider than the screen."
-      >
+      <Part {...text.edgeCases}>
         <Frame>
           <Popover>
             <PopoverTrigger render={<Button variant="outline" />}>
-              Open a popover with a long text
+              {text.openLong}
             </PopoverTrigger>
             <PopoverContent align="start">
               <PopoverHeader>
-                <PopoverTitle>
-                  Por que esta solicitação está parada há mais de três dias
-                </PopoverTitle>
+                <PopoverTitle>{t("gallery.popover.long.title")}</PopoverTitle>
                 <PopoverDescription>
-                  O responsável pelo projeto no cliente ainda não respondeu ao
-                  pedido de aprovação enviado na última segunda-feira.
+                  {t("gallery.popover.long.description")}
                 </PopoverDescription>
               </PopoverHeader>
             </PopoverContent>
@@ -270,71 +268,63 @@ export function PopoverBlock() {
 }
 
 export function TooltipBlock() {
+  const { t } = useTranslation()
+  const text = overlays.tooltip
+  const settings = t("gallery.common.settings")
+  const search = t("gallery.common.search")
+
   return (
-    <Section
-      title="Tooltip"
-      note="The name of a control that shows only an icon, with its shortcut. It opens on hover and on keyboard focus, and never holds something a person has to read to go on."
-    >
-      <Part
-        title="Typical"
-        note="Move the pointer over the button, or reach it with Tab."
-      >
+    <Section {...text.about}>
+      <Part {...text.typical}>
         <Frame>
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button variant="outline" size="icon" aria-label="Settings" />
+                <Button variant="outline" size="icon" aria-label={settings} />
               }
             >
               <SettingsIcon />
             </TooltipTrigger>
-            <TooltipContent>Settings</TooltipContent>
+            <TooltipContent>{settings}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button variant="outline" size="icon" aria-label="Search" />
+                <Button variant="outline" size="icon" aria-label={search} />
               }
             >
               <SearchIcon />
             </TooltipTrigger>
             <TooltipContent>
-              Search
+              {search}
               <Kbd>/</Kbd>
             </TooltipContent>
           </Tooltip>
         </Frame>
       </Part>
 
-      <Part
-        title="Sides"
-        note="A tooltip opens above its control by default, and moves when there is no room."
-      >
+      <Part {...text.sides}>
         <Frame>
           {(["top", "right", "bottom", "left"] as const).map((side) => (
             <Tooltip key={side}>
               <TooltipTrigger render={<Button variant="outline" />}>
-                Tooltip on the {side}
+                {text.side[side].trigger}
               </TooltipTrigger>
-              <TooltipContent side={side}>Opens on the {side}</TooltipContent>
+              <TooltipContent side={side}>
+                {text.side[side].content}
+              </TooltipContent>
             </Tooltip>
           ))}
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long text wraps at the widest a tooltip gets."
-      >
+      <Part {...text.edgeCases}>
         <Frame>
           <Tooltip>
             <TooltipTrigger render={<Button variant="outline" />}>
-              Tooltip with a long text
+              {text.withLong}
             </TooltipTrigger>
-            <TooltipContent>
-              Esta solicitação aguarda a aprovação do responsável pelo projeto
-              no cliente desde a última segunda-feira.
-            </TooltipContent>
+            <TooltipContent>{t("gallery.tooltip.long")}</TooltipContent>
           </Tooltip>
         </Frame>
       </Part>

@@ -4,6 +4,9 @@
  *
  * A "Don't" example breaks its rule on purpose: it is the only place in the
  * prototype where a raw colour, a raw shadow or a long animation is right.
+ *
+ * The rules and the line under each example are explanatory text, in English.
+ * What an example holds is sample content, in the language of the prototype.
  */
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
@@ -20,7 +23,12 @@ import { StatusIndicator } from "@workspace/ui/components/status-indicator"
 import { cn } from "@workspace/ui/lib/utils"
 import { CheckIcon, PlusIcon, XIcon } from "lucide-react"
 import type { ReactNode } from "react"
+import { Trans, useTranslation } from "react-i18next"
 
+import { useFormat } from "#stores/language"
+
+import { doAndDont } from "./explanations/do-and-dont"
+import { freeText, sampleRequest, sampleRequests } from "./free-text"
 import { Section } from "./parts"
 
 /** One side of a pair: the example, and one line on why it is right or wrong. */
@@ -55,7 +63,7 @@ function Example({
           )}
         >
           <Sign className="size-3.5" aria-hidden="true" />
-          {kind === "do" ? "Do" : "Don't"}
+          {doAndDont.caption[kind]}
         </span>
         <span className="text-muted-foreground">{why}</span>
       </figcaption>
@@ -66,27 +74,21 @@ function Example({
 /** A rule: its number and its name as the title, the rule itself as the caption, and the pair. */
 function Rule({
   number,
-  name,
-  rule,
+  text,
   children,
 }: {
   number: number
-  name: string
-  rule: string
+  text: { name: string; rule: string }
   children: ReactNode
 }) {
   return (
-    <Section title={`${number}. ${name}`} note={rule}>
+    <Section title={`${number}. ${text.name}`} note={text.rule}>
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
     </Section>
   )
 }
 
-const requests = [
-  { id: "REQ-0142", title: "Export leaves out archived projects" },
-  { id: "REQ-0139", title: "New logo on the invoice" },
-  { id: "REQ-0131", title: "Login by e-mail code" },
-] as const
+const requests = sampleRequests.slice(0, 3)
 
 function RequestRows() {
   return (
@@ -105,28 +107,28 @@ function RequestRows() {
 }
 
 function Detail() {
+  const { t } = useTranslation()
+  const { ago } = useFormat()
+
   return (
     <div className="flex flex-col gap-1 p-3">
-      <span className="font-medium">Export leaves out archived projects</span>
+      <span className="font-medium">{sampleRequest.title}</span>
       <span className="type-caption text-muted-foreground">
-        Opened 12 days ago by Ana Lima.
+        {t("gallery.rules.opened", {
+          when: ago(12, "day"),
+          who: freeText.ana,
+        })}
       </span>
     </div>
   )
 }
 
 function BordersRule() {
+  const text = doAndDont.borders
+
   return (
-    <Rule
-      number={1}
-      name="Borders carry the structure"
-      rule="Surfaces are separated by 1px lines. A shadow appears only on a floating surface: popover, dialog, command palette, toast."
-    >
-      <Example
-        kind="do"
-        why="Two panes side by side, flush, with one line between them."
-        className="p-0"
-      >
+    <Rule number={1} text={text}>
+      <Example kind="do" why={text.do} className="p-0">
         <div className="grid w-full grid-cols-2 self-stretch">
           <div className="min-w-0 border-r">
             <RequestRows />
@@ -136,11 +138,7 @@ function BordersRule() {
           </div>
         </div>
       </Example>
-      <Example
-        kind="dont"
-        why="The same panes as cards with a gap and a shadow. The shadow says they float, and they do not."
-        className="bg-background"
-      >
+      <Example kind="dont" why={text.dont} className="bg-background">
         <div className="grid w-full grid-cols-2 gap-4">
           <div className="min-w-0 rounded-xl bg-card shadow-lg">
             <RequestRows />
@@ -155,95 +153,92 @@ function BordersRule() {
 }
 
 function AccentRule() {
+  const { t } = useTranslation()
+  const text = doAndDont.accent
+  const billing = t("gallery.common.tags.billing")
+  const reports = t("gallery.common.tags.reports")
+  const login = t("gallery.common.tags.login")
+  const waiting = t("gallery.common.status.attention")
+  const newRequest = t("gallery.common.newRequest")
+
   return (
-    <Rule
-      number={2}
-      name="One accent, and colour means status"
-      rule="The one accent colour is blue. Any other colour is a status colour with a fixed meaning: blue is working, amber needs attention, green is done, red is an error."
-    >
-      <Example
-        kind="do"
-        why="Tags are neutral. Colour appears on the primary action and on the status, where it means something."
-        className="flex-col items-stretch"
-      >
+    <Rule number={2} text={text}>
+      <Example kind="do" why={text.do} className="flex-col items-stretch">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">Billing</Badge>
-          <Badge variant="secondary">Reports</Badge>
-          <Badge variant="secondary">Login</Badge>
+          <Badge variant="secondary">{billing}</Badge>
+          <Badge variant="secondary">{reports}</Badge>
+          <Badge variant="secondary">{login}</Badge>
           <StatusIndicator status="attention" className="ml-auto shrink">
-            Waiting for the client
+            {waiting}
           </StatusIndicator>
         </div>
         <Button className="self-start">
           <PlusIcon data-icon="inline-start" />
-          New request
+          {newRequest}
         </Button>
       </Example>
-      <Example
-        kind="dont"
-        why="A colour for each tag and a green button. Amber and green no longer mean attention and done."
-        className="flex-col items-stretch"
-      >
+      <Example kind="dont" why={text.dont} className="flex-col items-stretch">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge className="bg-purple-200 text-purple-950">Billing</Badge>
-          <Badge className="bg-amber-200 text-amber-950">Reports</Badge>
-          <Badge className="bg-emerald-200 text-emerald-950">Login</Badge>
+          <Badge className="bg-purple-200 text-purple-950">{billing}</Badge>
+          <Badge className="bg-amber-200 text-amber-950">{reports}</Badge>
+          <Badge className="bg-emerald-200 text-emerald-950">{login}</Badge>
           <StatusIndicator status="attention" className="ml-auto shrink">
-            Waiting for the client
+            {waiting}
           </StatusIndicator>
         </div>
         <Button className="self-start bg-emerald-700 hover:bg-emerald-800">
           <PlusIcon data-icon="inline-start" />
-          New request
+          {newRequest}
         </Button>
       </Example>
     </Rule>
   )
 }
 
+/** Where the sample fix is, and how many files it changed. */
+const fix = { path: "apps/web/export", files: 3 }
+
 function MonoRule() {
+  const { number } = useFormat()
+  const text = doAndDont.mono
+  const values = { path: fix.path, files: number(fix.files) }
+
   return (
-    <Rule
-      number={3}
-      name="Mono is for metadata"
-      rule="Shortcuts, counts, paths and identifiers are set in the mono typeface. Running text is set in the interface typeface."
-    >
-      <Example
-        kind="do"
-        why="The identifier, the path, the count and the shortcut are mono. The sentence is not."
-        className="flex-col items-start"
-      >
+    <Rule number={3} text={text}>
+      <Example kind="do" why={text.do} className="flex-col items-start">
         <div className="flex max-w-full items-center gap-2">
           <span className="shrink-0 type-code text-muted-foreground">
-            REQ-0142
+            {sampleRequest.id}
           </span>
-          <span className="min-w-0 truncate">
-            Export leaves out archived projects
-          </span>
+          <span className="min-w-0 truncate">{sampleRequest.title}</span>
         </div>
         <p className="text-muted-foreground">
-          The fix is in{" "}
-          <code className="rounded-sm bg-muted px-1 type-code">
-            apps/web/export
-          </code>
-          , with <span className="font-mono">3</span> files changed. Press{" "}
-          <Kbd>Ctrl</Kbd> <Kbd>K</Kbd> to find it.
+          <Trans
+            i18nKey="gallery.rules.fix"
+            values={values}
+            components={{
+              path: <code className="rounded-sm bg-muted px-1 type-code" />,
+              mono: <span className="font-mono" />,
+              kbd: <Kbd />,
+            }}
+          />
         </p>
       </Example>
-      <Example
-        kind="dont"
-        why="The sentence is mono and the identifier is not. Nothing tells the reader which part is data."
-        className="flex-col items-start"
-      >
+      <Example kind="dont" why={text.dont} className="flex-col items-start">
         <div className="flex max-w-full items-center gap-2">
-          <span className="shrink-0 text-muted-foreground">REQ-0142</span>
+          <span className="shrink-0 text-muted-foreground">
+            {sampleRequest.id}
+          </span>
           <span className="min-w-0 truncate font-mono">
-            Export leaves out archived projects
+            {sampleRequest.title}
           </span>
         </div>
         <p className="font-mono text-muted-foreground">
-          The fix is in apps/web/export, with 3 files changed. Press Ctrl K to
-          find it.
+          <Trans
+            i18nKey="gallery.rules.fix"
+            values={values}
+            components={{ path: <span />, mono: <span />, kbd: <span /> }}
+          />
         </p>
       </Example>
     </Rule>
@@ -251,37 +246,28 @@ function MonoRule() {
 }
 
 function DecorationRule() {
+  const { t } = useTranslation()
+  const text = doAndDont.decoration
+
   return (
-    <Rule
-      number={4}
-      name="Decoration frames the page"
-      rule="The grid texture and the diamond nodes belong to the page framing. The inside of a component is plain."
-    >
-      <Example
-        kind="do"
-        why="The texture is behind the pane and the nodes sit on its corners. The pane itself is plain."
-        className="page-framing bg-background"
-      >
+    <Rule number={4} text={text}>
+      <Example kind="do" why={text.do} className="page-framing bg-background">
         <div className="relative border bg-card px-6 py-4">
-          <span className="font-medium">Log in</span>
+          <span className="font-medium">{t("login.heading")}</span>
           <span className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 frame-node" />
           <span className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 frame-node" />
           <span className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 frame-node" />
           <span className="absolute right-0 bottom-0 translate-x-1/2 translate-y-1/2 frame-node" />
         </div>
       </Example>
-      <Example
-        kind="dont"
-        why="The texture fills the pane and the button, and a node decorates a title. The content has to fight it."
-        className="bg-background"
-      >
+      <Example kind="dont" why={text.dont} className="bg-background">
         <div className="flex flex-col items-start gap-3 border page-framing px-6 py-4">
           <span className="flex items-center gap-2 font-medium">
             <span className="frame-node" />
-            Log in
+            {t("login.heading")}
           </span>
           <Button variant="outline" className="page-framing">
-            Send login code
+            {t("login.sendCode")}
           </Button>
         </div>
       </Example>
@@ -290,39 +276,35 @@ function DecorationRule() {
 }
 
 function MotionRule() {
+  const { t } = useTranslation()
+  const text = doAndDont.motion
+  const saveDraft = t("gallery.common.saveDraft")
+
   return (
-    <Rule
-      number={5}
-      name="Motion is short and plain"
-      rule="A colour change takes 100 to 150ms. A control moves at most 1 to 2px. An overlay opens in 200 to 250ms."
-    >
-      <Example
-        kind="do"
-        why="The button changes colour at once under the pointer and moves 1px when pressed. The popover opens in 200ms."
-      >
-        <Button variant="secondary">Save draft</Button>
+    <Rule number={5} text={text}>
+      <Example kind="do" why={text.do}>
+        <Button variant="secondary">{saveDraft}</Button>
         <Popover>
           <PopoverTrigger render={<Button variant="outline" />}>
-            Open the popover
+            {text.openPopover}
           </PopoverTrigger>
           <PopoverContent className="w-56">
             <PopoverHeader>
-              <PopoverTitle>Billing portal</PopoverTitle>
-              <PopoverDescription>7 open requests.</PopoverDescription>
+              <PopoverTitle>{freeText.project}</PopoverTitle>
+              <PopoverDescription>
+                {t("gallery.common.openRequestsCount", { count: 7 })}
+              </PopoverDescription>
             </PopoverHeader>
           </PopoverContent>
         </Popover>
       </Example>
-      <Example
-        kind="dont"
-        why="The badge never stops moving, and the button grows and turns slowly under the pointer. Motion that says nothing takes the eye from the work."
-      >
-        <Badge className="animate-bounce">New</Badge>
+      <Example kind="dont" why={text.dont}>
+        <Badge className="animate-bounce">{t("gallery.badge.new")}</Badge>
         <Button
           variant="secondary"
           className="duration-700 hover:scale-125 hover:-rotate-3"
         >
-          Save draft
+          {saveDraft}
         </Button>
       </Example>
     </Rule>
@@ -330,35 +312,27 @@ function MotionRule() {
 }
 
 function VariablesRule() {
+  const { t } = useTranslation()
+  const text = doAndDont.variables
+  const openRequests = t("gallery.common.openRequestsCount", { count: 7 })
+
   return (
-    <Rule
-      number={6}
-      name="Every value is a style variable"
-      rule="A component takes each colour, radius, font, spacing step and shadow from a style variable, and hardcodes none."
-    >
-      <Example
-        kind="do"
-        why="Every value comes from a style variable, so the pane follows the theme. Change the theme in the prototype bar."
-        className="flex-col bg-background"
-      >
+    <Rule number={6} text={text}>
+      <Example kind="do" why={text.do} className="flex-col bg-background">
         <div className="flex flex-col gap-1 rounded-xl border bg-card px-4 py-3 text-card-foreground">
-          <span className="font-medium">Billing portal</span>
+          <span className="font-medium">{freeText.project}</span>
           <span className="type-caption text-muted-foreground">
-            7 open requests
+            {openRequests}
           </span>
         </div>
         <code className="type-code text-muted-foreground">
           rounded-xl border bg-card
         </code>
       </Example>
-      <Example
-        kind="dont"
-        why="The colours, the radius and the shadow are written as literals, so the pane stays white in the dark theme."
-        className="flex-col bg-background"
-      >
+      <Example kind="dont" why={text.dont} className="flex-col bg-background">
         <div className="flex flex-col gap-1 rounded-[10px] border border-[#d4d4d4] bg-[#ffffff] px-[18px] py-[11px] text-[#1a1a1a] shadow-[0_2px_6px_#00000033]">
-          <span className="font-medium">Billing portal</span>
-          <span className="type-caption text-[#6b6b6b]">7 open requests</span>
+          <span className="font-medium">{freeText.project}</span>
+          <span className="type-caption text-[#6b6b6b]">{openRequests}</span>
         </div>
         <code className="type-code text-muted-foreground">
           rounded-[10px] border-[#d4d4d4] bg-[#ffffff]
@@ -369,77 +343,58 @@ function VariablesRule() {
 }
 
 function PrimaryRule() {
+  const { t } = useTranslation()
+  const text = doAndDont.primary
+  const send = t("gallery.rules.sendForApproval")
+  const saveDraft = t("gallery.common.saveDraft")
+  const cancel = t("gallery.common.cancel")
+
   return (
-    <Rule
-      number={7}
-      name="One primary action per group"
-      rule="In a group of actions, one button is primary. The others are secondary or ghost."
-    >
-      <Example
-        kind="do"
-        why="One primary button says what the group is for. The others step back."
-      >
-        <Button>Send for approval</Button>
-        <Button variant="secondary">Save draft</Button>
-        <Button variant="ghost">Cancel</Button>
+    <Rule number={7} text={text}>
+      <Example kind="do" why={text.do}>
+        <Button>{send}</Button>
+        <Button variant="secondary">{saveDraft}</Button>
+        <Button variant="ghost">{cancel}</Button>
       </Example>
-      <Example
-        kind="dont"
-        why="Three primary buttons. Nothing says which one the person came here to press."
-      >
-        <Button>Send for approval</Button>
-        <Button>Save draft</Button>
-        <Button>Cancel</Button>
+      <Example kind="dont" why={text.dont}>
+        <Button>{send}</Button>
+        <Button>{saveDraft}</Button>
+        <Button>{cancel}</Button>
       </Example>
     </Rule>
   )
 }
 
-const statuses = [
-  { status: "working", label: "In progress", dot: "bg-status-working" },
-  {
-    status: "attention",
-    label: "Waiting for the client",
-    dot: "bg-status-attention",
-  },
-  { status: "done", label: "Delivered", dot: "bg-status-done" },
-  { status: "error", label: "Failed", dot: "bg-status-error" },
-] as const
+const dots = {
+  working: "bg-status-working",
+  attention: "bg-status-attention",
+  done: "bg-status-done",
+  error: "bg-status-error",
+} as const
 
 function StatusRule() {
+  const { t } = useTranslation()
+  const text = doAndDont.status
+
   return (
-    <Rule
-      number={8}
-      name="Status is colour plus a sign"
-      rule="A status always shows an icon or a word together with its colour."
-    >
-      <Example
-        kind="do"
-        why="Each status has its sign and its word. It reads without the colour."
-        className="flex-col items-start"
-      >
-        {statuses.map(({ status, label }, index) => (
-          <div key={status} className="flex w-full items-center gap-3">
-            <span className="min-w-0 flex-1 truncate">
-              {requests[index % requests.length].title}
-            </span>
+    <Rule number={8} text={text}>
+      <Example kind="do" why={text.do} className="flex-col items-start">
+        {sampleRequests.map(({ id, title, status }) => (
+          <div key={id} className="flex w-full items-center gap-3">
+            <span className="min-w-0 flex-1 truncate">{title}</span>
             <StatusIndicator status={status} className="shrink">
-              {label}
+              {t(`gallery.common.status.${status}`)}
             </StatusIndicator>
           </div>
         ))}
       </Example>
-      <Example
-        kind="dont"
-        why="A dot of colour and nothing else. Someone who does not tell red from green cannot read it, and nobody knows what amber means."
-        className="flex-col items-start"
-      >
-        {statuses.map(({ status, dot }, index) => (
-          <div key={status} className="flex w-full items-center gap-3">
-            <span className="min-w-0 flex-1 truncate">
-              {requests[index % requests.length].title}
-            </span>
-            <span className={cn("size-2 shrink-0 rounded-full", dot)} />
+      <Example kind="dont" why={text.dont} className="flex-col items-start">
+        {sampleRequests.map(({ id, title, status }) => (
+          <div key={id} className="flex w-full items-center gap-3">
+            <span className="min-w-0 flex-1 truncate">{title}</span>
+            <span
+              className={cn("size-2 shrink-0 rounded-full", dots[status])}
+            />
           </div>
         ))}
       </Example>

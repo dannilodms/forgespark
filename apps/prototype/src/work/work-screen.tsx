@@ -29,6 +29,7 @@ import { useState, useSyncExternalStore } from "react"
 import { useTranslation } from "react-i18next"
 
 import { AppShell, UserMenu } from "../recipes/app-shell"
+import { useFormat } from "../stores/language"
 import { sampleClients, samplePerson } from "./sample-data"
 import {
   type Place,
@@ -68,6 +69,7 @@ function useSideBySide() {
 /** The places of the sidebar. On a narrow screen, going to one closes the sheet. */
 function Places({ current, items }: { current: Place; items: WorkItem[] }) {
   const { t } = useTranslation()
+  const { number } = useFormat()
   const { setOpenMobile } = useSidebar()
 
   return (
@@ -95,7 +97,7 @@ function Places({ current, items }: { current: Place; items: WorkItem[] }) {
                   <span>{t(`work.places.${place}`)}</span>
                 </SidebarMenuButton>
                 <SidebarMenuBadge>
-                  {items.filter((item) => item.place === place).length}
+                  {number(items.filter((item) => item.place === place).length)}
                 </SidebarMenuBadge>
               </SidebarMenuItem>
             )
@@ -125,6 +127,7 @@ export function WorkScreen({
   itemId?: string
 }) {
   const { t } = useTranslation()
+  const { number } = useFormat()
   const navigate = useNavigate()
   const statusWord = useStatusWord()
   const items = useWorkItems()
@@ -171,7 +174,7 @@ export function WorkScreen({
         navigationLabel={t("work.navigation.label")}
         sidebarToggleLabel={t("work.navigation.toggle")}
         breadcrumb={
-          <Breadcrumb>
+          <Breadcrumb aria-label={t("work.navigation.path")}>
             <BreadcrumbList className="flex-nowrap">
               <BreadcrumbItem className="shrink-0">
                 <BreadcrumbLink render={<Link to="/work" search={{ place }} />}>
@@ -262,7 +265,7 @@ export function WorkScreen({
           <>
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="truncate">{t(`work.places.${place}`)}</span>
-              <span className="type-code">{inPlace.length}</span>
+              <span className="type-code">{number(inPlace.length)}</span>
             </span>
             {statuses.map((status) => (
               <StatusIndicator
@@ -271,15 +274,15 @@ export function WorkScreen({
                 title={statusWord(place, status)}
                 className="gap-1 font-mono text-xs font-normal text-muted-foreground"
               >
-                {counts[status]}
+                {number(counts[status])}
                 <span className="sr-only"> {statusWord(place, status)}</span>
               </StatusIndicator>
             ))}
             {typed.trim() === "" ? null : (
               <span className="ml-auto truncate">
                 {t("work.statusBar.showing", {
-                  shown: shown.length,
-                  total: inPlace.length,
+                  shown: number(shown.length),
+                  total: number(inPlace.length),
                 })}
               </span>
             )}

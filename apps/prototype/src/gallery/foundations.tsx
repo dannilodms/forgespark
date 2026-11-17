@@ -6,8 +6,13 @@ import {
   TriangleAlertIcon,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { Trans, useTranslation } from "react-i18next"
+
+import { useFormat } from "#stores/language"
 
 import { ColorPair } from "./color-pair"
+import { foundations } from "./explanations/foundations"
+import { sampleRequest } from "./free-text"
 import { Frame, GalleryPage, Part, Section } from "./parts"
 import {
   controlSizes,
@@ -24,6 +29,11 @@ import {
   typefaces,
 } from "./style-variables"
 import { useStyleVariable } from "./use-style-variable"
+
+const text = foundations
+
+/** What the mono typeface is for: identifiers, the same in every language. */
+const monoSpecimen = `${sampleRequest.id}  apps/web/export  v2.4`
 
 function Value({ variable }: { variable: string }) {
   const value = useStyleVariable(variable)
@@ -50,11 +60,11 @@ function Line({ variable, role }: { variable: string; role: string }) {
 function TypeRow({
   token,
   use,
-  sample,
+  specimen,
 }: {
   token: string
   use: string
-  sample: string
+  specimen: string
 }) {
   const ref = useRef<HTMLSpanElement>(null)
   const [spec, setSpec] = useState("")
@@ -86,19 +96,36 @@ function TypeRow({
       <td className="py-3 pr-4 type-caption text-muted-foreground">{use}</td>
       <td className="py-3">
         <span ref={ref} className={cn("block", token)}>
-          {sample}
+          {specimen}
         </span>
       </td>
     </tr>
   )
 }
 
+/**
+ * The explanatory text is in English. The specimens of type and the pane on
+ * the framed page are sample content, in the language of the prototype: a
+ * typeface is judged with the accents of each language.
+ */
 export function Foundations() {
+  const { t } = useTranslation()
+  const { ago } = useFormat()
+
+  const specimens = {
+    display: t("gallery.foundations.specimen.display"),
+    title: t("gallery.foundations.specimen.title"),
+    body: t("gallery.foundations.specimen.body"),
+    ui: t("gallery.foundations.specimen.ui"),
+    label: t("gallery.foundations.specimen.label"),
+    caption: t("gallery.foundations.specimen.caption", {
+      when: ago(12, "minute"),
+    }),
+    code: sampleRequest.id,
+  }
+
   return (
-    <GalleryPage
-      title="Foundations"
-      lead="Every style variable of the design system, with the value it has in the current theme. Colours are shown on the surface they are used on, with the contrast measured here."
-    >
+    <GalleryPage section="foundations" lead={text.lead}>
       {[...pairGroups, surfaceLines].map((group) => (
         <Section key={group.title} title={group.title} note={group.note}>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(13rem,1fr))] gap-3">
@@ -109,10 +136,7 @@ export function Foundations() {
         </Section>
       ))}
 
-      <Section
-        title="Lines and edges"
-        note="Colours that separate or decorate. None of them carries text."
-      >
+      <Section {...text.lines}>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
           {lines.map((line) => (
             <Line key={line.variable} {...line} />
@@ -120,10 +144,7 @@ export function Foundations() {
         </div>
       </Section>
 
-      <Section
-        title="Type"
-        note="Three typefaces and seven roles. A role sets family, size, line height, weight and tracking together."
-      >
+      <Section {...text.type.about}>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
           {typefaces.map((face) => (
             <div key={face.variable} className="flex min-w-0 flex-col gap-1">
@@ -132,7 +153,9 @@ export function Foundations() {
                 className="truncate text-xl"
                 style={{ fontFamily: `var(--${face.variable})` }}
               >
-                {face.sample}
+                {face.variable === "font-mono"
+                  ? monoSpecimen
+                  : t("gallery.foundations.typeface")}
               </span>
               <span className="type-code text-muted-foreground">
                 {face.variable}
@@ -144,28 +167,46 @@ export function Foundations() {
           <table className="w-full min-w-[40rem] border-collapse text-left">
             <thead>
               <tr className="border-b type-label text-muted-foreground">
-                <th className="py-2 pr-4 font-medium">Role</th>
-                <th className="py-2 pr-4 font-medium">Size / line / weight</th>
-                <th className="py-2 pr-4 font-medium">Use</th>
-                <th className="py-2 font-medium">Specimen</th>
+                <th className="py-2 pr-4 font-medium">
+                  {text.type.columns.role}
+                </th>
+                <th className="py-2 pr-4 font-medium">
+                  {text.type.columns.size}
+                </th>
+                <th className="py-2 pr-4 font-medium">
+                  {text.type.columns.use}
+                </th>
+                <th className="py-2 font-medium">
+                  {text.type.columns.specimen}
+                </th>
               </tr>
             </thead>
             <tbody>
               {typeRoles.map((role) => (
-                <TypeRow key={role.token} {...role} />
+                <TypeRow
+                  key={role.token}
+                  token={role.token}
+                  use={role.use}
+                  specimen={specimens[role.specimen]}
+                />
               ))}
             </tbody>
           </table>
         </div>
         <p className="max-w-prose">
-          A request moves from the first contact to delivery. Its history stays
-          with the project, so whoever opens it later reads what was asked, what
-          was agreed and what changed. See{" "}
-          <a className="text-brand underline underline-offset-2" href="#type">
-            how a request is written
-          </a>{" "}
-          or look for its identifier, such as{" "}
-          <code className="rounded-sm bg-muted px-1 type-code">REQ-0142</code>.
+          <Trans
+            i18nKey="gallery.foundations.paragraph"
+            values={{ id: sampleRequest.id }}
+            components={{
+              guide: (
+                <a
+                  className="text-brand underline underline-offset-2"
+                  href="#type"
+                />
+              ),
+              code: <code className="rounded-sm bg-muted px-1 type-code" />,
+            }}
+          />
         </p>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
           {pinnedSizes.map((size) => (
@@ -180,11 +221,8 @@ export function Foundations() {
         </div>
       </Section>
 
-      <Section
-        title="Spacing and control sizes"
-        note="The base unit is 4px, and every spacing step is a multiple of it. Controls of the same kind share a height, so a form stays aligned."
-      >
-        <Part title="Spacing steps">
+      <Section {...text.spacing.about}>
+        <Part title={text.spacing.steps}>
           <div className="flex flex-col gap-2">
             {spacingSteps.map((step) => (
               <div key={step.size} className="flex items-center gap-3">
@@ -196,7 +234,7 @@ export function Foundations() {
             ))}
           </div>
         </Part>
-        <Part title="Control sizes">
+        <Part title={text.spacing.controls}>
           <div className="flex flex-wrap items-end gap-4">
             {controlSizes.map((control) => (
               <div key={control.size} className="flex flex-col gap-1">
@@ -217,10 +255,7 @@ export function Foundations() {
         </Part>
       </Section>
 
-      <Section
-        title="Radius"
-        note="Five roles. A corner is never rounder than its role."
-      >
+      <Section {...text.radius}>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-4">
           {radiusRoles.map((role) => (
             <div key={role.variable} className="flex flex-col gap-1">
@@ -238,34 +273,30 @@ export function Foundations() {
         </div>
       </Section>
 
-      <Section
-        title="Elevation"
-        note="Borders carry the structure. A shadow appears only on a floating surface."
-      >
+      <Section {...text.elevation.about}>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-6">
           <div className="flex flex-col gap-2">
             <span className="flex h-20 items-center justify-center bg-background type-ui">
-              Flat
+              {text.elevation.flat.name}
             </span>
             <span className="type-caption text-muted-foreground">
-              Page and chrome. No border and no shadow.
+              {text.elevation.flat.note}
             </span>
           </div>
           <div className="flex flex-col gap-2">
             <span className="flex h-20 items-center justify-center rounded-xl border bg-card type-ui">
-              Hairline
+              {text.elevation.hairline.name}
             </span>
             <span className="type-caption text-muted-foreground">
-              Pane, card and control. A 1px border.
+              {text.elevation.hairline.note}
             </span>
           </div>
           <div className="flex flex-col gap-2">
             <span className="flex h-20 items-center justify-center rounded-2xl bg-popover type-ui shadow-floating">
-              Floating
+              {text.elevation.floating.name}
             </span>
             <span className="type-caption text-muted-foreground">
-              Popover, dialog, command palette and toast. A 1px edge and the one
-              shadow.
+              {text.elevation.floating.note}
             </span>
           </div>
         </div>
@@ -282,13 +313,10 @@ export function Foundations() {
         </div>
       </Section>
 
-      <Section
-        title="Page framing"
-        note="The grid texture and the diamond nodes frame a page. A page opts in with page-framing and frame-node; the inside of a component stays plain."
-      >
+      <Section {...text.pageFraming}>
         <div className="flex h-48 items-center justify-center rounded-xl border page-framing p-6">
           <div className="relative border bg-card px-8 py-5 type-ui">
-            A pane on a framed page
+            {t("gallery.foundations.framedPane")}
             <span className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 frame-node" />
             <span className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 frame-node" />
             <span className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 frame-node" />
@@ -297,14 +325,20 @@ export function Foundations() {
         </div>
       </Section>
 
-      <Section title="Motion" note="Motion is short and plain.">
+      <Section {...text.motion.about}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[32rem] border-collapse text-left">
             <thead>
               <tr className="border-b type-label text-muted-foreground">
-                <th className="py-2 pr-4 font-medium">What moves</th>
-                <th className="py-2 pr-4 font-medium">Duration</th>
-                <th className="py-2 font-medium">Easing</th>
+                <th className="py-2 pr-4 font-medium">
+                  {text.motion.columns.what}
+                </th>
+                <th className="py-2 pr-4 font-medium">
+                  {text.motion.columns.duration}
+                </th>
+                <th className="py-2 font-medium">
+                  {text.motion.columns.easing}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -331,7 +365,7 @@ export function Foundations() {
         </div>
       </Section>
 
-      <Section title="Icons" note="Lucide, at 12, 14 and 16px.">
+      <Section {...text.icons}>
         <Frame className="gap-8">
           {(["size-3", "size-3.5", "size-4"] as const).map((size) => (
             <div key={size} className="flex items-center gap-3">

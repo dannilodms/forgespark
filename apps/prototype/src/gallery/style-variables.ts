@@ -390,56 +390,52 @@ export const lines = [
 ]
 
 export const typefaces = [
-  {
-    variable: "font-serif",
-    name: "Display",
-    sample: "Clients, projects and requests",
-  },
-  {
-    variable: "font-sans",
-    name: "Interface",
-    sample: "Clients, projects and requests",
-  },
-  { variable: "font-mono", name: "Mono", sample: "REQ-0142  apps/web  3 open" },
+  { variable: "font-serif", name: "Display" },
+  { variable: "font-sans", name: "Interface" },
+  { variable: "font-mono", name: "Mono" },
 ]
 
+/**
+ * `specimen` names the sample text of the role. The Foundations route writes
+ * it in the language of the prototype.
+ */
 export const typeRoles = [
   {
     token: "type-display",
     use: "A page title, the headline of an empty state",
-    sample: "Nothing is waiting for you",
+    specimen: "display",
   },
   {
     token: "type-title",
     use: "The title of a section, a card or a dialog",
-    sample: "Requests of this project",
+    specimen: "title",
   },
   {
     token: "type-body",
     use: "Running text and descriptions",
-    sample: "The client asked for the export to include archived projects.",
+    specimen: "body",
   },
   {
     token: "type-ui",
     use: "Controls, rows, menus, tabs",
-    sample: "Open request",
+    specimen: "ui",
   },
   {
     token: "type-label",
     use: "A small label: table header, field group",
-    sample: "Assigned to",
+    specimen: "label",
   },
   {
     token: "type-caption",
     use: "Secondary information under or beside something",
-    sample: "Updated 12 minutes ago",
+    specimen: "caption",
   },
   {
     token: "type-code",
     use: "Shortcuts, counts, paths, identifiers",
-    sample: "REQ-0142",
+    specimen: "code",
   },
-]
+] as const
 
 /** `text-sm` is what shadcn/ui components set their text in. It is pinned to the interface size. */
 export const pinnedSizes = [

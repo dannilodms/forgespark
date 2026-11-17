@@ -14,7 +14,7 @@ export type DetailPaneTab = {
   value: string
   label: string
   /** How many things the tab holds, shown after its label in mono. */
-  count?: number
+  count?: string
   content: ReactNode
 }
 

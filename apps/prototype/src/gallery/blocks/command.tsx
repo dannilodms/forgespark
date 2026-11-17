@@ -19,43 +19,50 @@ import {
   UsersIcon,
 } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
+import { overlays } from "../explanations/overlays"
+import { freeText } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 
+const text = overlays.command
+
 function Commands() {
+  const { t } = useTranslation()
+
   return (
     <>
-      <CommandGroup heading="Go to">
+      <CommandGroup heading={t("gallery.command.goTo")}>
         <CommandItem>
           <InboxIcon />
-          Requests
+          {t("gallery.common.places.requests")}
           <CommandShortcut>G R</CommandShortcut>
         </CommandItem>
         <CommandItem>
           <FolderIcon />
-          Projects
+          {t("gallery.common.places.projects")}
           <CommandShortcut>G P</CommandShortcut>
         </CommandItem>
         <CommandItem>
           <UsersIcon />
-          Clients
+          {t("gallery.common.places.clients")}
           <CommandShortcut>G C</CommandShortcut>
         </CommandItem>
       </CommandGroup>
       <CommandSeparator />
-      <CommandGroup heading="Actions">
+      <CommandGroup heading={t("gallery.command.actions")}>
         <CommandItem>
           <PlusIcon />
-          New request
+          {t("gallery.common.newRequest")}
           <CommandShortcut>N</CommandShortcut>
         </CommandItem>
         <CommandItem>
           <MoonIcon />
-          Change the theme
+          {t("gallery.command.changeTheme")}
         </CommandItem>
         <CommandItem disabled>
           <SettingsIcon />
-          Settings
+          {t("gallery.common.settings")}
         </CommandItem>
       </CommandGroup>
     </>
@@ -63,23 +70,24 @@ function Commands() {
 }
 
 function CommandPalette() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
 
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)}>
-        Open the command palette
+        {text.open}
       </Button>
       <CommandDialog
         open={open}
         onOpenChange={setOpen}
-        title="Command palette"
-        description="Search for a place to go or an action to run."
+        title={t("gallery.command.title")}
+        description={t("gallery.command.description")}
       >
         <Command>
-          <CommandInput placeholder="Search for a place or an action" />
+          <CommandInput placeholder={t("gallery.command.placeholder")} />
           <CommandList>
-            <CommandEmpty>Nothing matches this search.</CommandEmpty>
+            <CommandEmpty>{t("gallery.command.empty")}</CommandEmpty>
             <Commands />
           </CommandList>
         </Command>
@@ -90,17 +98,18 @@ function CommandPalette() {
 
 /** A palette whose search matches nothing, so the empty state shows. */
 function SearchWithNoMatch() {
-  const [search, setSearch] = useState("payroll")
+  const { t } = useTranslation()
+  const [search, setSearch] = useState<string>(freeText.searchWithNoMatch)
 
   return (
     <Command className="h-auto border">
       <CommandInput
-        placeholder="Search for a place or an action"
+        placeholder={t("gallery.command.placeholder")}
         value={search}
         onValueChange={setSearch}
       />
       <CommandList>
-        <CommandEmpty>Nothing matches this search.</CommandEmpty>
+        <CommandEmpty>{t("gallery.command.empty")}</CommandEmpty>
         <Commands />
       </CommandList>
     </Command>
@@ -108,68 +117,60 @@ function SearchWithNoMatch() {
 }
 
 export function CommandBlock() {
+  const { t } = useTranslation()
+
   return (
-    <Section
-      title="Command"
-      note="A list of places and actions filtered by typing. As the command palette, it opens over any screen. The arrow keys move through it and Enter runs the item."
-    >
-      <Part
-        title="Typical"
-        note="The palette opens in a dialog, with the search field already focused."
-      >
+    <Section {...text.about}>
+      <Part {...text.typical}>
         <Frame>
           <CommandPalette />
         </Frame>
       </Part>
 
-      <Part
-        title="In place"
-        note="The same list set into a pane, for a picker that stays on the screen."
-      >
+      <Part {...text.inPlace}>
         <Frame className="max-w-md">
           <Command className="h-auto border">
-            <CommandInput placeholder="Search for a place or an action" />
+            <CommandInput placeholder={t("gallery.command.placeholder")} />
             <CommandList>
-              <CommandEmpty>Nothing matches this search.</CommandEmpty>
+              <CommandEmpty>{t("gallery.command.empty")}</CommandEmpty>
               <Commands />
             </CommandList>
           </Command>
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A search that matches nothing says so, and a list with no item says there is nothing to choose. A long item is cut with an ellipsis."
-      >
+      <Part {...text.edgeCases}>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] gap-3">
           <Frame>
             <SearchWithNoMatch />
           </Frame>
           <Frame>
             <Command className="h-auto border">
-              <CommandInput placeholder="Search the recent requests" />
+              <CommandInput
+                placeholder={t("gallery.command.recentPlaceholder")}
+              />
               <CommandList>
-                <CommandEmpty>No request was opened yet.</CommandEmpty>
+                <CommandEmpty>{t("gallery.command.noneOpened")}</CommandEmpty>
               </CommandList>
             </Command>
           </Frame>
           <Frame>
             <Command className="h-auto border">
-              <CommandInput placeholder="Buscar un lugar o una acción" />
+              <CommandInput placeholder={t("gallery.command.placeholder")} />
               <CommandList>
-                <CommandEmpty>Nada coincide con esta búsqueda.</CommandEmpty>
-                <CommandGroup heading="Ir a">
+                <CommandEmpty>{t("gallery.command.empty")}</CommandEmpty>
+                <CommandGroup heading={t("gallery.command.goTo")}>
                   <CommandItem>
                     <InboxIcon />
                     <span className="truncate">
-                      Solicitudes que esperan la aprobación del cliente
+                      {t("gallery.command.long.waiting")}
                     </span>
                     <CommandShortcut>G A</CommandShortcut>
                   </CommandItem>
                   <CommandItem>
                     <FolderIcon />
                     <span className="truncate">
-                      Projetos arquivados nos últimos doze meses
+                      {t("gallery.command.long.archived")}
                     </span>
                   </CommandItem>
                 </CommandGroup>

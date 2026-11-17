@@ -1,12 +1,18 @@
-/** The routes of the gallery, in the order of DESIGN.md. A new route is added here. */
+/**
+ * The routes of the gallery, in the order of DESIGN.md. A new route is added
+ * here, with its name in the translation files under
+ * `gallery.navigation.sections`.
+ */
 export const gallerySections = [
-  { to: "/gallery/foundations", label: "Foundations" },
-  { to: "/gallery/actions", label: "Actions" },
-  { to: "/gallery/inputs", label: "Inputs" },
-  { to: "/gallery/navigation", label: "Navigation" },
-  { to: "/gallery/data-display", label: "Data display" },
-  { to: "/gallery/feedback", label: "Feedback" },
-  { to: "/gallery/overlays", label: "Overlays" },
-  { to: "/gallery/do-and-dont", label: "Do and Don't" },
-  { to: "/gallery/recipes", label: "Recipes" },
+  { to: "/gallery/foundations", name: "foundations" },
+  { to: "/gallery/actions", name: "actions" },
+  { to: "/gallery/inputs", name: "inputs" },
+  { to: "/gallery/navigation", name: "navigation" },
+  { to: "/gallery/data-display", name: "dataDisplay" },
+  { to: "/gallery/feedback", name: "feedback" },
+  { to: "/gallery/overlays", name: "overlays" },
+  { to: "/gallery/do-and-dont", name: "doAndDont" },
+  { to: "/gallery/recipes", name: "recipes" },
 ] as const
+
+export type GallerySection = (typeof gallerySections)[number]["name"]

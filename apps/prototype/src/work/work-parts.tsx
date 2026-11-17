@@ -186,7 +186,7 @@ export function ItemDetail({
 }) {
   const { t } = useTranslation()
   const statusWord = useStatusWord()
-  const { day } = useFormat()
+  const { day, number } = useFormat()
 
   const facts = [
     { label: t("work.detail.owner"), value: item.owner },
@@ -235,7 +235,7 @@ export function ItemDetail({
         {
           value: "activity",
           label: t("work.detail.tabs.activity"),
-          count: item.activity.length,
+          count: number(item.activity.length),
           content: (
             <ol className="flex max-w-prose flex-col">
               {item.activity.map((entry) => (
@@ -286,6 +286,7 @@ export function NewItemDialog({
   onCreate: (draft: Draft) => void
 }) {
   const { t } = useTranslation()
+  const { number } = useFormat()
   const id = useId()
   const titleField = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState("")
@@ -326,6 +327,7 @@ export function NewItemDialog({
       description={t("work.form.intro")}
       submitLabel={t(`work.form.submit.${place}`)}
       cancelLabel={t("work.form.cancel")}
+      closeLabel={t("work.form.close")}
       onSubmit={submit}
     >
       <Field data-invalid={errors.title ? true : undefined}>
@@ -345,7 +347,9 @@ export function NewItemDialog({
         />
         {errors.title ? (
           <FormDialogError id={`${id}-title-error`}>
-            {t(`work.form.errors.${errors.title}`, { max: titleMaxLength })}
+            {t(`work.form.errors.${errors.title}`, {
+              max: number(titleMaxLength),
+            })}
           </FormDialogError>
         ) : null}
       </Field>

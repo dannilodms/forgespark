@@ -30,18 +30,21 @@ function Command({
   )
 }
 
+/**
+ * `title` and `description` name the palette for assistive technology. The
+ * screen supplies both, in its own language. Escape closes the palette: it
+ * has no close button.
+ */
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
+  title,
+  description,
   children,
   className,
-  showCloseButton = false,
   ...props
 }: Omit<React.ComponentProps<typeof Dialog>, "children"> & {
-  title?: string
-  description?: string
+  title: string
+  description: string
   className?: string
-  showCloseButton?: boolean
   children: React.ReactNode
 }) {
   return (
@@ -51,7 +54,7 @@ function CommandDialog({
           "top-1/4 translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-lg",
           className
         )}
-        showCloseButton={showCloseButton}
+        showCloseButton={false}
       >
         <DialogHeader className="sr-only">
           <DialogTitle>{title}</DialogTitle>

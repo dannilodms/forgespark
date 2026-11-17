@@ -6,89 +6,80 @@ import {
 } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import { CircleXIcon, InfoIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
+import { feedback } from "../explanations/feedback"
+import { partTitle } from "../explanations/shared"
 import { Frame, Part, Section } from "../parts"
 
 export function AlertBlock() {
+  const { t } = useTranslation()
+  const text = feedback.alert
+
   return (
-    <Section
-      title="Alert"
-      note="A message that stays on the screen, beside what it is about. For a message about something that just happened, use a toast."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame className="max-w-xl">
           <Alert>
             <InfoIcon />
-            <AlertTitle>Billing closes on Friday</AlertTitle>
+            <AlertTitle>{t("gallery.alert.billingCloses.title")}</AlertTitle>
             <AlertDescription>
-              A request closed after that day goes on the invoice of next month.
+              {t("gallery.alert.billingCloses.description")}
             </AlertDescription>
           </Alert>
         </Frame>
       </Part>
 
-      <Part
-        title="Variants"
-        note="The destructive variant reports an error. It always carries an icon, so it does not depend on colour."
-      >
+      <Part {...text.variants}>
         <Frame className="max-w-xl flex-col flex-nowrap items-stretch">
           <Alert>
             <InfoIcon />
-            <AlertTitle>This project is archived</AlertTitle>
+            <AlertTitle>{t("gallery.alert.archived.title")}</AlertTitle>
             <AlertDescription>
-              Its requests can be read, and no new one can be opened.
+              {t("gallery.alert.archived.description")}
             </AlertDescription>
           </Alert>
           <Alert variant="destructive">
             <CircleXIcon />
-            <AlertTitle>The export failed</AlertTitle>
+            <AlertTitle>{t("gallery.common.exportFailed")}</AlertTitle>
             <AlertDescription>
-              The file was not created. Nothing was changed in the project.
+              {t("gallery.alert.exportFailedDescription")}
             </AlertDescription>
           </Alert>
         </Frame>
       </Part>
 
-      <Part
-        title="What it can carry"
-        note="A title alone, a description alone, and an action at the end."
-      >
+      <Part {...text.carries}>
         <Frame className="max-w-xl flex-col flex-nowrap items-stretch">
           <Alert>
             <InfoIcon />
-            <AlertTitle>Two people are editing this request.</AlertTitle>
+            <AlertTitle>{t("gallery.alert.twoEditing")}</AlertTitle>
           </Alert>
           <Alert>
-            <AlertDescription>
-              Hours logged today can be changed until midnight.
-            </AlertDescription>
+            <AlertDescription>{t("gallery.alert.hoursToday")}</AlertDescription>
           </Alert>
           <Alert variant="destructive">
             <CircleXIcon />
-            <AlertTitle>The export failed</AlertTitle>
-            <AlertDescription>The file was not created.</AlertDescription>
+            <AlertTitle>{t("gallery.common.exportFailed")}</AlertTitle>
+            <AlertDescription>
+              {t("gallery.alert.fileNotCreated")}
+            </AlertDescription>
             <AlertAction>
               <Button variant="outline" size="xs">
-                Try again
+                {t("gallery.alert.tryAgain")}
               </Button>
             </AlertAction>
           </Alert>
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long title and a long description wrap inside the alert."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-xs">
           <Alert variant="destructive">
             <CircleXIcon />
-            <AlertTitle>
-              Não foi possível enviar a solicitação para a aprovação do cliente
-            </AlertTitle>
+            <AlertTitle>{t("gallery.alert.long.title")}</AlertTitle>
             <AlertDescription>
-              O responsável pelo projeto ainda não tem um e-mail cadastrado.
-              Cadastre o e-mail e envie a solicitação outra vez.
+              {t("gallery.alert.long.description")}
             </AlertDescription>
           </Alert>
         </Frame>

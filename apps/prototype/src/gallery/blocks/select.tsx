@@ -7,15 +7,23 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { Separator } from "@workspace/ui/components/separator"
+import { useTranslation } from "react-i18next"
 
+import { dataDisplay } from "../explanations/data-display"
+import { inputs } from "../explanations/inputs"
+import { partTitle, pinnedStates } from "../explanations/shared"
 import { Frame, Part, Section } from "../parts"
 import { StateMatrix, previewState } from "../state-matrix"
 
-const priorities = [
-  { value: "low", label: "Low" },
-  { value: "normal", label: "Normal" },
-  { value: "urgent", label: "Urgent" },
-]
+/** The sample priorities, in the language of the prototype. */
+export function usePriorities() {
+  const { t } = useTranslation()
+  return [
+    { value: "low", label: t("gallery.common.priority.low") },
+    { value: "normal", label: t("gallery.common.priority.normal") },
+    { value: "urgent", label: t("gallery.common.priority.urgent") },
+  ] as const
+}
 
 function PrioritySelect({
   size,
@@ -28,6 +36,8 @@ function PrioritySelect({
   "aria-invalid"?: boolean
   "data-preview"?: string
 }) {
+  const priorities = usePriorities()
+
   return (
     <Select items={priorities} defaultValue="normal">
       <SelectTrigger size={size} aria-label={label} {...trigger}>
@@ -47,35 +57,32 @@ function PrioritySelect({
 }
 
 export function SelectBlock() {
+  const { t } = useTranslation()
+  const label = t("gallery.common.priority.label")
+
   return (
-    <Section
-      title="Select"
-      note="One choice from a short list that does not fit on the screen as buttons."
-    >
-      <Part title="Typical">
+    <Section {...inputs.select.about}>
+      <Part title={partTitle.typical}>
         <Frame>
-          <PrioritySelect label="Priority" />
+          <PrioritySelect label={label} />
         </Frame>
       </Part>
 
-      <Part title="Sizes">
+      <Part title={partTitle.sizes}>
         <Frame>
-          <PrioritySelect label="Priority, small" size="sm" />
-          <PrioritySelect label="Priority, default" />
+          <PrioritySelect label={`${label}, sm`} size="sm" />
+          <PrioritySelect label={`${label}, default`} />
         </Frame>
       </Part>
 
-      <Part
-        title="States"
-        note="Each state is pinned, so all of them are visible at once."
-      >
+      <Part {...pinnedStates}>
         <Frame>
           <StateMatrix
             rows={["trigger"] as const}
             states={["default", "hover", "focus", "disabled", "invalid"]}
             render={(_, state) => (
               <PrioritySelect
-                label={`Priority, ${state}`}
+                label={`${label}, ${state}`}
                 aria-invalid={state === "invalid" || undefined}
                 {...previewState(state)}
               />
@@ -88,23 +95,23 @@ export function SelectBlock() {
 }
 
 export function SeparatorBlock() {
+  const { t } = useTranslation()
+  const text = dataDisplay.separator
+
   return (
-    <Section
-      title="Separator"
-      note="A line between two groups inside one surface. Between surfaces, the border of the surface does this."
-    >
-      <Part title="Horizontal and vertical">
+    <Section {...text.about}>
+      <Part {...text.directions}>
         <Frame className="max-w-sm flex-col items-stretch">
-          <span>Open requests</span>
+          <span>{t("gallery.common.openRequests")}</span>
           <Separator />
-          <span>Closed requests</span>
+          <span>{t("gallery.common.closedRequests")}</span>
         </Frame>
         <Frame className="h-14 max-w-sm">
-          <span>Clients</span>
+          <span>{t("gallery.common.places.clients")}</span>
           <Separator orientation="vertical" />
-          <span>Projects</span>
+          <span>{t("gallery.common.places.projects")}</span>
           <Separator orientation="vertical" />
-          <span>Requests</span>
+          <span>{t("gallery.common.places.requests")}</span>
         </Frame>
       </Part>
     </Section>

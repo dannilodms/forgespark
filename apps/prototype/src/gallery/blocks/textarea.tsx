@@ -9,42 +9,43 @@ import {
 import { Kbd } from "@workspace/ui/components/kbd"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { CopyIcon, SearchIcon, SendIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
+import { useFormat } from "#stores/language"
+
+import { inputs } from "../explanations/inputs"
+import { partTitle, pinnedStates } from "../explanations/shared"
+import { freeText, sampleRequest } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 import { StateMatrix, previewState } from "../state-matrix"
 
 export function TextareaBlock() {
+  const { t } = useTranslation()
+  const text = inputs.textarea
+
   return (
-    <Section
-      title="Textarea"
-      note="Several lines of text typed by a person. It grows with what is typed."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame className="max-w-sm">
           <Textarea
-            aria-label="Description"
-            placeholder="What does the client need, and why?"
+            aria-label={t("gallery.common.description")}
+            placeholder={t("gallery.textarea.placeholder")}
           />
         </Frame>
       </Part>
 
-      <Part
-        title="States"
-        note="Each state is pinned, so all of them are visible at once."
-      >
+      <Part {...pinnedStates}>
         <Frame>
           <StateMatrix
             rows={["empty", "filled"] as const}
             states={["default", "hover", "focus", "disabled", "invalid"]}
             render={(row, state) => (
               <Textarea
-                aria-label={`Description, ${row}, ${state}`}
+                aria-label={`${t("gallery.common.description")}, ${row}, ${state}`}
                 className="w-36"
-                placeholder="Description"
+                placeholder={t("gallery.common.description")}
                 defaultValue={
-                  row === "filled"
-                    ? "The export leaves out archived projects."
-                    : undefined
+                  row === "filled" ? freeText.shortDescription : undefined
                 }
                 aria-invalid={state === "invalid" || undefined}
                 {...previewState(state)}
@@ -54,14 +55,11 @@ export function TextareaBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long text wraps and the field grows. A word with no space breaks inside the field."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-xs">
           <Textarea
-            aria-label="Long description"
-            defaultValue="O cliente pediu que a exportação inclua os projetos arquivados e os anexos de cada solicitação: https://clientes.exemplo.com.br/projetos/portal-de-cobranca/solicitacoes/exportacao"
+            aria-label={t("gallery.textarea.longDescription")}
+            defaultValue={freeText.longDescription}
           />
         </Frame>
       </Part>
@@ -70,17 +68,18 @@ export function TextareaBlock() {
 }
 
 export function InputGroupBlock() {
+  const { t } = useTranslation()
+  const { number } = useFormat()
+  const text = inputs.inputGroup
+
   return (
-    <Section
-      title="InputGroup"
-      note="A field with something attached inside its border: an icon, a unit, a shortcut or a small button. The command palette uses it for its search field."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame className="max-w-sm">
           <InputGroup>
             <InputGroupInput
-              aria-label="Search requests"
-              placeholder="Search requests"
+              aria-label={t("gallery.common.searchRequests")}
+              placeholder={t("gallery.common.searchRequests")}
             />
             <InputGroupAddon>
               <SearchIcon />
@@ -92,62 +91,61 @@ export function InputGroupBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="What can be attached"
-        note="A text at the start or the end, a button at the end, and a row of actions under a textarea."
-      >
+      <Part {...text.attached}>
         <Frame className="max-w-sm flex-col flex-nowrap items-stretch">
           <InputGroup>
             <InputGroupAddon>
               <InputGroupText className="font-mono">https://</InputGroupText>
             </InputGroupAddon>
             <InputGroupInput
-              aria-label="Address of the client"
-              defaultValue="northwind.example"
+              aria-label={t("gallery.inputGroup.clientAddress")}
+              defaultValue={freeText.clientAddress}
             />
           </InputGroup>
           <InputGroup>
             <InputGroupInput
-              aria-label="Hours estimated"
-              defaultValue="12"
+              aria-label={t("gallery.inputGroup.hoursEstimated")}
+              defaultValue={number(12)}
               inputMode="numeric"
             />
             <InputGroupAddon align="inline-end">
-              <InputGroupText>hours</InputGroupText>
+              <InputGroupText>
+                {t("gallery.inputGroup.hoursUnit")}
+              </InputGroupText>
             </InputGroupAddon>
           </InputGroup>
           <InputGroup>
             <InputGroupInput
-              aria-label="Link to the request"
-              defaultValue="REQ-0142"
+              aria-label={t("gallery.inputGroup.requestLink")}
+              defaultValue={sampleRequest.id}
               className="font-mono"
               readOnly
             />
             <InputGroupAddon align="inline-end">
-              <InputGroupButton size="icon-xs" aria-label="Copy the link">
+              <InputGroupButton
+                size="icon-xs"
+                aria-label={t("gallery.common.copyLink")}
+              >
                 <CopyIcon />
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>
           <InputGroup>
             <InputGroupTextarea
-              aria-label="Comment"
-              placeholder="Write a comment"
+              aria-label={t("gallery.inputGroup.comment")}
+              placeholder={t("gallery.inputGroup.commentPlaceholder")}
             />
             <InputGroupAddon align="block-end" className="justify-end">
               <InputGroupButton variant="default">
                 <SendIcon />
-                Send
+                {t("gallery.inputGroup.send")}
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>
         </Frame>
       </Part>
 
-      <Part
-        title="States"
-        note="The group shows the focus, the error and the disabled state of the control inside it."
-      >
+      <Part {...text.states}>
         <Frame>
           <StateMatrix
             rows={["group"] as const}
@@ -155,8 +153,8 @@ export function InputGroupBlock() {
             render={(_, state) => (
               <InputGroup className="w-44">
                 <InputGroupInput
-                  aria-label={`Search, ${state}`}
-                  placeholder="Search"
+                  aria-label={`${t("gallery.common.search")}, ${state}`}
+                  placeholder={t("gallery.common.search")}
                   aria-invalid={state === "invalid" || undefined}
                   {...previewState(state)}
                 />
@@ -169,20 +167,17 @@ export function InputGroupBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long attached text keeps its width and the control takes what is left."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-xs">
           <InputGroup>
             <InputGroupAddon>
               <InputGroupText className="font-mono">
-                clientes.exemplo.com.br/
+                {freeText.longHost}
               </InputGroupText>
             </InputGroupAddon>
             <InputGroupInput
-              aria-label="Path of the project"
-              defaultValue="portal-de-cobranca"
+              aria-label={t("gallery.inputGroup.projectPath")}
+              defaultValue={freeText.longPath}
             />
           </InputGroup>
         </Frame>

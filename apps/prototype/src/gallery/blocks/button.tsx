@@ -5,76 +5,59 @@ import {
   PlusIcon,
   SettingsIcon,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
+import { actions } from "../explanations/actions"
+import { partTitle, pinnedStates } from "../explanations/shared"
 import { Frame, Part, Section } from "../parts"
 import { StateMatrix, previewState } from "../state-matrix"
 
+const text = actions.button
+
+/** Each variant, with the key of its sample label in the translation files. */
 const variants = [
-  {
-    variant: "default",
-    label: "Create request",
-    when: "The one primary action of a group.",
-  },
-  {
-    variant: "secondary",
-    label: "Save draft",
-    when: "An action beside the primary one.",
-  },
-  {
-    variant: "outline",
-    label: "Export",
-    when: "An action that stands alone on a surface.",
-  },
-  {
-    variant: "ghost",
-    label: "Cancel",
-    when: "The quiet way out, and actions in a toolbar.",
-  },
-  {
-    variant: "destructive",
-    label: "Delete project",
-    when: "An action that removes something.",
-  },
-  {
-    variant: "link",
-    label: "See the history",
-    when: "An action that reads as part of a sentence.",
-  },
+  { variant: "default", label: "gallery.button.createRequest" },
+  { variant: "secondary", label: "gallery.common.saveDraft" },
+  { variant: "outline", label: "gallery.button.export" },
+  { variant: "ghost", label: "gallery.common.cancel" },
+  { variant: "destructive", label: "gallery.common.deleteProject" },
+  { variant: "link", label: "gallery.button.seeHistory" },
 ] as const
 
 const sizes = ["xs", "sm", "default", "lg"] as const
 
 export function ButtonBlock() {
+  const { t } = useTranslation()
+
   return (
-    <Section
-      title="Button"
-      note="Starts an action. One button in a group is primary; the others are secondary or ghost."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
-          <Button>Save changes</Button>
-          <Button variant="ghost">Cancel</Button>
+          <Button>{t("gallery.common.saveChanges")}</Button>
+          <Button variant="ghost">{t("gallery.common.cancel")}</Button>
         </Frame>
       </Part>
 
-      <Part title="Variants">
+      <Part title={partTitle.variants}>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3">
-          {variants.map(({ variant, label, when }) => (
+          {variants.map(({ variant, label }) => (
             <Frame key={variant} className="flex-col items-start gap-2">
-              <Button variant={variant}>{label}</Button>
+              <Button variant={variant}>{t(label)}</Button>
               <span className="type-code text-muted-foreground">{variant}</span>
-              <span className="type-caption text-muted-foreground">{when}</span>
+              <span className="type-caption text-muted-foreground">
+                {text.when[variant]}
+              </span>
             </Frame>
           ))}
         </div>
       </Part>
 
-      <Part title="Sizes">
+      <Part title={partTitle.sizes}>
         <Frame className="items-end">
           {sizes.map((size) => (
             <div key={size} className="flex flex-col items-start gap-1">
               <Button variant="secondary" size={size}>
-                Open request
+                {t("gallery.button.openRequest")}
               </Button>
               <span className="type-code text-muted-foreground">{size}</span>
             </div>
@@ -82,37 +65,35 @@ export function ButtonBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="With an icon or a shortcut"
-        note="An icon leads or trails the label. A button with an icon alone names its action for a screen reader. The shortcut of an action is a chip at the end."
-      >
+      <Part {...text.withIcon}>
         <Frame>
           <Button>
             <PlusIcon data-icon="inline-start" />
-            New request
+            {t("gallery.common.newRequest")}
           </Button>
           <Button variant="secondary">
-            Next step
+            {t("gallery.button.nextStep")}
             <ArrowRightIcon data-icon="inline-end" />
           </Button>
-          <Button variant="outline" size="icon" aria-label="Settings">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label={t("gallery.common.settings")}
+          >
             <SettingsIcon />
           </Button>
           <Button>
-            Save changes
+            {t("gallery.common.saveChanges")}
             <ButtonShortcut>Ctrl S</ButtonShortcut>
           </Button>
           <Button variant="secondary">
-            Search
+            {t("gallery.common.search")}
             <ButtonShortcut>Ctrl K</ButtonShortcut>
           </Button>
         </Frame>
       </Part>
 
-      <Part
-        title="States"
-        note="Each state is pinned, so all of them are visible at once."
-      >
+      <Part {...pinnedStates}>
         <Frame>
           <StateMatrix
             rows={variants.map(({ variant }) => variant)}
@@ -131,11 +112,11 @@ export function ButtonBlock() {
                     data-icon="inline-start"
                     className="animate-spin"
                   />
-                  Save changes
+                  {t("gallery.common.saveChanges")}
                 </Button>
               ) : (
                 <Button variant={variant} {...previewState(state)}>
-                  Save changes
+                  {t("gallery.common.saveChanges")}
                 </Button>
               )
             }
@@ -143,21 +124,14 @@ export function ButtonBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long label is cut with an ellipsis inside the width it is given. It never pushes the layout."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-xs">
           <Button className="max-w-full">
-            <span className="truncate">
-              Enviar o pedido de alteração para a aprovação do cliente
-            </span>
+            <span className="truncate">{t("gallery.button.longSend")}</span>
           </Button>
           <Button variant="secondary" className="max-w-full">
             <PlusIcon data-icon="inline-start" />
-            <span className="truncate">
-              Agregar una solicitud nueva a este proyecto
-            </span>
+            <span className="truncate">{t("gallery.button.longAdd")}</span>
           </Button>
         </Frame>
       </Part>

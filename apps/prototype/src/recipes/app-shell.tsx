@@ -166,7 +166,7 @@ export function AppShell({
 
       {/* The containment makes this row the box the fixed sidebar is placed in. */}
       <SidebarProvider className="relative min-h-0 flex-1 contain-layout">
-        <Sidebar collapsible="icon" className="h-full">
+        <Sidebar collapsible="icon" label={navigationLabel} className="h-full">
           <SidebarContent>
             <nav aria-label={navigationLabel}>{navigation}</nav>
           </SidebarContent>

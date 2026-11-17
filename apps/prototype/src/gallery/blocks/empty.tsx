@@ -9,16 +9,19 @@ import {
 } from "@workspace/ui/components/empty"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { InboxIcon, PlusIcon, SearchXIcon } from "lucide-react"
+import { Trans, useTranslation } from "react-i18next"
 
+import { feedback } from "../explanations/feedback"
+import { partTitle } from "../explanations/shared"
+import { freeText } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 
 export function SkeletonBlock() {
+  const text = feedback.skeleton
+
   return (
-    <Section
-      title="Skeleton"
-      note="The shape of content that is still loading. It takes the place and the size of what will arrive, so nothing jumps."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame className="max-w-sm">
           <Skeleton className="size-8 shrink-0 rounded-full" />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -28,10 +31,7 @@ export function SkeletonBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="A list that is loading"
-        note="One skeleton per row, with widths that differ as real text does."
-      >
+      <Part {...text.list}>
         <Frame className="max-w-md flex-col flex-nowrap items-stretch gap-0 p-0">
           {(["w-3/5", "w-4/5", "w-2/5", "w-3/4"] as const).map((width) => (
             <div
@@ -45,10 +45,7 @@ export function SkeletonBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A skeleton shrinks with its container and never pushes the layout."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-40">
           <Skeleton className="h-4 w-80 max-w-full" />
           <Skeleton className="h-3 w-64 max-w-full" />
@@ -59,37 +56,34 @@ export function SkeletonBlock() {
 }
 
 export function EmptyBlock() {
+  const { t } = useTranslation()
+  const text = feedback.empty
+
   return (
-    <Section
-      title="Empty"
-      note="What a list, a table or a pane shows when it has nothing. It says why, and offers the next step when there is one."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
           <Empty>
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <InboxIcon />
               </EmptyMedia>
-              <EmptyTitle>Nothing is waiting for you</EmptyTitle>
+              <EmptyTitle>{t("gallery.empty.nothingWaiting.title")}</EmptyTitle>
               <EmptyDescription>
-                A request assigned to you appears here.
+                {t("gallery.empty.nothingWaiting.description")}
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <Button>
                 <PlusIcon data-icon="inline-start" />
-                New request
+                {t("gallery.common.newRequest")}
               </Button>
             </EmptyContent>
           </Empty>
         </Frame>
       </Part>
 
-      <Part
-        title="After a search, and with two actions"
-        note="A search that finds nothing says what was searched and offers the way back. One action is primary."
-      >
+      <Part {...text.afterSearch}>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-3">
           <Frame>
             <Empty className="border">
@@ -97,53 +91,52 @@ export function EmptyBlock() {
                 <EmptyMedia variant="icon">
                   <SearchXIcon />
                 </EmptyMedia>
-                <EmptyTitle>No request matches</EmptyTitle>
+                <EmptyTitle>{t("gallery.empty.noMatch.title")}</EmptyTitle>
                 <EmptyDescription>
-                  Nothing was found for{" "}
-                  <span className="font-mono">archived export</span>.
+                  <Trans
+                    i18nKey="gallery.empty.noMatch.description"
+                    values={{ search: freeText.search }}
+                    components={{ term: <span className="font-mono" /> }}
+                  />
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
-                <Button variant="outline">Clear the search</Button>
+                <Button variant="outline">
+                  {t("gallery.empty.clearSearch")}
+                </Button>
               </EmptyContent>
             </Empty>
           </Frame>
           <Frame>
             <Empty className="border">
               <EmptyHeader>
-                <EmptyTitle>No project yet</EmptyTitle>
+                <EmptyTitle>{t("gallery.empty.noProject.title")}</EmptyTitle>
                 <EmptyDescription>
-                  A client needs a project before a request can be opened.
+                  {t("gallery.empty.noProject.description")}
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent className="flex-row justify-center">
-                <Button>New project</Button>
-                <Button variant="ghost">Import</Button>
+                <Button>{t("gallery.common.newProject")}</Button>
+                <Button variant="ghost">{t("gallery.empty.import")}</Button>
               </EmptyContent>
             </Empty>
           </Frame>
         </div>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long headline and a long description wrap inside a narrow pane."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-xs">
           <Empty>
             <EmptyHeader>
-              <EmptyTitle>
-                Nenhuma solicitação aguarda a sua aprovação
-              </EmptyTitle>
+              <EmptyTitle>{t("gallery.empty.long.title")}</EmptyTitle>
               <EmptyDescription>
-                Quando um cliente enviar uma solicitação para este projeto, ela
-                aparece aqui com o nome de quem a enviou.
+                {t("gallery.empty.long.description")}
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <Button variant="outline" className="max-w-full">
                 <span className="truncate">
-                  Ver todas as solicitações deste projeto
+                  {t("gallery.empty.long.action")}
                 </span>
               </Button>
             </EmptyContent>

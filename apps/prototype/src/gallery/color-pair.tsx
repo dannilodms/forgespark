@@ -2,6 +2,10 @@ import { cn } from "@workspace/ui/lib/utils"
 import { CheckIcon, CircleCheckIcon, TriangleAlertIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
+import { foundations } from "./explanations/foundations"
+
+const text = foundations.contrast
+
 type Rgb = [number, number, number]
 
 // Resolves any CSS colour to sRGB by painting one pixel. A translucent colour
@@ -96,11 +100,11 @@ export function ColorPair({
   const level = !measure
     ? ""
     : minimum === null
-      ? "no level to reach"
+      ? text.noLevel
       : !passes
-        ? `fails ${minimum}:1`
+        ? `${text.fails} ${minimum}:1`
         : minimum === 3
-          ? "passes 3:1"
+          ? `${text.passes} 3:1`
           : measure.ratio >= 7
             ? "AAA"
             : "AA"
@@ -129,7 +133,7 @@ export function ColorPair({
       <div className="flex flex-1 flex-col gap-0.5 border-t bg-card p-3">
         <span className="type-label">{name}</span>
         <span className="type-code text-muted-foreground">
-          {foreground} on {background}
+          {foreground} {text.on} {background}
         </span>
         {measure ? (
           <span

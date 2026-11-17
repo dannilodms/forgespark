@@ -7,33 +7,40 @@ import {
 } from "@workspace/ui/components/input-otp"
 import { useState } from "react"
 import type { ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 
+import { inputs } from "../explanations/inputs"
+import { partTitle, pinnedStates } from "../explanations/shared"
+import { freeText } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 import { StateMatrix, previewState } from "../state-matrix"
 
 export function InputBlock() {
+  const { t } = useTranslation()
+  const text = inputs.input
+
   return (
-    <Section title="Input" note="One line of text typed by a person.">
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame className="max-w-sm">
-          <Input aria-label="E-mail" placeholder="you@company.com" />
+          <Input
+            aria-label={t("gallery.common.email")}
+            placeholder={t("gallery.common.emailPlaceholder")}
+          />
         </Frame>
       </Part>
 
-      <Part
-        title="States"
-        note="Each state is pinned, so all of them are visible at once."
-      >
+      <Part {...pinnedStates}>
         <Frame>
           <StateMatrix
             rows={["empty", "filled"] as const}
             states={["default", "hover", "focus", "disabled", "invalid"]}
             render={(row, state) => (
               <Input
-                aria-label="Project name"
+                aria-label={`${t("gallery.common.projectName")}, ${row}, ${state}`}
                 className="w-40"
-                placeholder="Project name"
-                defaultValue={row === "filled" ? "Billing portal" : undefined}
+                placeholder={t("gallery.common.projectName")}
+                defaultValue={row === "filled" ? freeText.project : undefined}
                 aria-invalid={state === "invalid" || undefined}
                 {...previewState(state)}
               />
@@ -42,14 +49,11 @@ export function InputBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A value longer than the field scrolls inside it."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-xs">
           <Input
-            aria-label="Address"
-            defaultValue="https://clientes.exemplo.com.br/projetos/portal-de-cobranca/solicitacoes"
+            aria-label={t("gallery.input.address")}
+            defaultValue={freeText.longAddress}
           />
         </Frame>
       </Part>
@@ -93,14 +97,15 @@ function Slots({ from }: { from: number }) {
 }
 
 export function InputOTPBlock() {
+  const { t } = useTranslation()
+  const text = inputs.inputOTP
+  const label = t("gallery.common.loginCode")
+
   return (
-    <Section
-      title="InputOTP"
-      note="A short code typed one character per box, such as the login code. Pasting the whole code fills every box."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
-          <InputOTP aria-label="Login code" maxLength={6} inputMode="numeric">
+          <InputOTP aria-label={label} maxLength={6} inputMode="numeric">
             <Slots from={0} />
             <InputOTPSeparator />
             <Slots from={3} />
@@ -108,10 +113,10 @@ export function InputOTPBlock() {
         </Frame>
       </Part>
 
-      <Part title="Filled, invalid and disabled">
+      <Part {...text.filled}>
         <Frame className="gap-6">
           <FilledInputOTP
-            aria-label="Login code, filled"
+            aria-label={`${label}, filled`}
             maxLength={6}
             initial="481027"
           >
@@ -120,7 +125,7 @@ export function InputOTPBlock() {
             <Slots from={3} />
           </FilledInputOTP>
           <FilledInputOTP
-            aria-label="Login code, wrong"
+            aria-label={`${label}, invalid`}
             maxLength={6}
             initial="481027"
             aria-invalid
@@ -130,7 +135,7 @@ export function InputOTPBlock() {
             <Slots from={3} />
           </FilledInputOTP>
           <FilledInputOTP
-            aria-label="Login code, disabled"
+            aria-label={`${label}, disabled`}
             maxLength={6}
             initial="481"
             disabled

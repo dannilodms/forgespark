@@ -7,6 +7,7 @@ import {
   PopoverBlock,
   TooltipBlock,
 } from "../../gallery/blocks/menu"
+import { overlays } from "../../gallery/explanations/overlays"
 import { GalleryPage } from "../../gallery/parts"
 
 export const Route = createFileRoute("/gallery/overlays")({
@@ -15,10 +16,7 @@ export const Route = createFileRoute("/gallery/overlays")({
 
 function Overlays() {
   return (
-    <GalleryPage
-      title="Overlays"
-      lead="What opens over the page. Each one opens from a button that says what it opens, and closes with Escape."
-    >
+    <GalleryPage section="overlays" lead={overlays.lead}>
       <DialogBlock />
       <DropdownMenuBlock />
       <PopoverBlock />

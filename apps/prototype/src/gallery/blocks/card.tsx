@@ -18,39 +18,56 @@ import {
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { StatusIndicator } from "@workspace/ui/components/status-indicator"
 import { MoreHorizontalIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
+import { useFormat } from "#stores/language"
+
+import { dataDisplay } from "../explanations/data-display"
+import { partTitle } from "../explanations/shared"
+import { freeText } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 
 function Facts() {
+  const { t } = useTranslation()
+  const { number, ago } = useFormat()
+
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-      <dt className="text-muted-foreground">Open requests</dt>
-      <dd className="font-mono">7</dd>
-      <dt className="text-muted-foreground">Hours this month</dt>
-      <dd className="font-mono">42.5</dd>
-      <dt className="text-muted-foreground">Last delivery</dt>
-      <dd>12 days ago</dd>
+      <dt className="text-muted-foreground">
+        {t("gallery.common.openRequests")}
+      </dt>
+      <dd className="font-mono">{number(7)}</dd>
+      <dt className="text-muted-foreground">
+        {t("gallery.common.hoursThisMonth")}
+      </dt>
+      <dd className="font-mono">{number(42.5, 1)}</dd>
+      <dt className="text-muted-foreground">
+        {t("gallery.card.lastDelivery")}
+      </dt>
+      <dd>{ago(12, "day")}</dd>
     </dl>
   )
 }
 
 export function CardBlock() {
+  const { t } = useTranslation()
+  const text = dataDisplay.card
+
   return (
-    <Section
-      title="Card"
-      note="A group of facts and actions about one thing, on a page that shows several. Panes of a work screen are not cards: they are flush and split by lines."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
           <Card className="w-full max-w-sm">
             <CardHeader>
-              <CardTitle>Billing portal</CardTitle>
-              <CardDescription>Northwind Traders</CardDescription>
+              <CardTitle>{freeText.project}</CardTitle>
+              <CardDescription>{freeText.client}</CardDescription>
               <CardAction>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="More actions for Billing portal"
+                  aria-label={t("gallery.common.moreActions", {
+                    name: freeText.project,
+                  })}
                 >
                   <MoreHorizontalIcon />
                 </Button>
@@ -60,25 +77,29 @@ export function CardBlock() {
               <Facts />
             </CardContent>
             <CardFooter className="justify-between gap-2">
-              <StatusIndicator status="working">In progress</StatusIndicator>
+              <StatusIndicator status="working">
+                {t("gallery.common.status.working")}
+              </StatusIndicator>
               <Button variant="secondary" size="sm">
-                Open project
+                {t("gallery.card.openProject")}
               </Button>
             </CardFooter>
           </Card>
         </Frame>
       </Part>
 
-      <Part title="Sizes">
+      <Part title={partTitle.sizes}>
         <Frame className="items-start">
           {(["sm", "default"] as const).map((size) => (
             <div key={size} className="flex flex-col items-start gap-1">
               <Card size={size} className="w-56">
                 <CardHeader>
-                  <CardTitle>Billing portal</CardTitle>
-                  <CardDescription>Northwind Traders</CardDescription>
+                  <CardTitle>{freeText.project}</CardTitle>
+                  <CardDescription>{freeText.client}</CardDescription>
                 </CardHeader>
-                <CardContent>7 open requests</CardContent>
+                <CardContent>
+                  {t("gallery.common.openRequestsCount", { count: 7 })}
+                </CardContent>
               </Card>
               <span className="type-code text-muted-foreground">{size}</span>
             </div>
@@ -86,24 +107,19 @@ export function CardBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long title and a long description wrap. A card that is loading keeps its shape with skeletons."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="items-start">
           <Card className="w-full max-w-xs">
             <CardHeader>
-              <CardTitle>
-                Portal de cobrança e de acompanhamento das solicitações
-              </CardTitle>
-              <CardDescription>
-                Comércio e Distribuição de Alimentos Vale do Rio Doce Ltda.
-              </CardDescription>
+              <CardTitle>{freeText.longProject}</CardTitle>
+              <CardDescription>{freeText.longClient}</CardDescription>
               <CardAction>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Mais ações do projeto"
+                  aria-label={t("gallery.common.moreActions", {
+                    name: freeText.longProject,
+                  })}
                 >
                   <MoreHorizontalIcon />
                 </Button>
@@ -139,33 +155,33 @@ const samplePicture = `data:image/svg+xml,${encodeURIComponent(
 const brokenPicture = "data:image/png;base64,AAAA"
 
 export function AvatarBlock() {
+  const { t } = useTranslation()
+  const text = dataDisplay.avatar
+
   return (
-    <Section
-      title="Avatar"
-      note="The picture of a person, or the initials when there is no picture. It always sits beside the name or carries it for a screen reader."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
           <Avatar>
             <AvatarImage src={samplePicture} alt="" />
-            <AvatarFallback>AL</AvatarFallback>
+            <AvatarFallback>{freeText.anaInitials}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
-            <span className="font-medium">Ana Lima</span>
+            <span className="font-medium">{freeText.ana}</span>
             <span className="type-caption text-muted-foreground">
-              Northwind Traders
+              {freeText.client}
             </span>
           </div>
         </Frame>
       </Part>
 
-      <Part title="Sizes">
+      <Part title={partTitle.sizes}>
         <Frame className="items-end">
           {(["sm", "default", "lg"] as const).map((size) => (
             <div key={size} className="flex flex-col items-start gap-1">
               <Avatar size={size}>
-                <AvatarImage src={samplePicture} alt="Ana Lima" />
-                <AvatarFallback>AL</AvatarFallback>
+                <AvatarImage src={samplePicture} alt={freeText.ana} />
+                <AvatarFallback>{freeText.anaInitials}</AvatarFallback>
               </Avatar>
               <span className="type-code text-muted-foreground">{size}</span>
             </div>
@@ -173,52 +189,52 @@ export function AvatarBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="A group"
-        note="People on the same thing overlap. The ones that do not fit become a count."
-      >
+      <Part {...text.group}>
         <Frame>
           <AvatarGroup>
             <Avatar>
-              <AvatarImage src={samplePicture} alt="Ana Lima" />
-              <AvatarFallback>AL</AvatarFallback>
+              <AvatarImage src={samplePicture} alt={freeText.ana} />
+              <AvatarFallback>{freeText.anaInitials}</AvatarFallback>
             </Avatar>
             <Avatar>
-              <AvatarFallback aria-label="Bruno Tavares">BT</AvatarFallback>
+              <AvatarFallback aria-label={freeText.bruno}>
+                {freeText.brunoInitials}
+              </AvatarFallback>
             </Avatar>
             <Avatar>
-              <AvatarFallback aria-label="Carla Mendes">CM</AvatarFallback>
+              <AvatarFallback aria-label={freeText.carla}>
+                {freeText.carlaInitials}
+              </AvatarFallback>
             </Avatar>
-            <AvatarGroupCount aria-label="3 more people">+3</AvatarGroupCount>
+            <AvatarGroupCount
+              aria-label={t("gallery.avatar.morePeople", { count: 3 })}
+            >
+              +3
+            </AvatarGroupCount>
           </AvatarGroup>
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="With no picture, or with one that fails to load, the initials show. A long name beside the avatar is cut with an ellipsis."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-xs flex-col flex-nowrap items-stretch">
           <div className="flex items-center gap-3">
             <Avatar>
-              <AvatarFallback>BT</AvatarFallback>
+              <AvatarFallback>{freeText.brunoInitials}</AvatarFallback>
             </Avatar>
-            <span>Bruno Tavares</span>
+            <span>{freeText.bruno}</span>
           </div>
           <div className="flex items-center gap-3">
             <Avatar>
               <AvatarImage src={brokenPicture} alt="" />
-              <AvatarFallback>CM</AvatarFallback>
+              <AvatarFallback>{freeText.carlaInitials}</AvatarFallback>
             </Avatar>
-            <span>Carla Mendes</span>
+            <span>{freeText.carla}</span>
           </div>
           <div className="flex items-center gap-3">
             <Avatar>
-              <AvatarFallback>MF</AvatarFallback>
+              <AvatarFallback>{freeText.longNameInitials}</AvatarFallback>
             </Avatar>
-            <span className="min-w-0 truncate">
-              Maria Fernanda de Albuquerque Cavalcanti e Vasconcelos
-            </span>
+            <span className="min-w-0 truncate">{freeText.longName}</span>
           </div>
         </Frame>
       </Part>

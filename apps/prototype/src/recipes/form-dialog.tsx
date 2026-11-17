@@ -43,6 +43,7 @@ export function FormDialog({
   description,
   submitLabel,
   cancelLabel,
+  closeLabel,
   onSubmit,
   children,
 }: {
@@ -52,12 +53,14 @@ export function FormDialog({
   description: string
   submitLabel: string
   cancelLabel: string
+  /** The name of the close button, which is an icon alone. */
+  closeLabel: string
   onSubmit: () => void
   children: ReactNode
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent closeLabel={closeLabel}>
         <form
           noValidate
           className="grid gap-4"

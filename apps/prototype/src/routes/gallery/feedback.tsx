@@ -4,6 +4,7 @@ import { AlertBlock } from "../../gallery/blocks/alert"
 import { EmptyBlock, SkeletonBlock } from "../../gallery/blocks/empty"
 import { StatusIndicatorBlock } from "../../gallery/blocks/status-indicator"
 import { ToastBlock } from "../../gallery/blocks/toast"
+import { feedback } from "../../gallery/explanations/feedback"
 import { GalleryPage } from "../../gallery/parts"
 
 export const Route = createFileRoute("/gallery/feedback")({
@@ -12,10 +13,7 @@ export const Route = createFileRoute("/gallery/feedback")({
 
 function Feedback() {
   return (
-    <GalleryPage
-      title="Feedback"
-      lead="What tells a person the state of things: a message, a status, something loading, nothing to show."
-    >
+    <GalleryPage section="feedback" lead={feedback.lead}>
       <AlertBlock />
       <ToastBlock />
       <SkeletonBlock />

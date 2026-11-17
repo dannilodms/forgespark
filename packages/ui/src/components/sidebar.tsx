@@ -8,13 +8,7 @@ import { useIsMobile } from "#hooks/use-mobile"
 import { Button } from "#components/button"
 import { Input } from "#components/input"
 import { Separator } from "#components/separator"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "#components/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "#components/sheet"
 import { Skeleton } from "#components/skeleton"
 import { Tooltip, TooltipContent, TooltipTrigger } from "#components/tooltip"
 import { PanelLeftIcon } from "lucide-react"
@@ -133,10 +127,16 @@ function SidebarProvider({
   )
 }
 
+/**
+ * `label` names the sidebar for assistive technology when it is a sheet, on a
+ * narrow screen. The screen supplies it, in its own language. A sidebar that
+ * never collapses is never a sheet and takes none.
+ */
 function Sidebar({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
+  label,
   className,
   children,
   dir,
@@ -144,8 +144,10 @@ function Sidebar({
 }: React.ComponentProps<"div"> & {
   side?: "left" | "right"
   variant?: "sidebar" | "floating" | "inset"
-  collapsible?: "offcanvas" | "icon" | "none"
-}) {
+} & (
+    | { collapsible: "none"; label?: never }
+    | { collapsible?: "offcanvas" | "icon"; label: string }
+  )) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
   if (collapsible === "none") {
@@ -171,7 +173,8 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground"
+          showCloseButton={false}
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -180,8 +183,7 @@ function Sidebar({
           side={side}
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            <SheetTitle>{label}</SheetTitle>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
@@ -235,11 +237,12 @@ function Sidebar({
   )
 }
 
+/** An icon alone: the screen names it with `aria-label`, in its own language. */
 function SidebarTrigger({
   className,
   onClick,
   ...props
-}: React.ComponentProps<typeof Button>) {
+}: React.ComponentProps<typeof Button> & { "aria-label": string }) {
   const { toggleSidebar } = useSidebar()
 
   return (
@@ -256,22 +259,26 @@ function SidebarTrigger({
       {...props}
     >
       <PanelLeftIcon />
-      <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )
 }
 
-function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
+/** `label` names the rail, in the language of the screen. */
+function SidebarRail({
+  label,
+  className,
+  ...props
+}: React.ComponentProps<"button"> & { label: string }) {
   const { toggleSidebar } = useSidebar()
 
   return (
     <button
       data-sidebar="rail"
       data-slot="sidebar-rail"
-      aria-label="Toggle Sidebar"
+      aria-label={label}
       tabIndex={-1}
       onClick={toggleSidebar}
-      title="Toggle Sidebar"
+      title={label}
       className={cn(
         "absolute inset-y-0 z-20 hidden w-4 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:start-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
@@ -343,7 +350,7 @@ function SidebarSeparator({
     <Separator
       data-slot="sidebar-separator"
       data-sidebar="separator"
-      className={cn("mx-2 w-auto bg-sidebar-border", className)}
+      className={cn("mx-2 bg-sidebar-border data-horizontal:w-auto", className)}
       {...props}
     />
   )

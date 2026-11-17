@@ -27,68 +27,78 @@ import {
   SheetTrigger,
 } from "@workspace/ui/components/sheet"
 import { StatusIndicator } from "@workspace/ui/components/status-indicator"
+import { useTranslation } from "react-i18next"
 
+import { overlays } from "../explanations/overlays"
+import { partTitle } from "../explanations/shared"
+import { freeText, sampleRequest } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 
+const longFields = ["subject", "deadline", "owner", "notes"] as const
+
 export function DialogBlock() {
+  const { t } = useTranslation()
+  const text = overlays.dialog
+  const close = t("gallery.common.close")
+  const cancel = t("gallery.common.cancel")
+
   return (
-    <Section
-      title="Dialog"
-      note="A question or a short form that has to be answered before the work goes on. It holds the focus until it closes, and Escape closes it."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
           <Dialog>
             <DialogTrigger render={<Button variant="outline" />}>
-              Open the rename dialog
+              {text.openRename}
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent closeLabel={close}>
               <DialogHeader>
-                <DialogTitle>Rename the project</DialogTitle>
+                <DialogTitle>{t("gallery.dialog.rename.title")}</DialogTitle>
                 <DialogDescription>
-                  The client sees the new name on every request.
+                  {t("gallery.dialog.rename.description")}
                 </DialogDescription>
               </DialogHeader>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="dialog-project">Project name</FieldLabel>
-                  <Input id="dialog-project" defaultValue="Billing portal" />
+                  <FieldLabel htmlFor="dialog-project">
+                    {t("gallery.common.projectName")}
+                  </FieldLabel>
+                  <Input id="dialog-project" defaultValue={freeText.project} />
                 </Field>
               </FieldGroup>
               <DialogFooter>
                 <DialogClose render={<Button variant="ghost" />}>
-                  Cancel
+                  {cancel}
                 </DialogClose>
-                <DialogClose render={<Button />}>Save changes</DialogClose>
+                <DialogClose render={<Button />}>
+                  {t("gallery.common.saveChanges")}
+                </DialogClose>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </Frame>
       </Part>
 
-      <Part
-        title="Confirming something that cannot be undone"
-        note="The title asks the question and names the thing. The button repeats the verb, and the way out is the quiet one."
-      >
+      <Part {...text.confirming}>
         <Frame>
           <Dialog>
             <DialogTrigger render={<Button variant="outline" />}>
-              Open the delete confirmation
+              {text.openDelete}
             </DialogTrigger>
             <DialogContent showCloseButton={false}>
               <DialogHeader>
-                <DialogTitle>Delete the project Billing portal?</DialogTitle>
+                <DialogTitle>
+                  {t("gallery.dialog.delete.title", { name: freeText.project })}
+                </DialogTitle>
                 <DialogDescription>
-                  Its 7 open requests and the hours logged on them are deleted
-                  with it. This cannot be undone.
+                  {t("gallery.dialog.delete.description", { count: 7 })}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <DialogClose render={<Button variant="ghost" />}>
-                  Cancel
+                  {cancel}
                 </DialogClose>
                 <DialogClose render={<Button variant="destructive" />}>
-                  Delete project
+                  {t("gallery.common.deleteProject")}
                 </DialogClose>
               </DialogFooter>
             </DialogContent>
@@ -96,51 +106,38 @@ export function DialogBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long title and a long text wrap. A dialog taller than the screen scrolls inside itself, and its buttons stack on a narrow screen."
-      >
+      <Part {...text.edgeCases}>
         <Frame>
           <Dialog>
             <DialogTrigger render={<Button variant="outline" />}>
-              Open a dialog with a long text
+              {text.openLong}
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent closeLabel={close}>
               <DialogHeader>
-                <DialogTitle>
-                  Enviar a solicitação de alteração para a aprovação do
-                  responsável pelo projeto
-                </DialogTitle>
+                <DialogTitle>{t("gallery.dialog.long.title")}</DialogTitle>
                 <DialogDescription>
-                  O responsável recebe um e-mail com o resumo da solicitação e o
-                  prazo estimado. Enquanto ele não responder, a solicitação fica
-                  parada e as horas lançadas nela não entram na próxima fatura.
+                  {t("gallery.dialog.long.description")}
                 </DialogDescription>
               </DialogHeader>
               <FieldGroup>
-                {[
-                  "Assunto",
-                  "Prazo estimado",
-                  "Responsável",
-                  "Observações",
-                ].map((label, index) => (
-                  <Field key={label}>
-                    <FieldLabel htmlFor={`dialog-long-${index}`}>
-                      {label}
+                {longFields.map((field) => (
+                  <Field key={field}>
+                    <FieldLabel htmlFor={`dialog-long-${field}`}>
+                      {t(`gallery.dialog.long.fields.${field}`)}
                     </FieldLabel>
-                    <Input id={`dialog-long-${index}`} />
+                    <Input id={`dialog-long-${field}`} />
                     <FieldDescription>
-                      Aparece no e-mail enviado ao responsável pelo projeto.
+                      {t("gallery.dialog.long.hint")}
                     </FieldDescription>
                   </Field>
                 ))}
               </FieldGroup>
               <DialogFooter>
                 <DialogClose render={<Button variant="ghost" />}>
-                  Cancelar
+                  {cancel}
                 </DialogClose>
                 <DialogClose render={<Button />}>
-                  Enviar para a aprovação
+                  {t("gallery.dialog.long.submit")}
                 </DialogClose>
               </DialogFooter>
             </DialogContent>
@@ -154,35 +151,35 @@ export function DialogBlock() {
 const sides = ["left", "top", "bottom"] as const
 
 export function SheetBlock() {
+  const { t } = useTranslation()
+  const text = overlays.sheet
+  const close = t("gallery.common.close")
+
   return (
-    <Section
-      title="Sheet"
-      note="A panel that slides over the edge of the screen and keeps the page behind it. The sidebar becomes one on a narrow screen."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
           <Sheet>
             <SheetTrigger render={<Button variant="outline" />}>
-              Open the request sheet
+              {text.openRequest}
             </SheetTrigger>
-            <SheetContent>
+            <SheetContent closeLabel={close}>
               <SheetHeader>
-                <SheetTitle>Export leaves out archived projects</SheetTitle>
+                <SheetTitle>{sampleRequest.title}</SheetTitle>
                 <SheetDescription className="font-mono">
-                  REQ-0142
+                  {sampleRequest.id}
                 </SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-3 px-4">
-                <StatusIndicator status="working">In progress</StatusIndicator>
-                <p>
-                  The client asked for the export to include archived projects
-                  and the files attached to each request.
-                </p>
+                <StatusIndicator status={sampleRequest.status}>
+                  {t(`gallery.common.status.${sampleRequest.status}`)}
+                </StatusIndicator>
+                <p>{freeText.description}</p>
               </div>
               <SheetFooter>
-                <Button>Open the request</Button>
+                <Button>{t("gallery.sheet.openRequest")}</Button>
                 <SheetClose render={<Button variant="ghost" />}>
-                  Close
+                  {close}
                 </SheetClose>
               </SheetFooter>
             </SheetContent>
@@ -190,26 +187,21 @@ export function SheetBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Sides"
-        note="A sheet comes from the right by default. Navigation comes from the left, and a short choice from the top or the bottom."
-      >
+      <Part {...text.sides}>
         <Frame>
           {sides.map((side) => (
             <Sheet key={side}>
               <SheetTrigger render={<Button variant="outline" />}>
-                Open a sheet from the {side}
+                {text.side[side].trigger}
               </SheetTrigger>
-              <SheetContent side={side}>
+              <SheetContent side={side} closeLabel={close}>
                 <SheetHeader>
-                  <SheetTitle>Filters</SheetTitle>
-                  <SheetDescription>
-                    This sheet came from the {side} of the screen.
-                  </SheetDescription>
+                  <SheetTitle>{t("gallery.sheet.filters")}</SheetTitle>
+                  <SheetDescription>{text.side[side].content}</SheetDescription>
                 </SheetHeader>
                 <SheetFooter>
                   <SheetClose render={<Button variant="secondary" />}>
-                    Close
+                    {close}
                   </SheetClose>
                 </SheetFooter>
               </SheetContent>
@@ -218,38 +210,27 @@ export function SheetBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long title wraps beside the close button, and a long text scrolls inside the sheet."
-      >
+      <Part {...text.edgeCases}>
         <Frame>
           <Sheet>
             <SheetTrigger render={<Button variant="outline" />}>
-              Open a sheet with a long text
+              {text.openLong}
             </SheetTrigger>
-            <SheetContent>
+            <SheetContent closeLabel={close}>
               <SheetHeader>
-                <SheetTitle>
-                  La exportación de las solicitudes no incluye los proyectos
-                  archivados
-                </SheetTitle>
+                <SheetTitle>{freeText.longTitle}</SheetTitle>
                 <SheetDescription>
-                  Solicitud abierta por la persona responsable del proyecto en
-                  la empresa del cliente.
+                  {t("gallery.sheet.openedBy")}
                 </SheetDescription>
               </SheetHeader>
               <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
                 {[1, 2, 3, 4, 5, 6].map((paragraph) => (
-                  <p key={paragraph}>
-                    El cliente pidió que la exportación incluya los proyectos
-                    archivados y los archivos adjuntos de cada solicitud, con el
-                    nombre de quien la abrió y la fecha de cada cambio.
-                  </p>
+                  <p key={paragraph}>{freeText.longParagraph}</p>
                 ))}
               </div>
               <SheetFooter>
                 <SheetClose render={<Button variant="secondary" />}>
-                  Cerrar
+                  {close}
                 </SheetClose>
               </SheetFooter>
             </SheetContent>

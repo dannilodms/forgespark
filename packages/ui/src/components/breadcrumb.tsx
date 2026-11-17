@@ -4,10 +4,13 @@ import { useRender } from "@base-ui/react/use-render"
 import { cn } from "cn"
 import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 
-function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
+/** A navigation landmark: the screen names it with `aria-label`, in its own language. */
+function Breadcrumb({
+  className,
+  ...props
+}: React.ComponentProps<"nav"> & { "aria-label": string }) {
   return (
     <nav
-      aria-label="breadcrumb"
       data-slot="breadcrumb"
       className={cn("min-w-0", className)}
       {...props}
@@ -111,7 +114,6 @@ function BreadcrumbEllipsis({
       {...props}
     >
       <MoreHorizontalIcon />
-      <span className="sr-only">More</span>
     </span>
   )
 }

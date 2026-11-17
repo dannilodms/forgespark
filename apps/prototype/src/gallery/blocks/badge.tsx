@@ -1,101 +1,93 @@
 import { Badge } from "@workspace/ui/components/badge"
 import { Kbd, KbdGroup } from "@workspace/ui/components/kbd"
 import { ArrowUpRightIcon, GitBranchIcon, TagIcon } from "lucide-react"
+import { Trans, useTranslation } from "react-i18next"
 
+import { useFormat } from "#stores/language"
+
+import { actions } from "../explanations/actions"
+import { partTitle } from "../explanations/shared"
+import { freeText } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 import { StateMatrix, previewState } from "../state-matrix"
 
 const variants = [
-  {
-    variant: "default",
-    label: "New",
-    when: "The one thing on the screen to notice first.",
-  },
-  {
-    variant: "secondary",
-    label: "Internal",
-    when: "A category or a tag. The usual choice.",
-  },
-  {
-    variant: "outline",
-    label: "v2.4",
-    when: "A quiet fact beside a title.",
-  },
-  {
-    variant: "destructive",
-    label: "Blocked",
-    when: "Something is wrong. The word says what.",
-  },
-  {
-    variant: "ghost",
-    label: "Draft",
-    when: "A tag that should almost disappear.",
-  },
-  {
-    variant: "link",
-    label: "3 linked",
-    when: "A tag that leads somewhere.",
-  },
+  "default",
+  "secondary",
+  "outline",
+  "destructive",
+  "ghost",
+  "link",
 ] as const
 
+/** A version and a branch are identifiers: they are the same in every language. */
+const version = "v2.4"
+const branch = "release/2.4"
+
 export function BadgeBlock() {
+  const { t } = useTranslation()
+  const { number } = useFormat()
+  const text = actions.badge
+
+  const sample = {
+    default: t("gallery.badge.new"),
+    secondary: t("gallery.common.tags.internal"),
+    outline: version,
+    destructive: t("gallery.badge.blocked"),
+    ghost: t("gallery.badge.draft"),
+    link: t("gallery.badge.linked", { count: 3 }),
+  }
+
   return (
-    <Section
-      title="Badge"
-      note="A short word or a count beside the thing it describes. For the status of a record, use the status indicator."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
-          <span className="type-title">Billing portal</span>
-          <Badge variant="secondary">Internal</Badge>
+          <span className="type-title">{freeText.project}</span>
+          <Badge variant="secondary">{t("gallery.common.tags.internal")}</Badge>
           <Badge variant="outline" className="font-mono">
-            v2.4
+            {version}
           </Badge>
         </Frame>
       </Part>
 
-      <Part title="Variants">
+      <Part title={partTitle.variants}>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3">
-          {variants.map(({ variant, label, when }) => (
+          {variants.map((variant) => (
             <Frame key={variant} className="flex-col items-start gap-2">
-              <Badge variant={variant}>{label}</Badge>
+              <Badge variant={variant}>{sample[variant]}</Badge>
               <span className="type-code text-muted-foreground">{variant}</span>
-              <span className="type-caption text-muted-foreground">{when}</span>
+              <span className="type-caption text-muted-foreground">
+                {text.when[variant]}
+              </span>
             </Frame>
           ))}
         </div>
       </Part>
 
-      <Part
-        title="With an icon or a count"
-        note="An icon leads or trails the word. A count is set in mono."
-      >
+      <Part {...text.withIcon}>
         <Frame>
           <Badge variant="secondary">
             <TagIcon data-icon="inline-start" />
-            Billing
+            {t("gallery.common.tags.billing")}
           </Badge>
           <Badge variant="outline">
             <GitBranchIcon data-icon="inline-start" />
-            <span className="font-mono">release/2.4</span>
+            <span className="font-mono">{branch}</span>
           </Badge>
           <Badge variant="secondary">
-            Changelog
+            {t("gallery.badge.changelog")}
             <ArrowUpRightIcon data-icon="inline-end" />
           </Badge>
           <Badge variant="secondary" className="font-mono">
-            12
+            {number(12)}
           </Badge>
         </Frame>
       </Part>
 
-      <Part
-        title="States"
-        note="A badge has states only when it is a link. Each state is pinned, so all of them are visible at once."
-      >
+      <Part {...text.states}>
         <Frame>
           <StateMatrix
-            rows={variants.map(({ variant }) => variant)}
+            rows={variants}
             states={["default", "hover", "focus"]}
             render={(variant, state) => (
               <Badge
@@ -108,28 +100,21 @@ export function BadgeBlock() {
                 }
                 {...previewState(state)}
               >
-                Billing
+                {t("gallery.common.tags.billing")}
               </Badge>
             )}
           />
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long word is cut with an ellipsis inside the width it is given."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-xs">
           <Badge variant="secondary">
-            <span className="truncate">
-              Aguardando a aprovação do responsável pelo projeto
-            </span>
+            <span className="truncate">{t("gallery.badge.longWaiting")}</span>
           </Badge>
           <Badge variant="outline">
             <TagIcon data-icon="inline-start" />
-            <span className="truncate">
-              Pendiente de la respuesta del equipo de facturación
-            </span>
+            <span className="truncate">{t("gallery.badge.longPending")}</span>
           </Badge>
         </Frame>
       </Part>
@@ -137,24 +122,21 @@ export function BadgeBlock() {
   )
 }
 
+/** The names of keys are the ones printed on a keyboard, in every language. */
 export function KbdBlock() {
+  const text = actions.kbd
+
   return (
-    <Section
-      title="Kbd"
-      note="A key or a shortcut, named where the action it triggers is shown."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
           <span>
-            Press <Kbd>/</Kbd> to search the requests of this project.
+            <Trans i18nKey="gallery.kbd.press" components={{ kbd: <Kbd /> }} />
           </span>
         </Frame>
       </Part>
 
-      <Part
-        title="A shortcut of several keys"
-        note="Each key is its own chip, in the order they are pressed."
-      >
+      <Part {...text.severalKeys}>
         <Frame className="gap-6">
           <KbdGroup>
             <Kbd>Ctrl</Kbd>
@@ -172,10 +154,7 @@ export function KbdBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A key with a long name keeps its name whole and grows to fit it."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-xs">
           <KbdGroup>
             <Kbd>Ctrl</Kbd>

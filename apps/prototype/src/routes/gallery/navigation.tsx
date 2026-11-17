@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 
 import { SidebarBlock } from "../../gallery/blocks/sidebar"
 import { BreadcrumbBlock, TabsBlock } from "../../gallery/blocks/tabs"
+import { navigation } from "../../gallery/explanations/navigation"
 import { GalleryPage } from "../../gallery/parts"
 
 export const Route = createFileRoute("/gallery/navigation")({
@@ -10,10 +11,7 @@ export const Route = createFileRoute("/gallery/navigation")({
 
 function Navigation() {
   return (
-    <GalleryPage
-      title="Navigation"
-      lead="What takes a person from one place to another, and shows where they are."
-    >
+    <GalleryPage section="navigation" lead={navigation.lead}>
       <TabsBlock />
       <BreadcrumbBlock />
       <SidebarBlock />

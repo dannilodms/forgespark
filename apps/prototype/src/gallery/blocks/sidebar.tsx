@@ -28,15 +28,23 @@ import {
   UsersIcon,
 } from "lucide-react"
 import type { MouseEvent, ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 
+import { useFormat } from "#stores/language"
+
+import { navigation } from "../explanations/navigation"
+import { freeText } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 import { StateMatrix, previewState } from "../state-matrix"
 
+const text = navigation.sidebar
+
+/** The sample places, each with the key of its name and, for some, a count. */
 const places = [
-  { label: "Requests", icon: InboxIcon, count: "12" },
-  { label: "Projects", icon: FolderIcon, count: "4" },
-  { label: "Clients", icon: UsersIcon },
-  { label: "Hours", icon: ClockIcon },
+  { name: "requests", icon: InboxIcon, count: 12 },
+  { name: "projects", icon: FolderIcon, count: 4 },
+  { name: "clients", icon: UsersIcon },
+  { name: "hours", icon: ClockIcon },
 ] as const
 
 /** An item of the gallery leads nowhere: it only shows how a link looks. */
@@ -45,22 +53,28 @@ function stay(event: MouseEvent) {
 }
 
 function Places({ tooltips = false }: { tooltips?: boolean }) {
+  const { t } = useTranslation()
+  const { number } = useFormat()
+
   return (
     <SidebarMenu>
-      {places.map((place, index) => (
-        <SidebarMenuItem key={place.label}>
-          <SidebarMenuButton
-            isActive={index === 0}
-            tooltip={tooltips ? place.label : undefined}
-          >
-            <place.icon />
-            <span>{place.label}</span>
-          </SidebarMenuButton>
-          {"count" in place ? (
-            <SidebarMenuBadge>{place.count}</SidebarMenuBadge>
-          ) : null}
-        </SidebarMenuItem>
-      ))}
+      {places.map((place, index) => {
+        const label = t(`gallery.common.places.${place.name}`)
+        return (
+          <SidebarMenuItem key={place.name}>
+            <SidebarMenuButton
+              isActive={index === 0}
+              tooltip={tooltips ? label : undefined}
+            >
+              <place.icon />
+              <span>{label}</span>
+            </SidebarMenuButton>
+            {"count" in place ? (
+              <SidebarMenuBadge>{number(place.count)}</SidebarMenuBadge>
+            ) : null}
+          </SidebarMenuItem>
+        )
+      })}
     </SidebarMenu>
   )
 }
@@ -69,10 +83,10 @@ function Person() {
   return (
     <div className="flex min-w-0 items-center gap-2 px-2 py-1">
       <Avatar size="sm">
-        <AvatarFallback>AL</AvatarFallback>
+        <AvatarFallback>{freeText.anaInitials}</AvatarFallback>
       </Avatar>
       <span className="min-w-0 truncate group-data-[collapsible=icon]:hidden">
-        Ana Lima
+        {freeText.ana}
       </span>
     </div>
   )
@@ -102,44 +116,42 @@ function Page({ children }: { children?: ReactNode }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2 bg-background p-3">
       {children}
-      <span className="type-caption text-muted-foreground">
-        The page beside the sidebar.
-      </span>
+      <span className="type-caption text-muted-foreground">{text.page}</span>
     </div>
   )
 }
 
 export function SidebarBlock() {
+  const { t } = useTranslation()
+  const { number } = useFormat()
+  const work = t("gallery.sidebar.work")
+
   return (
-    <Section
-      title="Sidebar"
-      note="The navigation of the app: the places a person can go, in groups. It sits flush against the page, split from it by a line."
-    >
-      <Part
-        title="Typical"
-        note="The current place takes the selected fill. A count sits at the end of its item, in mono."
-      >
+    <Section {...text.about}>
+      <Part {...text.typical}>
         <Preview>
           <Sidebar collapsible="none" className="border-r">
             <SidebarHeader>
-              <span className="px-2 py-1 type-label">Software Factory</span>
+              <span className="px-2 py-1 type-label">{freeText.product}</span>
             </SidebarHeader>
             <SidebarContent>
               <SidebarGroup>
-                <SidebarGroupLabel>Work</SidebarGroupLabel>
+                <SidebarGroupLabel>{work}</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <Places />
                 </SidebarGroupContent>
               </SidebarGroup>
               <SidebarSeparator />
               <SidebarGroup>
-                <SidebarGroupLabel>Setup</SidebarGroupLabel>
+                <SidebarGroupLabel>
+                  {t("gallery.sidebar.setup")}
+                </SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>
                       <SidebarMenuButton>
                         <SettingsIcon />
-                        <span>Settings</span>
+                        <span>{t("gallery.common.settings")}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </SidebarMenu>
@@ -154,21 +166,22 @@ export function SidebarBlock() {
         </Preview>
       </Part>
 
-      <Part
-        title="Collapsing"
-        note="The button, or Ctrl B, collapses the sidebar to its icons, and each icon then names its place in a tooltip. On a narrow screen the sidebar is a sheet that the same button opens."
-      >
+      <Part {...text.collapsing}>
         {/* The containment makes this frame the box the fixed sidebar is placed in. */}
         <Preview className="relative contain-layout">
-          <Sidebar collapsible="icon" className="h-full">
+          <Sidebar
+            collapsible="icon"
+            label={t("gallery.sidebar.label")}
+            className="h-full"
+          >
             <SidebarHeader>
               <span className="px-2 py-1 type-label group-data-[collapsible=icon]:hidden">
-                Software Factory
+                {freeText.product}
               </span>
             </SidebarHeader>
             <SidebarContent>
               <SidebarGroup>
-                <SidebarGroupLabel>Work</SidebarGroupLabel>
+                <SidebarGroupLabel>{work}</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <Places tooltips />
                 </SidebarGroupContent>
@@ -182,18 +195,15 @@ export function SidebarBlock() {
             <div className="flex items-center gap-2">
               <SidebarTrigger
                 variant="outline"
-                aria-label="Collapse or expand the sidebar"
+                aria-label={t("gallery.sidebar.toggle")}
               />
-              <span>Collapse or expand the sidebar</span>
+              <span>{t("gallery.sidebar.toggle")}</span>
             </div>
           </Page>
         </Preview>
       </Part>
 
-      <Part
-        title="States of an item"
-        note="Each state is pinned, so all of them are visible at once."
-      >
+      <Part {...text.states}>
         <Frame className="bg-sidebar">
           <SidebarProvider className="min-h-0">
             <StateMatrix
@@ -207,7 +217,7 @@ export function SidebarBlock() {
                       {...previewState(state)}
                     >
                       <InboxIcon />
-                      <span>Requests</span>
+                      <span>{t("gallery.common.places.requests")}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
@@ -217,30 +227,25 @@ export function SidebarBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long label is cut with an ellipsis and never widens the sidebar. An item can hold a second level. While the places load, each is a skeleton."
-      >
+      <Part {...text.edgeCases}>
         <Preview>
           <Sidebar collapsible="none" className="border-r">
             <SidebarContent>
               <SidebarGroup>
-                <SidebarGroupLabel>Trabalho</SidebarGroupLabel>
+                <SidebarGroupLabel>{work}</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>
                       <SidebarMenuButton isActive>
                         <InboxIcon />
-                        <span>
-                          Solicitações que aguardam a aprovação do cliente
-                        </span>
+                        <span>{t("gallery.sidebar.long")}</span>
                       </SidebarMenuButton>
-                      <SidebarMenuBadge>128</SidebarMenuBadge>
+                      <SidebarMenuBadge>{number(128)}</SidebarMenuBadge>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
                       <SidebarMenuButton>
                         <FolderIcon />
-                        <span>Projetos</span>
+                        <span>{t("gallery.common.places.projects")}</span>
                       </SidebarMenuButton>
                       <SidebarMenuSub>
                         <SidebarMenuSubItem>
@@ -249,14 +254,12 @@ export function SidebarBlock() {
                             onClick={stay}
                             isActive
                           >
-                            <span>Portal de cobrança</span>
+                            <span>{freeText.shortProject}</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton href="#sidebar" onClick={stay}>
-                            <span>
-                              Aplicativo de acompanhamento das entregas
-                            </span>
+                            <span>{freeText.otherLongProject}</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       </SidebarMenuSub>
@@ -265,7 +268,9 @@ export function SidebarBlock() {
                 </SidebarGroupContent>
               </SidebarGroup>
               <SidebarGroup>
-                <SidebarGroupLabel>Loading</SidebarGroupLabel>
+                <SidebarGroupLabel>
+                  {t("gallery.sidebar.loading")}
+                </SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>

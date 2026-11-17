@@ -32,6 +32,7 @@ import {
 } from "../work/work-items"
 import { useStatusWord } from "../work/status-word"
 import { ItemDetail, ItemList, NewItemDialog } from "../work/work-parts"
+import { recipes } from "./explanations/recipes"
 import { GalleryPage, Part, Section } from "./parts"
 
 const placeIcons = { requests: InboxIcon, projects: FolderIcon }
@@ -109,7 +110,7 @@ function AppShellPreview() {
       navigationLabel={t("work.navigation.label")}
       sidebarToggleLabel={t("work.navigation.toggle")}
       breadcrumb={
-        <Breadcrumb>
+        <Breadcrumb aria-label={t("work.navigation.path")}>
           <BreadcrumbList className="flex-nowrap">
             <BreadcrumbItem className="shrink-0">
               {t(`work.places.${place}`)}
@@ -151,8 +152,12 @@ function AppShellPreview() {
       }}
       statusBar={<span className="truncate">{t(`work.places.${place}`)}</span>}
     >
-      <PaneStandIn className="w-2/5 border-r">List pane</PaneStandIn>
-      <PaneStandIn className="flex-1">Detail pane</PaneStandIn>
+      <PaneStandIn className="w-2/5 border-r">
+        {recipes.appShell.listPane}
+      </PaneStandIn>
+      <PaneStandIn className="flex-1">
+        {recipes.appShell.detailPane}
+      </PaneStandIn>
     </AppShell>
   )
 }
@@ -206,7 +211,7 @@ function FormDialogPreview() {
   return (
     <div>
       <Button variant="outline" onClick={() => setOpen(true)}>
-        Open the form dialog
+        {recipes.formDialog.open}
       </Button>
       <NewItemDialog
         place="requests"
@@ -221,66 +226,40 @@ function FormDialogPreview() {
 
 /**
  * The four recipes of DESIGN.md, each on its own. The explanatory text is in
- * English and the sample content follows the language of the prototype.
+ * English, in `explanations/recipes.ts`, and the sample content follows the
+ * language of the prototype.
  */
 export function Recipes() {
   return (
-    <GalleryPage
-      title="Recipes"
-      lead="A recipe is a named composition of components that several screens reuse. Each of the four is shown here on its own, over sample data."
-    >
+    <GalleryPage section="recipes" lead={recipes.lead}>
       <p className="max-w-prose">
-        The four are put together in the{" "}
+        {recipes.together.before}
         <Link to="/work" className="text-brand underline underline-offset-2">
-          sample work screen
+          {recipes.together.link}
         </Link>
-        , where the login screen leads.
+        {recipes.together.after}
       </p>
 
-      <Section
-        title="App shell"
-        note="Use it around every screen of the product: it holds what stays in place while the panes change."
-      >
-        <Part
-          title="Typical"
-          note="A title bar with the user menu, the sidebar navigation, a top bar with the breadcrumb and the command palette trigger, the main area of flush panes, and a status bar. The button of the top bar collapses the sidebar, and Ctrl K opens the command palette."
-        >
+      <Section {...recipes.appShell.about}>
+        <Part {...recipes.appShell.typical}>
           <AppShellPreview />
         </Part>
       </Section>
 
-      <Section
-        title="List pane"
-        note="Use it for a set of items a person scans, filters and picks from, beside the detail of the one picked."
-      >
-        <Part
-          title="Typical"
-          note="A filter, rows that each carry a status indicator, and an empty state when the filter leaves nothing. The arrow keys move between the rows, and Enter selects one."
-        >
+      <Section {...recipes.listPane.about}>
+        <Part {...recipes.listPane.typical}>
           <ListPanePreview />
         </Part>
       </Section>
 
-      <Section
-        title="Detail pane"
-        note="Use it for the one item picked in a list pane: what it is, and what can be done to it."
-      >
-        <Part
-          title="Typical"
-          note="A header with the identifier, the status, the actions and the title of the item, and tabs that switch its content."
-        >
+      <Section {...recipes.detailPane.about}>
+        <Part {...recipes.detailPane.typical}>
           <DetailPanePreview />
         </Part>
       </Section>
 
-      <Section
-        title="Form dialog"
-        note="Use it to create or change one thing with a few fields, without leaving the screen."
-      >
-        <Part
-          title="Typical"
-          note="Fields, one primary action and a cancel action. Create with no title to see the validation error on the field."
-        >
+      <Section {...recipes.formDialog.about}>
+        <Part {...recipes.formDialog.typical}>
           <FormDialogPreview />
         </Part>
       </Section>

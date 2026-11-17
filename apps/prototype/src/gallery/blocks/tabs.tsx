@@ -16,20 +16,17 @@ import {
 } from "@workspace/ui/components/tabs"
 import { ClockIcon, FileTextIcon, HistoryIcon } from "lucide-react"
 import type { MouseEvent, ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 
+import { useFormat } from "#stores/language"
+
+import { navigation } from "../explanations/navigation"
+import { partTitle, pinnedStates } from "../explanations/shared"
+import { freeText, sampleRequest } from "../free-text"
 import { Frame, Part, Section } from "../parts"
 import { StateMatrix, previewState } from "../state-matrix"
 
-const variants = [
-  {
-    variant: "default",
-    when: "Views of one thing inside a pane. The active tab is a raised control.",
-  },
-  {
-    variant: "line",
-    when: "Views that span the width of a pane, under its header.",
-  },
-] as const
+const variants = ["default", "line"] as const
 
 const matrixRows = [
   "default",
@@ -39,91 +36,101 @@ const matrixRows = [
 ] as const
 
 export function TabsBlock() {
+  const { t } = useTranslation()
+  const { number, ago } = useFormat()
+  const text = navigation.tabs
+
+  const details = t("gallery.common.tabs.details")
+  const history = t("gallery.common.tabs.history")
+  const hours = t("gallery.common.tabs.hours")
+
   return (
-    <Section
-      title="Tabs"
-      note="Views of the same thing, one at a time. The arrow keys move between the tabs, and Tab goes into the view."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
           <Tabs defaultValue="details" className="w-full">
             <TabsList>
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
-              <TabsTrigger value="hours">Hours</TabsTrigger>
+              <TabsTrigger value="details">{details}</TabsTrigger>
+              <TabsTrigger value="history">{history}</TabsTrigger>
+              <TabsTrigger value="hours">{hours}</TabsTrigger>
             </TabsList>
-            <TabsContent value="details">
-              The client asked for the export to include archived projects.
-            </TabsContent>
+            <TabsContent value="details">{freeText.description}</TabsContent>
             <TabsContent value="history">
-              Opened by Ana Lima 12 days ago, and assigned to Bruno Tavares.
+              {t("gallery.tabs.historyContent", {
+                who: freeText.ana,
+                when: ago(12, "day"),
+                assignee: freeText.bruno,
+              })}
             </TabsContent>
             <TabsContent value="hours">
-              6 hours logged, of the 12 that were estimated.
+              {t("gallery.tabs.hoursContent", {
+                logged: number(6),
+                estimated: number(12),
+              })}
             </TabsContent>
           </Tabs>
         </Frame>
       </Part>
 
-      <Part title="Variants">
+      <Part title={partTitle.variants}>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-3">
-          {variants.map(({ variant, when }) => (
+          {variants.map((variant) => (
             <Frame key={variant} className="flex-col items-start gap-2">
               <Tabs defaultValue="details">
                 <TabsList variant={variant}>
-                  <TabsTrigger value="details">Details</TabsTrigger>
-                  <TabsTrigger value="history">History</TabsTrigger>
-                  <TabsTrigger value="hours">Hours</TabsTrigger>
+                  <TabsTrigger value="details">{details}</TabsTrigger>
+                  <TabsTrigger value="history">{history}</TabsTrigger>
+                  <TabsTrigger value="hours">{hours}</TabsTrigger>
                 </TabsList>
               </Tabs>
               <span className="type-code text-muted-foreground">{variant}</span>
-              <span className="type-caption text-muted-foreground">{when}</span>
+              <span className="type-caption text-muted-foreground">
+                {text.when[variant]}
+              </span>
             </Frame>
           ))}
         </div>
       </Part>
 
-      <Part
-        title="With an icon or a count, and vertical"
-        note="An icon leads the label and a count trails it, in mono. A vertical list sits beside its view."
-      >
+      <Part {...text.withIcon}>
         <Frame className="items-start gap-8">
           <Tabs defaultValue="details">
             <TabsList>
               <TabsTrigger value="details">
                 <FileTextIcon data-icon="inline-start" />
-                Details
+                {details}
               </TabsTrigger>
               <TabsTrigger value="history">
                 <HistoryIcon data-icon="inline-start" />
-                History
+                {history}
                 <Badge variant="secondary" className="font-mono">
-                  8
+                  {number(8)}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="hours">
                 <ClockIcon data-icon="inline-start" />
-                Hours
+                {hours}
               </TabsTrigger>
             </TabsList>
           </Tabs>
           <Tabs defaultValue="details" orientation="vertical">
             <TabsList variant="line">
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
-              <TabsTrigger value="hours">Hours</TabsTrigger>
+              <TabsTrigger value="details">{details}</TabsTrigger>
+              <TabsTrigger value="history">{history}</TabsTrigger>
+              <TabsTrigger value="hours">{hours}</TabsTrigger>
             </TabsList>
-            <TabsContent value="details">Details of the request.</TabsContent>
-            <TabsContent value="history">History of the request.</TabsContent>
-            <TabsContent value="hours">Hours of the request.</TabsContent>
+            <TabsContent value="details">
+              {t("gallery.tabs.detailsOf")}
+            </TabsContent>
+            <TabsContent value="history">
+              {t("gallery.tabs.historyOf")}
+            </TabsContent>
+            <TabsContent value="hours">{t("gallery.tabs.hoursOf")}</TabsContent>
           </Tabs>
         </Frame>
       </Part>
 
-      <Part
-        title="States"
-        note="Each state is pinned, so all of them are visible at once."
-      >
+      <Part {...pinnedStates}>
         <Frame>
           <StateMatrix
             rows={matrixRows}
@@ -132,7 +139,7 @@ export function TabsBlock() {
               <Tabs defaultValue={row.endsWith("active") ? "details" : null}>
                 <TabsList variant={row.startsWith("line") ? "line" : "default"}>
                   <TabsTrigger value="details" {...previewState(state)}>
-                    Details
+                    {details}
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -141,19 +148,18 @@ export function TabsBlock() {
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="Long labels wrap onto a second line of tabs before they push the layout, and a single label can be cut with an ellipsis."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-sm">
           <Tabs defaultValue="details" className="w-full">
             <TabsList className="flex-wrap">
-              <TabsTrigger value="details">Dados da solicitação</TabsTrigger>
-              <TabsTrigger value="history">Histórico de alterações</TabsTrigger>
+              <TabsTrigger value="details">
+                {t("gallery.tabs.long.details")}
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                {t("gallery.tabs.long.history")}
+              </TabsTrigger>
               <TabsTrigger value="hours" className="max-w-full">
-                <span className="truncate">
-                  Horas lançadas pela equipe neste mês e no mês anterior
-                </span>
+                <span className="truncate">{t("gallery.tabs.long.hours")}</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -177,44 +183,45 @@ function Crumb({ children }: { children: ReactNode }) {
 }
 
 export function BreadcrumbBlock() {
+  const { t } = useTranslation()
+  const text = navigation.breadcrumb
+  const label = t("gallery.common.path")
+  const clients = t("gallery.common.places.clients")
+
   return (
-    <Section
-      title="Breadcrumb"
-      note="Where the current page sits, as a path of links back up. The last item is the page itself and is not a link."
-    >
-      <Part title="Typical">
+    <Section {...text.about}>
+      <Part title={partTitle.typical}>
         <Frame>
-          <Breadcrumb>
+          <Breadcrumb aria-label={label}>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <Crumb>Clients</Crumb>
+                <Crumb>{clients}</Crumb>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <Crumb>Northwind Traders</Crumb>
+                <Crumb>{freeText.client}</Crumb>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <Crumb>Billing portal</Crumb>
+                <Crumb>{freeText.project}</Crumb>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage className="font-mono">REQ-0142</BreadcrumbPage>
+                <BreadcrumbPage className="font-mono">
+                  {sampleRequest.id}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </Frame>
       </Part>
 
-      <Part
-        title="A long path, and another separator"
-        note="The middle of a long path collapses into an ellipsis. A slash can stand in for the chevron."
-      >
+      <Part {...text.longPath}>
         <Frame className="flex-col items-start">
-          <Breadcrumb>
+          <Breadcrumb aria-label={label}>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <Crumb>Clients</Crumb>
+                <Crumb>{clients}</Crumb>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -222,41 +229,40 @@ export function BreadcrumbBlock() {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <Crumb>Billing portal</Crumb>
+                <Crumb>{freeText.project}</Crumb>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage className="font-mono">REQ-0142</BreadcrumbPage>
+                <BreadcrumbPage className="font-mono">
+                  {sampleRequest.id}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
-          <Breadcrumb>
+          <Breadcrumb aria-label={label}>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <Crumb>Clients</Crumb>
+                <Crumb>{clients}</Crumb>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem>
-                <Crumb>Northwind Traders</Crumb>
+                <Crumb>{freeText.client}</Crumb>
               </BreadcrumbItem>
               <BreadcrumbSeparator>/</BreadcrumbSeparator>
               <BreadcrumbItem>
-                <BreadcrumbPage>Billing portal</BreadcrumbPage>
+                <BreadcrumbPage>{freeText.project}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </Frame>
       </Part>
 
-      <Part
-        title="Edge cases"
-        note="A long name is cut with an ellipsis, and a path wider than its container wraps onto a second line."
-      >
+      <Part {...text.edgeCases}>
         <Frame className="max-w-sm">
-          <Breadcrumb>
+          <Breadcrumb aria-label={label}>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <Crumb>Clientes</Crumb>
+                <Crumb>{clients}</Crumb>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem className="max-w-44">
@@ -265,13 +271,13 @@ export function BreadcrumbBlock() {
                   onClick={stay}
                   className="truncate"
                 >
-                  Comércio e Distribuição de Alimentos Vale do Rio Doce Ltda.
+                  {freeText.longClient}
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem className="max-w-44">
                 <BreadcrumbPage className="truncate">
-                  Portal de cobrança e de acompanhamento das solicitações
+                  {freeText.longProject}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
