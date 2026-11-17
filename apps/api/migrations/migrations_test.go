@@ -17,15 +17,6 @@ import (
 
 const insufficientPrivilege = "42501"
 
-// migrated returns a temporary database with every migration applied.
-func migrated(t *testing.T) databasetest.Database {
-	t.Helper()
-	temporary := databasetest.New(t)
-	_, err := database.Migrate(context.Background(), temporary.MigrationURL, migrations.Files)
-	require.NoError(t, err)
-	return temporary
-}
-
 // refusal runs a statement as the API role and returns the SQLSTATE of the
 // error PostgreSQL answers with.
 func refusal(t *testing.T, temporary databasetest.Database, statement string) string {
@@ -44,7 +35,7 @@ func refusal(t *testing.T, temporary databasetest.Database, statement string) st
 
 func TestTheAPIRoleCannotChangeTheSchema(t *testing.T) {
 	t.Parallel()
-	temporary := migrated(t)
+	temporary := databasetest.Migrated(t)
 
 	statements := []string{
 		"CREATE TABLE intruder (id bigint)",
@@ -59,7 +50,7 @@ func TestTheAPIRoleCannotChangeTheSchema(t *testing.T) {
 
 func TestTheAPIRoleCannotRewriteWhichMigrationsWereApplied(t *testing.T) {
 	t.Parallel()
-	temporary := migrated(t)
+	temporary := databasetest.Migrated(t)
 
 	statements := []string{
 		"INSERT INTO goose_db_version (version_id, is_applied) VALUES (999, true)",
@@ -73,7 +64,7 @@ func TestTheAPIRoleCannotRewriteWhichMigrationsWereApplied(t *testing.T) {
 
 func TestTheAPIRoleSeesTheSchemaAtTheVersionTheBinaryExpects(t *testing.T) {
 	t.Parallel()
-	temporary := migrated(t)
+	temporary := databasetest.Migrated(t)
 	pool, err := database.NewPool(database.PoolSettings{
 		ConnectionURL:            temporary.APIURL,
 		MaxSize:                  1,
@@ -90,7 +81,7 @@ func TestTheAPIRoleSeesTheSchemaAtTheVersionTheBinaryExpects(t *testing.T) {
 
 func TestTheMigrationsApplyNothingOnASecondRun(t *testing.T) {
 	t.Parallel()
-	temporary := migrated(t)
+	temporary := databasetest.Migrated(t)
 
 	applied, err := database.Migrate(context.Background(), temporary.MigrationURL, migrations.Files)
 

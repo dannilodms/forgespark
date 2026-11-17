@@ -1,6 +1,8 @@
-// Package databasetest gives a test its own empty database in the PostgreSQL
-// of development, so tests run in parallel and never touch the development
-// database.
+// Package databasetest gives a test its own database in the PostgreSQL of
+// development, so tests run in parallel and never touch the development
+// database. Migrated gives one with every migration applied, which is what an
+// adapter test wants. New gives an empty one, for the tests of the migrations
+// themselves.
 package databasetest
 
 import (
@@ -13,10 +15,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	// The driver pgtestdb opens its connections with.
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/peterldowns/pgtestdb"
 )
 
 // Database is a temporary database, reached by the two roles of the system.
-// It starts empty: no migration was applied to it.
 type Database struct {
 	// MigrationURL connects as the migration role, which owns the database.
 	MigrationURL string
@@ -24,9 +28,50 @@ type Database struct {
 	APIURL string
 }
 
-// New creates a database that lives until the test ends. The connections
-// come from the variables `task api:test` loads: the superuser creates and
-// removes the database, and the other two give the roles.
+// Migrated creates a database with every migration applied, which lives until
+// the test ends. pgtestdb clones it from a template that the migrations built
+// once: the template is built again only when a migration file changes, so a
+// test pays for a copy and never for the migrations.
+//
+// The connections come from the variables `task api:test` loads: the
+// superuser creates and removes the databases, and the other two give the
+// roles.
+func Migrated(t testing.TB) Database {
+	t.Helper()
+	admin := parse(t, "TEST_DATABASE_ADMIN_URL")
+	migrationURL := parse(t, "MIGRATION_DATABASE_URL")
+	apiURL := parse(t, "DATABASE_URL")
+	adminPassword, _ := admin.User.Password()
+	migrationPassword, _ := migrationURL.User.Password()
+
+	instance := pgtestdb.Custom(t, pgtestdb.Config{
+		DriverName: "pgx",
+		Host:       admin.Hostname(),
+		Port:       admin.Port(),
+		User:       admin.User.Username(),
+		Password:   adminPassword,
+		Database:   strings.TrimPrefix(admin.Path, "/"),
+		Options:    admin.RawQuery,
+		// The template and each copy belong to the migration role, as the
+		// development database does. The role already exists, so pgtestdb
+		// creates none.
+		TestRole: &pgtestdb.Role{
+			Username:     migrationURL.User.Username(),
+			Password:     migrationPassword,
+			Capabilities: "NOSUPERUSER NOCREATEDB NOCREATEROLE",
+		},
+		ForceTerminateConnections: true,
+	}, migrator{})
+
+	return Database{
+		MigrationURL: onDatabase(migrationURL, instance.Database),
+		APIURL:       onDatabase(apiURL, instance.Database),
+	}
+}
+
+// New creates an empty database that lives until the test ends: no migration
+// was applied to it. The connections come from the same variables as the
+// ones of Migrated.
 func New(t testing.TB) Database {
 	t.Helper()
 	adminURL := variable(t, "TEST_DATABASE_ADMIN_URL")
