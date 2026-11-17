@@ -170,6 +170,53 @@ jobs:
       - name: Run the Go tests against the PostgreSQL container
         run: task api:test
 
+  app:
+    name: App
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Vite+ at the version of the catalog of apps/web, which brings the
+      # Node.js and the pnpm that apps/web/package.json names.
+      - name: Install Vite+
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          version-file: apps/web/package.json
+          working-directory: apps/web
+          run-install: false
+          cache: true
+
+      - name: Install Task
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="task_linux_amd64.tar.gz"
+          gh release download "v${TASK_VERSION}" \
+            --repo go-task/task \
+            --pattern "$archive" \
+            --dir "$RUNNER_TEMP"
+          echo "${TASK_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install the JavaScript dependencies and the Chromium of the screen tests
+        run: task install
+
+      - name: Install the system libraries Chromium needs on Linux
+        working-directory: apps/web
+        run: vp exec playwright install-deps chromium
+
+      - name: Check the generated client, format, lint, types, imports, unused code and translations, and run the screen tests
+        run: task web:check
+
   # The only check the ruleset of `main` requires. A new check is a job
   # added to `needs`, so the ruleset never changes.
   checks:
@@ -179,6 +226,7 @@ jobs:
       - workflows
       - changes
       - backend
+      - app
     runs-on: ubuntu-24.04
     permissions: {}
     steps:
