@@ -5,29 +5,59 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
-	"time"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/health"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/lifecycle"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 	"github.com/dannilodms/software-factory-manager/apps/api/migrations"
 )
 
-// serveAPI wires the API and serves it until the context ends. It never
-// changes the schema: readiness tells when a migration is pending.
-func serveAPI(ctx context.Context, environment map[string]string, _, stderr io.Writer) error {
+// errShuttingDown is why readiness fails from the signal on.
+var errShuttingDown = errors.New("the API is shutting down")
+
+// serveAPI serves the API until the shutdown notice, then stops without
+// cutting a request short. Its logs are JSON lines on the error output: the
+// start and the stop of the process, and what Telemetry in
+// CODING_STANDARDS.md lists. A configuration that is not valid is the one
+// plain line, written before there is a logger.
+func serveAPI(shutdown context.Context, environment map[string]string, _, stderr io.Writer) error {
 	settings, err := config.Load(config.ServeAPI, environment)
 	if err != nil {
 		return err
 	}
+
+	logger := telemetry.NewLogger(stderr, settings.LogLevel)
+	if err := serve(shutdown, settings, logger); err != nil {
+		logger.Error("the API stopped", slog.String("error", err.Error()))
+		return errLogged
+	}
+	logger.Info("the API stopped")
+	return nil
+}
+
+// serve wires the API and serves it. It never changes the schema: readiness
+// tells when a migration is pending.
+//
+// When it returns, the pool is closed and then the last spans are sent, in
+// that order.
+func serve(shutdown context.Context, settings config.Config, logger *slog.Logger) error {
+	tracing, err := telemetry.StartTracing("api", settings.TelemetryExportURL.String(), logger)
+	if err != nil {
+		return err
+	}
+	defer tracing.Stop()
 
 	pool, err := database.NewPool(database.PoolSettings{
 		ConnectionURL:            settings.DatabaseURL.ConnectionString(),
 		MaxSize:                  settings.DatabasePoolMaxSize,
 		StatementTimeout:         settings.DatabaseStatementTimeout,
 		IdleInTransactionTimeout: settings.DatabaseIdleInTransactionTimeout,
+		TracerProvider:           tracing.Provider,
 	})
 	if err != nil {
 		return err
@@ -36,6 +66,9 @@ func serveAPI(ctx context.Context, environment map[string]string, _, stderr io.W
 
 	mux := http.NewServeMux()
 	ready := func(ctx context.Context) error {
+		if shutdown.Err() != nil {
+			return errShuttingDown
+		}
 		return database.CheckSchema(ctx, pool, migrations.Files)
 	}
 	health.Mount(mux, ready, settings.HealthCheckTimeout)
@@ -44,28 +77,8 @@ func serveAPI(ctx context.Context, environment map[string]string, _, stderr io.W
 	if err != nil {
 		return fmt.Errorf("listen on API_LISTEN_ADDRESS: %w", err)
 	}
-	fmt.Fprintf(stderr, "api: listening on %s\n", listener.Addr())
+	logger.Info("the API started", slog.String("address", listener.Addr().String()))
 
-	server := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
-	return serveUntilDone(ctx, server, listener)
-}
-
-// serveUntilDone serves until the context ends, then lets the requests in
-// flight finish.
-func serveUntilDone(ctx context.Context, server *http.Server, listener net.Listener) error {
-	failed := make(chan error, 1)
-	go func() { failed <- server.Serve(listener) }()
-
-	select {
-	case err := <-failed:
-		return err
-	case <-ctx.Done():
-	}
-	if err := server.Shutdown(context.WithoutCancel(ctx)); err != nil {
-		return err
-	}
-	if err := <-failed; !errors.Is(err, http.ErrServerClosed) {
-		return err
-	}
-	return nil
+	handler := telemetry.Requests(mux, logger, tracing.Provider)
+	return lifecycle.Serve(shutdown, listener, handler, settings.ShutdownDrainDeadline, logger)
 }
