@@ -127,7 +127,7 @@ The decisions are in ADR-0024 (setup), ADR-0026 (roles and scopes), ADR-0017 (fi
 
 - PostgreSQL 18, one database and one schema, reached through pgx and sqlc. Migrations are numbered SQL files applied by goose through the `migrate` command. The API never changes the schema.
 - Two database roles are created now: the migration role, which owns the tables, and the API role, which reads and writes rows. On the audit log table the API role can only insert and select. The monitoring role arrives with the telemetry collector.
-- The first migration creates `pg_stat_statements`, which proves that the migration role can do it without being a superuser.
+- The first migration creates `pg_stat_statements`, which proves that the migration role can do it without being a superuser. (It did not hold: see Joints this effort proves.)
 - Tables of this effort, in prose:
   - The consultancy: its name, legal name, country, tax ID, time zone, currency, the optional e-mail, telephone and website, the optional address (two lines, city, region, postal code) and the optional logo, held as the identifier of a file. The database refuses a second row.
   - Users: name, e-mail in lowercase and unique, country, national ID, the optional telephone and photo, the preferred language, and whether the user is deactivated.
@@ -287,17 +287,19 @@ In `issues/`, in dependency order. Each one says which issues block it.
 
 Each was recorded in an ADR as read in documentation and not tried. A joint that does not hold changes the decision, in its ADR, before the work goes on.
 
-- The vacuum lint on the spec Huma generates: `snake_case`, the rule for plural paths with its list of singular ones, and the `$schema` property Huma adds to bodies (ADR-0009).
-- The error format on unknown routes, wrong methods and panics, which bypass Huma's error hook (ADR-0009).
-- pgtestdb with the version of goose in use (ADR-0015).
-- The migration role creating `pg_stat_statements` without being a superuser (ADR-0015).
-- The AWS SDK for Go v2 against Garage: path-style addresses, checksum settings, and a URL signed for the public host name (ADR-0017).
-- orval on the spec Huma generates: the client, the Zod schemas and the simulated responses (ADR-0013).
-- The generated Zod schemas in a TanStack Form (ADR-0013).
-- A screen test in Vitest's Browser Mode with MSW serving the generated responses (ADR-0014).
-- The Caddy image built with a rate-limit plugin, and its 429 in the error format of the API (ADR-0011).
-- Compose files that extend one base, with the tag of every image in the base only (ADR-0019).
-- `/up` through Caddy, answering with the status code of readiness and no body (ADR-0012).
+Checked when the effort closed (issue 13): ten joints are proven, and one did not hold. Where a joint needed something its ADR did not expect, the ADR says what.
+
+- The vacuum lint on the spec Huma generates: `snake_case`, the rule for plural paths with its list of singular ones, and the `$schema` property Huma adds to bodies (ADR-0009). **Proven** (issue 05). Plural paths needed a function of vacuum written in this repository, and the API turns the `$schema` links off; the lint accepts them all the same. ADR-0009 says both.
+- The error format on unknown routes, wrong methods and panics, which bypass Huma's error hook (ADR-0009). **Proven** (issue 05), as ADR-0009 wrote it.
+- pgtestdb with the version of goose in use (ADR-0015). **Proven** (issue 04), with goose 3.30.1. The test helper builds the template with the function the `migrate` command calls, not with the migrator of pgtestdb, as ADR-0015 says.
+- The migration role creating `pg_stat_statements` without being a superuser (ADR-0015). **Did not hold** (issue 01): PostgreSQL does not mark the extension as trusted, so only a superuser creates it. The superuser creates it with the roles, on the first start of the container, and no migration does. ADR-0015 says so.
+- The AWS SDK for Go v2 against Garage: path-style addresses, checksum settings, and a URL signed for the public host name (ADR-0017). **Proven** (issue 10), with what ADR-0017 now lists: path-style addresses, the checksum defaults of the SDK, and a second client that signs for the public host name.
+- orval on the spec Huma generates: the client, the Zod schemas and the simulated responses (ADR-0013). **Proven** (issue 08), with the configuration ADR-0013 records.
+- The generated Zod schemas in a TanStack Form (ADR-0013). **Proven** (issues 08, 09 and 12), with the adjustments ADR-0013 records.
+- A screen test in Vitest's Browser Mode with MSW serving the generated responses (ADR-0014). **Proven** (issue 08), with what ADR-0014 now records.
+- The Caddy image built with a rate-limit plugin, and its 429 in the error format of the API (ADR-0011). **Proven** (issue 07), with `mholt/caddy-ratelimit`, which ADR-0011 names. The end-to-end test of issue 13 reads the 429 through the Caddy of development.
+- Compose files that extend one base, with the tag of every image in the base only (ADR-0019). **Proven** (issues 01, 07 and 10), with what ADR-0019 now records: the volumes and configs are declared in the file that extends, and the image built in the repository keeps its versions in its Dockerfile.
+- `/up` through Caddy, answering with the status code of readiness and no body (ADR-0012). **Proven** (issue 07), as ADR-0012 wrote it. The end-to-end test waits on it for the API.
 
 ### Joints still not tried
 
