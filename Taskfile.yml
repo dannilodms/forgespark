@@ -14,6 +14,11 @@ tasks:
 
   services:
     desc: Build the Caddy image, start the services of development and wait until they are healthy
+    env:
+      # BuildKit adds a provenance record that carries the time of the build,
+      # so each build would be a new image and Compose would create Caddy
+      # again on every run.
+      BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
     cmds:
       # The build is quick when the Dockerfile has not changed, and keeps the
       # image the same as it.
