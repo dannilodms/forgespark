@@ -179,3 +179,60 @@ func TestTheLogsAndTheSpansOfIssuingASetupCodeNeverCarryTheCode(t *testing.T) {
 	assert.Empty(t, guarded.foundIn(logs.String()), "the logs carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
 }
+
+// A setup code reaches the API in the body of a request. This scenario types
+// one in each form a person may, a wrong one, and one in a request the API
+// refuses, on a migrated database, and ends with a request that fails with a
+// 5xx, whose raw error is logged. It then searches the logs and the spans for
+// every form that was sent.
+func TestTheLogsAndTheSpansOfOpeningTheSetupNeverCarryTheCode(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	_, code := issueSetupCodeIn(t, temporary)
+	environment := environmentOf(temporary)
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	api := launchAPI(t, environment)
+
+	// Each form is a different text in a log, so each one is registered. The
+	// search ignores case.
+	asPrinted := guarded.add("the setup code", code)
+	withoutHyphens := guarded.add("the setup code without its hyphens", strings.ReplaceAll(code, "-", ""))
+	withSpaces := guarded.add("the setup code typed with spaces", strings.ReplaceAll(code, "-", " "))
+	withLookAlikes := guarded.add("the setup code typed with O and L for 0 and 1",
+		strings.NewReplacer("0", "O", "1", "L", "-", " ").Replace(strings.ToLower(code)))
+	wrong := guarded.add("a wrong setup code", "ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ")
+	for _, typed := range []string{asPrinted, withoutHyphens, withSpaces, withLookAlikes} {
+		require.Equal(t, http.StatusOK, openSetup(t, api.url, typed).status)
+	}
+	require.Equal(t, http.StatusUnprocessableEntity, openSetup(t, api.url, wrong).status)
+	// Refused before the use case runs: an unknown property, a code longer
+	// than the contract allows, an unknown query parameter and a wrong method.
+	refused := sendJSON(t, http.MethodPost, api.url+"/api/setup/open", `{"code":"`+code+`","step":"`+code+`"}`)
+	require.Equal(t, http.StatusUnprocessableEntity, refused.status)
+	refused = openSetup(t, api.url, strings.Repeat(code, 4))
+	require.Equal(t, http.StatusUnprocessableEntity, refused.status)
+	refused = sendJSON(t, http.MethodPut, api.url+"/api/setup/open", `{"code":"`+code+`"}`)
+	require.Equal(t, http.StatusMethodNotAllowed, refused.status)
+	// The API role loses the right to read the setup codes, so the query of
+	// the next request fails and its raw error is logged.
+	_, err := asOwner(t, temporary).Exec(context.Background(), "REVOKE SELECT ON setup_codes FROM api")
+	require.NoError(t, err)
+	failed := openSetup(t, api.url, code)
+	require.Equal(t, http.StatusInternalServerError, failed.status, failed.body)
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	logs := api.logs.String()
+	require.Contains(t, logs, "request failed", "the scenario logged no failed request")
+	require.Contains(t, logs, "permission denied for table setup_codes", "the scenario logged no raw error")
+	require.Contains(t, collector.Text(), "POST /api/setup/open", "the scenario exported no span of the operation")
+	require.Contains(t, collector.Text(), "FROM setup_codes", "the scenario exported no span of the query that finds the code")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+	for _, answer := range []received{refused, failed} {
+		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats the setup code")
+	}
+}
