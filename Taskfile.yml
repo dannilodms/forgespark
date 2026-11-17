@@ -7,10 +7,13 @@ dotenv: [".env", ".env.example"]
 
 tasks:
   install:
-    desc: Install the JavaScript dependencies of the app
+    desc: Install the JavaScript dependencies of the app, and the Chromium its screen tests run in
     dir: apps/web
     cmds:
       - vp install
+      # The Chromium of the Playwright version in the catalog. Downloaded once
+      # for each version, into the cache of Playwright on the machine.
+      - vp exec playwright install chromium
 
   services:
     desc: Build the Caddy image, start the services of development and wait until they are healthy
@@ -128,11 +131,39 @@ tasks:
       # Never from the cache: a test that reaches a service can fail with no file changed.
       - go test -count=1 {{.CLI_ARGS | default "./..."}}
 
-  web:check:
-    desc: Format, lint and type checks, the missing translation keys and the tests of the app
+  web:generate:
+    desc: Generate the API client, its Zod schemas and its simulated responses from apps/api/openapi.yaml, with orval
     dir: apps/web
     cmds:
+      - vp exec orval --config orval.config.ts
+
+  web:generate:check:
+    desc: Fail when the committed client that orval generated is stale
+    dir: apps/web
+    cmds:
+      # Compares with what it would write, and writes nothing.
+      - vp exec orval --config orval.config.ts --outdated
+
+  web:imports:
+    desc: Fail when an import of the app breaks the dependency rule
+    dir: apps/web
+    cmds:
+      - vp exec depcruise src --config .dependency-cruiser.mjs
+
+  web:knip:
+    desc: Fail on a file, an export or a dependency of the app that nothing uses
+    dir: apps/web
+    cmds:
+      - vp exec knip
+
+  web:check:
+    desc: Format, lint and type checks, the generated client, the dependency rule, unused code, the missing translation keys and the tests of the app
+    dir: apps/web
+    cmds:
+      - task: web:generate:check
       - vp check
+      - task: web:imports
+      - task: web:knip
       - vp node scripts/missing-keys.mjs
       - vp test run
 
