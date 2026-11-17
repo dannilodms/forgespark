@@ -31,6 +31,29 @@ func (q *Queries) FindSetupCodeByHash(ctx context.Context, codeHash []byte) (Set
 	return i, err
 }
 
+const loadSetupCodeByHash = `-- name: LoadSetupCodeByHash :one
+SELECT id, code_hash, issued_at, expires_at, ended_at
+FROM setup_codes
+WHERE code_hash = $1
+FOR UPDATE
+`
+
+// Loading locks the row until the transaction ends: two operations that use
+// the same code run one after the other, and the second sees whether the
+// first ended it.
+func (q *Queries) LoadSetupCodeByHash(ctx context.Context, codeHash []byte) (SetupCode, error) {
+	row := q.db.QueryRow(ctx, loadSetupCodeByHash, codeHash)
+	var i SetupCode
+	err := row.Scan(
+		&i.ID,
+		&i.CodeHash,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.EndedAt,
+	)
+	return i, err
+}
+
 const loadSetupCodesNotEnded = `-- name: LoadSetupCodesNotEnded :many
 SELECT id, code_hash, issued_at, expires_at, ended_at
 FROM setup_codes

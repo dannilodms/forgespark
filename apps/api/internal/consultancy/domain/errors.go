@@ -13,3 +13,17 @@ func (SetupCodeInvalidError) Error() string {
 func (SetupCodeInvalidError) Code() string {
 	return "setup_code_invalid"
 }
+
+// SetupAlreadyConcludedError is the answer to concluding the first setup when
+// the consultancy already exists: someone concluded it first, or the setup
+// code opens the registration of a new administrator.
+type SetupAlreadyConcludedError struct{}
+
+func (SetupAlreadyConcludedError) Error() string {
+	return "the setup is already concluded"
+}
+
+// Code returns the stable code an inbound adapter answers with.
+func (SetupAlreadyConcludedError) Code() string {
+	return "setup_already_concluded"
+}

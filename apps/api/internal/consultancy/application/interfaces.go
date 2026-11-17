@@ -37,6 +37,48 @@ type SetupCodeRepository interface {
 	// false when there is none. It locks nothing: it serves a use case that
 	// checks a setup code and saves nothing.
 	FindByHash(ctx context.Context, hash domain.SetupCodeHash) (*domain.SetupCode, bool, error)
+	// LoadByHash loads the setup code with this hash, ended or not, and false
+	// when there is none. It locks the setup code until the transaction ends,
+	// so two operations that use the same code run one after the other and
+	// the second sees whether the first ended it.
+	LoadByHash(ctx context.Context, hash domain.SetupCodeHash) (*domain.SetupCode, bool, error)
 	// Save stores a setup code whole, whether it is new or changed.
 	Save(ctx context.Context, setupCode *domain.SetupCode) error
+}
+
+// ConsultancyRepository keeps the consultancy, of which there is one.
+type ConsultancyRepository interface {
+	// NextIdentifier reserves the identifier of the consultancy.
+	NextIdentifier(ctx context.Context) (domain.ConsultancyID, error)
+	// Exists tells whether the consultancy was registered, which is whether
+	// the setup is concluded. It locks nothing.
+	Exists(ctx context.Context) (bool, error)
+	// Save stores the consultancy whole, whether it is new or changed.
+	Save(ctx context.Context, consultancy *domain.Consultancy) error
+}
+
+// UserRepository keeps the users, with the roles each one has.
+type UserRepository interface {
+	// NextIdentifier reserves the identifier of a user that does not exist
+	// yet.
+	NextIdentifier(ctx context.Context) (domain.UserID, error)
+	// Save stores a user whole, with their roles, whether they are new or
+	// changed.
+	Save(ctx context.Context, user *domain.User) error
+}
+
+// RoleRepository keeps the roles.
+type RoleRepository interface {
+	// NextIdentifier reserves the identifier of a role that does not exist
+	// yet.
+	NextIdentifier(ctx context.Context) (domain.RoleID, error)
+	// Save stores a role whole, whether it is new or changed.
+	Save(ctx context.Context, role *domain.Role) error
+}
+
+// SetupStateReader reads the state of the setup, shaped for whoever asks.
+type SetupStateReader interface {
+	// Read tells whether the setup is concluded and whether a setup code
+	// works at this moment. It locks nothing.
+	Read(ctx context.Context, at time.Time) (SetupState, error)
 }

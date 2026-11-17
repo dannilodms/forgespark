@@ -27,9 +27,24 @@ func NewSetupCodeID(value int64) (SetupCodeID, error) {
 // follows from whether the setup is concluded.
 type SetupCodeOpens string
 
-// OpensFirstSetup is the registration of the consultancy and of its first
-// administrator.
-const OpensFirstSetup SetupCodeOpens = "first_setup"
+const (
+	// OpensFirstSetup is the registration of the consultancy and of its
+	// first administrator.
+	OpensFirstSetup SetupCodeOpens = "first_setup"
+	// OpensNewAdministrator is the registration of a new administrator, the
+	// way back in when no administrator can log in.
+	OpensNewAdministrator SetupCodeOpens = "new_administrator"
+)
+
+// SetupCodeOpensWhen tells what a setup code opens: the first setup while the
+// setup is not concluded, and the registration of a new administrator once it
+// is.
+func SetupCodeOpensWhen(setupConcluded bool) SetupCodeOpens {
+	if setupConcluded {
+		return OpensNewAdministrator
+	}
+	return OpensFirstSetup
+}
 
 // SetupCode is the record of a setup code issued: its hash and when it was
 // issued, when it expires and when it was ended. The code itself is never

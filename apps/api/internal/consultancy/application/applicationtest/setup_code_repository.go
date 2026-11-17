@@ -13,11 +13,18 @@ import (
 type SetupCodeRepository struct {
 	lastIdentifier int64
 	setupCodes     []domain.SetupCode
+	failure        error
 }
 
 // NewSetupCodeRepository returns a repository with no setup code.
 func NewSetupCodeRepository() *SetupCodeRepository {
 	return &SetupCodeRepository{}
+}
+
+// FailWith makes every later Save fail with this error, as a database that
+// refuses the write.
+func (r *SetupCodeRepository) FailWith(failure error) {
+	r.failure = failure
 }
 
 // NextIdentifier reserves the next identifier, starting at 1.
@@ -29,6 +36,9 @@ func (r *SetupCodeRepository) NextIdentifier(context.Context) (domain.SetupCodeI
 // Save stores the setup code, in place of the one with the same identifier
 // when there is one.
 func (r *SetupCodeRepository) Save(_ context.Context, setupCode *domain.SetupCode) error {
+	if r.failure != nil {
+		return r.failure
+	}
 	position := slices.IndexFunc(r.setupCodes, func(stored domain.SetupCode) bool {
 		return stored.ID() == setupCode.ID()
 	})
@@ -61,6 +71,12 @@ func (r *SetupCodeRepository) FindByHash(_ context.Context, hash domain.SetupCod
 	}
 	found := r.setupCodes[position]
 	return &found, true, nil
+}
+
+// LoadByHash returns a copy of the setup code with this hash, ended or not.
+// Memory has no lock: the tests of the lock run against PostgreSQL.
+func (r *SetupCodeRepository) LoadByHash(ctx context.Context, hash domain.SetupCodeHash) (*domain.SetupCode, bool, error) {
+	return r.FindByHash(ctx, hash)
 }
 
 // LoadNotEnded returns a copy of every setup code that was not ended.

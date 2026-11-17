@@ -66,11 +66,24 @@ func (r *SetupCodeRepository) LoadNotEnded(ctx context.Context) ([]*domain.Setup
 // nothing.
 func (r *SetupCodeRepository) FindByHash(ctx context.Context, hash domain.SetupCodeHash) (*domain.SetupCode, bool, error) {
 	row, err := r.queries(ctx).FindSetupCodeByHash(ctx, hash[:])
+	return foundSetupCode(row, err, "find the setup code by its hash")
+}
+
+// LoadByHash loads the setup code with this hash, ended or not, and locks its
+// row until the transaction ends.
+func (r *SetupCodeRepository) LoadByHash(ctx context.Context, hash domain.SetupCodeHash) (*domain.SetupCode, bool, error) {
+	row, err := r.queries(ctx).LoadSetupCodeByHash(ctx, hash[:])
+	return foundSetupCode(row, err, "load the setup code by its hash")
+}
+
+// foundSetupCode rebuilds the setup code a query found, and answers false
+// when it found none.
+func foundSetupCode(row SetupCode, err error, doing string) (*domain.SetupCode, bool, error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, false, nil
 	}
 	if err != nil {
-		return nil, false, fmt.Errorf("find the setup code by its hash: %w", err)
+		return nil, false, fmt.Errorf("%s: %w", doing, err)
 	}
 	setupCode, err := setupCodeOf(row)
 	if err != nil {

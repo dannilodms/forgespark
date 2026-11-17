@@ -1,5 +1,24 @@
 components:
   schemas:
+    ConcludeSetupRequest:
+      additionalProperties: false
+      properties:
+        administrator:
+          $ref: "#/components/schemas/SetupAdministrator"
+          description: Its first administrator, who receives the administrator role.
+        code:
+          description: The setup code, as typed, as in open_setup.
+          maxLength: 64
+          minLength: 1
+          type: string
+        consultancy:
+          $ref: "#/components/schemas/SetupConsultancy"
+          description: The consultancy.
+      required:
+        - code
+        - consultancy
+        - administrator
+      type: object
     FieldError:
       additionalProperties: false
       properties:
@@ -41,9 +60,10 @@ components:
           format: date-time
           type: string
         opens:
-          description: What the setup code opens.
+          description: "What the setup code opens: the first setup while the setup is not concluded, and the registration of a new administrator once it is."
           enum:
             - first_setup
+            - new_administrator
           type: string
       required:
         - opens
@@ -84,6 +104,140 @@ components:
         - params
         - trace_id
       type: object
+    SetupAddress:
+      additionalProperties: false
+      properties:
+        city:
+          description: The city.
+          maxLength: 100
+          type: string
+        line1:
+          description: "The first line: the street and the number."
+          maxLength: 200
+          type: string
+        line2:
+          description: "The second line: the suite, the floor, the building."
+          maxLength: 200
+          type: string
+        postal_code:
+          description: The postal code, as the country writes it.
+          maxLength: 20
+          type: string
+        region:
+          description: "The region: a state, a province, a county."
+          maxLength: 100
+          type: string
+      type: object
+    SetupAdministrator:
+      additionalProperties: false
+      properties:
+        country:
+          description: "The country that gave the national ID, by its ISO 3166-1 alpha-2 code: BR."
+          minLength: 1
+          type: string
+        email:
+          description: The e-mail the administrator logs in with. It is stored in lowercase, and belongs to one user.
+          format: email
+          maxLength: 254
+          minLength: 1
+          type: string
+        name:
+          description: The name of the person.
+          maxLength: 200
+          minLength: 1
+          type: string
+        national_id:
+          description: The identifier the country gives the person, as the country writes it.
+          maxLength: 50
+          minLength: 1
+          type: string
+        preferred_language:
+          description: "The supported language the administrator reads the system in: the language the setup screen was in."
+          enum:
+            - en-US
+            - es
+            - pt-BR
+          minLength: 1
+          type: string
+        telephone:
+          description: "The telephone, in international form: a plus sign and 7 to 15 digits. Spaces are dropped."
+          pattern: ^\+( *[0-9]){7,15} *$
+          type: string
+      required:
+        - name
+        - email
+        - country
+        - national_id
+        - preferred_language
+      type: object
+    SetupConsultancy:
+      additionalProperties: false
+      properties:
+        address:
+          $ref: "#/components/schemas/SetupAddress"
+          description: The address. Every part may be left out.
+        country:
+          description: "The country, by its ISO 3166-1 alpha-2 code: BR."
+          minLength: 1
+          type: string
+        currency:
+          description: "The currency, by its ISO 4217 code: BRL."
+          minLength: 1
+          type: string
+        email:
+          description: The e-mail of the consultancy. It is stored in lowercase.
+          format: email
+          maxLength: 254
+          type: string
+        legal_name:
+          description: The name documents carry.
+          maxLength: 200
+          minLength: 1
+          type: string
+        name:
+          description: The name the consultancy is known by.
+          maxLength: 200
+          minLength: 1
+          type: string
+        tax_id:
+          description: The identifier the tax authority of the country gives the consultancy, as the country writes it.
+          maxLength: 50
+          minLength: 1
+          type: string
+        telephone:
+          description: "The telephone, in international form: a plus sign and 7 to 15 digits. Spaces are dropped."
+          pattern: ^\+( *[0-9]){7,15} *$
+          type: string
+        time_zone:
+          description: "The time zone, by its name in the IANA time zone database: America/Sao_Paulo."
+          minLength: 1
+          type: string
+        website:
+          description: "The website: an http or https address."
+          maxLength: 2048
+          pattern: ^https?://[^\s/?#@]+([/?#]\S*)?$
+          type: string
+      required:
+        - name
+        - legal_name
+        - country
+        - tax_id
+        - time_zone
+        - currency
+      type: object
+    SetupState:
+      additionalProperties: false
+      properties:
+        concluded:
+          description: "Whether the setup is concluded: the consultancy and its first administrator exist."
+          type: boolean
+        setup_code_waiting:
+          description: Whether a setup code is issued and still works, before the setup is concluded or after.
+          type: boolean
+      required:
+        - concluded
+        - setup_code_waiting
+      type: object
 info:
   description: |-
     The REST contract of the system, generated from the Go code and committed.
@@ -95,6 +249,60 @@ info:
   version: unversioned
 openapi: 3.1.0
 paths:
+  /api/setup:
+    get:
+      description: Tells whether the setup is concluded and whether a setup code is waiting. It needs no session.
+      operationId: tell_setup_state
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupState"
+          description: OK
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Tell the state of the setup
+      tags:
+        - Setup
+  /api/setup/conclude:
+    post:
+      description: Registers the consultancy, its first administrator and the two first roles together, and ends the setup code. Every field is checked before anything is saved, and nothing is saved when one breaks a rule.
+      operationId: conclude_setup
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConcludeSetupRequest"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Conflict. `setup_already_concluded`: the setup is already concluded."
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unprocessable Entity. `setup_code_invalid`: the setup code is wrong, expired or was ended. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule. The rules of a field: `required`: the field is required. `too_long`: the text is longer than the field allows. `country_unknown`: the country is not an ISO 3166-1 alpha-2 code. `currency_unknown`: the currency is not the ISO 4217 code of a currency in circulation. `time_zone_unknown`: the time zone is not a name of the IANA time zone database. `language_unsupported`: the language is not a supported language. `email_invalid`: the text is not an e-mail address. `telephone_invalid`: the text is not a telephone in international form: a plus sign and 7 to 15 digits. `website_invalid`: the text is not an http or https address."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Conclude the first setup
+      tags:
+        - Setup
   /api/setup/open:
     post:
       description: Checks a setup code and tells what it opens and when it expires. It saves nothing, and a wrong code changes nothing.
@@ -117,7 +325,7 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-          description: "Unprocessable Entity. `setup_code_invalid`: the setup code is wrong, expired or was ended. `validation_failed`: the request does not follow this contract, and `errors` names each field."
+          description: "Unprocessable Entity. `setup_code_invalid`: the setup code is wrong, expired or was ended. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule."
         "500":
           content:
             application/problem+json:

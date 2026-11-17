@@ -6,10 +6,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	auditpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/adapters/postgres"
+	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
 	consultancypostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/adapters/postgres"
 	consultancyrest "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/adapters/rest"
 	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
 )
 
@@ -26,9 +29,22 @@ var bodyLimits = restapi.Limits{BodyBytes: 1 << 20, BodyReadTimeout: 5 * time.Se
 func mountREST(mux *http.ServeMux, pool *pgxpool.Pool) *restapi.API {
 	api := restapi.New(mux, bodyLimits)
 
+	transactions := database.NewTransactions(pool)
+	recordEntry := auditapplication.NewRecordEntry(auditpostgres.NewAuditLog(pool))
 	setupCodes := consultancypostgres.NewSetupCodeRepository(pool)
+	consultancies := consultancypostgres.NewConsultancyRepository(pool)
 	consultancyrest.Register(api, consultancyrest.UseCases{
-		OpenSetup: consultancyapplication.NewOpenSetup(setupCodes, clock.System{}),
+		TellSetupState: consultancyapplication.NewTellSetupState(consultancypostgres.NewSetupStateReader(pool), clock.System{}),
+		OpenSetup:      consultancyapplication.NewOpenSetup(setupCodes, consultancies, clock.System{}),
+		ConcludeSetup: consultancyapplication.NewConcludeSetup(
+			transactions,
+			setupCodes,
+			consultancies,
+			consultancypostgres.NewUserRepository(pool),
+			consultancypostgres.NewRoleRepository(pool),
+			recordEntry,
+			clock.System{},
+		),
 	})
 
 	return api

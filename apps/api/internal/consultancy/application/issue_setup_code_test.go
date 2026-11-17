@@ -48,28 +48,38 @@ const (
 type installation struct {
 	clock          *applicationtest.Clock
 	setupCodes     *applicationtest.SetupCodeRepository
+	consultancies  *applicationtest.ConsultancyRepository
+	users          *applicationtest.UserRepository
+	roles          *applicationtest.RoleRepository
 	auditLog       *auditapplicationtest.AuditLog
+	transactions   *applicationtest.Transactions
 	issueSetupCode *application.IssueSetupCode
 	openSetup      *application.OpenSetup
+	concludeSetup  *application.ConcludeSetup
+	tellSetupState *application.TellSetupState
 }
 
 func newInstallation() installation {
 	clock := applicationtest.NewClock(noon)
 	setupCodes := applicationtest.NewSetupCodeRepository()
+	consultancies := applicationtest.NewConsultancyRepository()
+	users := applicationtest.NewUserRepository()
+	roles := applicationtest.NewRoleRepository()
 	auditLog := auditapplicationtest.NewAuditLog()
-	transactions := applicationtest.NewTransactions(setupCodes, auditLog)
+	transactions := applicationtest.NewTransactions(setupCodes, consultancies, users, roles, auditLog)
+	recordEntry := auditapplication.NewRecordEntry(auditLog)
 	return installation{
-		clock:      clock,
-		setupCodes: setupCodes,
-		auditLog:   auditLog,
-		issueSetupCode: application.NewIssueSetupCode(
-			transactions,
-			setupCodes,
-			auditapplication.NewRecordEntry(auditLog),
-			clock,
-			&countingBytes{},
-		),
-		openSetup: application.NewOpenSetup(setupCodes, clock),
+		clock:          clock,
+		setupCodes:     setupCodes,
+		consultancies:  consultancies,
+		users:          users,
+		roles:          roles,
+		auditLog:       auditLog,
+		transactions:   transactions,
+		issueSetupCode: application.NewIssueSetupCode(transactions, setupCodes, recordEntry, clock, &countingBytes{}),
+		openSetup:      application.NewOpenSetup(setupCodes, consultancies, clock),
+		concludeSetup:  application.NewConcludeSetup(transactions, setupCodes, consultancies, users, roles, recordEntry, clock),
+		tellSetupState: application.NewTellSetupState(applicationtest.NewSetupStateReader(consultancies, setupCodes), clock),
 	}
 }
 

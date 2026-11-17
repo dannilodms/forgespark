@@ -17,6 +17,15 @@ SELECT id, code_hash, issued_at, expires_at, ended_at
 FROM setup_codes
 WHERE code_hash = @code_hash;
 
+-- name: LoadSetupCodeByHash :one
+-- Loading locks the row until the transaction ends: two operations that use
+-- the same code run one after the other, and the second sees whether the
+-- first ended it.
+SELECT id, code_hash, issued_at, expires_at, ended_at
+FROM setup_codes
+WHERE code_hash = @code_hash
+FOR UPDATE;
+
 -- name: SaveSetupCode :exec
 INSERT INTO setup_codes (id, code_hash, issued_at, expires_at, ended_at)
 VALUES (@id, @code_hash, @issued_at, @expires_at, @ended_at)

@@ -25,7 +25,8 @@ type received struct {
 	fields    map[string]any
 }
 
-// sendJSON sends a request with a JSON body and reads the JSON it answers.
+// sendJSON sends a request with a JSON body and reads the JSON it answers,
+// when it answers a body.
 func sendJSON(t *testing.T, method, url, body string) received {
 	t.Helper()
 	request, err := http.NewRequest(method, url, strings.NewReader(body))
@@ -41,6 +42,9 @@ func sendJSON(t *testing.T, method, url, body string) received {
 		mediaType: response.Header.Get("Content-Type"),
 		allow:     response.Header.Get("Allow"),
 		body:      string(raw),
+	}
+	if response.StatusCode == http.StatusNoContent {
+		return answer
 	}
 	require.NoError(t, json.Unmarshal(raw, &answer.fields), "the answer is not a JSON object: %s", raw)
 	return answer

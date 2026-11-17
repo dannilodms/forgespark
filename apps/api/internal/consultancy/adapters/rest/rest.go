@@ -10,7 +10,9 @@ import (
 
 // UseCases are the use cases of the area that have a REST operation.
 type UseCases struct {
-	OpenSetup *application.OpenSetup
+	TellSetupState *application.TellSetupState
+	OpenSetup      *application.OpenSetup
+	ConcludeSetup  *application.ConcludeSetup
 }
 
 // Register adds the operations of the area to the API.

@@ -22,9 +22,13 @@ var noon = time.Date(2026, time.November, 17, 12, 0, 0, 0, time.UTC)
 // stored is a migrated temporary database, reached as the API role, with the
 // repository under test on it.
 type stored struct {
-	pool         *pgxpool.Pool
-	transactions *database.Transactions
-	setupCodes   *postgres.SetupCodeRepository
+	pool          *pgxpool.Pool
+	transactions  *database.Transactions
+	setupCodes    *postgres.SetupCodeRepository
+	consultancies *postgres.ConsultancyRepository
+	users         *postgres.UserRepository
+	roles         *postgres.RoleRepository
+	setupState    *postgres.SetupStateReader
 }
 
 func newStored(t *testing.T) stored {
@@ -41,9 +45,13 @@ func newStored(t *testing.T) stored {
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 	return stored{
-		pool:         pool,
-		transactions: database.NewTransactions(pool),
-		setupCodes:   postgres.NewSetupCodeRepository(pool),
+		pool:          pool,
+		transactions:  database.NewTransactions(pool),
+		setupCodes:    postgres.NewSetupCodeRepository(pool),
+		consultancies: postgres.NewConsultancyRepository(pool),
+		users:         postgres.NewUserRepository(pool),
+		roles:         postgres.NewRoleRepository(pool),
+		setupState:    postgres.NewSetupStateReader(pool),
 	}
 }
 
@@ -233,6 +241,30 @@ func TestNoSetupCodeIsFoundByAHashThatWasNeverStored(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, exists)
 	assert.Nil(t, found)
+}
+
+func TestLoadingASetupCodeByItsHashLocksItUntilTheTransactionEnds(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	issued := temporary.issue(t, noon)
+	const lockNotAvailable = "55P03"
+
+	var loaded *domain.SetupCode
+	var found bool
+	var whileLocked, afterwards error
+	err := temporary.transactions.Run(context.Background(), func(ctx context.Context) error {
+		var err error
+		loaded, found, err = temporary.setupCodes.LoadByHash(ctx, issued.Hash())
+		whileLocked = temporary.loadWithoutWaiting(t)
+		return err
+	})
+	afterwards = temporary.loadWithoutWaiting(t)
+
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Equal(t, issued.ID(), loaded.ID())
+	assert.Equal(t, lockNotAvailable, sqlState(t, whileLocked))
+	assert.NoError(t, afterwards)
 }
 
 func TestFindingASetupCodeByItsHashLocksNothing(t *testing.T) {
