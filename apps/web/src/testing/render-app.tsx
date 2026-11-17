@@ -24,5 +24,10 @@ export async function renderApp({ at = "/", languages = ["en-US"] }: Visit) {
     screen,
     /** The address in the bar of the browser: path, search and hash. */
     address: () => history.location.href,
+    /**
+     * Opens another address in the same tab, as following a link does: the
+     * app keeps what it has in memory, and the gate decides with it.
+     */
+    goTo: (at: string) => history.push(at),
   }
 }

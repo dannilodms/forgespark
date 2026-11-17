@@ -7,6 +7,7 @@ import {
 import {
   concludeSetup,
   openSetup,
+  registerAdministrator,
   startSetupUpload,
   tellSetupState,
 } from "../../shared/api/generated/client"
@@ -167,8 +168,9 @@ function consultancyOf(typed: TypedSetup["consultancy"]) {
 }
 
 /**
- * The administrator as the body of concluding takes it, but for the
- * preferred language, which is the language of the screen when concluding.
+ * The administrator as the body of concluding, or of registering a new
+ * administrator, takes it, but for the preferred language, which is the
+ * language of the screen when the request is sent.
  */
 function administratorOf(typed: TypedSetup["administrator"]) {
   return {
@@ -262,7 +264,10 @@ export async function sendSetupImage({ purpose, file, code }: ImageToSend) {
   return upload.file_id
 }
 
-/** What concluding the setup sends, once. */
+/**
+ * What concluding the setup, or registering a new administrator, sends,
+ * once.
+ */
 type Conclusion = {
   typed: TypedSetup
   /** The setup code, as typed. */
@@ -329,6 +334,35 @@ export function useConcludeSetup() {
         setup_code_waiting: false,
       })
       return "concluded"
+    },
+  })
+}
+
+/**
+ * Registers a new administrator, the way back in: a user with the
+ * administrator role, from the administrator typed, and the setup code stops
+ * working. No user that exists is changed. The state the gate reads is
+ * updated, so the address of the setup leads to the login screen again.
+ *
+ * The consultancy typed in the form, if any, is not sent.
+ */
+export function useRegisterAdministrator() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ typed, code, language }: Conclusion) => {
+      await registerAdministrator({
+        code,
+        administrator: {
+          ...administratorOf(typed.administrator),
+          preferred_language: language,
+        },
+      })
+      // The setup code that registered the administrator stopped working.
+      queryClient.setQueryData(setupStateQuery.queryKey, {
+        concluded: true,
+        setup_code_waiting: false,
+      })
     },
   })
 }

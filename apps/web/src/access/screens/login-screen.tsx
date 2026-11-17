@@ -7,11 +7,13 @@ import { FramedPane } from "../../shared/components/framed-pane"
 
 /**
  * What the login screen may be told by the screen the person comes from:
- * the setup was concluded, by them or by someone before them.
+ * the setup was concluded, by them or by someone before them, or a new
+ * administrator was registered, the way back in.
  */
 export const loginNotices = [
   "setup_concluded",
   "setup_already_concluded",
+  "administrator_registered",
 ] as const
 
 type LoginNotice = (typeof loginNotices)[number]
@@ -40,6 +42,15 @@ export function LoginScreen({ notice }: { notice?: LoginNotice }) {
           <AlertTitle>{t("login.setupAlreadyConcluded.title")}</AlertTitle>
           <AlertDescription>
             {t("login.setupAlreadyConcluded.todo")}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {notice === "administrator_registered" ? (
+        <Alert>
+          <CircleCheckIcon className="text-status-done" />
+          <AlertTitle>{t("login.administratorRegistered.title")}</AlertTitle>
+          <AlertDescription>
+            {t("login.administratorRegistered.todo")}
           </AlertDescription>
         </Alert>
       ) : null}

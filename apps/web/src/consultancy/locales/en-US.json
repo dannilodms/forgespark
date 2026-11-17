@@ -25,10 +25,6 @@
         "todo": "Issue a new one on the server and type it here. What was typed in the setup is kept, and the new code returns to the step you were on."
       }
     },
-    "opened": {
-      "newAdministrator": "The setup code opened the registration of a new administrator. The users that exist are not changed.",
-      "toCome": "The next step of the setup is still to be built."
-    },
     "consultancy": {
       "title": "The consultancy",
       "intro": "How the consultancy is known, where it is and how it is reached. The fields marked optional may be left empty.",
@@ -77,6 +73,10 @@
         "remove": "Remove the photo"
       }
     },
+    "newAdministrator": {
+      "title": "The new administrator",
+      "intro": "The person who receives the administrator role and registers the others. The users that exist are not changed."
+    },
     "review": {
       "title": "Review",
       "intro": "Check what was typed. Nothing is saved until the setup is concluded.",
@@ -87,7 +87,15 @@
       "logsInWith": "The first administrator logs in with this e-mail. Check that it is right:",
       "imagesSending": "Concluding waits until every image chosen is sent.",
       "imageNotSent": "An image was not sent. Change its step to send it again or to remove it.",
-      "conclude": "Conclude the setup"
+      "conclude": "Conclude the setup",
+      "newAdministrator": {
+        "intro": "Check what was typed. A new administrator will be registered, with the administrator role, and the users that exist are not changed. Nothing is saved until the administrator is registered.",
+        "change": "Change the new administrator",
+        "logsInWith": "The new administrator logs in with this e-mail. Check that it is right:",
+        "photoSending": "Registering waits until the photo chosen is sent.",
+        "photoNotSent": "The photo was not sent. Change the new administrator to send it again or to remove it.",
+        "register": "Register the administrator"
+      }
     }
   }
 }

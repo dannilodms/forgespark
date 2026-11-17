@@ -52,6 +52,10 @@
         "title": "The setup is already concluded",
         "todo": "Nothing of what was typed here was saved. Load the page again to reach the login screen."
       },
+      "setup_not_concluded": {
+        "title": "The setup is not concluded",
+        "todo": "Nothing was saved. Load the page again and type the setup code: it opens the first setup."
+      },
       "internal_server_error": {
         "title": "The server failed",
         "todo": "Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
@@ -73,6 +77,7 @@
       "file_empty": "This file is empty. Choose another.",
       "file_not_found": "This image was not found. Choose it again.",
       "file_not_uploaded": "This image did not reach the storage. Choose it again.",
+      "email_in_use": "This e-mail belongs to a user of the system. Type another one.",
       "setup_code_invalid": "This setup code does not work: it is wrong, it expired or it was already used. Issue a new one on the server and type it here."
     }
   },

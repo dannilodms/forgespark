@@ -120,12 +120,11 @@ describe("the step of the setup code", () => {
     await screen.getByRole("button", { name: "Continue" }).click()
 
     await expect
-      .element(
-        screen.getByText(
-          /The setup code opened the registration of a new administrator/
-        )
-      )
+      .element(screen.getByRole("heading", { name: "The new administrator" }))
       .toBeVisible()
+    await expect
+      .element(screen.getByRole("heading", { name: "The consultancy" }))
+      .not.toBeInTheDocument()
   })
 
   it("shows a code that does not work on its field, as typed, and asks for a new one", async () => {

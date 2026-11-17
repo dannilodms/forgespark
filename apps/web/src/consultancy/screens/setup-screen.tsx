@@ -5,7 +5,6 @@ import { FramedPane } from "../../shared/components/framed-pane"
 import { AdministratorStep } from "../components/administrator-step"
 import { CodeStep } from "../components/code-step"
 import { ConsultancyStep } from "../components/consultancy-step"
-import { NextStepPlaceholder } from "../components/next-step-placeholder"
 import { ReviewStep } from "../components/review-step"
 import { type SetupForm, useSetupForm } from "../components/setup-form"
 import { type SetupImages, useSetupImage } from "../components/setup-image"
@@ -96,8 +95,14 @@ function Step({
         <AdministratorStep
           form={form}
           photo={images.photo}
+          opens={flow.opened.opens}
           onContinue={() => dispatch({ type: "wentTo", step: "review" })}
-          onBack={() => dispatch({ type: "wentTo", step: "consultancy" })}
+          // The way back in has no step of the consultancy.
+          onBack={
+            flow.opened.opens === "first_setup"
+              ? () => dispatch({ type: "wentTo", step: "consultancy" })
+              : undefined
+          }
         />
       )
     case "review":
@@ -110,7 +115,5 @@ function Step({
           onCodeStoppedWorking={() => dispatch({ type: "codeStoppedWorking" })}
         />
       )
-    case "newAdministrator":
-      return <NextStepPlaceholder />
   }
 }

@@ -32,7 +32,9 @@ function isProblem(body: unknown): body is Problem {
  */
 export async function request<T>(url: string, init: RequestInit): Promise<T> {
   const response = await fetch(url, init)
-  // `application/json` and `application/problem+json`. A 204 has no body.
+  // `application/json` and `application/problem+json`. A 204 has no body,
+  // and neither has a 201 that points at nothing, such as the registration
+  // of an administrator.
   const isJSON = response.headers.get("Content-Type")?.includes("json")
   const body: unknown = isJSON ? await response.json() : undefined
   if (!response.ok) {

@@ -25,10 +25,6 @@
         "todo": "Emita um novo no servidor e digite-o aqui. O que foi digitado na configuração continua guardado, e o novo código volta ao passo em que você estava."
       }
     },
-    "opened": {
-      "newAdministrator": "O código de configuração abriu o cadastro de um novo administrador. Os usuários que existem não são alterados.",
-      "toCome": "O próximo passo da configuração inicial ainda será construído."
-    },
     "consultancy": {
       "title": "A consultoria",
       "intro": "Como a consultoria é conhecida, onde ela fica e como falar com ela. Os campos marcados como opcionais podem ficar vazios.",
@@ -77,6 +73,10 @@
         "remove": "Remover a foto"
       }
     },
+    "newAdministrator": {
+      "title": "O novo administrador",
+      "intro": "A pessoa que recebe o papel de administrador e cadastra as outras. Os usuários que existem não são alterados."
+    },
     "review": {
       "title": "Revisão",
       "intro": "Confira o que foi digitado. Nada é salvo até a configuração inicial ser concluída.",
@@ -87,7 +87,15 @@
       "logsInWith": "O primeiro administrador entra com este e-mail. Confira se está certo:",
       "imagesSending": "A conclusão espera até que todas as imagens escolhidas sejam enviadas.",
       "imageNotSent": "Uma imagem não foi enviada. Altere o passo dela para enviá-la de novo ou para removê-la.",
-      "conclude": "Concluir a configuração"
+      "conclude": "Concluir a configuração",
+      "newAdministrator": {
+        "intro": "Confira o que foi digitado. Um novo administrador será cadastrado, com o papel de administrador, e os usuários que existem não são alterados. Nada é salvo até o administrador ser cadastrado.",
+        "change": "Alterar o novo administrador",
+        "logsInWith": "O novo administrador entra com este e-mail. Confira se está certo:",
+        "photoSending": "O cadastro espera até que a foto escolhida seja enviada.",
+        "photoNotSent": "A foto não foi enviada. Altere o novo administrador para enviá-la de novo ou para removê-la.",
+        "register": "Cadastrar o administrador"
+      }
     }
   }
 }

@@ -52,6 +52,10 @@
         "title": "A configuração inicial já foi concluída",
         "todo": "Nada do que foi digitado aqui foi salvo. Carregue a página de novo para chegar à tela de entrada."
       },
+      "setup_not_concluded": {
+        "title": "A configuração inicial não foi concluída",
+        "todo": "Nada foi salvo. Carregue a página de novo e digite o código de configuração: ele abre a configuração inicial."
+      },
       "internal_server_error": {
         "title": "O servidor falhou",
         "todo": "Tente de novo em instantes. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
@@ -73,6 +77,7 @@
       "file_empty": "Este arquivo está vazio. Escolha outro.",
       "file_not_found": "Esta imagem não foi encontrada. Escolha-a de novo.",
       "file_not_uploaded": "Esta imagem não chegou ao armazenamento. Escolha-a de novo.",
+      "email_in_use": "Este e-mail pertence a um usuário do sistema. Digite outro.",
       "setup_code_invalid": "Este código de configuração não funciona: está errado, expirou ou já foi usado. Emita um novo no servidor e digite-o aqui."
     }
   },

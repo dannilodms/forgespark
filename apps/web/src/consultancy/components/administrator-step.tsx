@@ -12,7 +12,7 @@ import {
 import { checkTheContract } from "../../shared/errors/problems"
 import { useLanguage } from "../../shared/locales/i18n"
 import { countryItems } from "../../shared/places/places"
-import { administratorContract } from "../data/setup"
+import { type OpenedSetupCode, administratorContract } from "../data/setup"
 import { ImageField } from "./image-field"
 import { type SetupForm, fieldsWithProblems } from "./setup-form"
 import type { SetupImageField } from "./setup-image"
@@ -24,25 +24,35 @@ const checkTheAdministrator = checkTheContract(
 )
 
 /**
- * The step of the first administrator: the person who logs in first and
- * registers the others. Moving on checks the fields of this step only; going
- * back keeps them as typed, checked or not. The preferred language is not
- * asked: it is the language of the screen when the setup is concluded. A
- * photo still on its way to the storage keeps going while the person moves.
+ * The step of the administrator. In the first setup it is the first
+ * administrator: the person who logs in first and registers the others, and
+ * Back leads to the consultancy. In the way back in it is a new
+ * administrator, and the first step after the code: there is no Back.
+ *
+ * Moving on checks the fields of this step only; going back keeps them as
+ * typed, checked or not. The preferred language is not asked: it is the
+ * language of the screen when the setup is concluded or the administrator
+ * registered. A photo still on its way to the storage keeps going while the
+ * person moves.
  */
 export function AdministratorStep({
   form,
   photo,
+  opens,
   onContinue,
   onBack,
 }: {
   form: SetupForm
   /** The photo, which the screen holds so that it outlives the step. */
   photo: SetupImageField
+  /** What the setup code opened. */
+  opens: OpenedSetupCode["opens"]
   onContinue: () => void
-  onBack: () => void
+  /** Leads to the step before, when there is one. */
+  onBack?: () => void
 }) {
   const { t } = useTranslation("consultancy")
+  const newAdministrator = opens === "new_administrator"
   const { language } = useLanguage()
   const element = useRef<HTMLFormElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
@@ -75,8 +85,16 @@ export function AdministratorStep({
         >
           <StepHeading
             ref={heading}
-            title={t("setup.administrator.title")}
-            intro={t("setup.administrator.intro")}
+            title={
+              newAdministrator
+                ? t("setup.newAdministrator.title")
+                : t("setup.administrator.title")
+            }
+            intro={
+              newAdministrator
+                ? t("setup.newAdministrator.intro")
+                : t("setup.administrator.intro")
+            }
           />
 
           <FieldGroup>
@@ -151,9 +169,11 @@ export function AdministratorStep({
           </FieldGroup>
 
           <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={onBack}>
-              {t("setup.back")}
-            </Button>
+            {onBack ? (
+              <Button type="button" variant="outline" onClick={onBack}>
+                {t("setup.back")}
+              </Button>
+            ) : null}
             <Button type="submit" className="flex-1">
               {t("setup.continue")}
             </Button>

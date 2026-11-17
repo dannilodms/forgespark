@@ -9,6 +9,10 @@
     "setupAlreadyConcluded": {
       "title": "A configuração inicial já tinha sido concluída",
       "todo": "Alguém a concluiu antes de você, então nada do que você digitou foi salvo. O administrador cadastrado nela entra por aqui quando o login existir."
+    },
+    "administratorRegistered": {
+      "title": "O administrador foi cadastrado",
+      "todo": "O novo administrador entra por aqui quando o login existir. Os usuários que já existiam não foram alterados."
     }
   }
 }

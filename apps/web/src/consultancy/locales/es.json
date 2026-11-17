@@ -25,10 +25,6 @@
         "todo": "Emite uno nuevo en el servidor y escríbelo aquí. Lo que se escribió en la configuración se conserva, y el nuevo código vuelve al paso en el que estabas."
       }
     },
-    "opened": {
-      "newAdministrator": "El código de configuración abrió el registro de un nuevo administrador. Los usuarios que existen no cambian.",
-      "toCome": "El siguiente paso de la configuración inicial aún está por construirse."
-    },
     "consultancy": {
       "title": "La consultora",
       "intro": "Cómo se conoce a la consultora, dónde está y cómo contactarla. Los campos marcados como opcionales pueden quedar vacíos.",
@@ -77,6 +73,10 @@
         "remove": "Quitar la foto"
       }
     },
+    "newAdministrator": {
+      "title": "El nuevo administrador",
+      "intro": "La persona que recibe el rol de administrador y registra a las demás. Los usuarios que existen no se modifican."
+    },
     "review": {
       "title": "Revisión",
       "intro": "Revisa lo que se escribió. Nada se guarda hasta que se concluya la configuración inicial.",
@@ -87,7 +87,15 @@
       "logsInWith": "El primer administrador inicia sesión con este correo electrónico. Comprueba que sea correcto:",
       "imagesSending": "La conclusión espera hasta que se envíen todas las imágenes elegidas.",
       "imageNotSent": "Una imagen no se envió. Cambia su paso para enviarla de nuevo o para quitarla.",
-      "conclude": "Concluir la configuración"
+      "conclude": "Concluir la configuración",
+      "newAdministrator": {
+        "intro": "Revisa lo que se escribió. Se registrará un nuevo administrador, con el rol de administrador, y los usuarios que existen no se modifican. Nada se guarda hasta que se registre el administrador.",
+        "change": "Cambiar el nuevo administrador",
+        "logsInWith": "El nuevo administrador inicia sesión con este correo electrónico. Comprueba que sea correcto:",
+        "photoSending": "El registro espera hasta que se envíe la foto elegida.",
+        "photoNotSent": "La foto no se envió. Cambia el nuevo administrador para enviarla de nuevo o para quitarla.",
+        "register": "Registrar al administrador"
+      }
     }
   }
 }

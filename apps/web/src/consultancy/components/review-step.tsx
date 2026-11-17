@@ -7,6 +7,7 @@ import { Button } from "#ui/components/button"
 
 import { ErrorAlert } from "../../shared/errors/error-alert"
 import {
+  type FieldProblem,
   type FieldProblems,
   answerCodeOf,
   refusedFields,
@@ -22,6 +23,7 @@ import {
   type OpenedSetupCode,
   type TypedSetup,
   useConcludeSetup,
+  useRegisterAdministrator,
 } from "../data/setup"
 import { ImageStatus, ImageThumbnail } from "./image-field"
 import type { SetupForm } from "./setup-form"
@@ -30,6 +32,20 @@ import { StepHeading } from "./step-heading"
 
 /** A step of the setup whose fields the review shows. */
 type TypedStep = "consultancy" | "administrator"
+
+/**
+ * An e-mail that belongs to a user: the API answers it as a conflict, about
+ * the e-mail of the administrator, which is where it shows.
+ */
+const emailInUse: FieldProblem = { code: "email_in_use", params: {} }
+
+/** The fields a refusal of the API is about, by their names in the form. */
+function fieldsRefusedBy(error: unknown): FieldProblems | undefined {
+  if (answerCodeOf(error) === "email_in_use") {
+    return { "administrator.email": emailInUse }
+  }
+  return refusedFields(error)
+}
 
 /** The first step, in their order, that holds one of the fields refused. */
 function stepHolding(fields: FieldProblems): TypedStep | undefined {
@@ -61,14 +77,19 @@ function nameIn(items: ListItem[], code: string) {
 
 /**
  * The step of the review: everything typed, by step, each with a way back to
- * its step, the e-mail the first administrator logs in with in plain sight,
- * and concluding. Nothing is saved before the setup is concluded, and
- * concluding sends everything once, with the language of the screen as the
- * preferred language of the administrator.
+ * its step, the e-mail the administrator logs in with in plain sight, and the
+ * one action. Nothing is saved before it, and it sends everything once, with
+ * the language of the screen as the preferred language of the administrator.
  *
- * A field the API refuses is shown on its field, on the step that holds it.
- * A setup code that stopped working leads back to the step of the code. A
- * setup someone else concluded leads to the login screen, which says so.
+ * In the first setup the action concludes the setup. In the way back in the
+ * review leaves out the consultancy, says that a new administrator will be
+ * registered and that the users that exist are not changed, and the action
+ * registers the administrator.
+ *
+ * A field the API refuses is shown on its field, on the step that holds it,
+ * and so is an e-mail that belongs to a user. A setup code that stopped
+ * working leads back to the step of the code. A setup someone else concluded
+ * leads to the login screen, which says so.
  */
 export function ReviewStep({
   form,
@@ -88,42 +109,57 @@ export function ReviewStep({
   const { language } = useLanguage()
   const navigate = useNavigate()
   const conclusion = useConcludeSetup()
+  const registration = useRegisterAdministrator()
   const heading = useRef<HTMLHeadingElement>(null)
   const waitingFor = imagesHolding(images)
+  const newAdministrator = opened.opens === "new_administrator"
+  const sending = conclusion.isPending || registration.isPending
+  const failure = conclusion.error ?? registration.error
 
   useEffect(() => {
     heading.current?.focus()
   }, [])
 
-  function conclude() {
-    conclusion.mutate(
-      { typed: form.state.values, code: opened.code, language },
-      {
-        onSuccess: (concluded) =>
+  function showRefusal(error: unknown) {
+    if (answerCodeOf(error) === "setup_code_invalid") {
+      onCodeStoppedWorking()
+      return
+    }
+    const fields = fieldsRefusedBy(error)
+    const step = fields ? stepHolding(fields) : undefined
+    if (fields && step) {
+      // On the fields, where each step shows it when it opens.
+      form.setErrorMap({ onSubmit: { fields } })
+      onGoTo(step)
+    }
+  }
+
+  function send() {
+    const sent = { typed: form.state.values, code: opened.code, language }
+    if (newAdministrator) {
+      registration.mutate(sent, {
+        onSuccess: () =>
           void navigate({
             to: "/login",
-            search: {
-              notice:
-                concluded === "concluded"
-                  ? "setup_concluded"
-                  : "setup_already_concluded",
-            },
+            search: { notice: "administrator_registered" },
           }),
-        onError: (error) => {
-          if (answerCodeOf(error) === "setup_code_invalid") {
-            onCodeStoppedWorking()
-            return
-          }
-          const fields = refusedFields(error)
-          const step = fields ? stepHolding(fields) : undefined
-          if (fields && step) {
-            // On the fields, where each step shows it when it opens.
-            form.setErrorMap({ onSubmit: { fields } })
-            onGoTo(step)
-          }
-        },
-      }
-    )
+        onError: showRefusal,
+      })
+      return
+    }
+    conclusion.mutate(sent, {
+      onSuccess: (concluded) =>
+        void navigate({
+          to: "/login",
+          search: {
+            notice:
+              concluded === "concluded"
+                ? "setup_concluded"
+                : "setup_already_concluded",
+          },
+        }),
+      onError: showRefusal,
+    })
   }
 
   return (
@@ -131,38 +167,49 @@ export function ReviewStep({
       <StepHeading
         ref={heading}
         title={t("setup.review.title")}
-        intro={t("setup.review.intro")}
+        intro={
+          newAdministrator
+            ? t("setup.review.newAdministrator.intro")
+            : t("setup.review.intro")
+        }
       />
 
       <form.Subscribe selector={(state) => state.values}>
         {(typed) => (
           <>
-            <ConsultancyReview
-              typed={typed.consultancy}
-              logo={images.logo.upload}
-              onChange={() => onGoTo("consultancy")}
-            />
+            {newAdministrator ? null : (
+              <ConsultancyReview
+                typed={typed.consultancy}
+                logo={images.logo.upload}
+                onChange={() => onGoTo("consultancy")}
+              />
+            )}
             <AdministratorReview
               typed={typed.administrator}
               photo={images.photo.upload}
+              newAdministrator={newAdministrator}
               onChange={() => onGoTo("administrator")}
             />
           </>
         )}
       </form.Subscribe>
 
-      {conclusion.error ? <ErrorAlert error={conclusion.error} /> : null}
+      {failure ? <ErrorAlert error={failure} /> : null}
 
       {waitingFor === "sending" ? (
         <p className="flex items-start gap-1.5 text-muted-foreground">
           <CircleDashedIcon className="mt-0.5 size-3.5 shrink-0 stroke-status-working" />
-          {t("setup.review.imagesSending")}
+          {newAdministrator
+            ? t("setup.review.newAdministrator.photoSending")
+            : t("setup.review.imagesSending")}
         </p>
       ) : null}
       {waitingFor === "notSent" ? (
         <p className="flex items-start gap-1.5">
           <CircleXIcon className="mt-0.5 size-3.5 shrink-0 stroke-status-error" />
-          {t("setup.review.imageNotSent")}
+          {newAdministrator
+            ? t("setup.review.newAdministrator.photoNotSent")
+            : t("setup.review.imageNotSent")}
         </p>
       ) : null}
 
@@ -177,16 +224,18 @@ export function ReviewStep({
         <Button
           type="button"
           className="flex-1"
-          disabled={conclusion.isPending || waitingFor !== undefined}
-          onClick={conclude}
+          disabled={sending || waitingFor !== undefined}
+          onClick={send}
         >
-          {conclusion.isPending ? (
+          {sending ? (
             <LoaderCircleIcon
               data-icon="inline-start"
               className="animate-spin"
             />
           ) : null}
-          {t("setup.review.conclude")}
+          {newAdministrator
+            ? t("setup.review.newAdministrator.register")
+            : t("setup.review.conclude")}
         </Button>
       </div>
     </div>
@@ -344,10 +393,13 @@ function ConsultancyReview({
 function AdministratorReview({
   typed,
   photo,
+  newAdministrator,
   onChange,
 }: {
   typed: TypedSetup["administrator"]
   photo: SetupImage
+  /** Whether it is a new administrator, the way back in, or the first one. */
+  newAdministrator: boolean
   onChange: () => void
 }) {
   const { t } = useTranslation("consultancy")
@@ -356,14 +408,24 @@ function AdministratorReview({
   return (
     <ReviewSection
       id="review-administrator"
-      title={t("setup.administrator.title")}
-      change={t("setup.review.changeAdministrator")}
+      title={
+        newAdministrator
+          ? t("setup.newAdministrator.title")
+          : t("setup.administrator.title")
+      }
+      change={
+        newAdministrator
+          ? t("setup.review.newAdministrator.change")
+          : t("setup.review.changeAdministrator")
+      }
       onChange={onChange}
       note={
         // Logging in sends a code to this e-mail: a typing mistake here
         // locks the administrator out.
         <p className="rounded-lg border border-border bg-muted px-3 py-2">
-          {t("setup.review.logsInWith")}
+          {newAdministrator
+            ? t("setup.review.newAdministrator.logsInWith")
+            : t("setup.review.logsInWith")}
           <span className="block type-title break-all">{typed.email}</span>
         </p>
       }
