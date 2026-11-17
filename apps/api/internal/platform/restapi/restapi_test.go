@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -45,6 +46,15 @@ func (thingNameTaken) Code() string { return "thing_name_taken" }
 
 func (e thingNameTaken) Params() map[string]any { return map[string]any{"name": e.name} }
 
+// thingLocked is a broken rule whose parameters are nil.
+type thingLocked struct{}
+
+func (thingLocked) Error() string { return "the thing is locked" }
+
+func (thingLocked) Code() string { return "thing_locked" }
+
+func (thingLocked) Params() map[string]any { return nil }
+
 // thingArchived is a broken rule the operation under test does not declare.
 type thingArchived struct{}
 
@@ -76,6 +86,8 @@ func renameThing(_ context.Context, input *renameThingInput) (*renameThingOutput
 	switch input.Body.Name {
 	case "taken":
 		return nil, thingNameTaken{name: "taken"}
+	case "locked":
+		return nil, fmt.Errorf("rename the thing: %w", thingLocked{})
 	case "archived":
 		return nil, thingArchived{}
 	case "broken":
@@ -108,7 +120,10 @@ func serve(t *testing.T) served {
 		Method:      http.MethodPost,
 		Path:        "/api/things/{thing_id}/rename",
 		Summary:     "Rename a thing",
-	}, restapi.Failures{http.StatusConflict: {thingNameTaken{}}}, renameThing)
+	}, restapi.Failures{
+		http.StatusConflict:            {thingNameTaken{}},
+		http.StatusUnprocessableEntity: {thingLocked{}},
+	}, renameThing)
 
 	server := httptest.NewServer(telemetry.Requests(mux, logger, tracing.Provider))
 	t.Cleanup(server.Close)
@@ -292,13 +307,23 @@ func TestABrokenRuleTheOperationDeclaresAnswersWithItsStatusCodeAndParameters(t 
 	assert.Empty(t, api.logs.String(), "a 4xx wrote a line to the logs")
 }
 
+func TestABrokenRuleIsFoundInsideTheErrorThatWrapsItAndItsParametersAreAlwaysAnObject(t *testing.T) {
+	t.Parallel()
+	api := serve(t)
+
+	answer := api.send(t, http.MethodPost, "/api/things/7/rename", `{"name":"locked"}`)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, answer.status)
+	assert.JSONEq(t, `{"title":"Unprocessable Entity","status":422,"detail":"the thing is locked","code":"thing_locked","params":{},"trace_id":"`+traceID+`"}`, answer.raw)
+}
+
 func TestAnErrorThatIsNoDeclaredBrokenRuleAnswers500AndSaysNothingOfIt(t *testing.T) {
 	t.Parallel()
 	cases := map[string]struct {
 		name   string
 		logged string
 	}{
-		"an error of the infrastructure":        {name: "broken", logged: `relation \"things\" does not exist`},
+		"an error of the infrastructure":        {name: "broken", logged: `"error":"unexpected error occurred: pq: relation \"things\" does not exist"`},
 		"a broken rule that was never declared": {name: "archived", logged: "the operation does not declare the code thing_archived"},
 	}
 	for name, failing := range cases {
@@ -330,7 +355,7 @@ func TestAPanicAnswersInTheErrorFormatAndSaysNothingOfIt(t *testing.T) {
 	assert.JSONEq(t, `{"title":"Internal Server Error","status":500,"code":"internal_server_error","params":{},"trace_id":"`+traceID+`"}`, answer.raw)
 	logs := api.logs.String()
 	assert.Equal(t, 1, strings.Count(logs, "\n"), "one line for a panic: %s", logs)
-	assert.Contains(t, logs, "index out of range in renameThing")
+	assert.Contains(t, logs, `"error":"panic: index out of range in renameThing`)
 	assert.Contains(t, logs, "restapi_test.go", "the line of a panic carries no stack")
 	assert.Contains(t, logs, `"trace_id":"`+traceID+`"`)
 }

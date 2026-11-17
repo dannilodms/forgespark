@@ -81,7 +81,7 @@ func init() {
 // second is a 5xx: its raw error goes to the logs and never to the answer.
 func problemOfHuma(ctx context.Context, status int, message string, causes []error) *Problem {
 	if status >= http.StatusInternalServerError {
-		telemetry.RecordFailure(ctx, errors.Join(append([]error{errors.New(message)}, causes...)...))
+		telemetry.RecordFailure(ctx, rawError(message, causes))
 		return newProblem(ctx, status, codeOfStatus(status), "")
 	}
 	problem := newProblem(ctx, status, codeOfStatus(status), message)
@@ -89,6 +89,16 @@ func problemOfHuma(ctx context.Context, status int, message string, causes []err
 		problem.Errors = appendFieldError(problem.Errors, cause)
 	}
 	return problem
+}
+
+// rawError is what the logs keep of a 5xx: what Huma says happened, and the
+// errors behind it.
+func rawError(message string, causes []error) error {
+	behind := errors.Join(causes...)
+	if behind == nil {
+		return errors.New(message)
+	}
+	return fmt.Errorf("%s: %w", message, behind)
 }
 
 func newProblem(ctx context.Context, status int, code, detail string) *Problem {
@@ -155,10 +165,19 @@ func (f Failures) answerTo(ctx context.Context, err error) error {
 		return fmt.Errorf("the operation does not declare the code %s: %w", broken.Code(), err)
 	}
 	problem := newProblem(ctx, status, broken.Code(), broken.Error())
-	if parameterised, has := broken.(interface{ Params() map[string]any }); has {
-		problem.Params = parameterised.Params()
+	if params := paramsOf(broken); params != nil {
+		problem.Params = params
 	}
 	return problem
+}
+
+// paramsOf returns the parameters of a broken rule, and nil when it has none.
+func paramsOf(broken Failure) map[string]any {
+	parameterised, has := broken.(interface{ Params() map[string]any })
+	if !has {
+		return nil
+	}
+	return parameterised.Params()
 }
 
 func (f Failures) statusOf(code string) (int, bool) {
