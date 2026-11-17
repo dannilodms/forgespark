@@ -2,10 +2,12 @@ package application
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
@@ -19,6 +21,7 @@ type ConcludeSetup struct {
 	consultancies ConsultancyRepository
 	users         UserRepository
 	roles         RoleRepository
+	confirmUpload *filesapplication.ConfirmUpload
 	recordEntry   *auditapplication.RecordEntry
 	clock         Clock
 }
@@ -30,6 +33,7 @@ func NewConcludeSetup(
 	consultancies ConsultancyRepository,
 	users UserRepository,
 	roles RoleRepository,
+	confirmUpload *filesapplication.ConfirmUpload,
 	recordEntry *auditapplication.RecordEntry,
 	clock Clock,
 ) *ConcludeSetup {
@@ -39,14 +43,16 @@ func NewConcludeSetup(
 		consultancies: consultancies,
 		users:         users,
 		roles:         roles,
+		confirmUpload: confirmUpload,
 		recordEntry:   recordEntry,
 		clock:         clock,
 	}
 }
 
 // ConcludeSetupInput is what was typed in the setup: the setup code, the
-// consultancy and its first administrator. The preferred language of the
-// administrator is the language the setup screen was in.
+// consultancy and its first administrator, with the images chosen for them.
+// The preferred language of the administrator is the language the setup
+// screen was in.
 type ConcludeSetupInput struct {
 	Code          string
 	Consultancy   domain.TypedConsultancy
@@ -54,11 +60,14 @@ type ConcludeSetupInput struct {
 }
 
 // Execute validates everything that was typed first, and answers with a
-// kernel.InvalidFieldsError naming each field that breaks a rule. Then, in
-// one transaction, it locks the setup code, checks that it works and that no
-// consultancy exists, creates the administrator role and the developer role,
-// the consultancy and the administrator with the administrator role, ends the
-// setup code and records the conclusion in the audit log.
+// kernel.InvalidFieldsError naming each field that breaks a rule. With a
+// setup code that works, it then confirms the images chosen, which may have
+// been sent under an earlier code, and names the one the files area refuses.
+// Then, in one transaction, it locks the setup code, checks that it still
+// works and that no consultancy exists, creates the administrator role and the
+// developer role, the consultancy and the administrator with the
+// administrator role, ends the setup code and records the conclusion in the
+// audit log.
 func (u *ConcludeSetup) Execute(ctx context.Context, input ConcludeSetupInput) error {
 	var invalid kernel.InvalidFieldsError
 	consultancy, err := domain.NewConsultancyDetails(input.Consultancy)
@@ -68,14 +77,51 @@ func (u *ConcludeSetup) Execute(ctx context.Context, input ConcludeSetupInput) e
 	if err := invalid.Err(); err != nil {
 		return err
 	}
-	plain, err := domain.ReadPlainSetupCode(input.Code)
+	setupCode, err := findWorkingSetupCode(ctx, u.setupCodes, input.Code, u.clock.Now())
 	if err != nil {
+		return err
+	}
+	if err := u.confirmImages(ctx, consultancy, administrator); err != nil {
 		return err
 	}
 
 	return u.transactions.Run(ctx, func(ctx context.Context) error {
-		return u.conclude(ctx, plain.Hash(), consultancy, administrator)
+		return u.conclude(ctx, setupCode.Hash(), consultancy, administrator)
 	})
+}
+
+// confirmImages confirms the logo and the photo chosen, outside the
+// transaction of the setup: each reads the storage. A file the files area
+// refuses is named as the field that holds it.
+func (u *ConcludeSetup) confirmImages(ctx context.Context, consultancy domain.ConsultancyDetails, administrator domain.UserDetails) error {
+	logo, hasLogo := consultancy.LogoFileID()
+	logoRefused, err := u.confirmImage(ctx, logo, hasLogo, ConsultancyLogo)
+	if err != nil {
+		return err
+	}
+	photo, hasPhoto := administrator.PhotoFileID()
+	photoRefused, err := u.confirmImage(ctx, photo, hasPhoto, UserPhoto)
+	if err != nil {
+		return err
+	}
+	var invalid kernel.InvalidFieldsError
+	invalid.Check("consultancy.logo_file_id", logoRefused)
+	invalid.Check("administrator.photo_file_id", photoRefused)
+	return invalid.Err()
+}
+
+// confirmImage confirms one image, when one was chosen. It tells apart a rule
+// the image breaks, which the person corrects, from a failure of the system.
+func (u *ConcludeSetup) confirmImage(ctx context.Context, id domain.FileID, chosen bool, purpose FilePurpose) (refused, failed error) {
+	if !chosen {
+		return nil, nil
+	}
+	err := u.confirmUpload.Execute(ctx, filesapplication.ConfirmUploadInput{FileID: filesapplication.FileID(id), Purpose: purpose})
+	var broken kernel.BrokenRule
+	if errors.As(err, &broken) {
+		return err, nil
+	}
+	return nil, err
 }
 
 func (u *ConcludeSetup) conclude(

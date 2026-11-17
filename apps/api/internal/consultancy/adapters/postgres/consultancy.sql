@@ -9,11 +9,11 @@ SELECT EXISTS (SELECT FROM consultancy);
 -- index consultancy_only_one.
 INSERT INTO consultancy (
     id, name, legal_name, country, tax_id, time_zone, currency, email, telephone, website,
-    address_line1, address_line2, address_city, address_region, address_postal_code
+    address_line1, address_line2, address_city, address_region, address_postal_code, logo_file_id
 )
 VALUES (
     @id, @name, @legal_name, @country, @tax_id, @time_zone, @currency, @email, @telephone, @website,
-    @address_line1, @address_line2, @address_city, @address_region, @address_postal_code
+    @address_line1, @address_line2, @address_city, @address_region, @address_postal_code, @logo_file_id
 )
 ON CONFLICT (id) DO UPDATE
 SET name = excluded.name,
@@ -29,4 +29,5 @@ SET name = excluded.name,
     address_line2 = excluded.address_line2,
     address_city = excluded.address_city,
     address_region = excluded.address_region,
-    address_postal_code = excluded.address_postal_code;
+    address_postal_code = excluded.address_postal_code,
+    logo_file_id = excluded.logo_file_id;

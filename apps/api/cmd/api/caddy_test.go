@@ -280,6 +280,94 @@ func TestTheReadOfTheSetupAndEveryOtherPathHaveNoLimit(t *testing.T) {
 	}
 }
 
+// composeNetwork is the network of the services of compose.yaml, where
+// Garage is reached by the name of its service.
+const composeNetwork = "software-factory-manager_default"
+
+// filesBehindCaddy starts Caddy with the Caddyfile of development on the
+// network of the services, so that the host name of the files leads to the
+// Garage of development, as it does in compose.yaml. It returns the address
+// Caddy listens on.
+func filesBehindCaddy(t *testing.T) string {
+	t.Helper()
+	file, err := filepath.Abs(caddyfile)
+	require.NoError(t, err)
+	require.FileExists(t, file)
+	container := docker(t, "run", "--detach", "--rm",
+		"--label", "software-factory-manager.test=caddy",
+		"--network", composeNetwork,
+		"--publish", "127.0.0.1::80",
+		"--mount", "type=bind,readonly,source="+file+",target=/etc/caddy/Caddyfile",
+		"--env", "OTEL_TRACES_EXPORTER=none",
+		caddyImage)
+	t.Cleanup(func() {
+		_ = exec.Command("docker", "rm", "--force", container).Run()
+	})
+	published := strings.Fields(docker(t, "port", container, "80/tcp"))
+	require.NotEmpty(t, published)
+	require.Eventually(t, func() bool {
+		response, err := http.Get("http://" + published[0] + "/")
+		if err != nil {
+			return false
+		}
+		_ = response.Body.Close()
+		return true
+	}, 30*time.Second, 50*time.Millisecond, "Caddy did not answer: %s", docker(t, "logs", container))
+	return published[0]
+}
+
+// throughCaddy sends a request to Caddy as a browser on the machine sends it
+// to the URL: with the host name of the URL as its Host.
+func throughCaddy(t *testing.T, caddy, method, signedURL string, headers map[string]string, body []byte) *http.Response {
+	t.Helper()
+	target, err := url.Parse(signedURL)
+	require.NoError(t, err)
+	host := target.Host
+	target.Host = caddy
+	request, err := http.NewRequest(method, target.String(), bytes.NewReader(body))
+	require.NoError(t, err)
+	request.Host = host
+	for name, value := range headers {
+		request.Header.Set(name, value)
+	}
+	response, err := (&http.Client{Timeout: 30 * time.Second}).Do(request)
+	require.NoError(t, err)
+	_, _ = io.Copy(io.Discard, response.Body)
+	_ = response.Body.Close()
+	return response
+}
+
+// The browser sends an image to the URL the API signed, at the host name of
+// the files. Caddy forwards it to Garage with the Host the signature covers,
+// and Garage answers the cross-origin questions from the rule of its bucket.
+func TestThroughCaddyTheHostNameOfTheFilesLeadsToTheStorage(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+	_, code := issueSetupCodeIn(t, temporary)
+	api := startAPI(t, environmentOf(temporary))
+	started := startUpload(t, api, uploadBody(code, "consultancy_logo", "image/png", 2048))
+	require.Equal(t, http.StatusCreated, started.status, started.body)
+	signedURL, _ := started.fields["upload_url"].(string)
+	caddy := filesBehindCaddy(t)
+	appOrigin := os.Getenv("APP_ORIGIN")
+
+	fromTheApp := throughCaddy(t, caddy, http.MethodOptions, signedURL, map[string]string{
+		"Origin": appOrigin, "Access-Control-Request-Method": http.MethodPut, "Access-Control-Request-Headers": "content-type",
+	}, nil)
+	fromElsewhere := throughCaddy(t, caddy, http.MethodOptions, signedURL, map[string]string{
+		"Origin": "http://elsewhere.localhost", "Access-Control-Request-Method": http.MethodPut,
+	}, nil)
+	sent := throughCaddy(t, caddy, http.MethodPut, signedURL, map[string]string{
+		"Origin": appOrigin, "Content-Type": "image/png",
+	}, aPNG(2048))
+
+	assert.Equal(t, http.StatusOK, fromTheApp.StatusCode)
+	assert.Equal(t, appOrigin, fromTheApp.Header.Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, http.StatusForbidden, fromElsewhere.StatusCode, "the storage lets another origin send a file")
+	assert.Equal(t, http.StatusOK, sent.StatusCode, "the storage refused the image sent through Caddy")
+	assert.Equal(t, appOrigin, sent.Header.Get("Access-Control-Allow-Origin"))
+}
+
 func TestLivenessAndReadinessCannotBeReachedThroughCaddy(t *testing.T) {
 	t.Parallel()
 	caddy := behindCaddy(t, startAPI(t, onTheMachine(t, databasetest.Migrated(t))))
@@ -303,11 +391,11 @@ func TestUpAnswersTheStatusOfReadinessWithNoBody(t *testing.T) {
 		},
 		"when PostgreSQL does not answer": {
 			environment: func(t *testing.T) map[string]string {
-				return map[string]string{
+				return withFileStorage(map[string]string{
 					"API_LISTEN_ADDRESS": net.JoinHostPort(machineHost(t), "0"),
 					// Port 1 of the machine has no PostgreSQL behind it.
 					"DATABASE_URL": "postgres://api:api@127.0.0.1:1/software_factory?sslmode=disable",
-				}
+				})
 			},
 			status: http.StatusServiceUnavailable,
 		},

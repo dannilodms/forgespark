@@ -36,16 +36,9 @@ type OpenedSetup struct {
 // consultancy exists, and the registration of a new administrator once one
 // does.
 func (u *OpenSetup) Execute(ctx context.Context, input OpenSetupInput) (OpenedSetup, error) {
-	plain, err := domain.ReadPlainSetupCode(input.Code)
+	setupCode, err := findWorkingSetupCode(ctx, u.setupCodes, input.Code, u.clock.Now())
 	if err != nil {
 		return OpenedSetup{}, err
-	}
-	setupCode, found, err := u.setupCodes.FindByHash(ctx, plain.Hash())
-	if err != nil {
-		return OpenedSetup{}, err
-	}
-	if !found || !setupCode.Works(u.clock.Now()) {
-		return OpenedSetup{}, domain.SetupCodeInvalidError{}
 	}
 	concluded, err := u.consultancies.Exists(ctx)
 	if err != nil {

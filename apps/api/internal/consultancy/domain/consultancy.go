@@ -33,19 +33,25 @@ func NewConsultancyID(value int64) (ConsultancyID, error) {
 	return ConsultancyID(value), nil
 }
 
+// FileID identifies a file of the files area, which this area holds by its
+// identifier: the logo of the consultancy, the photo of a user. The files
+// area checks the file; this area only keeps which one it is.
+type FileID int64
+
 // TypedConsultancy is the consultancy as a person typed it in the setup. An
-// optional field left out is empty.
+// optional field left out is empty, and no logo is the file 0.
 type TypedConsultancy struct {
-	Name      string
-	LegalName string
-	Country   string
-	TaxID     string
-	TimeZone  string
-	Currency  string
-	Email     string
-	Telephone string
-	Website   string
-	Address   TypedAddress
+	Name       string
+	LegalName  string
+	Country    string
+	TaxID      string
+	TimeZone   string
+	Currency   string
+	Email      string
+	Telephone  string
+	Website    string
+	Address    TypedAddress
+	LogoFileID FileID
 }
 
 // TypedAddress is an address as a person typed it: two lines, the city, the
@@ -72,12 +78,13 @@ type ConsultancyDetails struct {
 	telephone optional[kernel.Telephone]
 	website   optional[kernel.Website]
 	address   optional[Address]
+	logo      optional[FileID]
 }
 
 // NewConsultancyDetails checks what was typed. The name, the legal name, the
 // country, the tax ID, the time zone and the currency are required; the
-// e-mail, the telephone, the website and the address are not. It returns a
-// kernel.InvalidFieldsError that names every field breaking a rule.
+// e-mail, the telephone, the website, the address and the logo are not. It
+// returns a kernel.InvalidFieldsError that names every field breaking a rule.
 func NewConsultancyDetails(typed TypedConsultancy) (ConsultancyDetails, error) {
 	var invalid kernel.InvalidFieldsError
 	var details ConsultancyDetails
@@ -103,11 +110,17 @@ func NewConsultancyDetails(typed TypedConsultancy) (ConsultancyDetails, error) {
 	invalid.Check("website", err)
 	details.address, err = readAddress(typed.Address)
 	invalid.Include("address", err)
+	details.logo = chosenFile(typed.LogoFileID)
 
 	if err := invalid.Err(); err != nil {
 		return ConsultancyDetails{}, err
 	}
 	return details, nil
+}
+
+// chosenFile gives the file chosen, and none for the file 0.
+func chosenFile(id FileID) optional[FileID] {
+	return optional[FileID]{value: id, present: id != 0}
 }
 
 // Name returns the name the consultancy is known by.
@@ -141,6 +154,10 @@ func (d ConsultancyDetails) Website() (kernel.Website, bool) { return d.website.
 // Address returns the address of the consultancy, and false when it has
 // none.
 func (d ConsultancyDetails) Address() (Address, bool) { return d.address.get() }
+
+// LogoFileID returns the file of the logo of the consultancy, and false when
+// it has none.
+func (d ConsultancyDetails) LogoFileID() (FileID, bool) { return d.logo.get() }
 
 // Address is the address of the consultancy. Every part is free text, and
 // any of them may be empty.

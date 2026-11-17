@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 
+	filess3 "github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/s3"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/health"
@@ -72,7 +73,16 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 		return database.CheckSchema(ctx, pool, migrations.Files)
 	}
 	health.Mount(mux, ready, settings.HealthCheckTimeout)
-	mountREST(mux, pool)
+	storage := filess3.NewStorage(filess3.Settings{
+		URL:             settings.FileStorageURL.String(),
+		PublicURL:       settings.FileStoragePublicURL.String(),
+		Region:          settings.FileStorageRegion,
+		Bucket:          settings.FileStorageBucket,
+		AccessKeyID:     settings.FileStorageAccessKeyID,
+		SecretAccessKey: settings.FileStorageSecretAccessKey.Reveal(),
+		TracerProvider:  tracing.Provider,
+	})
+	mountREST(mux, pool, storage)
 
 	listener, err := net.Listen("tcp", settings.ListenAddress.String())
 	if err != nil {

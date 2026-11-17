@@ -151,6 +151,10 @@ components:
           maxLength: 50
           minLength: 1
           type: string
+        photo_file_id:
+          description: The file of the photo, as start_setup_upload answered it, once the image was sent to the storage.
+          pattern: ^fil_[0-9A-Za-z]{8,}$
+          type: string
         preferred_language:
           description: "The supported language the administrator reads the system in: the language the setup screen was in."
           enum:
@@ -193,6 +197,10 @@ components:
           description: The name documents carry.
           maxLength: 200
           minLength: 1
+          type: string
+        logo_file_id:
+          description: The file of the logo, as start_setup_upload answered it, once the image was sent to the storage.
+          pattern: ^fil_[0-9A-Za-z]{8,}$
           type: string
         name:
           description: The name the consultancy is known by.
@@ -238,6 +246,59 @@ components:
         - concluded
         - setup_code_waiting
       type: object
+    SetupUpload:
+      additionalProperties: false
+      properties:
+        expires_at:
+          description: "When the URL stops working: five minutes after it was signed."
+          format: date-time
+          type: string
+        file_id:
+          description: The identifier of the file, which concluding the setup takes as logo_file_id or as photo_file_id.
+          pattern: ^fil_[0-9A-Za-z]{8,}$
+          type: string
+        upload_url:
+          description: "Where the browser sends the image, with a PUT from the origin of the app: the Content-Type is the declared type and the body has the declared size. The URL is signed for the host name of the file storage."
+          format: uri
+          type: string
+      required:
+        - file_id
+        - upload_url
+        - expires_at
+      type: object
+    StartSetupUploadRequest:
+      additionalProperties: false
+      properties:
+        code:
+          description: The setup code, as typed, as in open_setup.
+          maxLength: 64
+          minLength: 1
+          type: string
+        media_type:
+          description: The type of the image. The browser sends it as the Content-Type of its PUT.
+          enum:
+            - image/png
+            - image/jpeg
+            - image/webp
+          type: string
+        purpose:
+          description: "What the image is for: the logo of the consultancy or the photo of its administrator."
+          enum:
+            - consultancy_logo
+            - user_photo
+          type: string
+        size:
+          description: The size of the image, in bytes. The browser sends exactly this many.
+          format: int64
+          maximum: 2097152
+          minimum: 1
+          type: integer
+      required:
+        - code
+        - purpose
+        - media_type
+        - size
+      type: object
 info:
   description: |-
     The REST contract of the system, generated from the Go code and committed.
@@ -271,7 +332,7 @@ paths:
         - Setup
   /api/setup/conclude:
     post:
-      description: Registers the consultancy, its first administrator and the two first roles together, and ends the setup code. Every field is checked before anything is saved, and nothing is saved when one breaks a rule.
+      description: "Registers the consultancy, its first administrator and the two first roles together, and ends the setup code. Every field is checked before anything is saved, and nothing is saved when one breaks a rule. The logo and the photo, when given, are confirmed: each must have been sent to the storage, and be an image within the limits."
       operationId: conclude_setup
       requestBody:
         content:
@@ -293,7 +354,7 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-          description: "Unprocessable Entity. `setup_code_invalid`: the setup code is wrong, expired or was ended. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule. The rules of a field: `required`: the field is required. `too_long`: the text is longer than the field allows. `country_unknown`: the country is not an ISO 3166-1 alpha-2 code. `currency_unknown`: the currency is not the ISO 4217 code of a currency in circulation. `time_zone_unknown`: the time zone is not a name of the IANA time zone database. `language_unsupported`: the language is not a supported language. `email_invalid`: the text is not an e-mail address. `telephone_invalid`: the text is not a telephone in international form: a plus sign and 7 to 15 digits. `website_invalid`: the text is not an http or https address."
+          description: "Unprocessable Entity. `setup_code_invalid`: the setup code is wrong, expired or was ended. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule. The rules of a field: `required`: the field is required. `too_long`: the text is longer than the field allows. `country_unknown`: the country is not an ISO 3166-1 alpha-2 code. `currency_unknown`: the currency is not the ISO 4217 code of a currency in circulation. `time_zone_unknown`: the time zone is not a name of the IANA time zone database. `language_unsupported`: the language is not a supported language. `email_invalid`: the text is not an e-mail address. `telephone_invalid`: the text is not a telephone in international form: a plus sign and 7 to 15 digits. `website_invalid`: the text is not an http or https address. `file_not_found`: no file of this kind has this identifier. `file_not_uploaded`: the file was never sent to the storage. `file_too_large`: the file is larger than 2097152 bytes. `file_type_unsupported`: the file is not a PNG, a JPEG or a WebP image."
         "429":
           content:
             application/problem+json:
@@ -345,5 +406,43 @@ paths:
                 $ref: "#/components/schemas/Problem"
           description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
       summary: Open the setup with a setup code
+      tags:
+        - Setup
+  /api/setup/uploads:
+    post:
+      description: Checks the setup code and the type and size declared, creates the file of the logo of the consultancy or of the photo of its administrator, and answers a URL of the file storage, signed for five minutes. The browser sends the image there itself, with a PUT whose Content-Type is the declared type and whose body has the declared size; the image never passes through the API. Concluding the setup takes the identifier of the file and confirms the image.
+      operationId: start_setup_upload
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartSetupUploadRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupUpload"
+          description: Created
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unprocessable Entity. `setup_code_invalid`: the setup code is wrong, expired or was ended. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule. The rules of a field: `file_type_unsupported`: the file is not a PNG, a JPEG or a WebP image. `file_too_large`: the file is larger than 2097152 bytes. `file_empty`: the file has no byte."
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Too Many Requests. `too_many_requests`: too many requests from this address, answered by Caddy before the API; the header Retry-After says how many seconds to wait."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Start the upload of an image of the setup
       tags:
         - Setup

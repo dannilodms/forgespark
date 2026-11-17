@@ -40,6 +40,7 @@ func (r *UserRepository) NextIdentifier(ctx context.Context) (domain.UserID, err
 func (r *UserRepository) Save(ctx context.Context, user *domain.User) error {
 	details := user.Details()
 	telephone, hasTelephone := details.Telephone()
+	photo, hasPhoto := details.PhotoFileID()
 	err := r.queries(ctx).SaveUser(ctx, SaveUserParams{
 		ID:                int64(user.ID()),
 		Name:              details.Name(),
@@ -48,6 +49,7 @@ func (r *UserRepository) Save(ctx context.Context, user *domain.User) error {
 		NationalID:        details.NationalID(),
 		Telephone:         textIf(telephone.String(), hasTelephone),
 		PreferredLanguage: details.PreferredLanguage().String(),
+		PhotoFileID:       fileIf(photo, hasPhoto),
 		Deactivated:       user.Deactivated(),
 	})
 	if err != nil {

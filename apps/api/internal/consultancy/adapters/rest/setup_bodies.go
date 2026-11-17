@@ -1,10 +1,14 @@
 package rest
 
 import (
+	"time"
+
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/identifier"
 )
 
 // The bodies of the setup. Each declares in the contract what a client can
@@ -21,16 +25,17 @@ const websitePattern = `^https?://[^\s/?#@]+([/?#]\S*)?$`
 
 // SetupConsultancy is the consultancy as typed in the setup.
 type SetupConsultancy struct {
-	Name      string        `json:"name" minLength:"1" doc:"The name the consultancy is known by."`
-	LegalName string        `json:"legal_name" minLength:"1" doc:"The name documents carry."`
-	Country   string        `json:"country" minLength:"1" doc:"The country, by its ISO 3166-1 alpha-2 code: BR."`
-	TaxID     string        `json:"tax_id" minLength:"1" doc:"The identifier the tax authority of the country gives the consultancy, as the country writes it."`
-	TimeZone  string        `json:"time_zone" minLength:"1" doc:"The time zone, by its name in the IANA time zone database: America/Sao_Paulo."`
-	Currency  string        `json:"currency" minLength:"1" doc:"The currency, by its ISO 4217 code: BRL."`
-	Email     string        `json:"email,omitempty" format:"email" doc:"The e-mail of the consultancy. It is stored in lowercase."`
-	Telephone string        `json:"telephone,omitempty" doc:"The telephone, in international form: a plus sign and 7 to 15 digits. Spaces are dropped."`
-	Website   string        `json:"website,omitempty" doc:"The website: an http or https address."`
-	Address   *SetupAddress `json:"address,omitempty" doc:"The address. Every part may be left out."`
+	Name       string        `json:"name" minLength:"1" doc:"The name the consultancy is known by."`
+	LegalName  string        `json:"legal_name" minLength:"1" doc:"The name documents carry."`
+	Country    string        `json:"country" minLength:"1" doc:"The country, by its ISO 3166-1 alpha-2 code: BR."`
+	TaxID      string        `json:"tax_id" minLength:"1" doc:"The identifier the tax authority of the country gives the consultancy, as the country writes it."`
+	TimeZone   string        `json:"time_zone" minLength:"1" doc:"The time zone, by its name in the IANA time zone database: America/Sao_Paulo."`
+	Currency   string        `json:"currency" minLength:"1" doc:"The currency, by its ISO 4217 code: BRL."`
+	Email      string        `json:"email,omitempty" format:"email" doc:"The e-mail of the consultancy. It is stored in lowercase."`
+	Telephone  string        `json:"telephone,omitempty" doc:"The telephone, in international form: a plus sign and 7 to 15 digits. Spaces are dropped."`
+	Website    string        `json:"website,omitempty" doc:"The website: an http or https address."`
+	Address    *SetupAddress `json:"address,omitempty" doc:"The address. Every part may be left out."`
+	LogoFileID string        `json:"logo_file_id,omitempty" doc:"The file of the logo, as start_setup_upload answered it, once the image was sent to the storage."`
 }
 
 // TransformSchema sets the limits and the forms of the domain.
@@ -42,21 +47,25 @@ func (SetupConsultancy) TransformSchema(_ huma.Registry, schema *huma.Schema) *h
 	limit(schema, "website", kernel.WebsiteMaxLength)
 	shape(schema, "telephone", kernel.TelephonePattern)
 	shape(schema, "website", websitePattern)
+	shape(schema, "logo_file_id", identifier.File.Pattern())
 	return schema
 }
 
-func (c SetupConsultancy) typed() domain.TypedConsultancy {
+// typed gives the consultancy as typed, with the file of the logo already
+// read from its identifier.
+func (c SetupConsultancy) typed(logo domain.FileID) domain.TypedConsultancy {
 	return domain.TypedConsultancy{
-		Name:      c.Name,
-		LegalName: c.LegalName,
-		Country:   c.Country,
-		TaxID:     c.TaxID,
-		TimeZone:  c.TimeZone,
-		Currency:  c.Currency,
-		Email:     c.Email,
-		Telephone: c.Telephone,
-		Website:   c.Website,
-		Address:   c.Address.typed(),
+		Name:       c.Name,
+		LegalName:  c.LegalName,
+		Country:    c.Country,
+		TaxID:      c.TaxID,
+		TimeZone:   c.TimeZone,
+		Currency:   c.Currency,
+		Email:      c.Email,
+		Telephone:  c.Telephone,
+		Website:    c.Website,
+		Address:    c.Address.typed(),
+		LogoFileID: logo,
 	}
 }
 
@@ -102,6 +111,7 @@ type SetupAdministrator struct {
 	NationalID        string   `json:"national_id" minLength:"1" doc:"The identifier the country gives the person, as the country writes it."`
 	Telephone         string   `json:"telephone,omitempty" doc:"The telephone, in international form: a plus sign and 7 to 15 digits. Spaces are dropped."`
 	PreferredLanguage language `json:"preferred_language" doc:"The supported language the administrator reads the system in: the language the setup screen was in."`
+	PhotoFileID       string   `json:"photo_file_id,omitempty" doc:"The file of the photo, as start_setup_upload answered it, once the image was sent to the storage."`
 }
 
 // TransformSchema sets the limits and the forms of the domain.
@@ -110,10 +120,13 @@ func (SetupAdministrator) TransformSchema(_ huma.Registry, schema *huma.Schema) 
 	limit(schema, "email", kernel.EmailMaxLength)
 	limit(schema, "national_id", domain.NationalIDMaxLength)
 	shape(schema, "telephone", kernel.TelephonePattern)
+	shape(schema, "photo_file_id", identifier.File.Pattern())
 	return schema
 }
 
-func (a SetupAdministrator) typed() domain.TypedUser {
+// typed gives the administrator as typed, with the file of the photo already
+// read from its identifier.
+func (a SetupAdministrator) typed(photo domain.FileID) domain.TypedUser {
 	return domain.TypedUser{
 		Name:              a.Name,
 		Email:             a.Email,
@@ -121,7 +134,43 @@ func (a SetupAdministrator) typed() domain.TypedUser {
 		NationalID:        a.NationalID,
 		Telephone:         a.Telephone,
 		PreferredLanguage: string(a.PreferredLanguage),
+		PhotoFileID:       photo,
 	}
+}
+
+// StartSetupUploadRequest carries the setup code and what the sender
+// declares of an image before sending a byte of it. No name of a file is
+// sent: the storage keeps the image under a random key.
+type StartSetupUploadRequest struct {
+	Code      string `json:"code" minLength:"1" maxLength:"64" doc:"The setup code, as typed, as in open_setup."`
+	Purpose   string `json:"purpose" doc:"What the image is for: the logo of the consultancy or the photo of its administrator."`
+	MediaType string `json:"media_type" doc:"The type of the image. The browser sends it as the Content-Type of its PUT."`
+	Size      int64  `json:"size" minimum:"1" doc:"The size of the image, in bytes. The browser sends exactly this many."`
+}
+
+// TransformSchema lists the purposes and the types an image may have, and
+// sets the largest size, from the files area.
+func (StartSetupUploadRequest) TransformSchema(_ huma.Registry, schema *huma.Schema) *huma.Schema {
+	choose(schema, "purpose", []string{string(application.ConsultancyLogo), string(application.UserPhoto)})
+	choose(schema, "media_type", application.ImageTypes())
+	size := schema.Properties["size"]
+	largest := float64(application.MaxImageSize)
+	size.Maximum = &largest
+	size.PrecomputeMessages()
+	return schema
+}
+
+// SetupUpload is the file of an image of the setup and where to send it.
+type SetupUpload struct {
+	FileID    string    `json:"file_id" doc:"The identifier of the file, which concluding the setup takes as logo_file_id or as photo_file_id."`
+	UploadURL string    `json:"upload_url" format:"uri" doc:"Where the browser sends the image, with a PUT from the origin of the app: the Content-Type is the declared type and the body has the declared size. The URL is signed for the host name of the file storage."`
+	ExpiresAt time.Time `json:"expires_at" doc:"When the URL stops working: five minutes after it was signed."`
+}
+
+// TransformSchema sets the form of the identifier of a file.
+func (SetupUpload) TransformSchema(_ huma.Registry, schema *huma.Schema) *huma.Schema {
+	shape(schema, "file_id", identifier.File.Pattern())
+	return schema
 }
 
 // language is a supported language. Its schema lists the supported languages
@@ -151,5 +200,15 @@ func limit(schema *huma.Schema, property string, maxLength int) {
 func shape(schema *huma.Schema, property, pattern string) {
 	field := schema.Properties[property]
 	field.Pattern = pattern
+	field.PrecomputeMessages()
+}
+
+// choose sets the values a property may take.
+func choose(schema *huma.Schema, property string, values []string) {
+	field := schema.Properties[property]
+	field.Enum = make([]any, 0, len(values))
+	for _, value := range values {
+		field.Enum = append(field.Enum, value)
+	}
 	field.PrecomputeMessages()
 }

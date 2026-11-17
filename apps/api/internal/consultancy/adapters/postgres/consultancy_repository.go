@@ -51,6 +51,7 @@ func (r *ConsultancyRepository) Save(ctx context.Context, consultancy *domain.Co
 	telephone, hasTelephone := details.Telephone()
 	website, hasWebsite := details.Website()
 	address, hasAddress := details.Address()
+	logo, hasLogo := details.LogoFileID()
 	err := r.queries(ctx).SaveConsultancy(ctx, SaveConsultancyParams{
 		ID:                int64(consultancy.ID()),
 		Name:              details.Name(),
@@ -67,11 +68,22 @@ func (r *ConsultancyRepository) Save(ctx context.Context, consultancy *domain.Co
 		AddressCity:       textIf(address.City(), hasAddress),
 		AddressRegion:     textIf(address.Region(), hasAddress),
 		AddressPostalCode: textIf(address.PostalCode(), hasAddress),
+		LogoFileID:        fileIf(logo, hasLogo),
 	})
 	if err != nil {
 		return fmt.Errorf("save the consultancy: %w", err)
 	}
 	return nil
+}
+
+// fileIf gives the file to store in a column that may be empty: nothing when
+// none was chosen.
+func fileIf(id domain.FileID, present bool) *int64 {
+	if !present {
+		return nil
+	}
+	value := int64(id)
+	return &value
 }
 
 // textIf gives the text to store in a column that may be empty: nothing when

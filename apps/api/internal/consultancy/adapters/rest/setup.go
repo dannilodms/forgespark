@@ -3,6 +3,7 @@ package rest
 import (
 	"context"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -10,6 +11,7 @@ import (
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/identifier"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
 )
 
@@ -46,18 +48,51 @@ func registerSetup(api *restapi.API, useCases UseCases) {
 	}, openSetup{useCase: useCases.OpenSetup}.handle)
 
 	restapi.Register(api, huma.Operation{
+		OperationID:   "start_setup_upload",
+		Method:        http.MethodPost,
+		Path:          restapi.Prefix + "/setup/uploads",
+		DefaultStatus: http.StatusCreated,
+		Summary:       "Start the upload of an image of the setup",
+		Description: "Checks the setup code and the type and size declared, creates the file of the logo of the consultancy " +
+			"or of the photo of its administrator, and answers a URL of the file storage, signed for five minutes. " +
+			"The browser sends the image there itself, with a PUT whose Content-Type is the declared type and whose body has " +
+			"the declared size; the image never passes through the API. Concluding the setup takes the identifier of the file " +
+			"and confirms the image.",
+		Tags: []string{setupTag},
+	}, restapi.Failures{
+		http.StatusUnprocessableEntity: {
+			domain.SetupCodeInvalidError{},
+			restapi.InField(application.FileTypeUnsupportedError{}),
+			restapi.InField(application.FileTooLargeError{}),
+			restapi.InField(application.FileEmptyError{}),
+		},
+		http.StatusTooManyRequests: {restapi.LimitedByCaddy},
+	}, startSetupUpload{useCase: useCases.StartSetupUpload}.handle)
+
+	restapi.Register(api, huma.Operation{
 		OperationID: "conclude_setup",
 		Method:      http.MethodPost,
 		Path:        restapi.Prefix + "/setup/conclude",
 		Summary:     "Conclude the first setup",
 		Description: "Registers the consultancy, its first administrator and the two first roles together, and ends the setup code. " +
-			"Every field is checked before anything is saved, and nothing is saved when one breaks a rule.",
+			"Every field is checked before anything is saved, and nothing is saved when one breaks a rule. " +
+			"The logo and the photo, when given, are confirmed: each must have been sent to the storage, and be an image " +
+			"within the limits.",
 		Tags: []string{setupTag},
 	}, restapi.Failures{
-		http.StatusUnprocessableEntity: append([]restapi.Failure{domain.SetupCodeInvalidError{}}, fieldRules...),
+		http.StatusUnprocessableEntity: slices.Concat([]restapi.Failure{domain.SetupCodeInvalidError{}}, fieldRules, imageRules),
 		http.StatusConflict:            {domain.SetupAlreadyConcludedError{}},
 		http.StatusTooManyRequests:     {restapi.LimitedByCaddy},
 	}, concludeSetup{useCase: useCases.ConcludeSetup}.handle)
+}
+
+// imageRules are the rules an image chosen in the setup may break when the
+// setup is concluded, on the field that holds its identifier.
+var imageRules = []restapi.Failure{
+	restapi.InField(application.FileNotFoundError{}),
+	restapi.InField(application.FileNotUploadedError{}),
+	restapi.InField(application.FileTooLargeError{}),
+	restapi.InField(application.FileTypeUnsupportedError{}),
 }
 
 // fieldRules are the rules a field of the consultancy or of an administrator
@@ -155,13 +190,77 @@ type ConcludeSetupRequest struct {
 type concludeSetupOutput struct{}
 
 func (o concludeSetup) handle(ctx context.Context, input *concludeSetupInput) (*concludeSetupOutput, error) {
+	logo, logoKnown := fileID(input.Body.Consultancy.LogoFileID)
+	photo, photoKnown := fileID(input.Body.Administrator.PhotoFileID)
+	var unknown kernel.InvalidFieldsError
+	unknown.Check("consultancy.logo_file_id", unknownUnless(logoKnown))
+	unknown.Check("administrator.photo_file_id", unknownUnless(photoKnown))
+	if err := unknown.Err(); err != nil {
+		return nil, err
+	}
+
 	err := o.useCase.Execute(ctx, application.ConcludeSetupInput{
 		Code:          input.Body.Code,
-		Consultancy:   input.Body.Consultancy.typed(),
-		Administrator: input.Body.Administrator.typed(),
+		Consultancy:   input.Body.Consultancy.typed(logo),
+		Administrator: input.Body.Administrator.typed(photo),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &concludeSetupOutput{}, nil
+}
+
+// fileID reads the identifier of a file on the way in. The contract already
+// refused one with another prefix. One that decodes to no number names no
+// file, as one of a file that does not exist: it is not known. No identifier
+// is no file chosen.
+func fileID(encoded string) (domain.FileID, bool) {
+	if encoded == "" {
+		return 0, true
+	}
+	decoded, err := identifier.File.Decode(encoded)
+	if err != nil {
+		return 0, false
+	}
+	return domain.FileID(decoded), true
+}
+
+func unknownUnless(known bool) error {
+	if known {
+		return nil
+	}
+	return application.FileNotFoundError{}
+}
+
+type startSetupUpload struct {
+	useCase *application.StartSetupUpload
+}
+
+type startSetupUploadInput struct {
+	Body StartSetupUploadRequest
+}
+
+type startSetupUploadOutput struct {
+	Body SetupUpload
+}
+
+func (o startSetupUpload) handle(ctx context.Context, input *startSetupUploadInput) (*startSetupUploadOutput, error) {
+	started, err := o.useCase.Execute(ctx, application.StartSetupUploadInput{
+		Code:      input.Body.Code,
+		Purpose:   application.FilePurpose(input.Body.Purpose),
+		MediaType: input.Body.MediaType,
+		Size:      input.Body.Size,
+	})
+	if err != nil {
+		return nil, err
+	}
+	encoded, err := identifier.File.Encode(int64(started.FileID))
+	if err != nil {
+		return nil, err
+	}
+	return &startSetupUploadOutput{Body: SetupUpload{
+		FileID:    encoded,
+		UploadURL: started.URL,
+		ExpiresAt: started.ExpiresAt.UTC(),
+	}}, nil
 }

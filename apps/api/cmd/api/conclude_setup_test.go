@@ -104,14 +104,14 @@ func TestConcludingTheSetupAnswers204AndSavesEverythingTogether(t *testing.T) {
 		"tax_id": "12.345.678/0001-90", "time_zone": "America/Sao_Paulo", "currency": "BRL",
 		"email": "contato@fabrica.example", "telephone": "+551133334444", "website": "https://fabrica.example",
 		"address_line1": "Avenida Paulista, 1000", "address_line2": "Sala 101", "address_city": "São Paulo",
-		"address_region": "SP", "address_postal_code": "01310-100"
+		"address_region": "SP", "address_postal_code": "01310-100", "logo_file_id": null
 	}`, consultancy)
 	require.NoError(t, owner.QueryRow(context.Background(),
 		"SELECT row_to_json(users)::jsonb - 'id' FROM users").Scan(&administrator))
 	assert.JSONEq(t, `{
 		"name": "Ana Souza", "email": "ana.souza@fabrica.example", "country": "BR",
 		"national_id": "123.456.789-09", "telephone": "+5511988887777", "preferred_language": "pt-BR",
-		"deactivated": false
+		"photo_file_id": null, "deactivated": false
 	}`, administrator, "the e-mail typed in upper case is stored in lowercase")
 }
 

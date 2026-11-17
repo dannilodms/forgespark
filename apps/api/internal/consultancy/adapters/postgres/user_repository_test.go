@@ -116,10 +116,37 @@ func TestAUserIsSavedAsTypedWithTheirEmailInLowercaseAndTheirRoles(t *testing.T)
 		"national_id":        "123.456.789-09",
 		"telephone":          "+5511988887777",
 		"preferred_language": "pt-BR",
+		"photo_file_id":      nil,
 		"deactivated":        false,
 	}, row)
 	assert.Equal(t, map[string]any{"user_id": int64(user.ID()), "role_id": int64(administrator.ID())},
 		temporary.row(t, "SELECT user_id, role_id FROM user_roles"))
+}
+
+func TestAUserIsSavedWithTheFileOfTheirPhoto(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	administrator, _ := temporary.createRoles(t)
+	typed := administratorAna
+	typed.PhotoFileID = temporary.aFile(t, "user_photo")
+
+	_, err := temporary.registerUser(t, typed, administrator.ID())
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(typed.PhotoFileID), temporary.row(t, "SELECT photo_file_id FROM users")["photo_file_id"])
+}
+
+func TestTheDatabaseRefusesAPhotoThatIsNoFile(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	administrator, _ := temporary.createRoles(t)
+	typed := administratorAna
+	typed.PhotoFileID = 987654
+	const foreignKeyViolation = "23503"
+
+	_, err := temporary.registerUser(t, typed, administrator.ID())
+
+	assert.Equal(t, foreignKeyViolation, sqlState(t, err))
 }
 
 func TestAUserWhoIsSavedAgainKeepsOneRowForEachRole(t *testing.T) {

@@ -81,7 +81,7 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	collector := telemetrytest.NewCollector(t)
 	// Nothing answers on port 1 of the machine, so every step that reaches
 	// PostgreSQL fails, and its raw error is logged.
-	environment := map[string]string{
+	environment := withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS":          "127.0.0.1:0",
 		"LOG_LEVEL":                   "debug",
 		"OTEL_EXPORTER_OTLP_ENDPOINT": collector.URL,
@@ -89,7 +89,8 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 			"@127.0.0.1:1/software_factory?sslmode=disable",
 		"MIGRATION_DATABASE_URL": "postgres://migration:" + guarded.add("the password of the migration role", "guarded-password-of-the-migration-role") +
 			"@127.0.0.1:1/software_factory?sslmode=disable",
-	}
+	})
+	environment["FILE_STORAGE_SECRET_ACCESS_KEY"] = guarded.add("the secret key of the file storage", "guarded-secret-key-of-the-file-storage")
 
 	// The migrations fail to apply.
 	var migrateOutput, migrateLogs output
@@ -249,6 +250,66 @@ func TestTheLogsAndTheSpansOfOpeningTheSetupNeverCarryTheCode(t *testing.T) {
 	for _, answer := range []received{refused, tooLong, inTheAddress, wrongMethod, failed} {
 		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats the setup code")
 	}
+}
+
+// An image of the setup goes by the API as a URL signed with the key of the
+// file storage: whoever holds the URL can send to it until it expires. This
+// scenario starts uploads, sends an image, concludes the setup with it and
+// fails a start with a 5xx, on a migrated database and the Garage of
+// development. It then searches the logs and the spans for the secret key of
+// the storage, the signature of each URL and the setup code.
+func TestTheLogsAndTheSpansOfAnUploadNeverCarryTheSignatureOrTheKeyOfTheStorage(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	_, code := issueSetupCodeIn(t, temporary)
+	guarded.add("the setup code", code)
+	environment := environmentOf(temporary)
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	guarded.add("the secret key of the file storage", environment["FILE_STORAGE_SECRET_ACCESS_KEY"])
+	api := launchAPI(t, environment)
+
+	signed := func(purpose string) (fileID, signedURL string) {
+		t.Helper()
+		started := startUpload(t, api.url, uploadBody(code, purpose, "image/png", 2048))
+		require.Equal(t, http.StatusCreated, started.status, started.body)
+		signedURL, _ = started.fields["upload_url"].(string)
+		parsed, err := url.Parse(signedURL)
+		require.NoError(t, err)
+		guarded.add("the signature of a URL", parsed.Query().Get("X-Amz-Signature"))
+		fileID, _ = started.fields["file_id"].(string)
+		return fileID, signedURL
+	}
+	logo, logoURL := signed("consultancy_logo")
+	require.Equal(t, http.StatusOK, sendToTheStorage(t, logoURL, "image/png", aPNG(2048)))
+	neverSent, _ := signed("user_photo")
+	// Refused: the photo was never sent, so the storage answers 404 to the
+	// question about it.
+	body := setupBody(code)
+	object(body, "consultancy")["logo_file_id"] = logo
+	object(body, "administrator")["photo_file_id"] = neverSent
+	require.Equal(t, http.StatusUnprocessableEntity, concludeSetup(t, api.url, body).status)
+	// Concluded with the logo, which the storage is asked about.
+	delete(object(body, "administrator"), "photo_file_id")
+	require.Equal(t, http.StatusNoContent, concludeSetup(t, api.url, body).status)
+	// A 5xx: the API role may not write files.
+	_, err := asOwner(t, temporary).Exec(context.Background(), "REVOKE INSERT ON files FROM api")
+	require.NoError(t, err)
+	_, newCode := issueSetupCodeIn(t, temporary)
+	guarded.add("the second setup code", newCode)
+	failed := startUpload(t, api.url, uploadBody(newCode, "user_photo", "image/png", 2048))
+	require.Equal(t, http.StatusInternalServerError, failed.status, failed.body)
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	logs := api.logs.String()
+	require.Contains(t, logs, "permission denied for table files", "the scenario logged no raw error")
+	require.Contains(t, collector.Text(), "POST /api/setup/uploads", "the scenario exported no span of the operation")
+	require.Contains(t, collector.Text(), "HeadObject", "the scenario exported no span of a call to the storage")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
 }
 
 // Concluding the setup carries the data of a person: a name, an e-mail, a

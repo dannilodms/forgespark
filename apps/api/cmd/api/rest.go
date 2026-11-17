@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"net/http"
 	"time"
 
@@ -11,6 +12,9 @@ import (
 	consultancypostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/adapters/postgres"
 	consultancyrest "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/adapters/rest"
 	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
+	filespostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/postgres"
+	filess3 "github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/s3"
+	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
@@ -25,23 +29,30 @@ var bodyLimits = restapi.Limits{BodyBytes: 1 << 20, BodyReadTimeout: 5 * time.Se
 //
 // The OpenAPI spec is generated from what this function registers, so an
 // operation that is served is in the spec. Generating the spec calls it with
-// no pool: the use cases are built and never run.
-func mountREST(mux *http.ServeMux, pool *pgxpool.Pool) *restapi.API {
+// no pool and no storage: the use cases are built and never run.
+func mountREST(mux *http.ServeMux, pool *pgxpool.Pool, storage *filess3.Storage) *restapi.API {
 	api := restapi.New(mux, bodyLimits)
 
 	transactions := database.NewTransactions(pool)
 	recordEntry := auditapplication.NewRecordEntry(auditpostgres.NewAuditLog(pool))
+	files := filespostgres.NewFileRepository(pool)
 	setupCodes := consultancypostgres.NewSetupCodeRepository(pool)
 	consultancies := consultancypostgres.NewConsultancyRepository(pool)
 	consultancyrest.Register(api, consultancyrest.UseCases{
 		TellSetupState: consultancyapplication.NewTellSetupState(consultancypostgres.NewSetupStateReader(pool), clock.System{}),
 		OpenSetup:      consultancyapplication.NewOpenSetup(setupCodes, consultancies, clock.System{}),
+		StartSetupUpload: consultancyapplication.NewStartSetupUpload(
+			setupCodes,
+			filesapplication.NewStartUpload(transactions, files, storage, clock.System{}, rand.Reader),
+			clock.System{},
+		),
 		ConcludeSetup: consultancyapplication.NewConcludeSetup(
 			transactions,
 			setupCodes,
 			consultancies,
 			consultancypostgres.NewUserRepository(pool),
 			consultancypostgres.NewRoleRepository(pool),
+			filesapplication.NewConfirmUpload(transactions, files, storage, clock.System{}),
 			recordEntry,
 			clock.System{},
 		),

@@ -80,6 +80,7 @@ func TestAConsultancyIsSavedAsItWasTyped(t *testing.T) {
 		"address_city":        "São Paulo",
 		"address_region":      "SP",
 		"address_postal_code": "01310-100",
+		"logo_file_id":        nil,
 	}, row)
 }
 
@@ -93,12 +94,48 @@ func TestAConsultancyWithNoOptionalFieldStoresNothingInTheirColumns(t *testing.T
 	require.NoError(t, temporary.register(t, typed))
 
 	row := temporary.row(t, `SELECT email, telephone, website, address_line1, address_line2, address_city,
-		address_region, address_postal_code FROM consultancy`)
+		address_region, address_postal_code, logo_file_id FROM consultancy`)
 	assert.Equal(t, map[string]any{
 		"email": nil, "telephone": nil, "website": nil,
 		"address_line1": nil, "address_line2": nil, "address_city": "São Paulo",
-		"address_region": nil, "address_postal_code": nil,
+		"address_region": nil, "address_postal_code": nil, "logo_file_id": nil,
 	}, row)
+}
+
+// aFile writes the record of a file, as the files area does when an upload
+// starts, and returns its identifier.
+func (s stored) aFile(t *testing.T, purpose string) domain.FileID {
+	t.Helper()
+	var id int64
+	err := s.pool.QueryRow(context.Background(), `
+		INSERT INTO files (id, object_key, purpose, media_type, size, started_at)
+		VALUES (nextval('files_id_seq'), md5(random()::text), $1, 'image/png', 1024, now())
+		RETURNING id`, purpose).Scan(&id)
+	require.NoError(t, err)
+	return domain.FileID(id)
+}
+
+func TestAConsultancyIsSavedWithTheFileOfItsLogo(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	typed := fullConsultancy
+	typed.LogoFileID = temporary.aFile(t, "consultancy_logo")
+
+	require.NoError(t, temporary.register(t, typed))
+
+	assert.Equal(t, int64(typed.LogoFileID), temporary.row(t, "SELECT logo_file_id FROM consultancy")["logo_file_id"])
+}
+
+func TestTheDatabaseRefusesALogoThatIsNoFile(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	typed := fullConsultancy
+	typed.LogoFileID = 987654
+	const foreignKeyViolation = "23503"
+
+	err := temporary.register(t, typed)
+
+	assert.Equal(t, foreignKeyViolation, sqlState(t, err))
 }
 
 func TestTheDatabaseRefusesASecondConsultancy(t *testing.T) {

@@ -34,11 +34,11 @@ func (q *Queries) NextConsultancyID(ctx context.Context) (int64, error) {
 const saveConsultancy = `-- name: SaveConsultancy :exec
 INSERT INTO consultancy (
     id, name, legal_name, country, tax_id, time_zone, currency, email, telephone, website,
-    address_line1, address_line2, address_city, address_region, address_postal_code
+    address_line1, address_line2, address_city, address_region, address_postal_code, logo_file_id
 )
 VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-    $11, $12, $13, $14, $15
+    $11, $12, $13, $14, $15, $16
 )
 ON CONFLICT (id) DO UPDATE
 SET name = excluded.name,
@@ -54,7 +54,8 @@ SET name = excluded.name,
     address_line2 = excluded.address_line2,
     address_city = excluded.address_city,
     address_region = excluded.address_region,
-    address_postal_code = excluded.address_postal_code
+    address_postal_code = excluded.address_postal_code,
+    logo_file_id = excluded.logo_file_id
 `
 
 type SaveConsultancyParams struct {
@@ -73,6 +74,7 @@ type SaveConsultancyParams struct {
 	AddressCity       *string
 	AddressRegion     *string
 	AddressPostalCode *string
+	LogoFileID        *int64
 }
 
 // The table holds one row at most: a second consultancy breaks the unique
@@ -94,6 +96,7 @@ func (q *Queries) SaveConsultancy(ctx context.Context, arg SaveConsultancyParams
 		arg.AddressCity,
 		arg.AddressRegion,
 		arg.AddressPostalCode,
+		arg.LogoFileID,
 	)
 	return err
 }

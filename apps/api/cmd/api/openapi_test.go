@@ -28,7 +28,7 @@ var writeSpec = flag.Bool("write-spec", false, "write the OpenAPI spec generated
 // with no database behind it, and returns the spec of what it registered.
 func generatedSpec(t *testing.T) *huma.OpenAPI {
 	t.Helper()
-	return mountREST(http.NewServeMux(), nil).OpenAPI()
+	return mountREST(http.NewServeMux(), nil, nil).OpenAPI()
 }
 
 func TestTheCommittedSpecMatchesTheCode(t *testing.T) {
@@ -120,7 +120,7 @@ func TestEveryPostOperationOfTheSetupDeclaresTheLimitOfCaddy(t *testing.T) {
 		return !strings.HasPrefix(path, "/api/setup") || item.Post == nil
 	})
 
-	require.Len(t, posts, 2, "the POST operations of the setup")
+	require.Len(t, posts, 3, "the POST operations of the setup")
 	for path, item := range posts {
 		limited := item.Post.Responses["429"]
 		require.NotNil(t, limited, "POST %s does not declare the 429 of Caddy", path)

@@ -18,6 +18,8 @@ import (
 	auditapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application/applicationtest"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application/applicationtest"
+	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
+	filesapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application/applicationtest"
 )
 
 var noon = time.Date(2026, time.November, 17, 12, 0, 0, 0, time.UTC)
@@ -44,19 +46,23 @@ const (
 )
 
 // installation is a system with nothing in it, built on the in-memory
-// implementations, with the clock stopped at noon.
+// implementations of this area and of the files area, with the clock stopped
+// at noon.
 type installation struct {
-	clock          *applicationtest.Clock
-	setupCodes     *applicationtest.SetupCodeRepository
-	consultancies  *applicationtest.ConsultancyRepository
-	users          *applicationtest.UserRepository
-	roles          *applicationtest.RoleRepository
-	auditLog       *auditapplicationtest.AuditLog
-	transactions   *applicationtest.Transactions
-	issueSetupCode *application.IssueSetupCode
-	openSetup      *application.OpenSetup
-	concludeSetup  *application.ConcludeSetup
-	tellSetupState *application.TellSetupState
+	clock            *applicationtest.Clock
+	setupCodes       *applicationtest.SetupCodeRepository
+	consultancies    *applicationtest.ConsultancyRepository
+	users            *applicationtest.UserRepository
+	roles            *applicationtest.RoleRepository
+	auditLog         *auditapplicationtest.AuditLog
+	files            *filesapplicationtest.FileRepository
+	objects          *filesapplicationtest.Storage
+	transactions     *applicationtest.Transactions
+	issueSetupCode   *application.IssueSetupCode
+	openSetup        *application.OpenSetup
+	startSetupUpload *application.StartSetupUpload
+	concludeSetup    *application.ConcludeSetup
+	tellSetupState   *application.TellSetupState
 }
 
 func newInstallation() installation {
@@ -66,19 +72,28 @@ func newInstallation() installation {
 	users := applicationtest.NewUserRepository()
 	roles := applicationtest.NewRoleRepository()
 	auditLog := auditapplicationtest.NewAuditLog()
-	transactions := applicationtest.NewTransactions(setupCodes, consultancies, users, roles, auditLog)
+	files := filesapplicationtest.NewFileRepository()
+	objects := filesapplicationtest.NewStorage()
+	transactions := applicationtest.NewTransactions(setupCodes, consultancies, users, roles, auditLog, files)
 	recordEntry := auditapplication.NewRecordEntry(auditLog)
+	startUpload := filesapplication.NewStartUpload(transactions, files, objects, clock, &countingBytes{})
+	confirmUpload := filesapplication.NewConfirmUpload(transactions, files, objects, clock)
 	return installation{
-		clock:          clock,
-		setupCodes:     setupCodes,
-		consultancies:  consultancies,
-		users:          users,
-		roles:          roles,
-		auditLog:       auditLog,
-		transactions:   transactions,
-		issueSetupCode: application.NewIssueSetupCode(transactions, setupCodes, recordEntry, clock, &countingBytes{}),
-		openSetup:      application.NewOpenSetup(setupCodes, consultancies, clock),
-		concludeSetup:  application.NewConcludeSetup(transactions, setupCodes, consultancies, users, roles, recordEntry, clock),
+		clock:            clock,
+		setupCodes:       setupCodes,
+		consultancies:    consultancies,
+		users:            users,
+		roles:            roles,
+		auditLog:         auditLog,
+		files:            files,
+		objects:          objects,
+		transactions:     transactions,
+		issueSetupCode:   application.NewIssueSetupCode(transactions, setupCodes, recordEntry, clock, &countingBytes{}),
+		openSetup:        application.NewOpenSetup(setupCodes, consultancies, clock),
+		startSetupUpload: application.NewStartSetupUpload(setupCodes, startUpload, clock),
+		concludeSetup: application.NewConcludeSetup(
+			transactions, setupCodes, consultancies, users, roles, confirmUpload, recordEntry, clock,
+		),
 		tellSetupState: application.NewTellSetupState(applicationtest.NewSetupStateReader(consultancies, setupCodes), clock),
 	}
 }

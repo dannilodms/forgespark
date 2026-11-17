@@ -18,6 +18,8 @@ import (
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go/tracing/smithyoteltracing"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
 )
@@ -40,6 +42,8 @@ type Settings struct {
 	// AccessKeyID and SecretAccessKey are the key the API signs with.
 	AccessKeyID     string
 	SecretAccessKey string
+	// TracerProvider traces each call to the storage. Nil traces nothing.
+	TracerProvider trace.TracerProvider
 }
 
 // Storage is the file storage of the files area.
@@ -63,13 +67,19 @@ func NewStorage(settings Settings) *Storage {
 // address. The bucket is in the path of each address, never in the host
 // name, so one host name serves it.
 func optionsFor(settings Settings, endpoint string) s3.Options {
-	return s3.Options{
+	options := s3.Options{
 		BaseEndpoint: aws.String(endpoint),
 		UsePathStyle: true,
 		Region:       settings.Region,
 		Credentials:  credentials.NewStaticCredentialsProvider(settings.AccessKeyID, settings.SecretAccessKey, ""),
 		HTTPClient:   awshttp.NewBuildableClient().WithTimeout(callTimeout),
 	}
+	if settings.TracerProvider != nil {
+		// The spans of the SDK carry the method, the endpoint, the status and
+		// the error of a call: never a signature or a key.
+		options.TracerProvider = smithyoteltracing.Adapt(settings.TracerProvider)
+	}
+	return options
 }
 
 // SignUpload signs a PUT of the object under this key, valid for this long.

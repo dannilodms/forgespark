@@ -36,13 +36,13 @@ func (o *output) String() string {
 }
 
 // environmentOf gives the variables a command reads, pointed at a temporary
-// database.
+// database and at the file storage of development.
 func environmentOf(temporary databasetest.Database) map[string]string {
-	return map[string]string{
+	return withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS":     "127.0.0.1:0",
 		"DATABASE_URL":           temporary.APIURL,
 		"MIGRATION_DATABASE_URL": temporary.MigrationURL,
-	}
+	})
 }
 
 // startAPI runs the command that serves the API until the test ends, and
@@ -68,7 +68,7 @@ func statusOf(t *testing.T, url string) int {
 func TestTheAPIRefusesToStartWithARequiredVariableMissing(t *testing.T) {
 	var stdout, stderr output
 
-	status := run(context.Background(), nil, map[string]string{"API_LISTEN_ADDRESS": "127.0.0.1:0"}, &stdout, &stderr)
+	status := run(context.Background(), nil, withFileStorage(map[string]string{"API_LISTEN_ADDRESS": "127.0.0.1:0"}), &stdout, &stderr)
 
 	assert.Equal(t, 1, status)
 	assert.Equal(t, "api: configuration: DATABASE_URL is required\n", stderr.String())
@@ -77,16 +77,31 @@ func TestTheAPIRefusesToStartWithARequiredVariableMissing(t *testing.T) {
 
 func TestTheAPIRefusesToStartWithAnInvalidVariableAndNeverShowsItsValue(t *testing.T) {
 	var stdout, stderr output
-	environment := map[string]string{
+	environment := withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS": "127.0.0.1:0",
 		"DATABASE_URL":       "postgres://api:hunter2@localhost:5432/software_factory?sslmode=sometimes",
-	}
+	})
 
 	status := run(context.Background(), nil, environment, &stdout, &stderr)
 
 	assert.Equal(t, 1, status)
 	assert.Equal(t, "api: configuration: DATABASE_URL is not valid: expected a PostgreSQL connection URL\n", stderr.String())
 	assert.NotContains(t, stderr.String()+stdout.String(), "hunter2")
+}
+
+func TestTheAPIRefusesToStartWithoutTheFileStorage(t *testing.T) {
+	var stdout, stderr output
+	environment := map[string]string{
+		"API_LISTEN_ADDRESS": "127.0.0.1:0",
+		"DATABASE_URL":       "postgres://api:api@localhost:5432/software_factory",
+	}
+
+	status := run(context.Background(), nil, environment, &stdout, &stderr)
+
+	assert.Equal(t, 1, status)
+	assert.Equal(t, "api: configuration: FILE_STORAGE_URL is required; FILE_STORAGE_PUBLIC_URL is required; "+
+		"FILE_STORAGE_REGION is required; FILE_STORAGE_BUCKET is required; FILE_STORAGE_ACCESS_KEY_ID is required; "+
+		"FILE_STORAGE_SECRET_ACCESS_KEY is required\n", stderr.String())
 }
 
 func TestAnUnknownCommandPrintsTheCommandsAndFails(t *testing.T) {
@@ -158,11 +173,11 @@ func TestTheAPIIsAliveAndNotReadyWhileAMigrationIsPending(t *testing.T) {
 
 func TestTheAPIIsAliveAndNotReadyWhilePostgreSQLIsDown(t *testing.T) {
 	t.Parallel()
-	environment := map[string]string{
+	environment := withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS": "127.0.0.1:0",
 		// Port 1 of the machine has no PostgreSQL behind it.
 		"DATABASE_URL": "postgres://api:api@127.0.0.1:1/software_factory?sslmode=disable",
-	}
+	})
 
 	api := startAPI(t, environment)
 

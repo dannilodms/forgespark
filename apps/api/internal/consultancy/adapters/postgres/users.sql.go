@@ -39,8 +39,8 @@ func (q *Queries) NextUserID(ctx context.Context) (int64, error) {
 }
 
 const saveUser = `-- name: SaveUser :exec
-INSERT INTO users (id, name, email, country, national_id, telephone, preferred_language, deactivated)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO users (id, name, email, country, national_id, telephone, preferred_language, photo_file_id, deactivated)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (id) DO UPDATE
 SET name = excluded.name,
     email = excluded.email,
@@ -48,6 +48,7 @@ SET name = excluded.name,
     national_id = excluded.national_id,
     telephone = excluded.telephone,
     preferred_language = excluded.preferred_language,
+    photo_file_id = excluded.photo_file_id,
     deactivated = excluded.deactivated
 `
 
@@ -59,6 +60,7 @@ type SaveUserParams struct {
 	NationalID        string
 	Telephone         *string
 	PreferredLanguage string
+	PhotoFileID       *int64
 	Deactivated       bool
 }
 
@@ -73,6 +75,7 @@ func (q *Queries) SaveUser(ctx context.Context, arg SaveUserParams) error {
 		arg.NationalID,
 		arg.Telephone,
 		arg.PreferredLanguage,
+		arg.PhotoFileID,
 		arg.Deactivated,
 	)
 	return err

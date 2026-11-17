@@ -4,8 +4,8 @@ SELECT nextval('users_id_seq')::bigint;
 -- name: SaveUser :exec
 -- The e-mail belongs to one user: another user's e-mail breaks the unique
 -- constraint users_email_key.
-INSERT INTO users (id, name, email, country, national_id, telephone, preferred_language, deactivated)
-VALUES (@id, @name, @email, @country, @national_id, @telephone, @preferred_language, @deactivated)
+INSERT INTO users (id, name, email, country, national_id, telephone, preferred_language, photo_file_id, deactivated)
+VALUES (@id, @name, @email, @country, @national_id, @telephone, @preferred_language, @photo_file_id, @deactivated)
 ON CONFLICT (id) DO UPDATE
 SET name = excluded.name,
     email = excluded.email,
@@ -13,6 +13,7 @@ SET name = excluded.name,
     national_id = excluded.national_id,
     telephone = excluded.telephone,
     preferred_language = excluded.preferred_language,
+    photo_file_id = excluded.photo_file_id,
     deactivated = excluded.deactivated;
 
 -- name: GiveUserRoles :exec

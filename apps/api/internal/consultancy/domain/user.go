@@ -19,7 +19,8 @@ func NewUserID(value int64) (UserID, error) {
 }
 
 // TypedUser is a user as a person typed them: in the setup, the first
-// administrator. An optional field left out is empty.
+// administrator. An optional field left out is empty, and no photo is the
+// file 0.
 type TypedUser struct {
 	Name              string
 	Email             string
@@ -27,6 +28,7 @@ type TypedUser struct {
 	NationalID        string
 	Telephone         string
 	PreferredLanguage string
+	PhotoFileID       FileID
 }
 
 // UserDetails are the data of a user, each checked against its rule. Only
@@ -38,12 +40,13 @@ type UserDetails struct {
 	nationalID        string
 	telephone         optional[kernel.Telephone]
 	preferredLanguage kernel.Language
+	photo             optional[FileID]
 }
 
 // NewUserDetails checks what was typed. The name, the e-mail, the country,
-// the national ID and the preferred language are required; the telephone is
-// not. It returns a kernel.InvalidFieldsError that names every field breaking
-// a rule.
+// the national ID and the preferred language are required; the telephone and
+// the photo are not. It returns a kernel.InvalidFieldsError that names every
+// field breaking a rule.
 func NewUserDetails(typed TypedUser) (UserDetails, error) {
 	var invalid kernel.InvalidFieldsError
 	var details UserDetails
@@ -61,6 +64,7 @@ func NewUserDetails(typed TypedUser) (UserDetails, error) {
 	invalid.Check("telephone", err)
 	details.preferredLanguage, err = kernel.NewLanguage(typed.PreferredLanguage)
 	invalid.Check("preferred_language", err)
+	details.photo = chosenFile(typed.PhotoFileID)
 
 	if err := invalid.Err(); err != nil {
 		return UserDetails{}, err
@@ -87,6 +91,10 @@ func (d UserDetails) Telephone() (kernel.Telephone, bool) { return d.telephone.g
 
 // PreferredLanguage returns the language the user reads the system in.
 func (d UserDetails) PreferredLanguage() kernel.Language { return d.preferredLanguage }
+
+// PhotoFileID returns the file of the photo of the user, and false when they
+// have none.
+func (d UserDetails) PhotoFileID() (FileID, bool) { return d.photo.get() }
 
 // User is a person registered in the system, who logs in with their e-mail.
 // A user has at least one role. A deactivated user cannot log in and keeps

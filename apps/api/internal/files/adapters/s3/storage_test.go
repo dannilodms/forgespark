@@ -42,6 +42,8 @@ func settingsOf(t *testing.T) s3.Settings {
 		Bucket:          read("FILE_STORAGE_BUCKET"),
 		AccessKeyID:     read("FILE_STORAGE_ACCESS_KEY_ID"),
 		SecretAccessKey: read("FILE_STORAGE_SECRET_ACCESS_KEY"),
+		// Tests run with no telemetry.
+		TracerProvider: nil,
 	}
 }
 
