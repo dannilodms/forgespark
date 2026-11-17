@@ -25,7 +25,7 @@ apps/api/internal/
 
 A **domain area** is one part of the business with its own aggregates. It is the deep module of the backend: its public surface is its use cases, and everything else is internal to it.
 
-Beside `internal`, `apps/api/cmd/api` holds the commands of the binary (see Commands) and `apps/api/migrations` the migrations (see Database). `platform` is a set of packages, one per concern: `config`, `database`, `health`.
+Beside `internal`, `apps/api/cmd/api` holds the commands of the binary (see Commands), `apps/api/migrations` the migrations (see Database) and `apps/api/tools` the checks of the build that are written in this repository (see Enforcement). `platform` is a set of packages, one per concern: `config`, `database`, `health`, `lifecycle` (the signals, the shutdown notice and the server) and `telemetry` (the logger, the tracer and the telemetry of a request).
 
 An **inbound adapter** calls use cases on behalf of an outside caller: REST for the React app and for the agents of ADR-0004, MCP for coding agents, a job worker for work that runs in the background. An **outbound adapter** implements an interface that `application` declares: Postgres, the S3 storage, an LLM provider. `adapters` has one package per technology, one level deep, and an area creates only the ones it uses.
 
@@ -50,6 +50,8 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 | `platform` | third-party libraries; no domain area |
 
 `application` reaches infrastructure only through an interface: one it declares itself, or one `platform` exports (the LLM provider interface of ADR-0004). The area that uses an interface declares it; an adapter implements it.
+
+`task api:lint` checks the table on every import under `internal` (see Enforcement). It reads the place of a package from its path, so a new area needs no change to the check. A package under `internal` that is outside the Layout fails it too.
 
 ### Between domain areas
 
@@ -144,7 +146,7 @@ The terms user, role, administrator, developer and scope are defined in `GLOSSAR
 
 ### Configuration
 
-- **Environment variables only.** The binary reads its configuration from environment variables, once, when it starts, into one typed struct in `platform` (caarlos0/env). No other code reads the environment.
+- **Environment variables only.** The binary reads its configuration from environment variables, once, when it starts, into one typed struct in `platform` (caarlos0/env). No other code reads the environment. The OpenTelemetry SDK is the one exception: it reads the `OTEL_` variables its specification defines, such as the headers and the timeout of an export. The address it exports to is read by the configuration and passed to it.
 - **Fails at the start.** A missing or invalid value stops the process before it serves anything, with a line that names the variable and never its value.
 - **By command.** A command requires only the variables it uses. The API never receives the connection of the migration role, and `migrate` never receives the one of the API role.
 - **Secrets do not print.** A value that carries a secret, such as a connection URL, is a type that prints as a placeholder.
@@ -158,16 +160,18 @@ How the telemetry is collected, kept and shown is in Observability.
 
 - **Nothing sensitive.** Logs, spans and metric labels never carry personal data, the value of a credential, a login code, an access token or a session cookie. A test proves it for logs.
 - **Where.** Spans, metrics and logs are created in `adapters` and `platform` only. `application` and `domain` create none: a use case returns a typed error, and the inbound adapter records it.
-- **Spans.** An inbound adapter opens the span: of a request, of an MCP tool call (in a middleware of the MCP adapter), of a job (see Jobs). Outbound adapters are instrumented: pgx (see Database) and the HTTP clients.
+- **Spans.** An inbound adapter opens the span: of a request, of an MCP tool call (in a middleware of the MCP adapter), of a job (see Jobs). Outbound adapters are instrumented: pgx (see Database) and the HTTP clients. The span of a request is opened by `telemetry.Requests` and carries the method, the route and the status, never a path, a query string or a header. Liveness and readiness open one too.
 - **Actor.** A span and a log line carry the public identifiers of the user, the access token, the client and the project. A metric label carries none of them.
-- **Logs.** JSON lines on the container output, each with the trace identifier. Nothing is sent as OTLP logs. The level comes from configuration and is `info` by default.
+- **Logs.** JSON lines on the container output, each with the trace identifier of its request, as `trace_id`. A line written outside a request, such as the start of the process, has none. The logs go to the error output of the process, and the standard output is left to what a command prints. Nothing is sent as OTLP logs. The level comes from configuration (`LOG_LEVEL`) and is `info` by default. A command builds its logger with `telemetry.NewLogger` and writes with the context of the request.
 - **What is logged.** A 5xx or a panic with its raw error, a failed outbound call, the start and the stop of the process, the requests cut by a shutdown. A successful request and a 4xx write no line. No line carries a body, a query string or a header.
+- **The line of a request.** `telemetry.Requests`, which wraps the handler of the API, writes it when the request ends: the method, the route, the status and the raw error. Whatever answers a 5xx hands its raw error to `telemetry.RecordFailure` and writes no line of its own. A line names the route, never the path.
 - **Metrics.** HTTP requests, the Go runtime, the database pool and the use of LLM providers. No business metric until a case needs one.
 - **Traces.** Every trace is kept. Nothing is sampled.
 - **LLM calls.** A call records the provider, the model, the input and output tokens, the duration and the outcome, on its span and as metrics, under the `gen_ai` names of the OpenTelemetry semantic conventions. It never records the prompt or the answer.
 - **Trace identifier.** The `trace_id` in an error body is the trace identifier of the request. An incoming `traceparent` is honoured. An outbound call carries it only to the agents of ADR-0004, never to an LLM provider, a login provider or the e-mail service.
-- **Export.** Traces and metrics leave over OTLP, to an address taken from configuration. With no address, nothing is exported and the telemetry collector is `not_configured`. `platform` wraps the metric exporter and keeps the time and the error of the last export (see Health).
-- **Tests.** Tests run with no telemetry.
+- **Export.** Traces and metrics leave over OTLP/HTTP, to an address taken from configuration: `OTEL_EXPORTER_OTLP_ENDPOINT`, the base URL of the receiver. With no address, nothing is exported and the telemetry collector is `not_configured`. A span still gets its trace identifier, so the `trace_id` of a log line and of an error body is real. A failed export is logged and stops nothing. `platform` wraps the metric exporter and keeps the time and the error of the last export (see Health).
+- **Tests.** Tests run with no telemetry. A test that reads the spans a command exported gives it the address of the collector of `telemetrytest`.
+- **Test of sensitive values.** `sensitive_test.go` in `apps/api/cmd/api` runs the commands of the binary with a sensitive value in each place one goes by, then searches the logs and the exported spans for each value. Code that handles a new kind of sensitive value adds it there; the file says how.
 - **Audit log.** A sensitive operation (reading the value of a credential, a login, creating or revoking an access token, issuing a setup code, concluding a setup, changing the roles of a user, deactivating or reactivating a user) writes to the audit log from its use case. The audit log is append-only and is not telemetry.
 
 ### Health
@@ -190,15 +194,15 @@ The terms system health, part and health report are defined in `GLOSSARY.md`.
 
 The API stops without cutting work short. It runs as one instance, so a deploy is a restart, and a few seconds without service are accepted.
 
-- **Signal.** `SIGTERM` or `SIGINT` starts the shutdown. A second signal exits at once.
-- **Ownership.** `platform` owns the process lifecycle and exports the shutdown notice. No domain area handles a signal.
-- **Health.** Readiness fails from the signal on. Liveness keeps answering.
-- **Requests.** New connections are refused. A request in flight, an MCP tool call included, has the drain deadline to finish: 20 seconds, taken from configuration. No timeout on a non-streaming outbound call exceeds the drain deadline.
+- **Signal.** `SIGTERM` or `SIGINT` starts the shutdown. A second signal exits at once, with status 1 and without waiting for anything.
+- **Ownership.** `platform` owns the process lifecycle and exports the shutdown notice. No domain area handles a signal. The notice is the context every command receives: it ends when the shutdown starts. A command that runs to its end passes it on, so that a signal stops it. The command that serves only watches it, and never derives the context of a request or of a query from it.
+- **Health.** Readiness fails from the signal on. Liveness keeps answering, on a connection that was already open.
+- **Requests.** New connections are refused. A connection that was already open is still answered while the drain lasts, and is closed when no request is in flight. A request in flight, an MCP tool call included, has the drain deadline to finish: 20 seconds, taken from configuration (`SHUTDOWN_DRAIN_DEADLINE`). No timeout on a non-streaming outbound call exceeds the drain deadline.
 - **Streams.** A stream closes when the shutdown starts: an LLM answer being streamed, a progress stream, the MCP listening stream. A streaming operation watches the shutdown notice. An SSE operation first sends a final error event with the code `service_restarting`, carrying the fields of the error format. The MCP listening stream closes with no event, because MCP defines its own reconnection.
 - **Deadline reached.** The context of each remaining request is cancelled, which rolls back its transaction, and the API logs how many requests were cut.
-- **Exit.** The API then closes its connections to PostgreSQL, flushes telemetry under a short deadline of its own and exits: with status zero when every request finished, non-zero when one was cut.
+- **Exit.** The API then closes its connections to PostgreSQL, flushes telemetry under a short deadline of its own and exits: with status zero when every request finished, non-zero when one was cut. Closing the connections waits for PostgreSQL, for 15 seconds at most when it does not answer. Whatever stops the container gives it longer than the drain deadline plus that.
 - **No goroutine outlives its request.** Work that must survive the request is a job (see Jobs). The shutdown of the API does not wait for it.
-- **Test.** A test in `platform` holds a slow request and a stream open, sends the signal and checks that the request finishes, the stream receives its final event, a new connection is refused, and a reached deadline cancels what is left. It is written with the first backend code.
+- **Test.** A test in `platform` holds a slow request and a stream open, sends the signal and checks that the request finishes, the stream receives its final event, a new connection is refused, and a reached deadline cancels what is left. It is in `platform/lifecycle`; its part about the stream is written with the first stream. The tests of the command check the same through the binary, with the exit status. They hand the signal to the code, so they run on every system; on Unix two more run the binary as a process and send it `SIGINT` and `SIGTERM`.
 
 ### Domain modelling
 
@@ -289,7 +293,7 @@ The system sends e-mail and receives none.
 
 ### Control flow
 
-Handle the exceptional case first and return, so the main path runs unindented to the end of the function. A function holds one level of nesting; a second level becomes a new function. Tooling rejects `else`.
+Handle the exceptional case first and return, so the main path runs unindented to the end of the function. `task api:lint` rejects an `else` and a second level of nesting (see Enforcement).
 
 ### Naming
 
@@ -311,7 +315,17 @@ The tests of the `resend` adapter call a service outside the repository. They ru
 
 ### Enforcement
 
-A rule that tooling can check fails the build: imports between layers and between areas, `else`, nesting depth, a mapping between API type, domain type and database row that leaves a field out. The tool is chosen with the first backend code.
+A rule that tooling can check fails the build. `task api:lint` runs the checks of the Go code, and `task check` and the pipeline run it.
+
+- **Linter.** golangci-lint, configured in `apps/api/.golangci.yml`: its standard set of linters, and nolintlint, which makes a `//nolint` name the rule it silences and say why.
+- **Formatter.** gofumpt, run by golangci-lint, so a file that is not formatted fails the lint. `task api:format` rewrites the files.
+- **Imports.** `apps/api/tools/guard/imports` checks the table of the Dependency rule on every import under `internal`, and that every package there has a place in the Layout. A test file may also import a third-party library, in any layer.
+- **Control flow.** `apps/api/tools/guard/controlflow` rejects an `else`, an `else if` included, and a block that opens inside another block of the same function. The blocks are `if`, `for`, `switch` and `select`. A function literal starts again from zero.
+- **Mapping.** The exhaustruct linter of golangci-lint, limited to the types of the adapter packages: a struct literal of an API type or of a database row that leaves a field out fails the lint. It is turned on with the first mapping.
+- **Generated code.** A file is generated when it carries the comment Go defines for it, `// Code generated ... DO NOT EDIT.`, before the package clause. Its format, its lint and its control flow are not judged. Its imports are.
+- **Fixtures.** No check reads a `testdata` directory.
+
+The checks written in this repository are the commands of `apps/api/tools/guard`, with their tests beside them. A finding is a line with the file, the line and what to do.
 
 The generated OpenAPI spec and the code generated by sqlc are committed, and the build fails when either is stale. A lint on the spec (vacuum) fails the build on `snake_case` and plural-path violations. A breaking-change report (oasdiff) is shown and does not fail the build. Once a check exists, its rule here shrinks to a pointer at the check.
 
@@ -331,7 +345,7 @@ A lint for migrations and the column type for case-insensitive text are decided 
 
 The first backend code is the foundation and the setup: `.scratch/foundation-and-setup/spec.md`. Two efforts follow it, each specified when the one before ends: the login and the shell of the app, then the consultancy settings, the users and the system health. There is no walking skeleton. That spec lists the joints that the ADRs record as not tried and that these three efforts do not cross; the work that builds the deploy tries most of them. Three conventions were fixed with the first code: where dependencies are wired is in Commands, where a use case takes the current time from is in Use cases, and the assertion library of the tests is in Tests. Whether a record is deleted or archived is fixed with the first record that is removed; a user is deactivated and never removed.
 
-The Go linter and formatter, the Go type for money (`kernel` imports the standard library only), the client library for LLM providers, and the templates and translation files of e-mails are each chosen with the first code that needs one.
+The Go type for money (`kernel` imports the standard library only), the client library for LLM providers, and the templates and translation files of e-mails are each chosen with the first code that needs one.
 
 The rate-limit plugin of Caddy and its numbers are chosen with the setup, the first code that needs the limit. The routine that encrypts credential values again under a new key is written with the first change of key.
 
@@ -670,6 +684,7 @@ Every tool, library and container image runs at a version written in a committed
 | Go toolchain | the `go` and `toolchain` lines of `go.mod` |
 | Go libraries | `go.mod` and `go.sum` |
 | Go command-line tools (sqlc, vacuum, oasdiff, the River CLI) | the `tool` line of a module file of its own beside `go.mod`, one for each tool (`apps/api/sqlc.mod`), run with `go tool -modfile=sqlc.mod` |
+| The Go linter and formatter (golangci-lint, with gofumpt inside it) | the `tool` line of `apps/api/golangci-lint.mod`, a module file of its own, run with `go tool -modfile=golangci-lint.mod` |
 | Node.js | `devEngines.runtime` in `apps/web/package.json`, written by `vp env pin` |
 | pnpm | `devEngines.packageManager` in `apps/web/package.json`, written by `vp env pin` |
 | JavaScript libraries and tools, Vite+ included | the catalog in `apps/web/pnpm-workspace.yaml`, and `apps/web/pnpm-lock.yaml` |
@@ -684,7 +699,7 @@ Every tool, library and container image runs at a version written in a committed
 
 ### Rules
 
-- **Exact.** A version is exact: no range (`^`, `~`), no `latest`, no floating tag such as `postgres:18`. Only the prerequisites table holds minimums.
+- **Exact.** A version is exact, and `task versions:check` rejects one that is not (see Enforcement). Only the prerequisites table holds minimums.
 - **Catalog.** `apps/web`, the only JavaScript package, takes its versions from the pnpm catalog (`catalog:`), so each version is written once, beside the settings of pnpm. The root of the repository has no `package.json`.
 - **Lockfiles.** `go.sum` and `pnpm-lock.yaml` are committed. The build installs from them and fails when they would change.
 - **Nothing global.** A tool the build uses runs from its home above (`go tool`, `vp`), never from a copy installed on the machine. Docker, Task, the global `vp`, the GitHub CLI and the installed Go, which only downloads the toolchain that `go.mod` names, are the only exceptions.
@@ -703,4 +718,12 @@ Every tool, library and container image runs at a version written in a committed
 
 ### Enforcement
 
-The check that rejects a range, `latest` or a floating tag is chosen with the first code. Once it exists, the rules here shrink to a pointer at the check.
+`task versions:check` rejects a range (`^`, `~`), `latest` and a floating tag such as `postgres:18`. It is `apps/api/tools/guard/versions`, and `task check` and the pipeline run it. It recognises a file by its name, wherever the file is, and reads:
+
+- **Go module files** (`go.mod`, and `golangci-lint.mod` with the linter): the `go` line and the `toolchain` line with their three numbers, and each required module at one release. A tool takes its version from the line that requires its module.
+- **Compose files and Dockerfiles**: every `image`, every `FROM` and every `COPY --from`. A tag starts with the full version of the image, which has three numbers; the images whose version has two, such as PostgreSQL, are listed in the check. An image with another scheme is pinned by its digest. A service that is built from a Dockerfile is not judged.
+- **Workflows**, and any other YAML file under `.github`: an action by its full commit hash, a tool by the three numbers of a variable whose name ends in `_VERSION` or of an input named `version` or ending in `-version`, an image as above, and a runner by the version of its system, never `-latest`.
+- **The pnpm catalog** in `pnpm-workspace.yaml`, with its overrides, and `package.json`: a dependency is `catalog:` or one version, and so are the runtime and the package manager.
+- **`.mcp.json`**: a server that `npx` or `pnpm dlx` downloads names its package as `name@1.2.3`.
+
+What the check does not read stays a rule for the author: a Caddy plugin and pgBackRest in their Dockerfiles, the system image of the servers, and a one-off command in `Taskfile.yml`. Each joins the check when its file is written.

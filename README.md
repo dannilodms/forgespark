@@ -235,6 +235,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) | Container that gathers traces, metrics and logs from every service and from the server |
 | [Grafana otel-lgtm](https://grafana.com/docs/opentelemetry/docker-lgtm/) | One container that stores and shows the telemetry, and sends the alerts |
 | [vacuum](https://quobix.com/vacuum/) and [oasdiff](https://github.com/oasdiff/oasdiff) | Lint of the API conventions and report of breaking changes on the OpenAPI spec |
+| [golangci-lint](https://golangci-lint.run/) and [gofumpt](https://github.com/mvdan/gofumpt) | Linter and formatter of the Go code |
 | [React](https://react.dev/) | Web frontend (single-page app) |
 | [Vite+](https://viteplus.dev/) | Frontend toolchain behind one CLI (`vp`): dev server and build (Vite, Rolldown), tests (Vitest), lint (Oxlint), format (Oxfmt), plus the Node.js runtime and package manager |
 | [TanStack Router](https://tanstack.com/router) | Typed client-side routing; filters and pagination live in the URL |
@@ -298,6 +299,9 @@ A command of the binary requires only the variables it uses. The ones the binary
 | Variable | What it is | Default |
 | --- | --- | --- |
 | `API_LISTEN_ADDRESS` | Where the API listens, as `host:port`. An empty host is every interface | None: the API requires it |
+| `SHUTDOWN_DRAIN_DEADLINE` | How long the requests in flight have to finish once the API is told to stop | `20s` |
+| `LOG_LEVEL` | The lowest level the binary logs: `debug`, `info`, `warn` or `error` | `info` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Base URL of the OTLP/HTTP receiver the traces are exported to, such as `http://localhost:4318`. Empty exports nothing | Empty |
 | `DATABASE_URL` | Connection URL of the API role, which reads and writes rows | None: the API and `issue-setup-code` require it |
 | `MIGRATION_DATABASE_URL` | Connection URL of the migration role, which owns the tables | None: `migrate` requires it |
 | `DATABASE_POOL_MAX_SIZE` | The most connections the pool of the API opens | `10` |
@@ -353,9 +357,12 @@ The commands, run from the repository root:
 | `task dev` | Starts the app at `http://localhost:5173` |
 | `task api:build` | Builds the API binary into `apps/api/bin` |
 | `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there. Arguments after `--` replace the list of packages |
+| `task api:lint` | Lints the Go code and checks its format, the imports between layers and between domain areas, `else` and the level of nesting |
+| `task api:format` | Rewrites the Go files as the formatter asks |
+| `task versions:check` | Checks that every version the repository pins is exact: no range, no `latest`, no floating tag |
 | `task api:generate` | Generates, with sqlc, the Go code of the `postgres` adapters from the SQL files of each one. What it writes is committed |
 | `task api:generate:check` | Fails when the committed code that sqlc generated is stale |
-| `task check` | Runs every check of a pull request: the format, lint and type checks of `apps/web`, its missing translation keys and its tests, then the check of the generated code, the build of the API and the Go tests |
+| `task check` | Runs every check of a pull request: the exact versions, the format, lint and type checks of `apps/web`, its missing translation keys and its tests, then the lint of the API, the check of the generated code, the build and the tests of the API |
 | `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
 
 The commands of what is not built yet (the worker, the seed, the OpenAPI spec and the client generated from it) are _TBD_, each written with its code.

@@ -235,6 +235,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) | Container que reúne traces, métricas e logs de todos os serviços e do servidor |
 | [Grafana otel-lgtm](https://grafana.com/docs/opentelemetry/docker-lgtm/) | Um container que guarda e mostra a telemetria e envia os alertas |
 | [vacuum](https://quobix.com/vacuum/) e [oasdiff](https://github.com/oasdiff/oasdiff) | Lint das convenções da API e relatório de mudanças incompatíveis na especificação OpenAPI |
+| [golangci-lint](https://golangci-lint.run/) e [gofumpt](https://github.com/mvdan/gofumpt) | Linter e formatador do código Go |
 | [React](https://react.dev/) | Frontend web (single-page app) |
 | [Vite+](https://viteplus.dev/) | Ferramentas do frontend em uma única CLI (`vp`): servidor de desenvolvimento e build (Vite, Rolldown), testes (Vitest), lint (Oxlint), formatação (Oxfmt), além do runtime Node.js e do gerenciador de pacotes |
 | [TanStack Router](https://tanstack.com/router) | Roteamento tipado no cliente; filtros e paginação ficam na URL |
@@ -298,6 +299,9 @@ Cada comando do binário exige apenas as variáveis que usa. As que o binário l
 | Variável | O que é | Padrão |
 | --- | --- | --- |
 | `API_LISTEN_ADDRESS` | Onde a API escuta, no formato `host:porta`. Um host vazio significa todas as interfaces | Nenhum: a API exige |
+| `SHUTDOWN_DRAIN_DEADLINE` | Quanto tempo as requisições em andamento têm para terminar depois que a API recebe a ordem de parar | `20s` |
+| `LOG_LEVEL` | O menor nível que o binário registra nos logs: `debug`, `info`, `warn` ou `error` | `info` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | URL base do receptor OTLP/HTTP para onde os traces são exportados, como `http://localhost:4318`. Vazia, nada é exportado | Vazio |
 | `DATABASE_URL` | URL de conexão do papel da API, que lê e grava linhas | Nenhum: a API e o `issue-setup-code` exigem |
 | `MIGRATION_DATABASE_URL` | URL de conexão do papel de migração, que é dono das tabelas | Nenhum: o `migrate` exige |
 | `DATABASE_POOL_MAX_SIZE` | O máximo de conexões que o pool da API abre | `10` |
@@ -353,9 +357,12 @@ Os comandos, executados na raiz do repositório:
 | `task dev` | Inicia o app em `http://localhost:5173` |
 | `task api:build` | Gera o binário da API em `apps/api/bin` |
 | `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário. Os argumentos depois de `--` substituem a lista de pacotes |
+| `task api:lint` | Roda o lint do código Go e verifica o formato, os imports entre camadas e entre áreas de domínio, o `else` e o nível de aninhamento |
+| `task api:format` | Reescreve os arquivos Go como o formatador pede |
+| `task versions:check` | Verifica se toda versão fixada no repositório é exata: sem intervalo, sem `latest`, sem tag flutuante |
 | `task api:generate` | Gera, com o sqlc, o código Go dos adaptadores `postgres` a partir dos arquivos SQL de cada um. O resultado entra no commit |
 | `task api:generate:check` | Falha quando o código gerado pelo sqlc que está no repositório ficou desatualizado |
-| `task check` | Roda todas as verificações de um pull request: as de formato, lint e tipos de `apps/web`, as chaves de tradução ausentes e os testes do app e, em seguida, a verificação do código gerado, o build da API e os testes em Go |
+| `task check` | Roda todas as verificações de um pull request: as versões exatas, as de formato, lint e tipos de `apps/web`, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, o build e os testes da API |
 | `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
 Os comandos do que ainda não foi construído (o worker, o seed, a especificação OpenAPI e o cliente gerado a partir dela) estão _A definir_, e cada um será escrito com o seu código.

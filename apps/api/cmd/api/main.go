@@ -15,9 +15,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/lifecycle"
 )
 
 const usage = `Usage: api [command]
@@ -30,14 +30,21 @@ Commands:
 The configuration comes from environment variables: see .env.example.
 `
 
+// errLogged is returned by a command that already wrote its failure to its
+// logs, so that run does not print it a second time.
+var errLogged = errors.New("the failure is in the logs")
+
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	os.Exit(run(ctx, os.Args[1:], environment(), os.Stdout, os.Stderr))
+	shutdown := lifecycle.ShutdownNotice(lifecycle.Signals(), os.Exit)
+	os.Exit(run(shutdown, os.Args[1:], environment(), os.Stdout, os.Stderr))
 }
 
 // run executes one command and returns the exit status of the process: 0 when
 // the command succeeded, 1 when it failed and 2 when it was not understood.
+//
+// The context is the shutdown notice: it ends when the process receives
+// SIGTERM or SIGINT. A command that runs to its end passes it on, so that a
+// signal stops it. The command that serves only watches it.
 func run(ctx context.Context, arguments []string, environment map[string]string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("api", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -55,7 +62,11 @@ func run(ctx context.Context, arguments []string, environment map[string]string,
 		fmt.Fprintf(stderr, "api: unknown command %q\n\n%s", flags.Arg(0), usage)
 		return 2
 	}
-	if err := command(ctx, environment, stdout, stderr); err != nil {
+	err = command(ctx, environment, stdout, stderr)
+	if errors.Is(err, errLogged) {
+		return 1
+	}
+	if err != nil {
 		fmt.Fprintf(stderr, "api: %v\n", err)
 		return 1
 	}

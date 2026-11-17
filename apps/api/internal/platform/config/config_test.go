@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +34,9 @@ func with(environment map[string]string, variable, value string) map[string]stri
 
 func TestLoadReadsTheEnvironmentIntoTypedValues(t *testing.T) {
 	environment := validEnvironment()
+	environment["SHUTDOWN_DRAIN_DEADLINE"] = "5s"
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://collector:4318"
 	environment["DATABASE_POOL_MAX_SIZE"] = "4"
 	environment["DATABASE_STATEMENT_TIMEOUT"] = "5s"
 	environment["DATABASE_IDLE_IN_TRANSACTION_TIMEOUT"] = "2m"
@@ -42,6 +46,9 @@ func TestLoadReadsTheEnvironmentIntoTypedValues(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "127.0.0.1:8080", loaded.ListenAddress.String())
+	assert.Equal(t, 5*time.Second, loaded.ShutdownDrainDeadline)
+	assert.Equal(t, slog.LevelDebug, loaded.LogLevel)
+	assert.Equal(t, "http://collector:4318", loaded.TelemetryExportURL.String())
 	assert.Equal(t, "postgres://api:api-password@localhost:5432/software_factory", loaded.DatabaseURL.ConnectionString())
 	assert.Equal(t, int32(4), loaded.DatabasePoolMaxSize)
 	assert.Equal(t, 5*time.Second, loaded.DatabaseStatementTimeout)
@@ -53,10 +60,20 @@ func TestLoadFallsBackToTheDefaults(t *testing.T) {
 	loaded, err := config.Load(config.ServeAPI, validEnvironment())
 
 	require.NoError(t, err)
+	assert.Equal(t, 20*time.Second, loaded.ShutdownDrainDeadline)
+	assert.Equal(t, slog.LevelInfo, loaded.LogLevel)
+	assert.False(t, loaded.TelemetryExportURL.IsSet(), "telemetry is exported to no address by default")
 	assert.Equal(t, int32(10), loaded.DatabasePoolMaxSize)
 	assert.Equal(t, 30*time.Second, loaded.DatabaseStatementTimeout)
 	assert.Equal(t, time.Minute, loaded.DatabaseIdleInTransactionTimeout)
 	assert.Equal(t, 2*time.Second, loaded.HealthCheckTimeout)
+}
+
+func TestAnEmptyExportAddressIsNoAddress(t *testing.T) {
+	loaded, err := config.Load(config.ServeAPI, with(validEnvironment(), "OTEL_EXPORTER_OTLP_ENDPOINT", ""))
+
+	require.NoError(t, err)
+	assert.False(t, loaded.TelemetryExportURL.IsSet())
 }
 
 func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
@@ -102,6 +119,11 @@ func TestLoadNamesAnInvalidVariableAndNeverShowsItsValue(t *testing.T) {
 		line     string
 	}{
 		{"API_LISTEN_ADDRESS", "no-port-here", "configuration: API_LISTEN_ADDRESS is not valid: expected host:port"},
+		{"SHUTDOWN_DRAIN_DEADLINE", "twenty", "configuration: SHUTDOWN_DRAIN_DEADLINE is not valid: expected a duration such as 30s"},
+		{"SHUTDOWN_DRAIN_DEADLINE", "0s", "configuration: SHUTDOWN_DRAIN_DEADLINE is not valid: expected more than zero"},
+		{"LOG_LEVEL", "chatty", "configuration: LOG_LEVEL is not valid: expected debug, info, warn or error"},
+		{"OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4318", "configuration: OTEL_EXPORTER_OTLP_ENDPOINT is not valid: expected an http or https URL"},
+		{"OTEL_EXPORTER_OTLP_ENDPOINT", "grpc://collector:4317", "configuration: OTEL_EXPORTER_OTLP_ENDPOINT is not valid: expected an http or https URL"},
 		{"DATABASE_URL", "mysql://api:hunter2@localhost/db", "configuration: DATABASE_URL is not valid: expected a PostgreSQL connection URL"},
 		{"DATABASE_URL", "postgres://api:hunter2@localhost:port/db", "configuration: DATABASE_URL is not valid: expected a PostgreSQL connection URL"},
 		{"DATABASE_URL", "host=localhost password=hunter2", "configuration: DATABASE_URL is not valid: expected a PostgreSQL connection URL"},

@@ -5,11 +5,9 @@ import (
 	"context"
 	"io/fs"
 	"net/http"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,29 +46,15 @@ func environmentOf(temporary databasetest.Database) map[string]string {
 }
 
 // startAPI runs the command that serves the API until the test ends, and
-// returns the address it listens on.
+// returns the address it listens on. The API must stop with status 0.
 func startAPI(t *testing.T, environment map[string]string) string {
 	t.Helper()
-	ctx, stop := context.WithCancel(context.Background())
-	var stdout, stderr output
-	status := make(chan int, 1)
-	go func() { status <- run(ctx, nil, environment, &stdout, &stderr) }()
+	api := launchAPI(t, environment)
 	t.Cleanup(func() {
-		stop()
-		assert.Equal(t, 0, <-status, "the API stopped with: %s", stderr.String())
+		api.signal()
+		assert.Equal(t, 0, <-api.status, "the API stopped with: %s", api.logs)
 	})
-
-	listening := regexp.MustCompile(`api: listening on (\S+)`)
-	var address string
-	require.Eventually(t, func() bool {
-		found := listening.FindStringSubmatch(stderr.String())
-		if found == nil {
-			return false
-		}
-		address = found[1]
-		return true
-	}, 10*time.Second, 10*time.Millisecond, "the API did not start: %s", stderr.String())
-	return "http://" + address
+	return api.url
 }
 
 func statusOf(t *testing.T, url string) int {
