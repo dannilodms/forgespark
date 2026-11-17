@@ -87,9 +87,14 @@ func openedBy(opens consultancydomain.SetupCodeOpens) string {
 }
 
 // checkSchema stops the command, with what to do, when PostgreSQL does not
-// answer or a migration is pending. It runs under the timeout of a check.
+// answer or a migration is pending.
+//
+// It waits as long as one statement may run, and not the timeout of a health
+// check: a probe is asked again every few seconds and gives up early, while
+// this runs once, for a person who is waiting. A server that refuses the
+// connection still fails at once.
 func checkSchema(ctx context.Context, pool *pgxpool.Pool, settings config.Config) error {
-	ctx, cancel := context.WithTimeout(ctx, settings.HealthCheckTimeout)
+	ctx, cancel := context.WithTimeout(ctx, settings.DatabaseStatementTimeout)
 	defer cancel()
 
 	err := database.CheckSchema(ctx, pool, migrations.Files)

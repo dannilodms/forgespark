@@ -220,3 +220,18 @@ func TestIssueSetupCodeRefusesToRunWithoutTheOriginOfTheApp(t *testing.T) {
 	assert.Equal(t, "api: configuration: APP_ORIGIN is required\n", stderr.String())
 	assert.Empty(t, stdout.String())
 }
+
+// A health check is asked again every few seconds, so it gives up early. The
+// command runs once, for a person who is waiting: a slow first connection is
+// not a PostgreSQL that does not answer.
+func TestIssueSetupCodeIsNotBoundByTheTimeoutOfAHealthCheck(t *testing.T) {
+	t.Parallel()
+	environment := issueEnvironment(databasetest.Migrated(t))
+	environment["HEALTH_CHECK_TIMEOUT"] = "1ns"
+	var stdout, stderr output
+
+	status := run(context.Background(), []string{"issue-setup-code"}, environment, &stdout, &stderr)
+
+	assert.Equal(t, 0, status, stderr.String())
+	assert.Regexp(t, printedSetupCode, stdout.String())
+}
