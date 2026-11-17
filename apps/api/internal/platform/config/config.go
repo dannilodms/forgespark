@@ -32,6 +32,7 @@ type Config struct {
 	DatabaseStatementTimeout         time.Duration `env:"DATABASE_STATEMENT_TIMEOUT" envDefault:"30s"`
 	DatabaseIdleInTransactionTimeout time.Duration `env:"DATABASE_IDLE_IN_TRANSACTION_TIMEOUT" envDefault:"1m"`
 	MigrationDatabaseURL             PostgresURL   `env:"MIGRATION_DATABASE_URL"`
+	HealthCheckTimeout               time.Duration `env:"HEALTH_CHECK_TIMEOUT" envDefault:"2s"`
 }
 
 // requiredBy lists the variables with no default that each command needs. The
@@ -56,6 +57,7 @@ func Load(command Command, environment map[string]string) (Config, error) {
 	found.addWhen(loaded.DatabasePoolMaxSize < 1, "DATABASE_POOL_MAX_SIZE", "is not valid: expected at least 1")
 	found.addWhen(loaded.DatabaseStatementTimeout <= 0, "DATABASE_STATEMENT_TIMEOUT", "is not valid: expected more than zero")
 	found.addWhen(loaded.DatabaseIdleInTransactionTimeout <= 0, "DATABASE_IDLE_IN_TRANSACTION_TIMEOUT", "is not valid: expected more than zero")
+	found.addWhen(loaded.HealthCheckTimeout <= 0, "HEALTH_CHECK_TIMEOUT", "is not valid: expected more than zero")
 
 	if len(found) > 0 {
 		return Config{}, errors.New("configuration: " + found.line())

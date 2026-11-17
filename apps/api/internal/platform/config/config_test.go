@@ -34,6 +34,7 @@ func TestLoadReadsTheEnvironmentIntoTypedValues(t *testing.T) {
 	environment["DATABASE_POOL_MAX_SIZE"] = "4"
 	environment["DATABASE_STATEMENT_TIMEOUT"] = "5s"
 	environment["DATABASE_IDLE_IN_TRANSACTION_TIMEOUT"] = "2m"
+	environment["HEALTH_CHECK_TIMEOUT"] = "500ms"
 
 	loaded, err := config.Load(config.ServeAPI, environment)
 
@@ -43,15 +44,17 @@ func TestLoadReadsTheEnvironmentIntoTypedValues(t *testing.T) {
 	assert.Equal(t, int32(4), loaded.DatabasePoolMaxSize)
 	assert.Equal(t, 5*time.Second, loaded.DatabaseStatementTimeout)
 	assert.Equal(t, 2*time.Minute, loaded.DatabaseIdleInTransactionTimeout)
+	assert.Equal(t, 500*time.Millisecond, loaded.HealthCheckTimeout)
 }
 
-func TestLoadFallsBackToTheDefaultsOfThePool(t *testing.T) {
+func TestLoadFallsBackToTheDefaults(t *testing.T) {
 	loaded, err := config.Load(config.ServeAPI, validEnvironment())
 
 	require.NoError(t, err)
 	assert.Equal(t, int32(10), loaded.DatabasePoolMaxSize)
 	assert.Equal(t, 30*time.Second, loaded.DatabaseStatementTimeout)
 	assert.Equal(t, time.Minute, loaded.DatabaseIdleInTransactionTimeout)
+	assert.Equal(t, 2*time.Second, loaded.HealthCheckTimeout)
 }
 
 func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
@@ -103,6 +106,8 @@ func TestLoadNamesAnInvalidVariableAndNeverShowsItsValue(t *testing.T) {
 		{"DATABASE_STATEMENT_TIMEOUT", "45", "configuration: DATABASE_STATEMENT_TIMEOUT is not valid: expected a duration such as 30s"},
 		{"DATABASE_STATEMENT_TIMEOUT", "-5s", "configuration: DATABASE_STATEMENT_TIMEOUT is not valid: expected more than zero"},
 		{"DATABASE_IDLE_IN_TRANSACTION_TIMEOUT", "0s", "configuration: DATABASE_IDLE_IN_TRANSACTION_TIMEOUT is not valid: expected more than zero"},
+		{"HEALTH_CHECK_TIMEOUT", "soon", "configuration: HEALTH_CHECK_TIMEOUT is not valid: expected a duration such as 30s"},
+		{"HEALTH_CHECK_TIMEOUT", "0s", "configuration: HEALTH_CHECK_TIMEOUT is not valid: expected more than zero"},
 	}
 	for _, c := range cases {
 		t.Run(c.variable+"="+c.value, func(t *testing.T) {
