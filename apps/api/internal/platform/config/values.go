@@ -122,3 +122,30 @@ func (o *Origin) UnmarshalText(text []byte) error {
 func (o Origin) String() string {
 	return string(o)
 }
+
+// Secret is a value that opens something, such as the key the API signs with
+// for the file storage. It prints as a placeholder: only Reveal gives it.
+type Secret struct {
+	value string
+}
+
+// UnmarshalText reads a secret from the text of a variable.
+func (s *Secret) UnmarshalText(text []byte) error {
+	s.value = string(text)
+	return nil
+}
+
+// Reveal returns the secret. It goes to the library that uses it and
+// nowhere else.
+func (s Secret) Reveal() string {
+	return s.value
+}
+
+func (s Secret) String() string {
+	return "[secret]"
+}
+
+// GoString keeps the secret out of a %#v as well.
+func (s Secret) GoString() string {
+	return "[secret]"
+}

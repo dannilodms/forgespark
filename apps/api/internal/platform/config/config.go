@@ -40,13 +40,23 @@ type Config struct {
 	MigrationDatabaseURL             PostgresURL   `env:"MIGRATION_DATABASE_URL"`
 	HealthCheckTimeout               time.Duration `env:"HEALTH_CHECK_TIMEOUT" envDefault:"2s"`
 	AppOrigin                        Origin        `env:"APP_ORIGIN"`
+	FileStorageURL                   Origin        `env:"FILE_STORAGE_URL"`
+	FileStoragePublicURL             Origin        `env:"FILE_STORAGE_PUBLIC_URL"`
+	FileStorageRegion                string        `env:"FILE_STORAGE_REGION"`
+	FileStorageBucket                string        `env:"FILE_STORAGE_BUCKET"`
+	FileStorageAccessKeyID           string        `env:"FILE_STORAGE_ACCESS_KEY_ID"`
+	FileStorageSecretAccessKey       Secret        `env:"FILE_STORAGE_SECRET_ACCESS_KEY"`
 }
 
 // requiredBy lists the variables with no default that each command needs. The
 // API never receives the connection of the migration role, and `migrate`
 // never receives the one of the API role.
 var requiredBy = map[Command][]string{
-	ServeAPI:       {"API_LISTEN_ADDRESS", "DATABASE_URL"},
+	ServeAPI: {
+		"API_LISTEN_ADDRESS", "DATABASE_URL",
+		"FILE_STORAGE_URL", "FILE_STORAGE_PUBLIC_URL", "FILE_STORAGE_REGION", "FILE_STORAGE_BUCKET",
+		"FILE_STORAGE_ACCESS_KEY_ID", "FILE_STORAGE_SECRET_ACCESS_KEY",
+	},
 	Migrate:        {"MIGRATION_DATABASE_URL"},
 	IssueSetupCode: {"DATABASE_URL", "APP_ORIGIN"},
 }

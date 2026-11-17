@@ -3,6 +3,7 @@ package config_test
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -15,11 +16,51 @@ import (
 
 func validEnvironment() map[string]string {
 	return map[string]string{
-		"API_LISTEN_ADDRESS":     "127.0.0.1:8080",
-		"DATABASE_URL":           "postgres://api:api-password@localhost:5432/software_factory",
-		"MIGRATION_DATABASE_URL": "postgres://migration:migration-password@localhost:5432/software_factory",
-		"APP_ORIGIN":             "https://factory.example.com",
+		"API_LISTEN_ADDRESS":             "127.0.0.1:8080",
+		"DATABASE_URL":                   "postgres://api:api-password@localhost:5432/software_factory",
+		"MIGRATION_DATABASE_URL":         "postgres://migration:migration-password@localhost:5432/software_factory",
+		"APP_ORIGIN":                     "https://factory.example.com",
+		"FILE_STORAGE_URL":               "http://garage:3900",
+		"FILE_STORAGE_PUBLIC_URL":        "https://files.factory.example.com",
+		"FILE_STORAGE_REGION":            "garage",
+		"FILE_STORAGE_BUCKET":            "factory-files",
+		"FILE_STORAGE_ACCESS_KEY_ID":     "GK0123456789abcdef01234567",
+		"FILE_STORAGE_SECRET_ACCESS_KEY": "storage-secret-access-key",
 	}
+}
+
+func TestLoadReadsWhereTheFileStorageIsAndTheKeyToSignWith(t *testing.T) {
+	loaded, err := config.Load(config.ServeAPI, validEnvironment())
+
+	require.NoError(t, err)
+	assert.Equal(t, "http://garage:3900", loaded.FileStorageURL.String())
+	assert.Equal(t, "https://files.factory.example.com", loaded.FileStoragePublicURL.String())
+	assert.Equal(t, "garage", loaded.FileStorageRegion)
+	assert.Equal(t, "factory-files", loaded.FileStorageBucket)
+	assert.Equal(t, "GK0123456789abcdef01234567", loaded.FileStorageAccessKeyID)
+	assert.Equal(t, "storage-secret-access-key", loaded.FileStorageSecretAccessKey.Reveal())
+}
+
+func TestALoadedConfigurationNeverPrintsTheSecretKeyOfTheFileStorage(t *testing.T) {
+	loaded, err := config.Load(config.ServeAPI, validEnvironment())
+	require.NoError(t, err)
+
+	for _, printed := range []string{
+		fmt.Sprint(loaded), fmt.Sprintf("%+v", loaded), fmt.Sprintf("%#v", loaded), loaded.FileStorageSecretAccessKey.String(),
+	} {
+		assert.NotContains(t, printed, "storage-secret-access-key")
+	}
+}
+
+func TestOnlyTheAPINeedsTheFileStorage(t *testing.T) {
+	environment := validEnvironment()
+	maps.DeleteFunc(environment, func(variable, _ string) bool { return strings.HasPrefix(variable, "FILE_STORAGE_") })
+
+	_, migrate := config.Load(config.Migrate, environment)
+	_, issue := config.Load(config.IssueSetupCode, environment)
+
+	assert.NoError(t, migrate)
+	assert.NoError(t, issue)
 }
 
 func without(environment map[string]string, variable string) map[string]string {
@@ -83,6 +124,12 @@ func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
 	}{
 		{config.ServeAPI, "API_LISTEN_ADDRESS"},
 		{config.ServeAPI, "DATABASE_URL"},
+		{config.ServeAPI, "FILE_STORAGE_URL"},
+		{config.ServeAPI, "FILE_STORAGE_PUBLIC_URL"},
+		{config.ServeAPI, "FILE_STORAGE_REGION"},
+		{config.ServeAPI, "FILE_STORAGE_BUCKET"},
+		{config.ServeAPI, "FILE_STORAGE_ACCESS_KEY_ID"},
+		{config.ServeAPI, "FILE_STORAGE_SECRET_ACCESS_KEY"},
 		{config.Migrate, "MIGRATION_DATABASE_URL"},
 		{config.IssueSetupCode, "DATABASE_URL"},
 		{config.IssueSetupCode, "APP_ORIGIN"},
@@ -139,6 +186,9 @@ func TestLoadNamesAnInvalidVariableAndNeverShowsItsValue(t *testing.T) {
 		{"APP_ORIGIN", "https://factory.example.com/app", "configuration: APP_ORIGIN is not valid: expected an origin such as https://example.com"},
 		{"APP_ORIGIN", "https://factory.example.com?next=setup", "configuration: APP_ORIGIN is not valid: expected an origin such as https://example.com"},
 		{"APP_ORIGIN", "https://someone:hunter2@factory.example.com", "configuration: APP_ORIGIN is not valid: expected an origin such as https://example.com"},
+		{"FILE_STORAGE_URL", "garage:3900", "configuration: FILE_STORAGE_URL is not valid: expected an origin such as https://example.com"},
+		{"FILE_STORAGE_URL", "http://garage:3900/bucket", "configuration: FILE_STORAGE_URL is not valid: expected an origin such as https://example.com"},
+		{"FILE_STORAGE_PUBLIC_URL", "files.localhost", "configuration: FILE_STORAGE_PUBLIC_URL is not valid: expected an origin such as https://example.com"},
 	}
 	for _, c := range cases {
 		t.Run(c.variable+"="+c.value, func(t *testing.T) {
