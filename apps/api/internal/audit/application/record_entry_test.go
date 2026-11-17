@@ -60,6 +60,25 @@ func TestTheConclusionOfASetupIsRecordedWithTheSetupCodeUsedAndTheUserCreated(t 
 	assert.Equal(t, int64(3), entries[0].Subject().Identifier())
 }
 
+func TestTheRegistrationOfAnAdministratorIsRecordedWithTheSetupCodeUsedAndTheUserCreated(t *testing.T) {
+	auditLog := applicationtest.NewAuditLog()
+	recordEntry := application.NewRecordEntry(auditLog)
+
+	err := recordEntry.Execute(context.Background(), application.RecordEntryInput{
+		OccurredAt: noon,
+		Operation:  application.AdministratorRegistered,
+		Actor:      application.SetupCodeUsed(9),
+		Subject:    application.User(4),
+	})
+
+	require.NoError(t, err)
+	entries := auditLog.Entries()
+	require.Len(t, entries, 1)
+	assert.Equal(t, "administrator_registered", string(entries[0].Operation()))
+	assert.Equal(t, application.SetupCodeUsed(9), entries[0].Actor())
+	assert.Equal(t, application.User(4), entries[0].Subject())
+}
+
 func TestAnEntryWhoseActorIsASetupCodeWithNoIdentifierIsRefused(t *testing.T) {
 	auditLog := applicationtest.NewAuditLog()
 	recordEntry := application.NewRecordEntry(auditLog)

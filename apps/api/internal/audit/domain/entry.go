@@ -19,6 +19,9 @@ const (
 	// consultancy, its first administrator and the two first roles are
 	// registered.
 	SetupConcluded Operation = "setup_concluded"
+	// AdministratorRegistered is recorded when a setup code issued after the
+	// setup registers a new administrator: the way back in.
+	AdministratorRegistered Operation = "administrator_registered"
 )
 
 // ActorKind tells what kind of thing acted.
@@ -112,8 +115,9 @@ var recorded = map[Operation]struct {
 	actor   ActorKind
 	subject SubjectKind
 }{
-	SetupCodeIssued: {actor: InstallerKind, subject: SetupCodeKind},
-	SetupConcluded:  {actor: SetupCodeUsedKind, subject: UserKind},
+	SetupCodeIssued:         {actor: InstallerKind, subject: SetupCodeKind},
+	SetupConcluded:          {actor: SetupCodeUsedKind, subject: UserKind},
+	AdministratorRegistered: {actor: SetupCodeUsedKind, subject: UserKind},
 }
 
 // NewEntry builds the entry of an operation. It refuses an operation the

@@ -73,6 +73,32 @@ func TestAnEntryAppendedIsARowOfTheAuditLogTable(t *testing.T) {
 	assert.Equal(t, int64(7), subjectID)
 }
 
+// The table refuses an operation its CHECK constraint does not list, so each
+// operation of the domain is appended once.
+func TestTheTableTakesEveryOperationTheAuditLogRecords(t *testing.T) {
+	t.Parallel()
+	pool := apiPool(t)
+	auditLog := postgres.NewAuditLog(pool)
+	entries := map[domain.Operation]func() (domain.Entry, error){
+		domain.SetupCodeIssued: func() (domain.Entry, error) {
+			return domain.NewEntry(noon, domain.SetupCodeIssued, domain.Installer(), domain.SetupCode(7))
+		},
+		domain.SetupConcluded: func() (domain.Entry, error) {
+			return domain.NewEntry(noon, domain.SetupConcluded, domain.SetupCodeUsed(7), domain.User(3))
+		},
+		domain.AdministratorRegistered: func() (domain.Entry, error) {
+			return domain.NewEntry(noon, domain.AdministratorRegistered, domain.SetupCodeUsed(8), domain.User(4))
+		},
+	}
+
+	for operation, entryOf := range entries {
+		entry, err := entryOf()
+		require.NoError(t, err)
+		assert.NoError(t, auditLog.Append(context.Background(), entry), "the operation %s", operation)
+	}
+	assert.Equal(t, len(entries), entriesIn(t, pool))
+}
+
 func TestAnEntryAppendedInATransactionThatFailsIsNotKept(t *testing.T) {
 	t.Parallel()
 	pool := apiPool(t)

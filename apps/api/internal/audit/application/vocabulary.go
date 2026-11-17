@@ -24,6 +24,10 @@ const (
 	// the SetupCodeUsed and its subject is the User created, the first
 	// administrator.
 	SetupConcluded = domain.SetupConcluded
+	// AdministratorRegistered is recorded when a setup code issued after the
+	// setup registers a new administrator. Its actor is the SetupCodeUsed and
+	// its subject is the User created.
+	AdministratorRegistered = domain.AdministratorRegistered
 )
 
 // Installer is whoever installs the system, who has no identifier.
