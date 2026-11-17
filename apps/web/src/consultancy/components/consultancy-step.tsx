@@ -17,11 +17,13 @@ import {
   timeZoneItems,
 } from "../../shared/places/places"
 import { consultancyContract } from "../data/setup"
+import { ImageField } from "./image-field"
 import {
   type SetupForm,
   fieldsWithProblems,
   suggestTheCurrency,
 } from "./setup-form"
+import type { SetupImageField } from "./setup-image"
 import { StepHeading } from "./step-heading"
 
 const checkTheConsultancy = checkTheContract(
@@ -30,15 +32,19 @@ const checkTheConsultancy = checkTheContract(
 )
 
 /**
- * The step of the consultancy: how it is known, where it is, and how it is
- * reached. The country suggests the currency. Moving on checks the fields of
- * this step only, as the contract declares them.
+ * The step of the consultancy: how it is known, where it is, how it is
+ * reached, and its logo. The country suggests the currency. Moving on checks
+ * the fields of this step only, as the contract declares them; a logo still
+ * on its way to the storage keeps going meanwhile.
  */
 export function ConsultancyStep({
   form,
+  logo,
   onContinue,
 }: {
   form: SetupForm
+  /** The logo, which the screen holds so that it outlives the step. */
+  logo: SetupImageField
   onContinue: () => void
 }) {
   const { t } = useTranslation("consultancy")
@@ -238,6 +244,20 @@ export function ConsultancyStep({
                 </form.Field>
               </FieldGroup>
             </FieldSet>
+
+            <form.Field name="consultancy.logo_file_id">
+              {(field) => (
+                <ImageField
+                  field={field}
+                  image={logo}
+                  texts={{
+                    label: t("setup.consultancy.logo.label"),
+                    choose: t("setup.consultancy.logo.choose"),
+                    replace: t("setup.consultancy.logo.replace"),
+                  }}
+                />
+              )}
+            </form.Field>
           </FieldGroup>
 
           <Button type="submit">{t("setup.continue")}</Button>

@@ -7,7 +7,12 @@ import { CodeStep } from "../components/code-step"
 import { ConsultancyStep } from "../components/consultancy-step"
 import { NextStepPlaceholder } from "../components/next-step-placeholder"
 import { ReviewStep } from "../components/review-step"
-import { type SetupForm, useSetupForm } from "../components/setup-form"
+import {
+  type SetupForm,
+  keepTheFile,
+  useSetupForm,
+} from "../components/setup-form"
+import { type SetupImages, useSetupImage } from "../components/setup-image"
 import {
   type SetupAction,
   type SetupFlow,
@@ -16,19 +21,38 @@ import {
 } from "./setup-flow"
 
 /**
- * The setup: one route, whose steps are one reducer, and whose fields are one
- * form beside it. Nothing of it outlives the screen: a page loaded again
- * starts at the step of the setup code, with nothing typed.
+ * The setup: one route, whose steps are one reducer, whose fields are one
+ * form beside it, and whose two images are held beside both, so that an
+ * image outlives the step it was chosen on. Nothing of it outlives the
+ * screen: a page loaded again starts at the step of the setup code, with
+ * nothing typed and no image.
  */
 export function SetupScreen() {
   const { t } = useTranslation("consultancy")
   const [flow, dispatch] = useReducer(setupReducer, startOfTheSetup)
   const form = useSetupForm()
+  const code = flow.step === "code" ? undefined : flow.opened.code
+  const codeStoppedWorking = () => dispatch({ type: "codeStoppedWorking" })
+  const logo = useSetupImage({
+    purpose: "consultancy_logo",
+    code,
+    onFileChanged: (fileId) =>
+      keepTheFile(form, "consultancy.logo_file_id", fileId),
+    onCodeStoppedWorking: codeStoppedWorking,
+  })
+  const photo = useSetupImage({
+    purpose: "user_photo",
+    code,
+    onFileChanged: (fileId) =>
+      keepTheFile(form, "administrator.photo_file_id", fileId),
+    onCodeStoppedWorking: codeStoppedWorking,
+  })
+  const images: SetupImages = { logo, photo }
 
   return (
     <FramedPane>
       <h1 className="type-display">{t("setup.heading")}</h1>
-      <Step flow={flow} dispatch={dispatch} form={form} />
+      <Step flow={flow} dispatch={dispatch} form={form} images={images} />
     </FramedPane>
   )
 }
@@ -37,10 +61,12 @@ function Step({
   flow,
   dispatch,
   form,
+  images,
 }: {
   flow: SetupFlow
   dispatch: (action: SetupAction) => void
   form: SetupForm
+  images: SetupImages
 }) {
   switch (flow.step) {
     case "code":
@@ -54,6 +80,7 @@ function Step({
       return (
         <ConsultancyStep
           form={form}
+          logo={images.logo}
           onContinue={() => dispatch({ type: "wentTo", step: "administrator" })}
         />
       )
@@ -61,6 +88,7 @@ function Step({
       return (
         <AdministratorStep
           form={form}
+          photo={images.photo}
           onContinue={() => dispatch({ type: "wentTo", step: "review" })}
           onBack={() => dispatch({ type: "wentTo", step: "consultancy" })}
         />
@@ -69,6 +97,7 @@ function Step({
       return (
         <ReviewStep
           form={form}
+          images={images}
           opened={flow.opened}
           onGoTo={(step) => dispatch({ type: "wentTo", step })}
           onCodeStoppedWorking={() => dispatch({ type: "codeStoppedWorking" })}

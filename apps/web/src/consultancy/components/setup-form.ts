@@ -25,6 +25,28 @@ export function fieldsWithProblems(form: SetupForm) {
     .map(([name]) => name)
 }
 
+/** A field of the form that holds the file of an image. */
+type ImageFieldName = "consultancy.logo_file_id" | "administrator.photo_file_id"
+
+/**
+ * Keeps the file of the image on the screen in its field, or an empty text
+ * while there is none, which is what concluding sends. A problem the API
+ * named about the file before is about another image now, so it goes.
+ */
+export function keepTheFile(
+  form: SetupForm,
+  name: ImageFieldName,
+  fileId: string
+) {
+  form.setFieldValue(name, fileId, { dontUpdateMeta: true })
+  if (form.getFieldMeta(name)?.errorMap.onSubmit) {
+    form.setFieldMeta(name, (meta) => ({
+      ...meta,
+      errorMap: { ...meta.errorMap, onSubmit: undefined },
+    }))
+  }
+}
+
 /**
  * Suggests the currency of the country chosen for the consultancy, unless the
  * person chose a currency by hand. The suggestion does not count as a change

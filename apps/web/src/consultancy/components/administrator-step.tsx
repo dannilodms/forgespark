@@ -13,7 +13,9 @@ import { checkTheContract } from "../../shared/errors/problems"
 import { useLanguage } from "../../shared/locales/i18n"
 import { countryItems } from "../../shared/places/places"
 import { administratorContract } from "../data/setup"
+import { ImageField } from "./image-field"
 import { type SetupForm, fieldsWithProblems } from "./setup-form"
+import type { SetupImageField } from "./setup-image"
 import { StepHeading } from "./step-heading"
 
 const checkTheAdministrator = checkTheContract(
@@ -25,14 +27,18 @@ const checkTheAdministrator = checkTheContract(
  * The step of the first administrator: the person who logs in first and
  * registers the others. Moving on checks the fields of this step only; going
  * back keeps them as typed, checked or not. The preferred language is not
- * asked: it is the language of the screen when the setup is concluded.
+ * asked: it is the language of the screen when the setup is concluded. A
+ * photo still on its way to the storage keeps going while the person moves.
  */
 export function AdministratorStep({
   form,
+  photo,
   onContinue,
   onBack,
 }: {
   form: SetupForm
+  /** The photo, which the screen holds so that it outlives the step. */
+  photo: SetupImageField
   onContinue: () => void
   onBack: () => void
 }) {
@@ -125,6 +131,19 @@ export function AdministratorStep({
                   description={t("setup.telephoneDescription")}
                   type="tel"
                   autoComplete="tel"
+                />
+              )}
+            </form.Field>
+            <form.Field name="administrator.photo_file_id">
+              {(field) => (
+                <ImageField
+                  field={field}
+                  image={photo}
+                  texts={{
+                    label: t("setup.administrator.photo.label"),
+                    choose: t("setup.administrator.photo.choose"),
+                    replace: t("setup.administrator.photo.replace"),
+                  }}
                 />
               )}
             </form.Field>

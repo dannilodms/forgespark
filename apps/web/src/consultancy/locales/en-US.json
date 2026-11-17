@@ -5,6 +5,17 @@
     "back": "Back",
     "telephone": "Telephone",
     "telephoneDescription": "In international form: a plus sign, the code of the country and the number, such as +55 11 3333 4444.",
+    "image": {
+      "description": "A PNG, a JPEG or a WebP image of at most {{max_size, fileSize}}.",
+      "replace": "Replace",
+      "remove": "Remove",
+      "sending": "Sending",
+      "sent": "Sent",
+      "notSent": "Not sent",
+      "waiting": "Waiting for a new setup code",
+      "failed": "The image was not sent.",
+      "tryAgain": "Try again"
+    },
     "code": {
       "intro": "Type the setup code that the command <command>issue-setup-code</command> printed on the server.",
       "label": "Setup code",
@@ -41,6 +52,12 @@
         "city": "City",
         "region": "Region",
         "postalCode": "Postal code"
+      },
+      "logo": {
+        "label": "Logo",
+        "choose": "Choose a logo",
+        "replace": "Replace the logo",
+        "remove": "Remove the logo"
       }
     },
     "administrator": {
@@ -52,7 +69,13 @@
       "country": "Country",
       "countryDescription": "The country that gave the national ID.",
       "nationalId": "National ID",
-      "nationalIdDescription": "As the country writes it."
+      "nationalIdDescription": "As the country writes it.",
+      "photo": {
+        "label": "Photo",
+        "choose": "Choose a photo",
+        "replace": "Replace the photo",
+        "remove": "Remove the photo"
+      }
     },
     "review": {
       "title": "Review",
@@ -62,6 +85,8 @@
       "changeAdministrator": "Change the first administrator",
       "notGiven": "Not given",
       "logsInWith": "The first administrator logs in with this e-mail. Check that it is right:",
+      "imagesSending": "Concluding waits until every image chosen is sent.",
+      "imageNotSent": "An image was not sent. Change its step to send it again or to remove it.",
       "conclude": "Conclude the setup"
     }
   }

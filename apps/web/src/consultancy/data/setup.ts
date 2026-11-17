@@ -7,19 +7,24 @@ import {
 import {
   concludeSetup,
   openSetup,
+  startSetupUpload,
   tellSetupState,
 } from "../../shared/api/generated/client"
-import type {
-  ConcludeSetupRequest,
-  OpenedSetup,
-  SetupAddress,
-  SetupState,
+import {
+  type ConcludeSetupRequest,
+  type OpenedSetup,
+  type SetupAddress,
+  type SetupState,
+  StartSetupUploadRequestMediaType,
+  type StartSetupUploadRequestPurpose,
 } from "../../shared/api/generated/model"
 import {
   ConcludeSetupBody,
   OpenSetupBody,
+  startSetupUploadBodySizeMax,
 } from "../../shared/api/generated/schemas"
-import { answerCodeOf } from "../../shared/errors/problems"
+import { sendToTheStorage } from "../../shared/api/storage"
+import { type FieldProblem, answerCodeOf } from "../../shared/errors/problems"
 import type { Language } from "../../shared/locales/languages"
 
 // The reads and writes of the setup (Data module in CODING_STANDARDS.md).
@@ -84,6 +89,8 @@ export type TypedSetup = {
     telephone: string
     website: string
     address: Required<{ [Part in keyof SetupAddress]: string }>
+    /** The file of the logo once it is sent, or an empty text. */
+    logo_file_id: string
   }
   administrator: {
     name: string
@@ -91,6 +98,8 @@ export type TypedSetup = {
     country: string
     national_id: string
     telephone: string
+    /** The file of the photo once it is sent, or an empty text. */
+    photo_file_id: string
   }
 }
 
@@ -108,6 +117,7 @@ export function blankSetup(timeZone: string): TypedSetup {
       telephone: "",
       website: "",
       address: { line1: "", line2: "", city: "", region: "", postal_code: "" },
+      logo_file_id: "",
     },
     administrator: {
       name: "",
@@ -115,6 +125,7 @@ export function blankSetup(timeZone: string): TypedSetup {
       country: "",
       national_id: "",
       telephone: "",
+      photo_file_id: "",
     },
   }
 }
@@ -151,6 +162,7 @@ function consultancyOf(typed: TypedSetup["consultancy"]) {
     telephone: optional(typed.telephone),
     website: optional(typed.website),
     address: addressOf(typed.address),
+    logo_file_id: optional(typed.logo_file_id),
   }
 }
 
@@ -165,6 +177,7 @@ function administratorOf(typed: TypedSetup["administrator"]) {
     country: typed.country,
     national_id: typed.national_id,
     telephone: optional(typed.telephone),
+    photo_file_id: optional(typed.photo_file_id),
   }
 }
 
@@ -183,6 +196,70 @@ export const administratorContract = {
     preferred_language: true,
   }),
   toBody: administratorOf,
+}
+
+/**
+ * What an image of the setup is for: the logo of the consultancy, or the
+ * photo of a user, which the administrator is.
+ */
+export type ImagePurpose = StartSetupUploadRequestPurpose
+
+/** The largest image the setup accepts, in bytes, as the contract says. */
+export const largestImage = startSetupUploadBodySizeMax
+
+/** The types of image the setup accepts, as the contract says. */
+const imageTypes: readonly string[] = Object.values(
+  StartSetupUploadRequestMediaType
+)
+
+function isImageType(type: string): type is StartSetupUploadRequestMediaType {
+  return imageTypes.includes(type)
+}
+
+/**
+ * What is wrong with a file chosen as an image of the setup, in the codes
+ * the API answers with, or nothing when it may be sent: its type and its
+ * size are what the contract declares, and nothing else is checked before it
+ * is sent. Concluding checks its bytes.
+ */
+export function refusalOf(file: File): FieldProblem | undefined {
+  if (!isImageType(file.type)) {
+    return { code: "file_type_unsupported", params: {} }
+  }
+  if (file.size === 0) {
+    return { code: "file_empty", params: {} }
+  }
+  if (file.size > largestImage) {
+    return { code: "file_too_large", params: { max_size: largestImage } }
+  }
+  return undefined
+}
+
+/** An image the setup sends: what it is for, and the file chosen. */
+type ImageToSend = {
+  purpose: ImagePurpose
+  file: File
+  /** The setup code, as typed. */
+  code: string
+}
+
+/**
+ * Sends an image of the setup: the API checks the setup code and the type and
+ * size declared and answers a URL of the storage, where the browser sends the
+ * bytes itself. It resolves with the identifier of the file, which concluding
+ * takes; the image is confirmed then. It rejects as the API or the storage
+ * answered: `setup_code_invalid` when the setup code no longer works.
+ */
+export async function sendSetupImage({ purpose, file, code }: ImageToSend) {
+  const upload = await startSetupUpload({
+    code,
+    purpose,
+    // A file `refusalOf` accepted; the API refuses any other type anyway.
+    media_type: file.type as StartSetupUploadRequestMediaType,
+    size: file.size,
+  })
+  await sendToTheStorage(upload.upload_url, file)
+  return upload.file_id
 }
 
 /** What concluding the setup sends, once. */

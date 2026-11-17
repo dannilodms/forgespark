@@ -5,6 +5,17 @@
     "back": "Voltar",
     "telephone": "Telefone",
     "telephoneDescription": "No formato internacional: um sinal de mais, o código do país e o número, como +55 11 3333 4444.",
+    "image": {
+      "description": "Uma imagem PNG, JPEG ou WebP de no máximo {{max_size, fileSize}}.",
+      "replace": "Trocar",
+      "remove": "Remover",
+      "sending": "Enviando",
+      "sent": "Enviada",
+      "notSent": "Não enviada",
+      "waiting": "Aguardando um novo código de configuração",
+      "failed": "A imagem não foi enviada.",
+      "tryAgain": "Tentar de novo"
+    },
     "code": {
       "intro": "Digite o código de configuração que o comando <command>issue-setup-code</command> mostrou no servidor.",
       "label": "Código de configuração",
@@ -41,6 +52,12 @@
         "city": "Cidade",
         "region": "Estado ou região",
         "postalCode": "Código postal"
+      },
+      "logo": {
+        "label": "Logotipo",
+        "choose": "Escolher um logotipo",
+        "replace": "Trocar o logotipo",
+        "remove": "Remover o logotipo"
       }
     },
     "administrator": {
@@ -52,7 +69,13 @@
       "country": "País",
       "countryDescription": "O país que emitiu o documento de identificação.",
       "nationalId": "Documento de identificação",
-      "nationalIdDescription": "Como o país o escreve."
+      "nationalIdDescription": "Como o país o escreve.",
+      "photo": {
+        "label": "Foto",
+        "choose": "Escolher uma foto",
+        "replace": "Trocar a foto",
+        "remove": "Remover a foto"
+      }
     },
     "review": {
       "title": "Revisão",
@@ -62,6 +85,8 @@
       "changeAdministrator": "Alterar o primeiro administrador",
       "notGiven": "Não informado",
       "logsInWith": "O primeiro administrador entra com este e-mail. Confira se está certo:",
+      "imagesSending": "A conclusão espera até que todas as imagens escolhidas sejam enviadas.",
+      "imageNotSent": "Uma imagem não foi enviada. Altere o passo dela para enviá-la de novo ou para removê-la.",
       "conclude": "Concluir a configuração"
     }
   }

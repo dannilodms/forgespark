@@ -76,6 +76,15 @@ export function startLanguage(
     interpolation: { escapeValue: false },
     initAsync: false,
   })
+  // `{{max_size, fileSize}}`: a size in bytes, in megabytes, as the language
+  // writes them (Values in CODING_STANDARDS.md).
+  i18n.services.formatter?.add("fileSize", (bytes: number, code) =>
+    new Intl.NumberFormat(code, {
+      style: "unit",
+      unit: "megabyte",
+      maximumFractionDigits: 1,
+    }).format(bytes / 2 ** 20)
+  )
 }
 
 /** The language the screen is in, and a way to change it at once. */

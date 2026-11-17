@@ -68,6 +68,11 @@
       "email_invalid": "Type an e-mail address, such as name@example.com.",
       "telephone_invalid": "Type the telephone in international form: a plus sign and its digits, such as +55 11 3333 4444.",
       "website_invalid": "Type an address that starts with http:// or https://.",
+      "file_type_unsupported": "This file is not a PNG, a JPEG or a WebP image. Choose one that is.",
+      "file_too_large": "This file is larger than {{max_size, fileSize}}. Choose a smaller image.",
+      "file_empty": "This file is empty. Choose another.",
+      "file_not_found": "This image was not found. Choose it again.",
+      "file_not_uploaded": "This image did not reach the storage. Choose it again.",
       "setup_code_invalid": "This setup code does not work: it is wrong, it expired or it was already used. Issue a new one on the server and type it here."
     }
   },

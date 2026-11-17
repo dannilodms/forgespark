@@ -5,6 +5,17 @@
     "back": "Volver",
     "telephone": "Teléfono",
     "telephoneDescription": "En formato internacional: un signo más, el código del país y el número, como +55 11 3333 4444.",
+    "image": {
+      "description": "Una imagen PNG, JPEG o WebP de hasta {{max_size, fileSize}}.",
+      "replace": "Reemplazar",
+      "remove": "Quitar",
+      "sending": "Enviando",
+      "sent": "Enviada",
+      "notSent": "No enviada",
+      "waiting": "Esperando un nuevo código de configuración",
+      "failed": "La imagen no se envió.",
+      "tryAgain": "Intentar de nuevo"
+    },
     "code": {
       "intro": "Escribe el código de configuración que el comando <command>issue-setup-code</command> mostró en el servidor.",
       "label": "Código de configuración",
@@ -41,6 +52,12 @@
         "city": "Ciudad",
         "region": "Estado o región",
         "postalCode": "Código postal"
+      },
+      "logo": {
+        "label": "Logotipo",
+        "choose": "Elegir un logotipo",
+        "replace": "Reemplazar el logotipo",
+        "remove": "Quitar el logotipo"
       }
     },
     "administrator": {
@@ -52,7 +69,13 @@
       "country": "País",
       "countryDescription": "El país que emitió el documento de identidad.",
       "nationalId": "Documento de identidad",
-      "nationalIdDescription": "Como lo escribe el país."
+      "nationalIdDescription": "Como lo escribe el país.",
+      "photo": {
+        "label": "Foto",
+        "choose": "Elegir una foto",
+        "replace": "Reemplazar la foto",
+        "remove": "Quitar la foto"
+      }
     },
     "review": {
       "title": "Revisión",
@@ -62,6 +85,8 @@
       "changeAdministrator": "Cambiar el primer administrador",
       "notGiven": "No indicado",
       "logsInWith": "El primer administrador inicia sesión con este correo electrónico. Comprueba que sea correcto:",
+      "imagesSending": "La conclusión espera hasta que se envíen todas las imágenes elegidas.",
+      "imageNotSent": "Una imagen no se envió. Cambia su paso para enviarla de nuevo o para quitarla.",
       "conclude": "Concluir la configuración"
     }
   }

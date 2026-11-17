@@ -23,7 +23,9 @@ import {
   type TypedSetup,
   useConcludeSetup,
 } from "../data/setup"
+import { ImageStatus, ImageThumbnail } from "./image-field"
 import type { SetupForm } from "./setup-form"
+import type { SetupImage, SetupImages } from "./setup-image"
 import { StepHeading } from "./step-heading"
 
 /** A step of the setup whose fields the review shows. */
@@ -54,11 +56,13 @@ function nameIn(items: ListItem[], code: string) {
  */
 export function ReviewStep({
   form,
+  images,
   opened,
   onGoTo,
   onCodeStoppedWorking,
 }: {
   form: SetupForm
+  images: SetupImages
   opened: OpenedSetupCode
   /** Goes back to a step, to change what was typed in it. */
   onGoTo: (step: TypedStep) => void
@@ -118,10 +122,12 @@ export function ReviewStep({
           <>
             <ConsultancyReview
               typed={typed.consultancy}
+              logo={images.logo.upload}
               onChange={() => onGoTo("consultancy")}
             />
             <AdministratorReview
               typed={typed.administrator}
+              photo={images.photo.upload}
               onChange={() => onGoTo("administrator")}
             />
           </>
@@ -225,11 +231,29 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
+/**
+ * An image, as the review shows it: from the browser's own copy, with how
+ * far it is on its way to the storage, or nothing when none was chosen.
+ */
+function imageReview(upload: SetupImage) {
+  if (upload.step === "none") {
+    return null
+  }
+  return (
+    <span className="flex items-center gap-3">
+      <ImageThumbnail image={upload.image} />
+      <ImageStatus upload={upload} />
+    </span>
+  )
+}
+
 function ConsultancyReview({
   typed,
+  logo,
   onChange,
 }: {
   typed: TypedSetup["consultancy"]
+  logo: SetupImage
   onChange: () => void
 }) {
   const { t } = useTranslation("consultancy")
@@ -279,15 +303,21 @@ function ConsultancyReview({
           ) : null
         }
       />
+      <Row
+        label={t("setup.consultancy.logo.label")}
+        value={imageReview(logo)}
+      />
     </ReviewSection>
   )
 }
 
 function AdministratorReview({
   typed,
+  photo,
   onChange,
 }: {
   typed: TypedSetup["administrator"]
+  photo: SetupImage
   onChange: () => void
 }) {
   const { t } = useTranslation("consultancy")
@@ -319,6 +349,10 @@ function AdministratorReview({
         value={typed.national_id}
       />
       <Row label={t("setup.telephone")} value={typed.telephone} />
+      <Row
+        label={t("setup.administrator.photo.label")}
+        value={imageReview(photo)}
+      />
     </ReviewSection>
   )
 }
