@@ -23,3 +23,7 @@ export * from './setupAdministrator.ts';
 export * from './setupAdministratorPreferredLanguage.ts';
 export * from './setupConsultancy.ts';
 export * from './setupState.ts';
+export * from './setupUpload.ts';
+export * from './startSetupUploadRequest.ts';
+export * from './startSetupUploadRequestMediaType.ts';
+export * from './startSetupUploadRequestPurpose.ts';

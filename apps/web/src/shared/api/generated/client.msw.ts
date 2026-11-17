@@ -28,7 +28,9 @@ import type {
   OpenSetupRequest,
   OpenedSetup,
   Problem,
-  SetupState
+  SetupState,
+  SetupUpload,
+  StartSetupUploadRequest
 } from './model';
 
 
@@ -94,6 +96,32 @@ export const getOpenSetupResponseMock429 = (overrideResponse: Partial<Extract<Pr
 
 
 export const getOpenSetupResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+export const getStartSetupUploadResponseMock = (overrideResponse: Partial<Extract<SetupUpload, object>> = {}): SetupUpload => ({expires_at: faker.date.past().toISOString().slice(0, 19) + 'Z', file_id: faker.helpers.fromRegExp("^fil_[0-9A-Za-z]{8,}$"), upload_url: faker.internet.url(), ...overrideResponse})
+
+
+export const getStartSetupUploadResponseMock201 = (overrideResponse: Partial<Extract<SetupUpload, object>> = {}): SetupUpload => ({expires_at: faker.date.past().toISOString().slice(0, 19) + 'Z', file_id: faker.helpers.fromRegExp("^fil_[0-9A-Za-z]{8,}$"), upload_url: faker.internet.url(), ...overrideResponse})
+
+
+export const getStartSetupUploadResponseMock422 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getStartSetupUploadResponseMock429 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getStartSetupUploadResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
         [faker.string.alphanumeric(5)]: {}
       }})), undefined]), params: {
         [faker.string.alphanumeric(5)]: {}
@@ -274,7 +302,72 @@ export const getOpenSetupMockHandler500 = (overrideResponse?: Problem | ((info: 
       })
   }, options)
 }
+
+export const getStartSetupUploadMockHandler = (overrideResponse?: SetupUpload | ((info: Parameters<HttpResponseResolver<PathParams, StartSetupUploadRequest>>[0]) => Promise<SetupUpload> | SetupUpload), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, StartSetupUploadRequest>('*/api/setup/uploads', async (info: Parameters<HttpResponseResolver<PathParams, StartSetupUploadRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getStartSetupUploadResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+
+export const getStartSetupUploadMockHandler201 = (overrideResponse?: SetupUpload | ((info: Parameters<HttpResponseResolver<PathParams, StartSetupUploadRequest>>[0]) => Promise<SetupUpload> | SetupUpload), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, StartSetupUploadRequest>('*/api/setup/uploads', async (info: Parameters<HttpResponseResolver<PathParams, StartSetupUploadRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getStartSetupUploadResponseMock201(),
+      { status: 201
+      })
+  }, options)
+}
+
+
+export const getStartSetupUploadMockHandler422 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<PathParams, StartSetupUploadRequest>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, StartSetupUploadRequest>('*/api/setup/uploads', async (info: Parameters<HttpResponseResolver<PathParams, StartSetupUploadRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getStartSetupUploadResponseMock422(),
+      { status: 422, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getStartSetupUploadMockHandler429 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<PathParams, StartSetupUploadRequest>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, StartSetupUploadRequest>('*/api/setup/uploads', async (info: Parameters<HttpResponseResolver<PathParams, StartSetupUploadRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getStartSetupUploadResponseMock429(),
+      { status: 429, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getStartSetupUploadMockHandler500 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<PathParams, StartSetupUploadRequest>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, StartSetupUploadRequest>('*/api/setup/uploads', async (info: Parameters<HttpResponseResolver<PathParams, StartSetupUploadRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getStartSetupUploadResponseMock500(),
+      { status: 500, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
 export const getMySoftwareFactoryManagerMock = () => [
   getTellSetupStateMockHandler(),
   getConcludeSetupMockHandler(),
-  getOpenSetupMockHandler()]
+  getOpenSetupMockHandler(),
+  getStartSetupUploadMockHandler()]

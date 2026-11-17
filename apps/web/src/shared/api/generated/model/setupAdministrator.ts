@@ -36,6 +36,11 @@ export interface SetupAdministrator {
      */
   national_id: string;
   /**
+     * The file of the photo, as start_setup_upload answered it, once the image was sent to the storage.
+     * @pattern ^fil_[0-9A-Za-z]{8,}$
+     */
+  photo_file_id?: string;
+  /**
      * The supported language the administrator reads the system in: the language the setup screen was in.
      * @minLength 1
      */

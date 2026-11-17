@@ -22,7 +22,7 @@ export const TellSetupStateResponse = zod.object({
 
 
 /**
- * Registers the consultancy, its first administrator and the two first roles together, and ends the setup code. Every field is checked before anything is saved, and nothing is saved when one breaks a rule.
+ * Registers the consultancy, its first administrator and the two first roles together, and ends the setup code. Every field is checked before anything is saved, and nothing is saved when one breaks a rule. The logo and the photo, when given, are confirmed: each must have been sent to the storage, and be an image within the limits.
  * @summary Conclude the first setup
  */
 
@@ -32,6 +32,7 @@ export const concludeSetupBodyAdministratorNameMax = 200;
 
 export const concludeSetupBodyAdministratorNationalIdMax = 50;
 
+export const concludeSetupBodyAdministratorPhotoFileIdRegExp = new RegExp('^fil_[0-9A-Za-z]{8,}$');
 export const concludeSetupBodyAdministratorTelephoneRegExp = new RegExp('^\\+( *[0-9]){7,15} *$');
 export const concludeSetupBodyCodeMax = 64;
 
@@ -51,6 +52,7 @@ export const concludeSetupBodyConsultancyEmailMax = 254;
 
 export const concludeSetupBodyConsultancyLegalNameMax = 200;
 
+export const concludeSetupBodyConsultancyLogoFileIdRegExp = new RegExp('^fil_[0-9A-Za-z]{8,}$');
 export const concludeSetupBodyConsultancyNameMax = 200;
 
 export const concludeSetupBodyConsultancyTaxIdMax = 50;
@@ -69,6 +71,7 @@ export const ConcludeSetupBody = zod.object({
   "email": zod.email().min(1).max(concludeSetupBodyAdministratorEmailMax).describe('The e-mail the administrator logs in with. It is stored in lowercase, and belongs to one user.'),
   "name": zod.string().min(1).max(concludeSetupBodyAdministratorNameMax).describe('The name of the person.'),
   "national_id": zod.string().min(1).max(concludeSetupBodyAdministratorNationalIdMax).describe('The identifier the country gives the person, as the country writes it.'),
+  "photo_file_id": zod.string().regex(concludeSetupBodyAdministratorPhotoFileIdRegExp).optional().describe('The file of the photo, as start_setup_upload answered it, once the image was sent to the storage.'),
   "preferred_language": zod.enum(['en-US', 'es', 'pt-BR']).describe('The supported language the administrator reads the system in: the language the setup screen was in.'),
   "telephone": zod.string().regex(concludeSetupBodyAdministratorTelephoneRegExp).optional().describe('The telephone, in international form: a plus sign and 7 to 15 digits. Spaces are dropped.')
 }).describe('Its first administrator, who receives the administrator role.'),
@@ -85,6 +88,7 @@ export const ConcludeSetupBody = zod.object({
   "currency": zod.string().min(1).describe('The currency, by its ISO 4217 code: BRL.'),
   "email": zod.email().max(concludeSetupBodyConsultancyEmailMax).optional().describe('The e-mail of the consultancy. It is stored in lowercase.'),
   "legal_name": zod.string().min(1).max(concludeSetupBodyConsultancyLegalNameMax).describe('The name documents carry.'),
+  "logo_file_id": zod.string().regex(concludeSetupBodyConsultancyLogoFileIdRegExp).optional().describe('The file of the logo, as start_setup_upload answered it, once the image was sent to the storage.'),
   "name": zod.string().min(1).max(concludeSetupBodyConsultancyNameMax).describe('The name the consultancy is known by.'),
   "tax_id": zod.string().min(1).max(concludeSetupBodyConsultancyTaxIdMax).describe('The identifier the tax authority of the country gives the consultancy, as the country writes it.'),
   "telephone": zod.string().regex(concludeSetupBodyConsultancyTelephoneRegExp).optional().describe('The telephone, in international form: a plus sign and 7 to 15 digits. Spaces are dropped.'),
@@ -111,4 +115,31 @@ export const OpenSetupBody = zod.object({
 export const OpenSetupResponse = zod.object({
   "expires_at": zod.iso.datetime({"offset":true}).describe('When the setup code stops working.'),
   "opens": zod.enum(['first_setup', 'new_administrator']).describe('What the setup code opens: the first setup while the setup is not concluded, and the registration of a new administrator once it is.')
+})
+
+
+/**
+ * Checks the setup code and the type and size declared, creates the file of the logo of the consultancy or of the photo of its administrator, and answers a URL of the file storage, signed for five minutes. The browser sends the image there itself, with a PUT whose Content-Type is the declared type and whose body has the declared size; the image never passes through the API. Concluding the setup takes the identifier of the file and confirms the image.
+ * @summary Start the upload of an image of the setup
+ */
+export const startSetupUploadBodyCodeMax = 64;
+
+export const startSetupUploadBodySizeMax = 2097152;
+
+
+
+export const StartSetupUploadBody = zod.object({
+  "code": zod.string().min(1).max(startSetupUploadBodyCodeMax).describe('The setup code, as typed, as in open_setup.'),
+  "media_type": zod.enum(['image/png', 'image/jpeg', 'image/webp']).describe('The type of the image. The browser sends it as the Content-Type of its PUT.'),
+  "purpose": zod.enum(['consultancy_logo', 'user_photo']).describe('What the image is for: the logo of the consultancy or the photo of its administrator.'),
+  "size": zod.int().min(1).max(startSetupUploadBodySizeMax).describe('The size of the image, in bytes. The browser sends exactly this many.')
+})
+
+export const startSetupUploadResponseFileIdRegExp = new RegExp('^fil_[0-9A-Za-z]{8,}$');
+
+
+export const StartSetupUploadResponse = zod.object({
+  "expires_at": zod.iso.datetime({"offset":true}).describe('When the URL stops working: five minutes after it was signed.'),
+  "file_id": zod.string().regex(startSetupUploadResponseFileIdRegExp).describe('The identifier of the file, which concluding the setup takes as logo_file_id or as photo_file_id.'),
+  "upload_url": zod.url().describe('Where the browser sends the image, with a PUT from the origin of the app: the Content-Type is the declared type and the body has the declared size. The URL is signed for the host name of the file storage.')
 })

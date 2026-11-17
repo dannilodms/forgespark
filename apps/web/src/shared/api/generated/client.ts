@@ -13,7 +13,9 @@ import type {
   ConcludeSetupRequest,
   OpenSetupRequest,
   OpenedSetup,
-  SetupState
+  SetupState,
+  SetupUpload,
+  StartSetupUploadRequest
 } from './model';
 
 import { request } from '../request.ts';
@@ -72,7 +74,7 @@ export const getConcludeSetupUrl = () => {
 }
 
 /**
- * Registers the consultancy, its first administrator and the two first roles together, and ends the setup code. Every field is checked before anything is saved, and nothing is saved when one breaks a rule.
+ * Registers the consultancy, its first administrator and the two first roles together, and ends the setup code. Every field is checked before anything is saved, and nothing is saved when one breaks a rule. The logo and the photo, when given, are confirmed: each must have been sent to the storage, and be an image within the limits.
  * @summary Conclude the first setup
  */
 export const concludeSetup = async (concludeSetupRequest: ConcludeSetupRequest, options?: Parameters<typeof request>[1]): Promise<void> => {
@@ -108,6 +110,31 @@ export const openSetup = async (openSetupRequest: OpenSetupRequest, options?: Pa
     method: 'POST',
     headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(openSetupRequest)
+  }
+);}
+
+
+
+export const getStartSetupUploadUrl = () => {
+
+
+
+
+  return `/api/setup/uploads`
+}
+
+/**
+ * Checks the setup code and the type and size declared, creates the file of the logo of the consultancy or of the photo of its administrator, and answers a URL of the file storage, signed for five minutes. The browser sends the image there itself, with a PUT whose Content-Type is the declared type and whose body has the declared size; the image never passes through the API. Concluding the setup takes the identifier of the file and confirms the image.
+ * @summary Start the upload of an image of the setup
+ */
+export const startSetupUpload = async (startSetupUploadRequest: StartSetupUploadRequest, options?: Parameters<typeof request>[1]): Promise<SetupUpload> => {
+
+  return request<SetupUpload>(getStartSetupUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+    body: JSON.stringify(startSetupUploadRequest)
   }
 );}
 

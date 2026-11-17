@@ -36,6 +36,11 @@ export interface SetupConsultancy {
      */
   legal_name: string;
   /**
+     * The file of the logo, as start_setup_upload answered it, once the image was sent to the storage.
+     * @pattern ^fil_[0-9A-Za-z]{8,}$
+     */
+  logo_file_id?: string;
+  /**
      * The name the consultancy is known by.
      * @minLength 1
      * @maxLength 200
