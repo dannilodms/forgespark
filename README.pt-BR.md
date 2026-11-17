@@ -362,12 +362,18 @@ Os comandos, executados na raiz do repositório:
 | `task versions:check` | Verifica se toda versão fixada no repositório é exata: sem intervalo, sem `latest`, sem tag flutuante |
 | `task api:generate` | Gera, com o sqlc, o código Go dos adaptadores `postgres` a partir dos arquivos SQL de cada um. O resultado entra no commit |
 | `task api:generate:check` | Falha quando o código gerado pelo sqlc que está no repositório ficou desatualizado |
-| `task check` | Roda todas as verificações de um pull request: as versões exatas, as de formato, lint e tipos de `apps/web`, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, o build e os testes da API |
+| `task api:spec` | Gera a especificação OpenAPI a partir do código Go, em `apps/api/openapi.yaml`. O resultado entra no commit |
+| `task api:spec:check` | Falha quando a especificação OpenAPI que está no repositório ficou desatualizada |
+| `task api:spec:lint` | Roda o lint da especificação OpenAPI do repositório com o vacuum: nomes em `snake_case` e recursos no plural |
+| `task api:spec:breaking` | Mostra, com o oasdiff, as mudanças incompatíveis da especificação OpenAPI em relação à `origin/main`. Nunca falha. `SPEC_BASE=<revisão>` compara com outra revisão |
+| `task check` | Roda todas as verificações de um pull request: as versões exatas, as de formato, lint e tipos de `apps/web`, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, a verificação, o lint e o relatório de mudanças incompatíveis da especificação OpenAPI, o build e os testes da API |
 | `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
-Os comandos do que ainda não foi construído (o worker, o seed, a especificação OpenAPI e o cliente gerado a partir dela) estão _A definir_, e cada um será escrito com o seu código.
+Os comandos do que ainda não foi construído (o worker, o seed e o cliente gerado a partir da especificação OpenAPI) estão _A definir_, e cada um será escrito com o seu código.
 
-O sqlc roda com `go tool`, a partir de um arquivo de módulo só dele, `apps/api/sqlc.mod`. Na primeira vez em uma máquina, o Go baixa e compila o sqlc, o que leva vários minutos: uma das dependências dele tem mais de cem mil arquivos, e extraí-los no Windows chega a levar meia hora. O comando parece parado nesse tempo. Não o interrompa, porque a extração recomeça do zero.
+O sqlc roda com `go tool`, a partir de um arquivo de módulo só dele, `apps/api/sqlc.mod`. Na primeira vez em uma máquina, o Go baixa e compila o sqlc, o que leva vários minutos: uma das dependências dele tem mais de cem mil arquivos, e extraí-los no Windows chega a levar meia hora. O comando parece parado nesse tempo. Não o interrompa, porque a extração recomeça do zero. O vacuum e o oasdiff rodam do mesmo jeito, a partir de `apps/api/vacuum.mod` e `apps/api/oasdiff.mod`, e cada um é compilado em alguns minutos na primeira vez.
+
+O contrato REST é o arquivo `apps/api/openapi.yaml`. Ele é gerado a partir das operações que a API serve; por isso, depois de alterar uma delas, rode `task api:spec` e inclua o arquivo no commit junto com o código.
 
 <!-- Comandos para subir o ambiente local do zero: clonar, configurar, iniciar os serviços e acessar a aplicação. -->
 
@@ -377,7 +383,7 @@ O sqlc roda com `go tool`, a partir de um arquivo de módulo só dele, `apps/api
 - **Seed e substituto do provedor de LLM.** Cada um é um pacote `main` próprio no mesmo módulo Go, com a própria imagem. A produção não roda nenhum dos dois.
 - **Frontend.** O Vite+ gera os arquivos estáticos de `apps/web`, com uma cópia Brotli ao lado de cada arquivo de texto. O Caddy os serve.
 - **Caddy e PostgreSQL.** As duas imagens são construídas neste repositório: a do Caddy com um plugin de limite de requisições, a do PostgreSQL com o pgBackRest.
-- **Código gerado.** A pipeline verifica se ele está atualizado: o código Go que o sqlc gera a partir dos arquivos SQL e o cliente que o orval gera a partir da especificação OpenAPI.
+- **Código gerado.** A pipeline verifica se ele está atualizado: o código Go que o sqlc gera a partir dos arquivos SQL, a especificação OpenAPI gerada a partir do código Go e o cliente que o orval gera a partir dessa especificação.
 - **Versões.** O build instala a partir do `go.sum` e do `pnpm-lock.yaml` e falha quando eles mudariam.
 - **Imagens.** O GitHub Actions as constrói, marca cada uma com o hash do commit e envia para o registro de containers do GitHub. A produção só roda imagem construída a partir da `main`. As imagens de uma release levam também o número dela.
 

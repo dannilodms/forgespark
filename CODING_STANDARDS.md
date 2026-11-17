@@ -25,7 +25,7 @@ apps/api/internal/
 
 A **domain area** is one part of the business with its own aggregates. It is the deep module of the backend: its public surface is its use cases, and everything else is internal to it.
 
-Beside `internal`, `apps/api/cmd/api` holds the commands of the binary (see Commands), `apps/api/migrations` the migrations (see Database) and `apps/api/tools` the checks of the build that are written in this repository (see Enforcement). `platform` is a set of packages, one per concern: `clock` (the clock of the machine), `config`, `database`, `health`, `lifecycle` (the signals, the shutdown notice and the server) and `telemetry` (the logger, the tracer and the telemetry of a request).
+Beside `internal`, `apps/api/cmd/api` holds the commands of the binary (see Commands), `apps/api/migrations` the migrations (see Database), `apps/api/tools` the checks of the build that are written in this repository and `apps/api/openapi.yaml` the OpenAPI spec generated from the code (see Enforcement). `platform` is a set of packages, one per concern: `clock` (the clock of the machine), `config`, `database`, `health`, `lifecycle` (the signals, the shutdown notice and the server), `restapi` (what every REST operation stands on: Huma, the error format, strict input and the limits of a body) and `telemetry` (the logger, the tracer and the telemetry of a request).
 
 An **inbound adapter** calls use cases on behalf of an outside caller: REST for the React app and for the agents of ADR-0004, MCP for coding agents, a job worker for work that runs in the background. An **outbound adapter** implements an interface that `application` declares: Postgres, the S3 storage, an LLM provider. `adapters` has one package per technology, one level deep, and an area creates only the ones it uses.
 
@@ -71,6 +71,7 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 ### Inbound adapters
 
 - **REST is complete for the screens.** Every use case that a person reaches from a screen has a REST operation. A use case that only a job or a command of the binary runs has none. Streaming to the browser is a Server-Sent Events operation in `adapters/rest`, added with the first use case that needs it.
+- **A REST operation.** The `adapters/rest` package of an area declares the types of its bodies and adds each operation with `restapi.Register`: the path, the handler, and the broken rules the operation answers with under the status of each. The command that serves registers every area in one function, `mountREST` in `apps/api/cmd/api`, where each use case is wired, and the spec is generated from that function. So an operation that is served is in the spec.
 - **MCP is a chosen subset.** A use case becomes an MCP tool only when an agent has a real use for it. MCP exposes tools only.
 - **One tool, one use case.** A tool is designed for what the agent is trying to do, not copied from a REST operation. When it needs a composed result or a different shape, that is a new use case.
 - **Authentication in the adapter, authorization in the use case.** The inbound adapter authenticates the caller (a session or an access token) and passes the actor to the use case: the user, the scopes, and the access token when there is one. The use case checks the scopes. A session carries the scopes of its user's roles, and an access token carries its own, never more than those roles grant (see Users and roles). The actor type lives in `kernel`.
@@ -85,8 +86,9 @@ These apply to REST. Names, identifiers, lists and error codes apply to MCP tool
 - **Names.** `snake_case` in bodies, query parameters, error fields and tool arguments.
 - **Identifiers.** An identifier leaves the backend as a type prefix plus the Sqids encoding of the integer, at least 8 characters: `prj_Xk9fQ2mB`. An inbound adapter rejects a wrong prefix, decodes on the way in and encodes on the way out. `platform` holds the encoder and the prefix and alphabet of each aggregate type; neither ever changes. The integer appears in no response.
 - **Prefix.** Everything the binary serves to the outside is under `/api`: the REST operations, MCP at `/api/mcp`, the River panel at `/api/river`, the login operations and the bounce notice. Caddy forwards no other path, except `/up` (see Health).
-- **Documentation page.** Huma's documentation page is turned off, because it loads JavaScript from another origin. The committed spec is the reference.
-- **Paths.** Resources are plural nouns. A state change is a `POST` ending in the verb of its use case: `POST /projects/{id}/cancel`. A resource that exists once has a singular path: the health report, the setup, the session of whoever is logged in, the consultancy and the user's own profile. The plural-path lint lists them.
+- **Documentation page.** Huma's documentation page is turned off, because it loads JavaScript from another origin. The API serves no copy of the spec and no schema either. The committed spec, `apps/api/openapi.yaml`, is the reference.
+- **No `$schema`.** Huma's schema links are turned off: they add to every body a `$schema` property whose value repeats the host the caller named. No body carries a property the Go type does not declare.
+- **Paths.** Resources are plural nouns. A state change is a `POST` ending in the verb of its use case: `POST /projects/{id}/cancel`. A resource that exists once has a singular path: the health report, the setup, the session of whoever is logged in, the consultancy and the user's own profile. The plural-path lint lists them, in `apps/api/tools/speclint/ruleset.yaml`: a singular path joins the list with the operation that creates it.
 - **Editing details.** A `PUT` with every editable field required. No `PATCH`. A narrower edit that an agent needs is its own use case.
 - **Input.** Unknown body properties and unknown query parameters are rejected.
 - **Status.** 201 with `Location` for a creation, 202 for asynchronous work, 400 for malformed input, 422 for failed validation or a broken business rule, 409 for a conflict.
@@ -94,7 +96,7 @@ These apply to REST. Names, identifiers, lists and error codes apply to MCP tool
 - **Single resource.** It is the root of the body. No `success` wrapper.
 - **Allowed actions.** When a screen or a tool needs to know what can be done now, the query use case returns `allowed_actions`. The client never derives it from the status.
 - **Values.** Timestamps in ISO 8601 UTC. Business dates without a time. Money as a decimal string beside its currency, never a float. Enums as lowercase strings. A country is its ISO 3166-1 two-letter code, a currency its ISO 4217 code and a time zone its IANA name; the browser writes their names in the user's language.
-- **Limits.** A size limit and a read timeout on request bodies. A timeout on every outbound call, and a retry only when the call is idempotent.
+- **Limits.** A size limit and a read timeout on request bodies: one megabyte, sent within five seconds, set where the REST adapter is mounted. A timeout on every outbound call, and a retry only when the call is idempotent.
 - **Sessions.** A request authenticated by the session cookie that changes state must come from the app's own origin.
 - **Compression and caching.** The API compresses no response and sets no cache header. Caddy does both (see Delivery).
 - **Credential values.** A response that carries the value of a credential repeats nothing the caller sent in the request, because responses are compressed (see Delivery).
@@ -213,7 +215,7 @@ These rules apply inside `domain`. API types and database rows in `adapters` are
 - **Steps.** Work in progress is a status. A record processed in steps has one status for each step, and each step is a job that moves it to the next one (see Jobs).
 - **No status.** A record with two conditions keeps a field. A condition that follows from time and counters, such as an expired login code, is computed and never stored.
 - **Value object.** A primitive becomes a value object when it carries a rule (validation, format, invariant) or is an identifier. It is built through a constructor that returns an error, and it is immutable. A collection with a rule of its own gets its own type on the same test. Free text and plain counters stay primitives.
-- **Repository.** One per aggregate, declared in `application`. It reserves the next identifier from a database sequence, and the use case creates the aggregate with it, so an aggregate never exists without an identity. Loading an aggregate locks its row (`SELECT ... FOR UPDATE`) until the transaction ends, so two writes to the same aggregate run one after the other and the second sees what the first saved. A read for a screen goes through a query use case and locks nothing.
+- **Repository.** One per aggregate, declared in `application`. It reserves the next identifier from a database sequence, and the use case creates the aggregate with it, so an aggregate never exists without an identity. Loading an aggregate locks its row (`SELECT ... FOR UPDATE`) until the transaction ends, so two writes to the same aggregate run one after the other and the second sees what the first saved. A use case that checks an aggregate and saves nothing, such as the one that opens the setup, finds it through a method of the repository that locks nothing. A read for a screen goes through a query use case and locks nothing.
 - **One call per collaborator.** An expression talks to the object it holds, and that object does the rest.
 
 ### Errors
@@ -221,6 +223,12 @@ These rules apply inside `domain`. API types and database rows in `adapters` are
 A broken rule is a typed error with a stable code and its parameters, declared beside the rule in `domain` or `application`. Each inbound adapter translates it: REST into `application/problem+json` with `code`, `params` and `trace_id`, MCP into a tool error carrying the same stable code and English message.
 
 Every REST failure uses that format, including unknown routes, wrong methods and panics, which need their own handlers because they bypass Huma's error hook. No response carries a stack trace, SQL or an internal name.
+
+- **A broken rule.** Its error type has `Code() string`, which returns the stable code, and a text in English that is safe to answer with. One with parameters also has `Params() map[string]any`. `SetupCodeInvalidError` in `consultancy/domain` is the model.
+- **Status.** A REST operation lists the broken rules it answers with, under the status of each: 422 for a broken rule, 409 for a conflict. A broken rule it does not list answers 500, so the spec names every code an operation answers with.
+- **Body.** `title`, `status`, `detail` (the text in English), `code`, `params` and `trace_id`. A failed validation adds `errors`, with one entry for each field: its `location` (`body.name`, `query.limit`, `path.id`), a `code` (`required` or `invalid`), its `params` and a `message` in English. No entry repeats the value that was refused. `type` is left out, which RFC 9457 reads as its default.
+- **Other failures.** A failure that is not a broken rule takes its code from the name of its status: `bad_request`, `not_found`, `method_not_allowed`, `request_entity_too_large`, `too_many_requests`, `internal_server_error`. The one exception is a request that does not follow the contract, which is `validation_failed`.
+- **5xx.** The answer carries the title, the status, the code and the `trace_id`, and nothing else. The raw error goes to the logs (see Telemetry).
 
 ### Database
 
@@ -305,6 +313,8 @@ The default seam is the use case, exercised with in-memory implementations of it
 
 Assertions use testify: `require` for what the rest of the test depends on, `assert` for what it checks.
 
+What the REST adapter alone does is tested through HTTP: the error format on each kind of failure, strict input and the limits of a body. `platform/restapi` tests it on an operation of the test, and `apps/api/cmd/api` through the binary, on the operations it serves.
+
 The in-memory implementations of an area live in its `application/applicationtest` package: its repositories, a clock that stands still until the test moves it, and transactions that undo what a failed operation wrote, as a rollback does. A test of another area that calls the use cases of this one builds them on the same implementations.
 
 A `postgres` adapter test runs against the development PostgreSQL container. Each test gets a temporary database, cloned by pgtestdb from a template that the migrations built, so tests run in parallel and never touch the development database. `databasetest.Migrated` in `platform` gives it. The template is built by the function the `migrate` command calls, and again only when a migration file changes.
@@ -321,13 +331,19 @@ A rule that tooling can check fails the build. `task api:lint` runs the checks o
 - **Formatter.** gofumpt, run by golangci-lint, so a file that is not formatted fails the lint. `task api:format` rewrites the files.
 - **Imports.** `apps/api/tools/guard/imports` checks the table of the Dependency rule on every import under `internal`, and that every package there has a place in the Layout. A test file may also import a third-party library, in any layer.
 - **Control flow.** `apps/api/tools/guard/controlflow` rejects an `else`, an `else if` included, and a block that opens inside another block of the same function. The blocks are `if`, `for`, `switch` and `select`. A function literal starts again from zero.
-- **Mapping.** The exhaustruct linter of golangci-lint, limited to the types of the adapter packages: a struct literal of an API type or of a database row that leaves a field out fails the lint. It is turned on with the first mapping.
+- **Mapping.** The exhaustruct linter of golangci-lint, limited to the types of the adapter packages: a struct literal of an API type or of a database row that leaves a field out fails the lint. The zero value returned beside an error is allowed.
 - **Generated code.** A file is generated when it carries the comment Go defines for it, `// Code generated ... DO NOT EDIT.`, before the package clause. Its format, its lint and its control flow are not judged. Its imports are.
 - **Fixtures.** No check reads a `testdata` directory.
 
 The checks written in this repository are the commands of `apps/api/tools/guard`, with their tests beside them. A finding is a line with the file, the line and what to do.
 
-The generated OpenAPI spec and the code generated by sqlc are committed, and the build fails when either is stale. For the code of sqlc the check is `task api:generate:check` (see Database). A lint on the spec (vacuum) fails the build on `snake_case` and plural-path violations. A breaking-change report (oasdiff) is shown and does not fail the build. Once a check exists, its rule here shrinks to a pointer at the check.
+The generated OpenAPI spec and the code generated by sqlc are committed, and the build fails when either is stale. For the code of sqlc the check is `task api:generate:check` (see Database). `task check` and the pipeline run the checks of the spec too:
+
+- **Spec up to date.** `task api:spec` writes `apps/api/openapi.yaml` from the operations the command that serves registers, and `task api:spec:check` fails when the committed file differs from them.
+- **Lint of the spec.** `task api:spec:lint` runs vacuum with the rules in `apps/api/tools/speclint`: `snake_case` in the properties of a body and in query and path parameters, and plural paths (see Paths in API conventions). Their tests, beside them, run vacuum on a spec that keeps the conventions and on one that breaks each.
+- **Breaking changes.** `task api:spec:breaking` shows the report of oasdiff against the main branch and never fails.
+
+Once a check exists, its rule here shrinks to a pointer at the check.
 
 ### Deferred
 
@@ -720,7 +736,7 @@ Every tool, library and container image runs at a version written in a committed
 
 `task versions:check` rejects a range (`^`, `~`), `latest` and a floating tag such as `postgres:18`. It is `apps/api/tools/guard/versions`, and `task check` and the pipeline run it. It recognises a file by its name, wherever the file is, and reads:
 
-- **Go module files** (`go.mod`, and the module file of each tool, `golangci-lint.mod` and `sqlc.mod`): the `go` line and the `toolchain` line with their three numbers, and each required module at one release. A tool takes its version from the line that requires its module.
+- **Go module files** (`go.mod`, and the module file of each tool: `golangci-lint.mod`, `sqlc.mod`, `vacuum.mod` and `oasdiff.mod`): the `go` line and the `toolchain` line with their three numbers, and each required module at one release. A tool takes its version from the line that requires its module.
 - **Compose files and Dockerfiles**: every `image`, every `FROM` and every `COPY --from`. A tag starts with the full version of the image, which has three numbers; the images whose version has two, such as PostgreSQL, are listed in the check. An image with another scheme is pinned by its digest. A service that is built from a Dockerfile is not judged.
 - **Workflows**, and any other YAML file under `.github`: an action by its full commit hash, a tool by the three numbers of a variable whose name ends in `_VERSION` or of an input named `version` or ending in `-version`, an image as above, and a runner by the version of its system, never `-latest`.
 - **The pnpm catalog** in `pnpm-workspace.yaml`, with its overrides, and `package.json`: a dependency is `catalog:` or one version, and so are the runtime and the package manager.

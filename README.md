@@ -362,12 +362,18 @@ The commands, run from the repository root:
 | `task versions:check` | Checks that every version the repository pins is exact: no range, no `latest`, no floating tag |
 | `task api:generate` | Generates, with sqlc, the Go code of the `postgres` adapters from the SQL files of each one. What it writes is committed |
 | `task api:generate:check` | Fails when the committed code that sqlc generated is stale |
-| `task check` | Runs every check of a pull request: the exact versions, the format, lint and type checks of `apps/web`, its missing translation keys and its tests, then the lint of the API, the check of the generated code, the build and the tests of the API |
+| `task api:spec` | Generates the OpenAPI spec from the Go code, into `apps/api/openapi.yaml`. What it writes is committed |
+| `task api:spec:check` | Fails when the committed OpenAPI spec is stale |
+| `task api:spec:lint` | Lints the committed OpenAPI spec with vacuum: names in `snake_case` and resources in the plural |
+| `task api:spec:breaking` | Shows, with oasdiff, the breaking changes of the OpenAPI spec against `origin/main`. It never fails. `SPEC_BASE=<revision>` compares with another revision |
+| `task check` | Runs every check of a pull request: the exact versions, the format, lint and type checks of `apps/web`, its missing translation keys and its tests, then the lint of the API, the check of the generated code, the check, the lint and the breaking-change report of the OpenAPI spec, the build and the tests of the API |
 | `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
 
-The commands of what is not built yet (the worker, the seed, the OpenAPI spec and the client generated from it) are _TBD_, each written with its code.
+The commands of what is not built yet (the worker, the seed and the client generated from the OpenAPI spec) are _TBD_, each written with its code.
 
-sqlc runs with `go tool`, from a module file of its own, `apps/api/sqlc.mod`. The first time on a machine, Go downloads and builds sqlc, which takes several minutes: one of its dependencies has more than a hundred thousand files, and extracting them on Windows can take half an hour. The command looks idle meanwhile. Do not interrupt it, because the extraction starts over.
+sqlc runs with `go tool`, from a module file of its own, `apps/api/sqlc.mod`. The first time on a machine, Go downloads and builds sqlc, which takes several minutes: one of its dependencies has more than a hundred thousand files, and extracting them on Windows can take half an hour. The command looks idle meanwhile. Do not interrupt it, because the extraction starts over. vacuum and oasdiff run the same way, from `apps/api/vacuum.mod` and `apps/api/oasdiff.mod`, and each is built in a few minutes the first time.
+
+The REST contract is `apps/api/openapi.yaml`. It is generated from the operations the API serves, so after changing one, run `task api:spec` and commit the file with the code.
 
 <!-- Commands to bring up the local environment from scratch: clone, configure, start the services and open the app. -->
 
@@ -377,7 +383,7 @@ sqlc runs with `go tool`, from a module file of its own, `apps/api/sqlc.mod`. Th
 - **Seed and LLM stand-in.** Each is a `main` package of its own in the same Go module, built into its own image. Production runs neither.
 - **Frontend.** Vite+ builds `apps/web` into static files, with a Brotli copy beside each text file. Caddy serves them.
 - **Caddy and PostgreSQL.** Both images are built in this repository: Caddy with a rate-limit plugin, PostgreSQL with pgBackRest.
-- **Generated code.** The pipeline checks that it is up to date: the Go code sqlc generates from the SQL files, and the client orval generates from the OpenAPI spec.
+- **Generated code.** The pipeline checks that it is up to date: the Go code sqlc generates from the SQL files, the OpenAPI spec generated from the Go code, and the client orval generates from that spec.
 - **Versions.** The build installs from `go.sum` and `pnpm-lock.yaml` and fails when they would change.
 - **Images.** GitHub Actions builds them, tags each with the hash of its commit and pushes it to the GitHub container registry. Production runs only an image built from `main`. The images of a release also carry its number.
 
