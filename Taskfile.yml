@@ -51,7 +51,8 @@ tasks:
     dir: apps/api
     deps: [services]
     cmds:
-      - go test {{.CLI_ARGS | default "./..."}}
+      # Never from the cache: a test that reaches a service can fail with no file changed.
+      - go test -count=1 {{.CLI_ARGS | default "./..."}}
 
   web:check:
     desc: Format, lint and type checks, the missing translation keys and the tests of the app

@@ -88,13 +88,17 @@ func (p problems) addUnparsed(err error) {
 		return
 	}
 	for _, each := range aggregate.Errors {
-		var unparsed env.ParseError
-		if !errors.As(each, &unparsed) {
-			p.addWhen(true, "the environment", "could not be read")
-			continue
-		}
-		p.addWhen(true, variableOf(unparsed.Name), "is not valid: expected "+expectationOf(unparsed.Type))
+		p.addOneUnparsed(each)
 	}
+}
+
+func (p problems) addOneUnparsed(err error) {
+	var unparsed env.ParseError
+	if !errors.As(err, &unparsed) {
+		p.addWhen(true, "the environment", "could not be read")
+		return
+	}
+	p.addWhen(true, variableOf(unparsed.Name), "is not valid: expected "+expectationOf(unparsed.Type))
 }
 
 // line lists the problems in the order the variables are declared in Config.

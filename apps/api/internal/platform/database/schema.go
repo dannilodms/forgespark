@@ -36,12 +36,14 @@ func newestVersion(migrations fs.FS) (int64, error) {
 		return 0, fmt.Errorf("list the migrations: %w", err)
 	}
 	var newest int64
+	var unnumbered error
 	for _, file := range files {
 		version, err := goose.NumericComponent(file)
-		if err != nil {
-			return 0, fmt.Errorf("read the version of the migration %s: %w", file, err)
-		}
+		unnumbered = errors.Join(unnumbered, err)
 		newest = max(newest, version)
+	}
+	if unnumbered != nil {
+		return 0, fmt.Errorf("read the versions of the migrations: %w", unnumbered)
 	}
 	return newest, nil
 }
