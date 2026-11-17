@@ -24,7 +24,8 @@ env:
   # Caddy, in a container, reaches what listens on the runner. Docker Engine
   # on Linux reaches the runner at the address of its bridge, which a server
   # on 127.0.0.1, the default of .env.example, does not hear. The tests of the
-  # API behind Caddy listen where the API does.
+  # API behind Caddy listen where the API does, and the end-to-end test starts
+  # the API and Vite there.
   API_LISTEN_ADDRESS: 0.0.0.0:8080
   WEB_LISTEN_HOST: 0.0.0.0
 
@@ -222,6 +223,72 @@ jobs:
       - name: Check the generated client, format, lint, types, imports, unused code and translations, and run the screen tests
         run: task web:check
 
+  # The setup, end to end, in Chromium, through Caddy: the services of
+  # development, the API binary on a database that starts empty, and Vite.
+  end-to-end:
+    name: End-to-end
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the Go toolchain that go.mod names
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: apps/api/go.mod
+          # Only the API binary is built here.
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Install Vite+
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          version-file: apps/web/package.json
+          working-directory: apps/web
+          run-install: false
+          cache: true
+
+      - name: Install Task
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="task_linux_amd64.tar.gz"
+          gh release download "v${TASK_VERSION}" \
+            --repo go-task/task \
+            --pattern "$archive" \
+            --dir "$RUNNER_TEMP"
+          echo "${TASK_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install the JavaScript dependencies and the Chromium of the tests
+        run: task install
+
+      - name: Install the system libraries Chromium needs on Linux
+        working-directory: apps/web
+        run: vp exec playwright install-deps chromium
+
+      - name: Run the end-to-end test of the setup
+        run: task e2e
+
+      # The trace shows each step of the failed test: the screen, the requests
+      # and the console. It holds the fictitious data of the test and setup
+      # codes of a database the runner throws away.
+      - name: Keep the trace of a failed test
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: end-to-end-traces
+          path: apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
   # The only check the ruleset of `main` requires. A new check is a job
   # added to `needs`, so the ruleset never changes.
   checks:
@@ -232,6 +299,7 @@ jobs:
       - changes
       - backend
       - app
+      - end-to-end
     runs-on: ubuntu-24.04
     permissions: {}
     steps:
