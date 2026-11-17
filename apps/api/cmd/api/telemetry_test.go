@@ -1,0 +1,155 @@
+package main
+
+import (
+	"context"
+	"net/http"
+	"slices"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry/telemetrytest"
+	"github.com/dannilodms/software-factory-manager/apps/api/migrations"
+)
+
+const (
+	// traceparent is the header a caller sends to put a request in its trace.
+	traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+	// traceID is the trace identifier that header carries.
+	traceID = "4bf92f3577b34da6a3ce929d0e0e4736"
+)
+
+func TestASuccessfulRequestAndA4xxWriteNoLine(t *testing.T) {
+	t.Parallel()
+	api := launchAPI(t, environmentOf(databasetest.New(t)))
+	caller := newCaller()
+
+	alive := <-caller.get(api.url + "/livez")
+	unknown := <-caller.get(api.url + "/nowhere")
+	wrongMethod := caller.send(http.MethodPost, api.url+"/livez", nil, "")
+
+	assert.Equal(t, http.StatusOK, alive.status)
+	assert.Equal(t, http.StatusNotFound, unknown.status)
+	assert.Equal(t, http.StatusMethodNotAllowed, wrongMethod.status)
+	assert.Equal(t, []string{"the API started"}, api.messages(t))
+}
+
+func TestA5xxWritesOneJSONLineWithItsRawErrorAndTheTraceIdentifierOfItsRequest(t *testing.T) {
+	t.Parallel()
+	// No migration was applied, so the API is not ready.
+	api := launchAPI(t, environmentOf(databasetest.New(t)))
+
+	notReady := <-newCaller().get(api.url+"/readyz?verbose=in-the-query", "traceparent", traceparent)
+
+	assert.Equal(t, http.StatusServiceUnavailable, notReady.status)
+	lines := api.lines(t)
+	require.Len(t, lines, 2, "%s", api.logs)
+	assert.Equal(t, "ERROR", lines[1]["level"])
+	assert.Equal(t, "request failed", lines[1]["msg"])
+	assert.Equal(t, "GET", lines[1]["method"])
+	assert.Equal(t, "/readyz", lines[1]["route"])
+	assert.EqualValues(t, http.StatusServiceUnavailable, lines[1]["status"])
+	assert.Equal(t, "the database schema is at version 0 and this binary expects version 1", lines[1]["error"])
+	assert.Equal(t, traceID, lines[1]["trace_id"])
+	assert.NotContains(t, api.logs.String(), "in-the-query")
+}
+
+func TestTheStartAndTheStopOfTheProcessAreLogged(t *testing.T) {
+	t.Parallel()
+	api := launchAPI(t, environmentOf(databasetest.New(t)))
+
+	api.signal()
+
+	assert.Equal(t, 0, <-api.status)
+	lines := api.lines(t)
+	require.Len(t, lines, 2, "%s", api.logs)
+	assert.Equal(t, "the API started", lines[0]["msg"])
+	assert.Equal(t, "INFO", lines[0]["level"])
+	assert.Equal(t, api.url, "http://"+lines[0]["address"].(string))
+	assert.Equal(t, "the API stopped", lines[1]["msg"])
+	assert.Equal(t, "INFO", lines[1]["level"])
+}
+
+func TestTheLogsGoToTheErrorOutputFromTheLevelOfTheConfigurationUp(t *testing.T) {
+	t.Parallel()
+	environment := environmentOf(databasetest.New(t))
+	environment["LOG_LEVEL"] = "error"
+	var stdout, logs output
+	// The shutdown notice is already given, so the API starts and stops.
+	shutdown, signal := context.WithCancel(context.Background())
+	signal()
+
+	status := run(shutdown, nil, environment, &stdout, &logs)
+
+	assert.Equal(t, 0, status)
+	assert.Empty(t, logs.String(), "the start and the stop are below the level")
+	assert.Empty(t, stdout.String())
+}
+
+func TestTheAPIExportsTheSpanOfARequestAndOfItsQueriesToTheAddressOfTheConfiguration(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.New(t)
+	_, err := database.Migrate(context.Background(), temporary.MigrationURL, migrations.Files)
+	require.NoError(t, err)
+	collector := telemetrytest.NewCollector(t)
+	environment := environmentOf(temporary)
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	api := launchAPI(t, environment)
+
+	ready := <-newCaller().get(api.url+"/readyz", "traceparent", traceparent)
+	api.signal()
+
+	require.Equal(t, http.StatusOK, ready.status)
+	require.Equal(t, 0, <-api.status, "%s", api.logs)
+	spans := collector.Spans()
+	request := spanNamed(spans, "GET /readyz")
+	require.NotNil(t, request, "%v", spans)
+	assert.Equal(t, "api", request.Service)
+	assert.Equal(t, traceID, request.TraceID, "the incoming traceparent is honoured")
+	assert.Equal(t, "00f067aa0ba902b7", request.ParentSpanID)
+	query := spanOfTheQuery(spans, "SELECT max(version_id) FROM goose_db_version")
+	require.NotNil(t, query, "%v", spans)
+	assert.Equal(t, request.SpanID, query.ParentSpanID, "the query is a span under the span of the request")
+	assert.Equal(t, traceID, query.TraceID)
+	assert.Equal(t, []string{"the API started", "the API stopped"}, api.messages(t))
+}
+
+func TestWithNoExportAddressTheAPIStartsAndExportsNothing(t *testing.T) {
+	t.Parallel()
+	environment := environmentOf(databasetest.New(t))
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = ""
+	api := launchAPI(t, environment)
+
+	alive := <-newCaller().get(api.url + "/livez")
+	api.signal()
+
+	assert.Equal(t, http.StatusOK, alive.status)
+	assert.Equal(t, 0, <-api.status)
+	// An export that was tried would fail, with nothing listening, and a
+	// failed export leaves a line.
+	assert.Equal(t, []string{"the API started", "the API stopped"}, api.messages(t))
+}
+
+// spanOfTheQuery finds the span of the query with the SQL text. The span
+// that prepares its statement carries the same text and is left out.
+func spanOfTheQuery(spans []telemetrytest.Span, sql string) *telemetrytest.Span {
+	index := slices.IndexFunc(spans, func(span telemetrytest.Span) bool {
+		return span.Attributes["db.query.text"] == sql && span.Attributes["pgx.prepare_stmt.name"] == ""
+	})
+	if index < 0 {
+		return nil
+	}
+	return &spans[index]
+}
+
+// spanNamed finds the first span with the name.
+func spanNamed(spans []telemetrytest.Span, name string) *telemetrytest.Span {
+	index := slices.IndexFunc(spans, func(span telemetrytest.Span) bool { return span.Name == name })
+	if index < 0 {
+		return nil
+	}
+	return &spans[index]
+}

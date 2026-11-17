@@ -1,0 +1,153 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"net/url"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry/telemetrytest"
+)
+
+// The test of sensitive values (Telemetry in CODING_STANDARDS.md). It runs
+// the commands of the binary through a scenario in which every sensitive
+// value the system handles goes by, with the logs at their lowest level, and
+// then searches the logs and the exported spans for each value.
+//
+// A ticket that brings a new kind of sensitive value (a setup code, an
+// e-mail, a name) adds it to TestTheLogsAndTheSpansCarryNothingSensitive:
+//
+//  1. Add to the scenario the step that carries the value: a command of the
+//     binary, or a request to the API. Prefer a step that fails, because a
+//     failure is what gets logged.
+//  2. Register the value with guarded.add. A value the system rewrites is
+//     registered in each form: as typed and as stored. A value a command
+//     makes up, such as a setup code, is read from its output and registered
+//     after the command ran.
+//  3. Append the error output of a new command to the logs the test
+//     searches. The logs and the spans of the API are already there.
+//
+// Write the values in plain letters, digits and hyphens. The search ignores
+// case and also looks for the form a value takes in a query string.
+
+// sensitiveValues are the values the logs and the spans must never carry.
+type sensitiveValues struct {
+	values []sensitiveValue
+}
+
+type sensitiveValue struct {
+	// what names the value in the failure of the test, which never shows
+	// the value itself.
+	what  string
+	value string
+}
+
+// add registers a value and returns it, for the scenario to use.
+func (s *sensitiveValues) add(what, value string) string {
+	s.values = append(s.values, sensitiveValue{what: what, value: value})
+	return value
+}
+
+// foundIn names each registered value the text carries.
+func (s *sensitiveValues) foundIn(text string) []string {
+	found := []string{}
+	lowered := strings.ToLower(text)
+	for _, guarded := range s.values {
+		found = append(found, guarded.namedWhenIn(lowered)...)
+	}
+	return found
+}
+
+func (v sensitiveValue) namedWhenIn(lowered string) []string {
+	value := strings.ToLower(v.value)
+	if !strings.Contains(lowered, value) && !strings.Contains(lowered, strings.ToLower(url.QueryEscape(v.value))) {
+		return nil
+	}
+	return []string{v.what}
+}
+
+func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	// Nothing answers on port 1 of the machine, so every step that reaches
+	// PostgreSQL fails, and its raw error is logged.
+	environment := map[string]string{
+		"API_LISTEN_ADDRESS":          "127.0.0.1:0",
+		"LOG_LEVEL":                   "debug",
+		"OTEL_EXPORTER_OTLP_ENDPOINT": collector.URL,
+		"DATABASE_URL": "postgres://api:" + guarded.add("the password of the API role", "guarded-password-of-the-api-role") +
+			"@127.0.0.1:1/software_factory?sslmode=disable",
+		"MIGRATION_DATABASE_URL": "postgres://migration:" + guarded.add("the password of the migration role", "guarded-password-of-the-migration-role") +
+			"@127.0.0.1:1/software_factory?sslmode=disable",
+	}
+
+	// The migrations fail to apply.
+	var migrateOutput, migrateLogs output
+	require.Equal(t, 1, run(context.Background(), []string{"migrate"}, environment, &migrateOutput, &migrateLogs))
+
+	// A request fails, with a sensitive value in each place a request has one.
+	api := launchAPI(t, environment)
+	failed := newCaller().send(http.MethodGet,
+		api.url+"/readyz?code="+guarded.add("a value in a query string", "guarded-value-in-a-query-string"),
+		[]string{
+			"Cookie", "session=" + guarded.add("a session cookie", "guarded-session-cookie"),
+			"Authorization", "Bearer " + guarded.add("an access token", "guarded-access-token"),
+		},
+		guarded.add("a value in a body", "guarded-value-in-a-body"),
+	)
+	require.Equal(t, http.StatusServiceUnavailable, failed.status)
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	logs := migrateLogs.String() + api.logs.String()
+	require.Contains(t, logs, "api: apply the migrations", "the scenario logged nothing about the migrations")
+	require.Contains(t, logs, "request failed", "the scenario logged no failed request")
+	require.Contains(t, collector.Text(), "GET /readyz", "the scenario exported no span")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+}
+
+func TestTheTestOfSensitiveValuesFailsWhenAGuardedValueIsWrittenToTheLogs(t *testing.T) {
+	t.Parallel()
+	cases := map[string]func(logger *slog.Logger){
+		"in an attribute": func(logger *slog.Logger) { logger.Info("code checked", "code", "K7M2X-9QW4T-B8N6R-C3V5Z") },
+		"in a message":    func(logger *slog.Logger) { logger.Info("checked K7M2X-9QW4T-B8N6R-C3V5Z") },
+		"in a raw error": func(logger *slog.Logger) {
+			logger.Error("request failed", "error", errors.New("no code K7M2X-9QW4T-B8N6R-C3V5Z"))
+		},
+		"in another case": func(logger *slog.Logger) { logger.Info("code checked", "code", "k7m2x-9qw4t-b8n6r-c3v5z") },
+		"inside a query string": func(logger *slog.Logger) {
+			logger.Info("request", "url", "/api/setup?code=K7M2X-9QW4T-B8N6R-C3V5Z&step=1")
+		},
+	}
+	for name, write := range cases {
+		t.Run(name, func(t *testing.T) {
+			guarded := &sensitiveValues{}
+			guarded.add("the setup code", "K7M2X-9QW4T-B8N6R-C3V5Z")
+			guarded.add("the e-mail of the administrator", "ana.souza@example.com")
+			var logs output
+
+			write(telemetry.NewLogger(&logs, slog.LevelDebug))
+
+			assert.Equal(t, []string{"the setup code"}, guarded.foundIn(logs.String()))
+		})
+	}
+}
+
+func TestTheTestOfSensitiveValuesFindsAValueWrittenAsAQueryStringWritesIt(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	guarded.add("the e-mail of the administrator", "ana.souza@example.com")
+
+	found := guarded.foundIn(`{"msg":"request","query":"email=ana.souza%40example.com"}`)
+
+	assert.Equal(t, []string{"the e-mail of the administrator"}, found)
+}

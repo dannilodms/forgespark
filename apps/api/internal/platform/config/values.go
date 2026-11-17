@@ -32,6 +32,37 @@ func (a ListenAddress) String() string {
 	return string(a)
 }
 
+// HTTPURL is the address of a service reached over HTTP, as an http or https
+// URL. The zero value is no address: the variable was left empty.
+type HTTPURL struct {
+	address string
+}
+
+// UnmarshalText reads an address from the text of a variable.
+func (u *HTTPURL) UnmarshalText(text []byte) error {
+	parsed, err := url.Parse(string(text))
+	if err != nil {
+		return errNotValid
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return errNotValid
+	}
+	if parsed.Host == "" {
+		return errNotValid
+	}
+	u.address = string(text)
+	return nil
+}
+
+// IsSet tells whether the variable held an address.
+func (u HTTPURL) IsSet() bool {
+	return u.address != ""
+}
+
+func (u HTTPURL) String() string {
+	return u.address
+}
+
 // PostgresURL is a connection URL of PostgreSQL. It carries a password, so it
 // prints as a placeholder: only ConnectionString gives the URL itself.
 type PostgresURL struct {
