@@ -14,6 +14,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -274,4 +278,65 @@ func TestTheIdentifierOfAFileIsReadOnTheWayIn(t *testing.T) {
 			assert.Equal(t, sent.code, named["code"])
 		})
 	}
+}
+
+// storedPastTheURL stores bytes for the file with the key of the API, past
+// its signed URL, as a sender who sends what no URL allowed.
+func storedPastTheURL(t *testing.T, temporary databasetest.Database, fileID string, content []byte) string {
+	t.Helper()
+	id, err := identifier.File.Decode(fileID)
+	require.NoError(t, err)
+	var key string
+	require.NoError(t, asOwner(t, temporary).QueryRow(context.Background(),
+		"SELECT object_key FROM files WHERE id = $1", id).Scan(&key))
+	_, err = storageClient().PutObject(context.Background(), &s3.PutObjectInput{
+		Bucket: aws.String(os.Getenv("FILE_STORAGE_BUCKET")),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader(content),
+	})
+	require.NoError(t, err)
+	return key
+}
+
+// storageClient reaches the Garage of development with the key of the API.
+func storageClient() *s3.Client {
+	return s3.New(s3.Options{
+		BaseEndpoint: aws.String(os.Getenv("FILE_STORAGE_URL")),
+		UsePathStyle: true,
+		Region:       os.Getenv("FILE_STORAGE_REGION"),
+		Credentials: credentials.NewStaticCredentialsProvider(
+			os.Getenv("FILE_STORAGE_ACCESS_KEY_ID"), os.Getenv("FILE_STORAGE_SECRET_ACCESS_KEY"), ""),
+	})
+}
+
+func TestAnImageThatBreaksARuleInTheStorageIsNamedAndRemovedWhenTheSetupIsConcluded(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+	_, code := issueSetupCodeIn(t, temporary)
+	api := startAPI(t, environmentOf(temporary))
+	startedLogo := startUpload(t, api, uploadBody(code, "consultancy_logo", "image/png", 2048))
+	require.Equal(t, http.StatusCreated, startedLogo.status, startedLogo.body)
+	startedPhoto := startUpload(t, api, uploadBody(code, "user_photo", "image/png", 2048))
+	require.Equal(t, http.StatusCreated, startedPhoto.status, startedPhoto.body)
+	logo, _ := startedLogo.fields["file_id"].(string)
+	photo, _ := startedPhoto.fields["file_id"].(string)
+	tooLarge := storedPastTheURL(t, temporary, logo, aPNG(3*1024*1024))
+	notAnImage := storedPastTheURL(t, temporary, photo, []byte("%PDF-1.7 a document, not an image"))
+	body := setupBody(code)
+	object(body, "consultancy")["logo_file_id"] = logo
+	object(body, "administrator")["photo_file_id"] = photo
+
+	answer := concludeSetup(t, api, body)
+
+	require.Equal(t, http.StatusUnprocessableEntity, answer.status, answer.body)
+	assert.Contains(t, answer.body, `{"location":"body.consultancy.logo_file_id","code":"file_too_large","params":{"max_size":2097152}`)
+	assert.Contains(t, answer.body, `{"location":"body.administrator.photo_file_id","code":"file_type_unsupported"`)
+	for _, key := range []string{tooLarge, notAnImage} {
+		_, err := storageClient().HeadObject(context.Background(), &s3.HeadObjectInput{
+			Bucket: aws.String(os.Getenv("FILE_STORAGE_BUCKET")), Key: aws.String(key),
+		})
+		var notFound *types.NotFound
+		assert.ErrorAs(t, err, &notFound, "the object %s is still in the storage", key)
+	}
+	assert.Equal(t, 0, countOf(t, asOwner(t, temporary), "consultancy"))
 }
