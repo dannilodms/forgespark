@@ -27,6 +27,8 @@ services:
     extends:
       file: deploy/compose.base.yaml
       service: caddy
+    build:
+      context: deploy/caddy
     image: software-factory-manager-caddy:development
     ports:
       - 127.0.0.1:${CADDY_PORT:?Set CADDY_PORT, as .env.example does}:80

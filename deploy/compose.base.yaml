@@ -48,8 +48,7 @@ services:
     logging: *logging
 
   caddy:
-    # Built in this repository, with a rate-limit plugin: the versions of
-    # Caddy and of the plugin are in its Dockerfile.
-    build:
-      context: caddy
+    # The image is built in this repository, with a rate-limit plugin, from
+    # deploy/caddy/Dockerfile, which holds the versions of Caddy and of the
+    # plugin. Development builds it; each environment names it in its file.
     logging: *logging
