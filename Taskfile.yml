@@ -13,9 +13,16 @@ tasks:
       - vp install
 
   services:
-    desc: Start the services of development and wait until they are healthy
+    desc: Build the Caddy image, start the services of development and wait until they are healthy
+    env:
+      # BuildKit adds a provenance record that carries the time of the build,
+      # so each build would be a new image and Compose would create Caddy
+      # again on every run.
+      BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
     cmds:
-      - docker compose up --detach --wait
+      # The build is quick when the Dockerfile has not changed, and keeps the
+      # image the same as it.
+      - docker compose up --detach --wait --build
 
   services:stop:
     desc: Stop the services of development and keep their data
@@ -40,11 +47,23 @@ tasks:
     cmds:
       - go run ./cmd/api
 
-  dev:
-    desc: Start the app
+  web:
+    desc: Start Vite, which serves the app. Open it through Caddy, at APP_ORIGIN
     dir: apps/web
     cmds:
-      - vp dev
+      # The port is the one the Caddyfile forwards to. A port already taken
+      # fails, instead of moving to one Caddy does not reach.
+      - vp dev --host "$WEB_LISTEN_HOST" --port 5173 --strictPort
+
+  dev:
+    desc: Start the API and Vite together. The app opens at APP_ORIGIN, through Caddy
+    deps: [api, web, dev:address]
+
+  dev:address:
+    internal: true
+    silent: true
+    cmds:
+      - echo "The app opens at $APP_ORIGIN, through Caddy, which task services starts."
 
   api:build:
     desc: Build the API binary into apps/api/bin

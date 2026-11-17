@@ -1,0 +1,63 @@
+# The Caddyfile of development: one origin for the browser, on localhost.
+# Caddy forwards /api to the API and everything else to Vite, both on the
+# machine, and answers /up with the readiness of the API. Rules: Delivery and
+# Health in CODING_STANDARDS.md.
+#
+# A site is a block of its own: an address and its directives. A host name
+# for another service, such as the file storage, is a second block beside
+# this one, `http://<name>.localhost { ... }`. Browsers send every name under
+# localhost to the machine, so it needs no DNS record. Compose publishes one
+# port for all of them.
+#
+# The upstreams can be named by the environment, as the tests of the API do.
+# Compose leaves them at their defaults: the ports of the API and of Vite on
+# the machine, which Docker reaches as host.docker.internal.
+
+# Plain HTTP: development has no certificate, so no site redirects to HTTPS.
+http://localhost {
+	# The trace of a request starts here. Its identifier reaches the API in
+	# the traceparent header, and is the trace_id of the 429 below.
+	tracing
+
+	# The readiness of the API, with its status and no body. When the API
+	# does not answer, Caddy answers 502, with no body either. Liveness and
+	# readiness themselves are never forwarded: they are outside /api.
+	handle /up {
+		rewrite * /readyz
+		reverse_proxy {$API_UPSTREAM:host.docker.internal:8080}
+	}
+
+	@api path /api /api/*
+	handle @api {
+		# Set as the response leaves, so that it replaces any the API sent.
+		header >Cache-Control no-store
+
+		# Each POST of the setup checks a setup code: ten a minute for each
+		# IP address, counted together. Past it, the error below answers.
+		rate_limit {
+			zone setup {
+				match {
+					method POST
+					path /api/setup/*
+				}
+				key {remote_host}
+				events 10
+				window 1m
+			}
+		}
+
+		reverse_proxy {$API_UPSTREAM:host.docker.internal:8080}
+	}
+
+	handle {
+		reverse_proxy {$WEB_UPSTREAM:host.docker.internal:5173}
+	}
+
+	# The 429 of the limit, in the error format of the API: the schema
+	# Problem of apps/api/openapi.yaml. Only the limit returns one.
+	handle_errors 429 {
+		header Content-Type application/problem+json
+		header Cache-Control no-store
+		respond `{"title":"Too Many Requests","status":429,"code":"too_many_requests","params":{},"trace_id":"{http.vars.trace_id}"}` 429
+	}
+}

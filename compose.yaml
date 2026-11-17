@@ -4,10 +4,12 @@
 # CODING_STANDARDS.md.
 #
 # The name is fixed so that every checkout of the repository, a Git worktree
-# included, drives the same containers and volumes. For the same reason no
-# service mounts a file of the checkout: Compose would create the container
-# again each time `up` ran from another directory. A file a container needs
-# is written here, as a config with its content.
+# included, drives the same containers and volumes. Compose creates a
+# container again when `up` runs from another directory and the container
+# mounts a file of the checkout, because the path differs. PostgreSQL mounts
+# none, so that its connections survive: the file it needs is written here, as
+# a config with its content. Caddy mounts its Caddyfile, and being created
+# again costs it nothing.
 
 name: software-factory-manager
 
@@ -18,6 +20,29 @@ services:
       service: postgres
     ports:
       - 127.0.0.1:${POSTGRES_PORT:?Set POSTGRES_PORT, as .env.example does}:5432
+
+  # The one origin of development: the app from Vite and the API, both on the
+  # machine, and /up. What it does is in deploy/Caddyfile.
+  caddy:
+    extends:
+      file: deploy/compose.base.yaml
+      service: caddy
+    build:
+      context: deploy/caddy
+    image: software-factory-manager-caddy:development
+    ports:
+      - 127.0.0.1:${CADDY_PORT:?Set CADDY_PORT, as .env.example does}:80
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    extra_hosts:
+      # The API and Vite listen on the machine. Docker Desktop and Docker
+      # Engine on Linux each resolve host-gateway to an address of it.
+      - host.docker.internal:host-gateway
+    environment:
+      # Caddy starts the trace of each request but exports nothing until the
+      # telemetry containers exist. With no exporter named, it would send to
+      # localhost and log each failure.
+      OTEL_TRACES_EXPORTER: none
 
 volumes:
   postgres-data:

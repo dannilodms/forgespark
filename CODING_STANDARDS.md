@@ -317,6 +317,8 @@ Assertions use testify: `require` for what the rest of the test depends on, `ass
 
 What the REST adapter alone does is tested through HTTP: the error format on each kind of failure, strict input and the limits of a body. `platform/restapi` tests it on an operation of the test, and `apps/api/cmd/api` through the binary, on the operations it serves.
 
+What Caddy does in front of the API is tested through HTTP too, in `apps/api/cmd/api/caddy_test.go`: each test starts a container of the Caddy image with the `Caddyfile` of development, in front of the binary and of a stand-in for Vite, listening where `API_LISTEN_ADDRESS` says. `task services` builds the image.
+
 The in-memory implementations of an area live in its `application/applicationtest` package: its repositories, a clock that stands still until the test moves it, and transactions that undo what a failed operation wrote, as a rollback does. A test of another area that calls the use cases of this one builds them on the same implementations.
 
 A `postgres` adapter test runs against the development PostgreSQL container. Each test gets a temporary database, cloned by pgtestdb from a template that the migrations built, so tests run in parallel and never touch the development database. `databasetest.Migrated` in `platform` gives it. The template is built by the function the `migrate` command calls, and again only when a migration file changes.
@@ -365,7 +367,7 @@ The first backend code is the foundation and the setup: `.scratch/foundation-and
 
 The Go type for money (`kernel` imports the standard library only), the client library for LLM providers, and the templates and translation files of e-mails are each chosen with the first code that needs one.
 
-The rate-limit plugin of Caddy and its numbers are chosen with the setup, the first code that needs the limit. The routine that encrypts credential values again under a new key is written with the first change of key.
+The rate-limit plugin of Caddy and the number of the setup code were chosen with the setup (see Rate limit in Delivery); the numbers of the login code are chosen with the login. The routine that encrypts credential values again under a new key is written with the first change of key.
 
 `ETag` with `If-Match`, `Idempotency-Key` and rate limiting beyond the login code and the setup code are added to the first case that needs one, without a new ADR. A version in the path waits for the first consumer that does not ship with the backend, and reopens ADR-0009.
 
@@ -508,8 +510,9 @@ How responses travel from the server to browsers and agents. Compression, cache 
 ### Rate limit
 
 - **The two codes only.** Caddy limits, for each IP address, the two operations of the login code, asking for one and checking one, and the checking of a setup code. No other path has a limit.
-- **Answer.** Over the limit, Caddy answers 429 in the error format of the API, with the code `too_many_requests`.
-- **Image.** Caddy has no rate limit of its own, so its image is built in this repository with a plugin.
+- **Setup code.** Every `POST` under `/api/setup` checks a setup code, so they share one limit: 10 requests a minute for each IP address, counted together. `GET /api/setup` has none. The numbers of the login code are chosen with the login.
+- **Answer.** Over the limit, Caddy answers 429 in the error format of the API, with the code `too_many_requests`, `Retry-After` and `Cache-Control: no-store`. Its `trace_id` is the trace Caddy started for the request, which never reached the API. The body is written in the `Caddyfile`, and `apps/api/cmd/api/caddy_test.go` checks it against the schema `Problem` of the committed spec.
+- **Image.** Caddy has no rate limit of its own, so its image is built in this repository with a plugin: [`mholt/caddy-ratelimit`](https://github.com/mholt/caddy-ratelimit), the rate limiter of Caddy's author, in `deploy/caddy/Dockerfile`. Its `rate_limit` directive keeps a sliding window for each key in memory, and its 429 is an error that `handle_errors` writes.
 
 ## Observability (`deploy`)
 
@@ -552,7 +555,7 @@ The rule that telemetry carries nothing sensitive covers every container.
 
 ### Development
 
-The two telemetry containers are in a Compose profile that is off by default. Without them the API and the worker run as usual, and their logs are on the container output.
+The two telemetry containers are in a Compose profile that is off by default. Without them the API and the worker run as usual, and their logs are on the container output. Caddy traces every request and exports nothing (`OTEL_TRACES_EXPORTER=none` in `compose.yaml`).
 
 ### Deferred
 
@@ -581,8 +584,9 @@ Where the system runs and what each environment declares. The reasons, and the t
 ### Development
 
 - **Tools on the machine.** `task dev` runs the API, the worker and Vite on the machine. The Compose file runs the services they talk to.
+- **One origin.** The browser opens the app through Caddy, at `http://localhost`, which forwards `/api` and `/up` to the API on port 8080 of the machine and the rest to Vite on port 5173. Caddy reaches the machine as `host.docker.internal`, which Compose maps to the host gateway. Docker Desktop reaches a server on 127.0.0.1 there, the default of `.env.example`; Docker Engine on Linux, the runner of the pipeline included, reaches only one on every interface, so there `API_LISTEN_ADDRESS` and `WEB_LISTEN_HOST` take `0.0.0.0`.
 - **Variables.** Task loads `.env`, falls back to `.env.example` for what it lacks, and passes the variables to Compose, so development runs with no `.env`. A `.env` file, never committed, changes a value. A Compose command is run through its Task target.
-- **One set of containers.** `compose.yaml` has a fixed project name, so every checkout of the repository, a Git worktree included, drives the same containers and volumes. It mounts no file of the checkout, because Compose creates a container again when `up` runs from another directory with a different path to mount. A file a container needs is a config written in the Compose file.
+- **One set of containers.** `compose.yaml` has a fixed project name, so every checkout of the repository, a Git worktree included, drives the same containers and volumes. Compose creates a container again when `up` runs from another directory and the container mounts a file of the checkout, because the path differs. PostgreSQL mounts none, so that the tests of one checkout keep their connections: the file it needs is a config written in the Compose file. Caddy mounts the `Caddyfile`, and being created again costs it nothing.
 - **A real LLM provider.** The stand-in is the default. Pointing at a real provider to work on a prompt is a change to the local `.env`, made by the maintainer. Nothing automated calls a real provider outside production (ADR-0019).
 
 ### Seed
@@ -739,9 +743,9 @@ Every tool, library and container image runs at a version written in a committed
 `task versions:check` rejects a range (`^`, `~`), `latest` and a floating tag such as `postgres:18`. It is `apps/api/tools/guard/versions`, and `task check` and the pipeline run it. It recognises a file by its name, wherever the file is, and reads:
 
 - **Go module files** (`go.mod`, and the module file of each tool: `golangci-lint.mod`, `sqlc.mod`, `vacuum.mod` and `oasdiff.mod`): the `go` line and the `toolchain` line with their three numbers, and each required module at one release. A tool takes its version from the line that requires its module.
-- **Compose files and Dockerfiles**: every `image`, every `FROM` and every `COPY --from`. A tag starts with the full version of the image, which has three numbers; the images whose version has two, such as PostgreSQL, are listed in the check. An image with another scheme is pinned by its digest. A service that is built from a Dockerfile is not judged.
+- **Compose files and Dockerfiles**: every `image`, every `FROM` and every `COPY --from`. A tag starts with the full version of the image, which has three numbers; the images whose version has two, such as PostgreSQL, are listed in the check. An image with another scheme is pinned by its digest. A service that is built from a Dockerfile is not judged. In a Dockerfile, `xcaddy build` too: the Caddy version, when one is named, and each plugin, as `--with module@v1.2.3`.
 - **Workflows**, and any other YAML file under `.github`: an action by its full commit hash, a tool by the three numbers of a variable whose name ends in `_VERSION` or of an input named `version` or ending in `-version`, an image as above, and a runner by the version of its system, never `-latest`.
 - **The pnpm catalog** in `pnpm-workspace.yaml`, with its overrides, and `package.json`: a dependency is `catalog:` or one version, and so are the runtime and the package manager.
 - **`.mcp.json`**: a server that `npx` or `pnpm dlx` downloads names its package as `name@1.2.3`.
 
-What the check does not read stays a rule for the author: a Caddy plugin and pgBackRest in their Dockerfiles, the system image of the servers, and a one-off command in `Taskfile.yml`. Each joins the check when its file is written.
+What the check does not read stays a rule for the author: pgBackRest in its Dockerfile, the system image of the servers, and a one-off command in `Taskfile.yml`. Each joins the check when its file is written.

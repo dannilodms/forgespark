@@ -93,7 +93,7 @@ func judgeService(service *yaml.Node) []report.Finding {
 }
 
 // dockerfile judges the image of every `FROM` and of every `COPY --from`
-// that is not an earlier stage.
+// that is not an earlier stage, and what xcaddy builds into Caddy.
 func dockerfile(content []byte) ([]report.Finding, error) {
 	stages := map[string]bool{"scratch": true}
 	var findings []report.Finding
@@ -103,7 +103,7 @@ func dockerfile(content []byte) ([]report.Finding, error) {
 		// A stage is known from the line after the one that names it.
 		stages[read.stage] = true
 	}
-	return findings, nil
+	return append(findings, xcaddyBuilds(string(content))...), nil
 }
 
 // instruction is what one line of a Dockerfile says about images.

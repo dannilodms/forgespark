@@ -21,6 +21,12 @@ env:
   ZIZMOR_VERSION: 1.32.0
   TASK_VERSION: 3.54.0
   TASK_SHA256: 680859dbb4d881a9c72d4d9a8f510825450849af8567deacd7302c01124416fb
+  # Caddy, in a container, reaches what listens on the runner. Docker Engine
+  # on Linux reaches the runner at the address of its bridge, which a server
+  # on 127.0.0.1, the default of .env.example, does not hear. The tests of the
+  # API behind Caddy listen where the API does.
+  API_LISTEN_ADDRESS: 0.0.0.0:8080
+  WEB_LISTEN_HOST: 0.0.0.0
 
 jobs:
   workflows:
