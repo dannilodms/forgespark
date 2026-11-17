@@ -207,7 +207,9 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0021 - A public repository under AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): public on GitHub's free plan, with the rules that being public sets for commits and for the pipeline
 - [0022 - A record with a lifecycle is a state machine in the domain](docs/adr/0022-a-record-with-a-lifecycle-is-a-state-machine-in-the-domain.md): a fixed set of statuses and one transition table per aggregate, in plain Go; the allowed actions come from the same table, and only the name of a status is configuration content
 - [0023 - A release names a milestone already in production](docs/adr/0023-a-release-names-a-milestone-already-in-production.md): one version for the whole system in a `VERSION` file; a release is a pull request that changes it and `CHANGELOG.md`, and the pipeline creates the tag after the publish
+- [0024 - The first administrator is created in a setup opened by a setup code](docs/adr/0024-the-first-administrator-is-created-in-a-setup-opened-by-a-setup-code.md): a new install has no user; a setup code issued by a command on the server opens a setup that registers the consultancy and its first administrator together
 - [0025 - The design system lives in the product, and there is no prototype](docs/adr/0025-the-design-system-lives-in-the-product-and-there-is-no-prototype.md): the prototype, the shared package and the gallery are removed; a screen is built directly in `apps/web`, which holds the components and is the only JavaScript package
+- [0026 - A role is a record that grants scopes fixed in the code](docs/adr/0026-a-role-is-a-record-that-grants-scopes-fixed-in-the-code.md): the consultancy makes its own roles from a list of scopes fixed in the code; a user can have several, a session acts with the scopes of its user's roles, and the administrator role always grants every scope
 
 ## Tech stack
 

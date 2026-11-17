@@ -14,8 +14,9 @@ A person logs in through an external provider or with a login code sent to their
 - **An unknown e-mail gets the same answer.** The screen says the same thing and nothing is sent, so the login does not tell who is a user. Sending is a job, so the response takes the same time either way.
 - **Limits on asking for a code.** For each e-mail address, one code a minute and five an hour, counted in PostgreSQL by the use case; a new code ends the previous one. For each IP address, a limit in Caddy on the two operations of the login code, asking and checking.
 - **Session.** `alexedwards/scs/v2` with `pgxstore` keeps session data in PostgreSQL. The cookie is opaque, `HttpOnly`, `Secure` and `SameSite=Lax`. The callback renews the session token and stores the user's identifier. Logging out destroys the session.
-- **Who is acting.** The REST adapter reads the user from the session on every request and passes the actor to the use case, the same way an access token does for an agent.
-- **Only registered users get in.** A login succeeds only when the e-mail belongs to an existing user: the one a provider reports as verified, or the one a login code was sent to. An unknown login is refused and creates nothing. The first user's e-mail comes from the deploy configuration; other users are registered by an existing user.
+- **How long it lasts.** A session ends after 7 days without use and, in any case, 30 days after the login. Deactivating a user ends their sessions.
+- **Who is acting.** The REST adapter reads the user from the session on every request and passes the actor to the use case, with the scopes of the user's roles (ADR-0026), the same way an access token does for an agent.
+- **Only registered users get in.** A login succeeds only when the e-mail belongs to an existing user who is not deactivated: the one a provider reports as verified, or the one a login code was sent to. An unknown login is refused and creates nothing. The first administrator is created in the setup (ADR-0024); other users are registered by an administrator.
 - **Recognising the same person.** The first login through a provider is matched by verified e-mail. From then on the system stores the stable identifier that provider gives the account and uses it. A user can have several providers linked.
 - **Cross-site requests.** With a cookie carrying the session, a request that changes state must come from the app's own origin. The backend refuses the others.
 - **A local provider for development and tests.** An agent or an automated test cannot get past Google's login screen. A fourth provider, generic OIDC, is turned on by configuration alone and pointed at an identity container that runs beside the app, so the same OAuth code as in production is exercised end to end. The identity container is Dex, with a fixed list of users in its configuration file. The production and staging Compose files do not declare it. When it is on, it shows as a button on the login screen, in a log line at the start of the process and in the health report. End-to-end tests also log in with a login code, read from Mailpit.
@@ -43,10 +44,9 @@ A person logs in through an external provider or with a login code sent to their
 - A person locked out of one provider logs in through another with the same verified e-mail, or with a login code.
 - Whoever reads a user's mailbox can log in as that user.
 - The login code depends on the e-mail server, an optional part of the system health. With it down, only the providers work.
-- Caddy has no rate limit of its own, so its image is built in this repository with a plugin. The plugin and the numbers of the limit are chosen in the walking skeleton.
+- Caddy has no rate limit of its own, so its image is built in this repository with a plugin. The plugin and the numbers of the limit are chosen with the setup (ADR-0024), the first code that needs the limit.
 - The key of the login code is one more secret in the deploy configuration. Changing it only ends the codes not yet used.
 - Rate limiting, which ADR-0009 had left out, exists for the login code.
 - Staging does not use the local provider. It is public, so it logs in through the real providers, or with a login code read from a Mailpit that sits behind a password (ADR-0019).
 - How each provider states that an e-mail is verified has to be checked when the login is built. Microsoft is the known hard case: its e-mail claim is not always verified.
-- How long a session lasts, idle and in total, is not decided. It is settled with the modelling of users.
 - Agents are unaffected: they keep using access tokens (ADR-0008).

@@ -67,7 +67,7 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 - **REST is complete for the screens.** Every use case that a person reaches from a screen has a REST operation. A use case that only a job or a command of the binary runs has none. Streaming to the browser is a Server-Sent Events operation in `adapters/rest`, added with the first use case that needs it.
 - **MCP is a chosen subset.** A use case becomes an MCP tool only when an agent has a real use for it. MCP exposes tools only.
 - **One tool, one use case.** A tool is designed for what the agent is trying to do, not copied from a REST operation. When it needs a composed result or a different shape, that is a new use case.
-- **Authentication in the adapter, authorization in the use case.** The inbound adapter authenticates the caller (a session or an access token) and passes the actor to the use case: the user, the scopes, and the access token when there is one. The use case checks the scopes. The actor type lives in `kernel`.
+- **Authentication in the adapter, authorization in the use case.** The inbound adapter authenticates the caller (a session or an access token) and passes the actor to the use case: the user, the scopes, and the access token when there is one. The use case checks the scopes. A session carries the scopes of its user's roles, and an access token carries its own, never more than those roles grant (see Users and roles). The actor type lives in `kernel`.
 - **MCP language.** Tool names and descriptions are in English. Configuration content is returned in the preferred language of the access token's user.
 - **Credentials over MCP.** A tool that returns the value of a credential requires the scope for reading credential values, returns one credential per call, and its use case records the read. No listing returns a value.
 - **Nothing ahead of need.** No package, mount point or abstraction is written for an inbound adapter that does not exist.
@@ -80,14 +80,14 @@ These apply to REST. Names, identifiers, lists and error codes apply to MCP tool
 - **Identifiers.** An identifier leaves the backend as a type prefix plus the Sqids encoding of the integer, at least 8 characters: `prj_Xk9fQ2mB`. An inbound adapter rejects a wrong prefix, decodes on the way in and encodes on the way out. `platform` holds the encoder and the prefix and alphabet of each aggregate type; neither ever changes. The integer appears in no response.
 - **Prefix.** Everything the binary serves to the outside is under `/api`: the REST operations, MCP at `/api/mcp`, the River panel at `/api/river`, the login operations and the bounce notice. Caddy forwards no other path, except `/up` (see Health).
 - **Documentation page.** Huma's documentation page is turned off, because it loads JavaScript from another origin. The committed spec is the reference.
-- **Paths.** Resources are plural nouns. A state change is a `POST` ending in the verb of its use case: `POST /projects/{id}/cancel`. The one singular path is the health report (see Health).
+- **Paths.** Resources are plural nouns. A state change is a `POST` ending in the verb of its use case: `POST /projects/{id}/cancel`. A resource that exists once has a singular path: the health report, the setup, the session of whoever is logged in, the consultancy and the user's own profile. The plural-path lint lists them.
 - **Editing details.** A `PUT` with every editable field required. No `PATCH`. A narrower edit that an agent needs is its own use case.
 - **Input.** Unknown body properties and unknown query parameters are rejected.
 - **Status.** 201 with `Location` for a creation, 202 for asynchronous work, 400 for malformed input, 422 for failed validation or a broken business rule, 409 for a conflict.
 - **Lists.** An envelope with an opaque cursor. `limit` has a default and a ceiling, sorting accepts only listed fields, filters are query parameters, the total is computed only when asked for. No field selection.
 - **Single resource.** It is the root of the body. No `success` wrapper.
 - **Allowed actions.** When a screen or a tool needs to know what can be done now, the query use case returns `allowed_actions`. The client never derives it from the status.
-- **Values.** Timestamps in ISO 8601 UTC. Business dates without a time. Money as a decimal string beside its currency, never a float. Enums as lowercase strings.
+- **Values.** Timestamps in ISO 8601 UTC. Business dates without a time. Money as a decimal string beside its currency, never a float. Enums as lowercase strings. A country is its ISO 3166-1 two-letter code, a currency its ISO 4217 code and a time zone its IANA name; the browser writes their names in the user's language.
 - **Limits.** A size limit and a read timeout on request bodies. A timeout on every outbound call, and a retry only when the call is idempotent.
 - **Sessions.** A request authenticated by the session cookie that changes state must come from the app's own origin.
 - **Compression and caching.** The API compresses no response and sets no cache header. Caddy does both (see Delivery).
@@ -105,6 +105,32 @@ The term login code is defined in `GLOSSARY.md`. The reasons are in ADR-0011.
 - **Limits per address.** One code a minute and five an hour for each e-mail address, counted in PostgreSQL by the use case. A new code ends the previous one.
 - **Limit per IP address.** Set in Caddy, on the two operations of the login code only (see Delivery).
 - **Local provider.** A generic OIDC provider, turned on by configuration alone and pointed at an identity container (Dex), for development and tests. The production and staging Compose files do not declare it. When it is on, it shows on the login screen, in a log line at the start of the process and in the health report.
+- **Session.** It ends after 7 days without use and, in any case, 30 days after the login. Deactivating a user ends their sessions.
+
+### Setup
+
+The terms setup and setup code are defined in `GLOSSARY.md`. The reasons are in ADR-0024.
+
+- **Command.** `issue-setup-code`, a command of the API binary, prints a setup code and says what it opens: the first setup, or the registration of a new administrator when the setup is already concluded.
+- **Setup code.** Twenty letters and digits in four groups, with no character that reads like another. It lasts one hour, and a new one ends the one before. Only its SHA-256 hash is stored. The code is in no table, log or span.
+- **In the body.** The screen keeps the code in memory and sends it in the body of each request of the setup, never in a path, a query parameter or a header.
+- **No limit of its own.** A wrong code does not end the setup code. Caddy limits the checking for each IP address (see Delivery).
+- **One operation.** Concluding saves the consultancy, the administrator and the two first roles in one transaction and ends the setup code. An image chosen in the setup is uploaded under the setup code and confirmed when the setup is concluded.
+- **Open or closed.** One operation with no session tells whether the setup is concluded and whether a setup code is waiting. Until the setup is concluded every address of the app leads to it. Afterwards its address leads to the login screen, except while a setup code is waiting.
+- **Way back in.** A setup code issued after the setup is concluded registers a new administrator and changes no existing user. An e-mail that belongs to a user is refused.
+
+### Users and roles
+
+The terms user, role, administrator, developer and scope are defined in `GLOSSARY.md`. The reasons are in ADR-0026.
+
+- **Where.** The `consultancy` area holds the consultancy, the users, the roles and the setup code, because the setup saves them together.
+- **Scopes in the code.** The list of scopes is fixed in the code: read or write in one area of the system. A scope arrives with the use case that checks it.
+- **Roles in the database.** A role is a record with a set of scopes. A user has at least one role, and their scopes are those of all their roles, read on every request.
+- **Administrator.** The administrator role grants every scope and cannot be changed or removed. A use case refuses to take it from the last administrator who can log in, and to deactivate that user.
+- **No scope.** Reading the name and the logo of the consultancy and editing one's own profile ask only for a logged-in user. A user changes their own name, telephone, photo and preferred language; the rest is changed by whoever holds the write scope of users.
+- **Deactivated, never removed.** A deactivated user cannot log in and keeps their record.
+- **E-mail.** It is stored in lowercase and is unique among users.
+- **Identifiers of people and companies.** A tax ID and a national ID are stored as typed, beside their country, with no rule for any country.
 
 ### Configuration
 
@@ -130,7 +156,7 @@ How the telemetry is collected, kept and shown is in Observability.
 - **Trace identifier.** The `trace_id` in an error body is the trace identifier of the request. An incoming `traceparent` is honoured. An outbound call carries it only to the agents of ADR-0004, never to an LLM provider, a login provider or the e-mail service.
 - **Export.** Traces and metrics leave over OTLP, to an address taken from configuration. With no address, nothing is exported and the telemetry collector is `not_configured`. `platform` wraps the metric exporter and keeps the time and the error of the last export (see Health).
 - **Tests.** Tests run with no telemetry.
-- **Audit log.** A sensitive operation (reading the value of a credential, a login, creating or revoking an access token) writes to the audit log from its use case. The audit log is append-only and is not telemetry.
+- **Audit log.** A sensitive operation (reading the value of a credential, a login, creating or revoking an access token, issuing a setup code, concluding a setup, changing the roles of a user, deactivating or reactivating a user) writes to the audit log from its use case. The audit log is append-only and is not telemetry.
 
 ### Health
 
@@ -141,10 +167,10 @@ The terms system health, part and health report are defined in `GLOSSARY.md`.
 - **Outside the contract.** Liveness and readiness live in `platform`, outside `/api` and outside the OpenAPI spec. They need no authentication and answer with the status code alone. Caddy forwards only `/api`, so they are reachable only inside the Compose network.
 - **One public path.** Caddy answers `/up` with the status code of readiness and no body, for the monitor outside the server (see Observability). It is the only way to readiness from outside.
 - **Parts.** PostgreSQL is the only essential part. The file storage, the LLM provider, the telemetry collector, the job worker and the e-mail server are optional: one of them down makes the system `degraded`, never unready. An optional part with no configuration is `not_configured` and does not degrade the system.
-- **Health report.** `GET /api/health` is a query use case in the system health area, which has no aggregate. It follows the API conventions, except that its path is singular, which the plural-path lint allows for this path only. It always answers 200, with the system health in the body: `operational`, `degraded` or `down`.
+- **Health report.** `GET /api/health` is a query use case in the system health area, which has no aggregate. It follows the API conventions, with a singular path because there is one health report. It always answers 200, with the system health in the body: `operational`, `degraded` or `down`.
 - **Checks.** They run when the health report is asked for, in parallel, each under a timeout taken from configuration (2 seconds by default). Nothing is checked in the background and nothing is stored. The LLM provider is checked by a call that spends no tokens, such as listing its models. The telemetry collector is not probed: its state is the last export of metrics, and it is `down` when that export failed or is overdue. The job worker is checked in the database, through the leader record River keeps there. The e-mail server is checked by a call that sends nothing.
 - **Content.** For each part: its name, whether it is essential or optional, its state (`operational`, `down` or `not_configured`), the response time, the time of the check and, when it is down, a stable error code. The raw error goes to the logs only. The health report also carries the version, which is the number in `VERSION` (see Releases), the commit, the build date, the time the process started, the schema version applied and the one expected, and the login providers that are turned on.
-- **Access.** Only an administrator reads the health report, through the session or through an access token that carries the read scope of the system health area.
+- **Access.** The health report asks for the read scope of the system health area, from a session or from an access token. Only the administrator role grants it at first.
 - **When.** Liveness and readiness are written with the first backend code. The health report needs administrators, who exist once the setup is built (ADR-0024). Nothing provisional shows the state of the optional parts until then.
 - **Not built.** An MCP tool for the health report, a check of the login providers, an operation per part, and history, which would be a periodic job (see Jobs). Alerts come from Grafana (see Observability).
 
@@ -277,17 +303,19 @@ Domain events, CQRS, event sourcing and a second bounded context each start with
 
 The system runs as one instance of the API, on Docker Compose. More than one instance, and Kubernetes, are not planned, and each starts with a new ADR. The known obstacles are listed in ADR-0016.
 
-The steps of the document processing pipeline, and where files are converted, are decided when the processors are implemented. Recording who moved a record from one status to another waits for the history of work that screens show. How the system writes to a project's Git repository starts with its own decision. The domain area that owns e-mails is named with the first e-mail, and the language of a client's contact with the modelling of contacts.
+The steps of the document processing pipeline, and where files are converted, are decided when the processors are implemented. Recording who moved a record from one status to another waits for the history of work that screens show. How the system writes to a project's Git repository starts with its own decision. The language of a client's contact is decided with the modelling of contacts.
+
+The domain areas named so far are `consultancy`, `access` (login code, session, link to a login provider and, later, access tokens), `email`, `files`, `audit` (the audit log) and the system health area.
 
 Nothing is cached yet. A read measured as slow first gets an in-memory cache inside the API. A cache service (Redis, Valkey) and a connection pooler (PgBouncer) each start with a new ADR.
 
 A lint for migrations and the column type for case-insensitive text are decided with the first case that needs one.
 
-The first backend code is a walking skeleton: one thin slice through every joint that the ADRs list as not tried, before any feature. Its spec is `.scratch/walking-skeleton/spec.md`. Four conventions are fixed there and then recorded here: where a use case takes the current time from, where dependencies are wired, the assertion library of the tests, and whether a record is deleted or archived.
+The first backend code is the foundation and the setup: `.scratch/foundation-and-setup/spec.md`. Two efforts follow it, each specified when the one before ends: the login and the shell of the app, then the consultancy settings, the users and the system health. There is no walking skeleton. That spec lists the joints that the ADRs record as not tried and that these three efforts do not cross; the work that builds the deploy tries most of them. Three conventions are fixed with the first code and then recorded here: where a use case takes the current time from, where dependencies are wired, and the assertion library of the tests. Whether a record is deleted or archived is fixed with the first record that is removed; a user is deactivated and never removed.
 
 The Go linter and formatter, the Go type for money (`kernel` imports the standard library only), the client library for LLM providers, and the templates and translation files of e-mails are each chosen with the first code that needs one.
 
-The rate-limit plugin of Caddy and its numbers are chosen in the walking skeleton. The routine that encrypts credential values again under a new key is written with the first change of key.
+The rate-limit plugin of Caddy and its numbers are chosen with the setup, the first code that needs the limit. The routine that encrypts credential values again under a new key is written with the first change of key.
 
 `ETag` with `If-Match`, `Idempotency-Key` and rate limiting beyond the login code and the setup code are added to the first case that needs one, without a new ADR. A version in the path waits for the first consumer that does not ship with the backend, and reopens ADR-0009.
 
@@ -387,10 +415,10 @@ The default test renders a whole screen in Vitest's Browser Mode, with the API s
 - `vp check` (format, lint, types) and the screen tests fail the build. `vp staged` runs format and lint on changed files at each commit.
 - Knip fails the build on unused files, exports and dependencies.
 - The build fails when an import breaks the dependency rule, when the generated client is stale, or when a language is missing a translation key (ADR-0005).
-- The size of the JavaScript of `apps/web`, initial and per route, has a limit that fails the build. It is measured on the Brotli copies the build writes (see Delivery), which is what the browser downloads. The numbers are set with the first real screen.
+- The size of the JavaScript of `apps/web`, initial and per route, has a limit that fails the build. It is measured on the Brotli copies the build writes (see Delivery), which is what the browser downloads. The numbers are set when the deploy is built.
 - Load and response times of the main screens (LCP, CLS, INP) are reported against the "good" Core Web Vitals thresholds (2.5 s, 0.1, 200 ms) and do not fail the build.
 
-The tools for the import rule, the size limit and the time report are chosen with the first frontend code. Once a check exists, its rule here shrinks to a pointer at the check.
+The tool for the import rule is chosen with the first screen. The tools for the size limit and the time report are chosen when the deploy is built, which is when the app is first served as in production. Once a check exists, its rule here shrinks to a pointer at the check.
 
 For investigating performance in a real browser, agents have the Chrome DevTools MCP: see [`docs/agents/browser-tools.md`](docs/agents/browser-tools.md).
 
@@ -410,7 +438,7 @@ How responses travel from the server to browsers and agents. Compression, cache 
 - **Defaults kept.** The `match` block of `encode` is not written, because a custom block replaces the whole default list of content types. Error bodies (`application/problem+json`) are outside that list and stay uncompressed; they are small.
 - **Streams.** A Server-Sent Events response is compressed like any other, and Caddy sends each event as it is written. The first streaming operation comes with a test that goes through Caddy and checks that events arrive one by one.
 - **Brotli copies.** The build of `apps/web` writes a Brotli copy (`.br`) beside each text file it produces: JavaScript, CSS, HTML, SVG and JSON. Caddy serves the copy through `file_server` with `precompressed br`. Caddy does not compress Brotli on the fly, so a client that does not accept Brotli gets the file through `encode`.
-- **Plugin.** A Vite plugin writes the Brotli copies. It is chosen with the first frontend code; none has been tried with Vite+ (Rolldown).
+- **Plugin.** A Vite plugin writes the Brotli copies. It is chosen when the deploy is built; none has been tried with Vite+ (Rolldown).
 - **Risk accepted.** The size of a compressed response can reveal a secret when the same body carries text chosen by an attacker (the BREACH attack). No response is excluded from compression. The rule on credential values in the API conventions keeps the two apart.
 
 ### Caching
@@ -425,7 +453,7 @@ How responses travel from the server to browsers and agents. Compression, cache 
 - **Content-Security-Policy.** Scripts, styles, fonts and connections come from the app's own origin only, plus the host name of the file storage for connections, images and media. That host name comes from configuration, because it differs by environment. No inline script, no `eval`, no other origin. The page cannot be shown inside a frame.
 - **Others.** `Strict-Transport-Security`, `X-Content-Type-Options: nosniff` and `Referrer-Policy`.
 - **Frontend.** Code in `apps/web` loads nothing from another origin and writes no inline script.
-- **Exact values.** The directives are closed with the first real screen, which shows what Base UI and the fonts need.
+- **Exact values.** The directives are closed when the deploy is built, with Caddy serving the built app, which shows what Base UI and the fonts need.
 
 ### Rate limit
 
@@ -647,7 +675,7 @@ Every tool, library and container image runs at a version written in a committed
 
 ### Updating
 
-- **Listing.** `task outdated` lists what has a newer release among the versions the repository pins: the Go toolchain, Go modules and tools, Node.js, pnpm, JavaScript packages, container images, Caddy plugins, pgBackRest, GitHub Actions and the tools a workflow installs, the system image of the servers and MCP servers. It is written with the first code.
+- **Listing.** `task outdated` lists what has a newer release among the versions the repository pins: the Go toolchain, Go modules and tools, Node.js, pnpm, JavaScript packages, container images, Caddy plugins, pgBackRest, GitHub Actions and the tools a workflow installs, the system image of the servers and MCP servers. It is written when the deploy is built.
 - **Every week.** A scheduled workflow runs the listing and warns the maintainer through one issue (see Scheduled workflows). Updating stays a decision of the maintainer.
 - **The machine.** `task outdated:machine` is run by hand on the maintainer's machine, which no workflow can see. It reads `docs/machine-tools.yaml` and lists the tools that have a newer release and the ones whose installed version differs from the recorded one. After an update the file is corrected (see `AGENTS.md`).
 - **One at a time.** An update is its own commit: one dependency, or one family released together (TanStack, OpenTelemetry), with the build and the tests passing.
