@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 )
@@ -98,11 +99,59 @@ func renameThing(_ context.Context, input *renameThingInput) (*renameThingOutput
 	return &renameThingOutput{Body: RenamedThing{Name: input.Body.Name}}, nil
 }
 
-// served is an API with one operation, behind the telemetry of a request, as
-// the command that serves mounts it.
+// thingLabelReserved is a rule about one field, as the domain returns one
+// inside a kernel.InvalidFieldsError.
+type thingLabelReserved struct{}
+
+func (thingLabelReserved) Error() string { return "the label is reserved" }
+
+func (thingLabelReserved) Code() string { return "thing_label_reserved" }
+
+// thingLabelRude is a rule about one field that the operation under test does
+// not declare.
+type thingLabelRude struct{}
+
+func (thingLabelRude) Error() string { return "the label is rude" }
+
+func (thingLabelRude) Code() string { return "thing_label_rude" }
+
+type createThingInput struct {
+	Body CreateThingRequest
+}
+
+type CreateThingRequest struct {
+	Label string     `json:"label" minLength:"1" maxLength:"40"`
+	Owner ThingOwner `json:"owner"`
+}
+
+type ThingOwner struct {
+	Email string `json:"email" minLength:"1" format:"email"`
+}
+
+type createThingOutput struct{}
+
+// createThing stands in for an operation whose use case checks the fields of
+// its input. What the caller labels the thing decides which fields break a
+// rule.
+func createThing(_ context.Context, input *createThingInput) (*createThingOutput, error) {
+	switch input.Body.Label {
+	case "reserved":
+		return nil, fmt.Errorf("create the thing: %w", kernel.InvalidFieldsError{Fields: []kernel.FieldError{
+			{Field: "label", Rule: thingLabelReserved{}},
+			{Field: "owner.email", Rule: kernel.TooLongError{MaxLength: 5}},
+		}})
+	case "rude":
+		return nil, kernel.InvalidFieldsError{Fields: []kernel.FieldError{{Field: "label", Rule: thingLabelRude{}}}}
+	}
+	return &createThingOutput{}, nil
+}
+
+// served is an API with two operations, behind the telemetry of a request,
+// as the command that serves mounts it.
 type served struct {
 	url  string
 	logs *lockedBuffer
+	api  *restapi.API
 }
 
 func serve(t *testing.T) served {
@@ -124,10 +173,18 @@ func serve(t *testing.T) served {
 		http.StatusConflict:            {thingNameTaken{}},
 		http.StatusUnprocessableEntity: {thingLocked{}},
 	}, renameThing)
+	restapi.Register(api, huma.Operation{
+		OperationID: "create_thing",
+		Method:      http.MethodPost,
+		Path:        "/api/things",
+		Summary:     "Create a thing",
+	}, restapi.Failures{
+		http.StatusUnprocessableEntity: {restapi.InField(thingLabelReserved{}), restapi.InField(kernel.TooLongError{})},
+	}, createThing)
 
 	server := httptest.NewServer(telemetry.Requests(mux, logger, tracing.Provider))
 	t.Cleanup(server.Close)
-	return served{url: server.URL, logs: logs}
+	return served{url: server.URL, logs: logs, api: api}
 }
 
 // answered is what the API answered: its status, its headers and its body

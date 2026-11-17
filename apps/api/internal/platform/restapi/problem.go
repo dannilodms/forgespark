@@ -11,6 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/validation"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 )
 
@@ -91,6 +92,14 @@ func problemOfHuma(ctx context.Context, status int, message string, causes []err
 	return problem
 }
 
+// validationFailedDetail is the detail of a request that does not follow the
+// contract, as Huma words it, and of one whose fields break a rule.
+const validationFailedDetail = "validation failed"
+
+// emailRefused begins the message Huma gives an e-mail its parser could not
+// read, followed by the error of the parser, which may quote the address.
+var emailRefused = strings.TrimSuffix(validation.MsgExpectedRFC5322Email, "%v")
+
 // rawError is what the logs keep of a 5xx: what Huma says happened, and the
 // errors behind it.
 func rawError(message string, causes []error) error {
@@ -122,13 +131,23 @@ func codeOfStatus(status int) string {
 }
 
 // appendFieldError adds the field a cause names. The value that was refused
-// is never repeated, and a cause that names no field adds nothing.
+// is never repeated, and a cause that names no field adds nothing. A field is
+// named once, for the first rule it breaks: Huma checks the length of a text
+// before its pattern and its format.
 func appendFieldError(fields []FieldError, cause error) []FieldError {
 	detailer, namesField := cause.(huma.ErrorDetailer)
 	if !namesField {
 		return fields
 	}
-	detail := detailer.ErrorDetail()
+	field := fieldErrorOf(detailer.ErrorDetail())
+	named := slices.ContainsFunc(fields, func(each FieldError) bool { return each.Location == field.Location })
+	if named {
+		return fields
+	}
+	return append(fields, field)
+}
+
+func fieldErrorOf(detail *huma.ErrorDetail) FieldError {
 	field := FieldError{Location: detail.Location, Code: invalid, Params: map[string]any{}, Message: detail.Message}
 	// Huma places a required property that is missing at the object that
 	// lacks it, and names the property in its message alone.
@@ -137,7 +156,15 @@ func appendFieldError(fields []FieldError, cause error) []FieldError {
 		field.Location += "." + missing
 		field.Code = required
 	}
-	return append(fields, field)
+	// A text the contract asks at least one character of is a required field
+	// left empty.
+	if detail.Message == fmt.Sprintf(validation.MsgExpectedMinLength, 1) {
+		field.Code = required
+	}
+	if strings.HasPrefix(detail.Message, emailRefused) {
+		field.Message = validation.MsgExpectedRFC5322EmailBare
+	}
+	return field
 }
 
 // Failure is a broken rule, as `domain` and `application` declare one: an
@@ -149,13 +176,32 @@ type Failure interface {
 }
 
 // Failures lists, for each status, the broken rules an operation answers
-// with. An example of each error is enough: its code is read from it.
+// with. An example of each error is enough: its code is read from it. A rule
+// about one field is listed under 422 with InField.
 type Failures map[int][]Failure
 
-// answerTo turns the error of a use case into the answer. A broken rule the
+// InField declares a rule that a field of the request may break, which the
+// use case returns inside a kernel.InvalidFieldsError. It is answered as a
+// failed validation, with an entry in `errors` that names the field and
+// carries the code of the rule. List it under 422.
+func InField(rule Failure) Failure {
+	return fieldRule{Failure: rule}
+}
+
+// fieldRule is a rule an operation declares about one field.
+type fieldRule struct {
+	Failure
+}
+
+// answerTo turns the error of a use case into the answer. Fields that break a
+// rule answer as a failed validation that names each one. A broken rule the
 // operation declares answers with its status, code and parameters. Anything
 // else is left to Huma, which answers 500.
 func (f Failures) answerTo(ctx context.Context, err error) error {
+	var invalid kernel.InvalidFieldsError
+	if errors.As(err, &invalid) {
+		return f.answerToFields(ctx, invalid, err)
+	}
 	var broken Failure
 	if !errors.As(err, &broken) {
 		return err
@@ -169,6 +215,46 @@ func (f Failures) answerTo(ctx context.Context, err error) error {
 		problem.Params = params
 	}
 	return problem
+}
+
+// answerToFields answers fields that break a rule of the domain as a failed
+// validation, the shape of a request that does not follow the contract: one
+// entry in `errors` for each field, at its place in the body, with the code
+// of the rule. Every rule must be declared with InField, as any broken rule.
+func (f Failures) answerToFields(ctx context.Context, invalid kernel.InvalidFieldsError, err error) error {
+	undeclared := slices.IndexFunc(invalid.Fields, func(field kernel.FieldError) bool {
+		return !f.declaresInField(field.Rule.Code())
+	})
+	if undeclared >= 0 {
+		return fmt.Errorf("the operation does not declare the code %s: %w", invalid.Fields[undeclared].Rule.Code(), err)
+	}
+	problem := newProblem(ctx, http.StatusUnprocessableEntity, validationFailed, validationFailedDetail)
+	for _, field := range invalid.Fields {
+		problem.Errors = append(problem.Errors, FieldError{
+			Location: "body." + field.Field,
+			Code:     field.Rule.Code(),
+			Params:   paramsOrNone(field.Rule),
+			Message:  field.Rule.Error(),
+		})
+	}
+	return problem
+}
+
+func (f Failures) declaresInField(code string) bool {
+	return slices.ContainsFunc(f[http.StatusUnprocessableEntity], func(declared Failure) bool {
+		_, inField := declared.(fieldRule)
+		return inField && declared.Code() == code
+	})
+}
+
+// paramsOrNone returns the parameters of a broken rule, and an empty object
+// when it has none.
+func paramsOrNone(broken Failure) map[string]any {
+	params := paramsOf(broken)
+	if params == nil {
+		return map[string]any{}
+	}
+	return params
 }
 
 // paramsOf returns the parameters of a broken rule, and nil when it has none.

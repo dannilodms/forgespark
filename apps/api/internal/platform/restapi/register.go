@@ -62,18 +62,36 @@ func (f Failures) describe(status, description string) string {
 		return description
 	}
 	codes := []string{}
+	inFields := []string{}
 	for _, failure := range f[number] {
-		codes = append(codes, fmt.Sprintf("`%s`: %s.", failure.Code(), failure.Error()))
+		_, inField := failure.(fieldRule)
+		described := fmt.Sprintf("`%s`: %s.", failure.Code(), failure.Error())
+		codes = appendIf(codes, described, !inField)
+		inFields = appendIf(inFields, described, inField)
 	}
 	switch number {
 	case http.StatusUnprocessableEntity:
-		codes = append(codes, "`"+validationFailed+"`: the request does not follow this contract, and `errors` names each field.")
+		codes = append(codes, "`"+validationFailed+"`: the request does not follow this contract, or a field breaks a rule, "+
+			"and `errors` names each field with the code `"+required+"` or `"+invalid+"`, or the code of the rule.")
+		codes = appendIf(codes, "The rules of a field: "+strings.Join(inFields, " "), len(inFields) > 0)
 	case http.StatusInternalServerError:
 		codes = append(codes, "`"+codeOfStatus(number)+"`: the failure is in the logs, under the `trace_id`.")
 	}
 	return strings.Join(append([]string{description + "."}, codes...), " ")
 }
 
+func appendIf(texts []string, text string, wanted bool) []string {
+	if !wanted {
+		return texts
+	}
+	return append(texts, text)
+}
+
+// containsCode tells whether the operation declares a broken rule with this
+// code. A rule about a field is declared for the fields only.
 func containsCode(declared []Failure, code string) bool {
-	return slices.ContainsFunc(declared, func(failure Failure) bool { return failure.Code() == code })
+	return slices.ContainsFunc(declared, func(failure Failure) bool {
+		_, inField := failure.(fieldRule)
+		return !inField && failure.Code() == code
+	})
 }
