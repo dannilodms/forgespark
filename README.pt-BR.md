@@ -11,7 +11,7 @@
 
 Gerenciador de clientes e projetos: uma plataforma centralizada para gestão de clientes, projetos e demandas de desenvolvimento de software.
 
-> **Status:** em fase de definição. Ainda não há código; as seções marcadas como _A definir_ serão preenchidas conforme o projeto avança.
+> **Status:** a fundação está construída. Uma instalação nova roda em desenvolvimento e passa pela configuração inicial, com a sua consultoria e o seu primeiro administrador (veja [Ambiente de desenvolvimento](#ambiente-de-desenvolvimento)). O login e tudo o que vem depois dele ainda não foram construídos; as seções marcadas como _A definir_ são preenchidas conforme o projeto avança.
 
 ## Sumário
 
@@ -154,7 +154,7 @@ A telemetria passa pelo coletor: traces e métricas da API, do worker e do Caddy
 
 O sistema roda em três ambientes: desenvolvimento na máquina do mantenedor, homologação (staging) em um servidor criado para um pull request e destruído depois, e produção em um servidor sempre ligado.
 
-Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm apenas um arquivo `.gitkeep`, e os arquivos de configuração da raiz entram junto com o primeiro código:
+Frontend e backend ficam neste único repositório:
 
 ```
 .
@@ -270,15 +270,17 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 
 ### Pré-requisitos
 
-| Ferramenta | Versão mínima |
-| --- | --- |
-| Docker | Engine 28.3.2 com Compose 2.38.2 (Docker Desktop 4.43.2) |
-| Go | 1.27.4 |
-| Vite+ (gerencia Node.js e pnpm) | 1.6.0 |
-| Task | 3.54.0 |
-| GitHub CLI | 2.104.0 |
+| Ferramenta | Versão mínima | Onde obter |
+| --- | --- | --- |
+| Docker | Engine 28.3.2 com Compose 2.38.2 (Docker Desktop 4.43.2) | [Docker Desktop](https://docs.docker.com/desktop/), ou o Docker Engine com o plugin do Compose no Linux |
+| Go | 1.27.4 | [go.dev/dl](https://go.dev/dl/) |
+| Vite+ (gerencia Node.js e pnpm) | 1.6.0 | [viteplus.dev](https://viteplus.dev/) |
+| Task | 3.54.0 | [taskfile.dev](https://taskfile.dev/installation/) |
+| GitHub CLI | 2.104.0 | [cli.github.com](https://cli.github.com/). Só para abrir pull requests e consultar a pipeline |
 
-Cada mínimo é a versão em uso na máquina do mantenedor, registrada em [`docs/machine-tools.yaml`](docs/machine-tools.yaml). Nenhuma versão anterior foi testada.
+Cada mínimo é a versão em uso na máquina do mantenedor, registrada em [`docs/machine-tools.yaml`](docs/machine-tools.yaml). Nenhuma versão anterior foi testada. O Git clona o repositório.
+
+O desenvolvimento ocupa cinco portas da máquina: 80 (Caddy), 5432 (PostgreSQL), 3900 (Garage), 8080 (a API) e 5173 (Vite). Um `.env` muda as três primeiras (veja abaixo); o Caddy encaminha para as duas últimas.
 
 O Go instalado só baixa o toolchain que o `go.mod` indica. Todas as outras versões usadas pelo build são fixadas no repositório (veja Versions em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
@@ -339,15 +341,19 @@ O seed preenche o banco com dados fictícios, os mesmos a cada execução. Para 
 
 A pipeline chama os mesmos alvos do Task, então uma verificação que falha nela falha do mesmo jeito na máquina.
 
-Da tabela acima, o PostgreSQL, o Garage e o Caddy são o que roda hoje, ao lado da API e do app. Para iniciá-los a partir de um clone novo, com os pré-requisitos instalados e o Docker em execução, rode na raiz do repositório:
+Da tabela acima, o PostgreSQL, o Garage e o Caddy são o que roda hoje, ao lado da API e do app. De uma máquina limpa até a configuração inicial concluída, com os pré-requisitos instalados e o Docker em execução:
 
-1. `task install`
-2. `task services`
-3. `task migrate`
-4. `task dev`, que inicia a API e o app juntos
-5. Abra `http://localhost`
+1. Clone o repositório com o Git e abra um terminal na raiz dele. Todos os comandos abaixo rodam ali.
+2. `task install`. Na primeira vez, ele baixa o Node.js, o pnpm, as dependências JavaScript e o Chromium dos testes, cerca de 330 MB.
+3. `task services`. Na primeira vez, ele gera a imagem do Caddy, o que leva alguns minutos.
+4. `task migrate`. Na primeira vez, o Go baixa os módulos da API e a compila.
+5. `task dev`, que inicia a API e o app juntos. Deixe-o rodando.
+6. Em um segundo terminal, `task issue-setup-code`. Ele mostra o código de configuração e o endereço da configuração inicial, `http://localhost/setup`.
+7. Abra esse endereço. A primeira carga demora, porque o Vite empacota as dependências do app. Digite o código, preencha a consultoria e o seu primeiro administrador, um logotipo e uma foto se você os tiver, revise o que digitou e conclua.
 
-O navegador chega a tudo pelo Caddy, nesse único endereço: o app, e a API em `/api`. O armazenamento de arquivos tem um nome de host próprio, `http://files.localhost`, onde o navegador envia uma imagem para uma URL que a API assinou; o Garage só a aceita vinda da origem do app. Nada é configurado à mão: os valores do `.env.example` funcionam como estão com o Docker Desktop. Com o Docker Engine no Linux, o Caddy só alcança a API e o Vite quando eles escutam em todas as interfaces: escreva `API_LISTEN_ADDRESS=0.0.0.0:8080` e `WEB_LISTEN_HOST=0.0.0.0` em um `.env`. Quando a porta 80 estiver ocupada, mude ali o `CADDY_PORT` e acrescente a porta ao `APP_ORIGIN` e ao `FILE_STORAGE_PUBLIC_URL`.
+O app então leva à tela de login, que diz que a configuração inicial foi concluída. O login em si chega com a próxima parte do trabalho. `task e2e` percorre o mesmo caminho em um navegador, em um banco só dele.
+
+O navegador chega a tudo pelo Caddy, em um único endereço, `http://localhost`: o app, e a API em `/api`. O armazenamento de arquivos tem um nome de host próprio, `http://files.localhost`, onde o navegador envia uma imagem para uma URL que a API assinou; o Garage só a aceita vinda da origem do app. Nada é configurado à mão: os valores do `.env.example` funcionam como estão com o Docker Desktop. Com o Docker Engine no Linux, o Caddy só alcança a API e o Vite quando eles escutam em todas as interfaces: escreva `API_LISTEN_ADDRESS=0.0.0.0:8080` e `WEB_LISTEN_HOST=0.0.0.0` em um `.env`. Quando a porta 80 estiver ocupada, mude ali o `CADDY_PORT` e acrescente a porta ao `APP_ORIGIN` e ao `FILE_STORAGE_PUBLIC_URL`.
 
 `http://localhost/up` responde com o status da prontidão da API e sem corpo: 503 até as migrations serem aplicadas, e 502 enquanto a API não estiver rodando. A própria API responde à verificação de atividade em `http://127.0.0.1:8080/livez` e à de prontidão em `http://127.0.0.1:8080/readyz`, que o Caddy não encaminha.
 
@@ -382,7 +388,8 @@ Os comandos, executados na raiz do repositório:
 | `task web:generate:check` | Falha quando o cliente gerado pelo orval que está no repositório ficou desatualizado |
 | `task web:imports` | Falha quando um import do app quebra a sua regra de dependências, com o dependency-cruiser |
 | `task web:knip` | Falha com um arquivo, um export ou uma dependência do app que nada usa, com o Knip |
-| `task check` | Roda todas as verificações de um pull request: as versões exatas, a verificação do cliente gerado, as de formato, lint e tipos de `apps/web`, a sua regra de dependências, o seu código sem uso, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, a verificação da especificação OpenAPI, a verificação das listas do app, o lint e o relatório de mudanças incompatíveis da especificação, o build e os testes da API |
+| `task e2e` | Roda o teste de ponta a ponta da configuração inicial no Chromium, pelo Caddy, com o Playwright. Ele inicia os serviços, gera o binário da API, reinicia o Caddy para que o limite comece vazio, cria vazio o banco `software_factory_e2e` e aplica as migrations; o Playwright inicia a API e o Vite e os encerra no fim. O banco de desenvolvimento não é tocado. As portas 8080 e 5173 precisam estar livres: pare o `task dev` antes. Um teste que falha deixa o seu trace em `apps/web/test-results`, que o `vp exec playwright show-trace <arquivo>`, rodado em `apps/web`, abre |
+| `task check` | Roda todas as verificações de um pull request: as versões exatas, a verificação do cliente gerado, as de formato, lint e tipos de `apps/web`, a sua regra de dependências, o seu código sem uso, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, a verificação da especificação OpenAPI, a verificação das listas do app, o lint e o relatório de mudanças incompatíveis da especificação, o build e os testes da API, e o teste de ponta a ponta |
 | `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
 Os comandos do que ainda não foi construído (o worker e o seed) estão _A definir_, e cada um será escrito com o seu código.
@@ -390,8 +397,6 @@ Os comandos do que ainda não foi construído (o worker e o seed) estão _A defi
 O sqlc roda com `go tool`, a partir de um arquivo de módulo só dele, `apps/api/sqlc.mod`. Na primeira vez em uma máquina, o Go baixa e compila o sqlc, o que leva vários minutos: uma das dependências dele tem mais de cem mil arquivos, e extraí-los no Windows chega a levar meia hora. O comando parece parado nesse tempo. Não o interrompa, porque a extração recomeça do zero. O vacuum e o oasdiff rodam do mesmo jeito, a partir de `apps/api/vacuum.mod` e `apps/api/oasdiff.mod`, e cada um é compilado em alguns minutos na primeira vez.
 
 O contrato REST é o arquivo `apps/api/openapi.yaml`. Ele é gerado a partir das operações que a API serve; por isso, depois de alterar uma delas, rode `task api:spec` e inclua o arquivo no commit junto com o código.
-
-<!-- Comandos para subir o ambiente local do zero: clonar, configurar, iniciar os serviços e acessar a aplicação. -->
 
 ### Build
 
