@@ -10,6 +10,8 @@ coverage/
 *.tsbuildinfo
 # Screenshots of the screen tests that failed
 .vitest/
+# Traces of the end-to-end test that failed
+test-results/
 
 # Go build and test output
 *.exe

@@ -181,6 +181,37 @@ tasks:
       - vp node scripts/missing-keys.mjs
       - vp test run
 
+  e2e:
+    desc: Run the end-to-end test of the setup through Caddy, on a database of its own that starts empty. Restarts Caddy, and needs ports 8080 and 5173 free
+    deps: [services, api:build]
+    vars:
+      # Created empty for each run, and kept after it so that a failure can
+      # be read in it; the next run drops it. The development database is
+      # never touched.
+      E2E_DATABASE: software_factory_e2e
+      E2E_DATABASE_ADDRESS: localhost:{{.POSTGRES_PORT}}/{{.E2E_DATABASE}}?sslmode=disable
+    cmds:
+      # The limit of Caddy counts every request of the machine together, and
+      # keeps them in its memory only. A restart empties it, so the test never
+      # meets what a run before it, or its own check of the limit, left there.
+      - docker compose restart caddy
+      - >-
+        docker compose exec --no-TTY postgres
+        psql --username postgres --no-psqlrc --quiet --set ON_ERROR_STOP=1
+        --command "DROP DATABASE IF EXISTS {{.E2E_DATABASE}} WITH (FORCE)"
+        --command "CREATE DATABASE {{.E2E_DATABASE}} OWNER migration"
+      # Each connection is named on its command, where no variable of the
+      # shell replaces it.
+      - >-
+        MIGRATION_DATABASE_URL="postgres://migration:{{.POSTGRES_MIGRATION_PASSWORD}}@{{.E2E_DATABASE_ADDRESS}}"
+        apps/api/bin/api migrate
+      # Playwright starts the API and Vite where Caddy reaches them, hands the
+      # API this connection as DATABASE_URL, and stops both at the end.
+      - >-
+        cd apps/web &&
+        E2E_DATABASE_URL="postgres://api:{{.POSTGRES_API_PASSWORD}}@{{.E2E_DATABASE_ADDRESS}}"
+        vp exec playwright test
+
   api:lint:
     desc: Lint the Go code and check its format, the dependency rule, else and the level of nesting
     dir: apps/api
@@ -214,6 +245,7 @@ tasks:
       - task: api:spec:breaking
       - task: api:build
       - task: api:test
+      - task: e2e
 
   check:fix:
     desc: Format, lint and type checks of the app, fixing what can be fixed

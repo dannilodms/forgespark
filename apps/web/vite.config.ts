@@ -55,6 +55,9 @@ export default defineConfig({
     },
   },
   test: {
+    // The screen tests. The end-to-end test, in e2e/, is Playwright's own,
+    // run by `task e2e`.
+    dir: "src",
     // Every test runs in a real Chromium (ADR-0014). `task install`
     // downloads it, at the version the Playwright of the catalog names.
     browser: {
