@@ -24,3 +24,18 @@ func findWorkingSetupCode(ctx context.Context, setupCodes SetupCodeRepository, t
 	}
 	return setupCode, nil
 }
+
+// lockWorkingSetupCode loads the setup code with this hash, locked until the
+// transaction ends, so that two operations with the same code run one after
+// the other and the second sees whether the first ended it. It answers
+// SetupCodeInvalidError when the code does not work at this moment.
+func lockWorkingSetupCode(ctx context.Context, setupCodes SetupCodeRepository, hash domain.SetupCodeHash, now time.Time) (*domain.SetupCode, error) {
+	setupCode, found, err := setupCodes.LoadByHash(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	if !found || !setupCode.Works(now) {
+		return nil, domain.SetupCodeInvalidError{}
+	}
+	return setupCode, nil
+}

@@ -32,6 +32,16 @@ func (r *RoleRepository) NextIdentifier(context.Context) (domain.RoleID, error) 
 	return domain.NewRoleID(r.lastIdentifier)
 }
 
+// FindByKey returns a copy of the role with this key.
+func (r *RoleRepository) FindByKey(_ context.Context, key domain.RoleKey) (*domain.Role, bool, error) {
+	position := slices.IndexFunc(r.roles, func(stored domain.Role) bool { return stored.Key() == key })
+	if position < 0 {
+		return nil, false, nil
+	}
+	found := r.roles[position]
+	return &found, true, nil
+}
+
 // Save stores the role, in place of the one with the same identifier when
 // there is one.
 func (r *RoleRepository) Save(_ context.Context, role *domain.Role) error {

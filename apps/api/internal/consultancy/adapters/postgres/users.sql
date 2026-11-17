@@ -1,6 +1,11 @@
 -- name: NextUserID :one
 SELECT nextval('users_id_seq')::bigint;
 
+-- name: EmailInUse :one
+-- A deactivated user keeps their e-mail. The e-mail is stored in lowercase,
+-- and the parameter is too.
+SELECT EXISTS (SELECT FROM users WHERE email = @email);
+
 -- name: SaveUser :exec
 -- The e-mail belongs to one user: another user's e-mail breaks the unique
 -- constraint users_email_key.

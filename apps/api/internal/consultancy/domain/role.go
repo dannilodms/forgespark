@@ -44,6 +44,11 @@ func CreateDeveloperRole(id RoleID) *Role {
 	return &Role{id: id, key: DeveloperRoleKey}
 }
 
+// RestoreRole rebuilds a role from what a repository stored.
+func RestoreRole(id RoleID, key RoleKey) *Role {
+	return &Role{id: id, key: key}
+}
+
 // ID returns the identifier of the role.
 func (r *Role) ID() RoleID {
 	return r.id

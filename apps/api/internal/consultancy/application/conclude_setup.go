@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
@@ -95,12 +94,12 @@ func (u *ConcludeSetup) Execute(ctx context.Context, input ConcludeSetupInput) e
 // refuses is named as the field that holds it.
 func (u *ConcludeSetup) confirmImages(ctx context.Context, consultancy domain.ConsultancyDetails, administrator domain.UserDetails) error {
 	logo, hasLogo := consultancy.LogoFileID()
-	logoRefused, err := u.confirmImage(ctx, logo, hasLogo, ConsultancyLogo)
+	logoRefused, err := confirmImage(ctx, u.confirmUpload, logo, hasLogo, ConsultancyLogo)
 	if err != nil {
 		return err
 	}
 	photo, hasPhoto := administrator.PhotoFileID()
-	photoRefused, err := u.confirmImage(ctx, photo, hasPhoto, UserPhoto)
+	photoRefused, err := confirmImage(ctx, u.confirmUpload, photo, hasPhoto, UserPhoto)
 	if err != nil {
 		return err
 	}
@@ -108,20 +107,6 @@ func (u *ConcludeSetup) confirmImages(ctx context.Context, consultancy domain.Co
 	invalid.Check("consultancy.logo_file_id", logoRefused)
 	invalid.Check("administrator.photo_file_id", photoRefused)
 	return invalid.Err()
-}
-
-// confirmImage confirms one image, when one was chosen. It tells apart a rule
-// the image breaks, which the person corrects, from a failure of the system.
-func (u *ConcludeSetup) confirmImage(ctx context.Context, id domain.FileID, chosen bool, purpose FilePurpose) (refused, failed error) {
-	if !chosen {
-		return nil, nil
-	}
-	err := u.confirmUpload.Execute(ctx, filesapplication.ConfirmUploadInput{FileID: filesapplication.FileID(id), Purpose: purpose})
-	var broken kernel.BrokenRule
-	if errors.As(err, &broken) {
-		return err, nil
-	}
-	return nil, err
 }
 
 func (u *ConcludeSetup) conclude(
@@ -163,12 +148,9 @@ func (u *ConcludeSetup) conclude(
 // opens the first setup at this moment: that it works and that no
 // consultancy exists yet.
 func (u *ConcludeSetup) workingSetupCode(ctx context.Context, hash domain.SetupCodeHash, now time.Time) (*domain.SetupCode, error) {
-	setupCode, found, err := u.setupCodes.LoadByHash(ctx, hash)
+	setupCode, err := lockWorkingSetupCode(ctx, u.setupCodes, hash, now)
 	if err != nil {
 		return nil, err
-	}
-	if !found || !setupCode.Works(now) {
-		return nil, domain.SetupCodeInvalidError{}
 	}
 	concluded, err := u.consultancies.Exists(ctx)
 	if err != nil {

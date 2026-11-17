@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 var administratorAna = domain.TypedUser{
@@ -180,4 +181,58 @@ func TestTheDatabaseRefusesASecondUserWithTheSameEmail(t *testing.T) {
 	assert.Equal(t, uniqueViolation, sqlState(t, err))
 	assert.NotContains(t, err.Error(), "ana.souza", "the error carries the e-mail")
 	assert.Equal(t, int64(1), temporary.row(t, "SELECT count(*) FROM users")["count"])
+}
+
+// emailInUse asks the repository whether a user has the e-mail, as typed.
+func (s stored) emailInUse(t *testing.T, typed string) bool {
+	t.Helper()
+	email, err := kernel.NewEmail(typed)
+	require.NoError(t, err)
+	inUse, err := s.users.EmailInUse(context.Background(), email)
+	require.NoError(t, err)
+	return inUse
+}
+
+func TestAnEmailIsInUseOnceAUserHasIt(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	administrator, _ := temporary.createRoles(t)
+	require.False(t, temporary.emailInUse(t, administratorAna.Email), "an e-mail no user has")
+
+	_, err := temporary.registerUser(t, administratorAna, administrator.ID())
+
+	require.NoError(t, err)
+	assert.True(t, temporary.emailInUse(t, "ANA.SOUZA@fabrica.example"))
+	assert.False(t, temporary.emailInUse(t, "bruno.lima@fabrica.example"))
+}
+
+func TestTheEmailOfADeactivatedUserIsInUse(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	administrator, _ := temporary.createRoles(t)
+	user, err := temporary.registerUser(t, administratorAna, administrator.ID())
+	require.NoError(t, err)
+	user.Deactivate()
+	require.NoError(t, temporary.transactions.Run(context.Background(), func(ctx context.Context) error {
+		return temporary.users.Save(ctx, user)
+	}))
+	require.Equal(t, true, temporary.row(t, "SELECT deactivated FROM users")["deactivated"])
+
+	assert.True(t, temporary.emailInUse(t, administratorAna.Email))
+}
+
+func TestTheRoleOfTheSetupIsFoundByItsKey(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	_, notFound, err := temporary.roles.FindByKey(context.Background(), domain.AdministratorRoleKey)
+	require.NoError(t, err)
+	require.False(t, notFound, "a role was found before the setup created one")
+	administrator, developer := temporary.createRoles(t)
+
+	for _, created := range []*domain.Role{administrator, developer} {
+		found, ok, err := temporary.roles.FindByKey(context.Background(), created.Key())
+		require.NoError(t, err)
+		require.True(t, ok, "no role %s", created.Key())
+		assert.Equal(t, created, found)
+	}
 }

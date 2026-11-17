@@ -27,3 +27,31 @@ func (SetupAlreadyConcludedError) Error() string {
 func (SetupAlreadyConcludedError) Code() string {
 	return "setup_already_concluded"
 }
+
+// SetupNotConcludedError is the answer to registering a new administrator
+// with a setup code while the consultancy does not exist: the setup code
+// opens the first setup instead.
+type SetupNotConcludedError struct{}
+
+func (SetupNotConcludedError) Error() string {
+	return "the setup is not concluded"
+}
+
+// Code returns the stable code an inbound adapter answers with.
+func (SetupNotConcludedError) Code() string {
+	return "setup_not_concluded"
+}
+
+// EmailInUseError is the answer to registering a user with an e-mail that
+// belongs to a user already, deactivated or not: an e-mail is unique among
+// users, and the setup changes no user it did not create.
+type EmailInUseError struct{}
+
+func (EmailInUseError) Error() string {
+	return "the e-mail belongs to a user"
+}
+
+// Code returns the stable code an inbound adapter answers with.
+func (EmailInUseError) Code() string {
+	return "email_in_use"
+}

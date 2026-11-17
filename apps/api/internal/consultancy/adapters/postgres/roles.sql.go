@@ -9,6 +9,18 @@ import (
 	"context"
 )
 
+const findRoleByKey = `-- name: FindRoleByKey :one
+SELECT id, key FROM roles WHERE key = $1
+`
+
+// The key is unique (roles_key_key), so one row or none.
+func (q *Queries) FindRoleByKey(ctx context.Context, key string) (Role, error) {
+	row := q.db.QueryRow(ctx, findRoleByKey, key)
+	var i Role
+	err := row.Scan(&i.ID, &i.Key)
+	return i, err
+}
+
 const nextRoleID = `-- name: NextRoleID :one
 SELECT nextval('roles_id_seq')::bigint
 `

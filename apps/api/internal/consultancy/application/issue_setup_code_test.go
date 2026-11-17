@@ -49,20 +49,21 @@ const (
 // implementations of this area and of the files area, with the clock stopped
 // at noon.
 type installation struct {
-	clock            *applicationtest.Clock
-	setupCodes       *applicationtest.SetupCodeRepository
-	consultancies    *applicationtest.ConsultancyRepository
-	users            *applicationtest.UserRepository
-	roles            *applicationtest.RoleRepository
-	auditLog         *auditapplicationtest.AuditLog
-	files            *filesapplicationtest.FileRepository
-	objects          *filesapplicationtest.Storage
-	transactions     *applicationtest.Transactions
-	issueSetupCode   *application.IssueSetupCode
-	openSetup        *application.OpenSetup
-	startSetupUpload *application.StartSetupUpload
-	concludeSetup    *application.ConcludeSetup
-	tellSetupState   *application.TellSetupState
+	clock                 *applicationtest.Clock
+	setupCodes            *applicationtest.SetupCodeRepository
+	consultancies         *applicationtest.ConsultancyRepository
+	users                 *applicationtest.UserRepository
+	roles                 *applicationtest.RoleRepository
+	auditLog              *auditapplicationtest.AuditLog
+	files                 *filesapplicationtest.FileRepository
+	objects               *filesapplicationtest.Storage
+	transactions          *applicationtest.Transactions
+	issueSetupCode        *application.IssueSetupCode
+	openSetup             *application.OpenSetup
+	startSetupUpload      *application.StartSetupUpload
+	concludeSetup         *application.ConcludeSetup
+	registerAdministrator *application.RegisterAdministrator
+	tellSetupState        *application.TellSetupState
 }
 
 func newInstallation() installation {
@@ -92,6 +93,9 @@ func newInstallation() installation {
 		openSetup:        application.NewOpenSetup(setupCodes, consultancies, clock),
 		startSetupUpload: application.NewStartSetupUpload(setupCodes, startUpload, clock),
 		concludeSetup: application.NewConcludeSetup(
+			transactions, setupCodes, consultancies, users, roles, confirmUpload, recordEntry, clock,
+		),
+		registerAdministrator: application.NewRegisterAdministrator(
 			transactions, setupCodes, consultancies, users, roles, confirmUpload, recordEntry, clock,
 		),
 		tellSetupState: application.NewTellSetupState(applicationtest.NewSetupStateReader(consultancies, setupCodes), clock),

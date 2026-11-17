@@ -9,6 +9,19 @@ import (
 	"context"
 )
 
+const emailInUse = `-- name: EmailInUse :one
+SELECT EXISTS (SELECT FROM users WHERE email = $1)
+`
+
+// A deactivated user keeps their e-mail. The e-mail is stored in lowercase,
+// and the parameter is too.
+func (q *Queries) EmailInUse(ctx context.Context, email string) (bool, error) {
+	row := q.db.QueryRow(ctx, emailInUse, email)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const giveUserRoles = `-- name: GiveUserRoles :exec
 INSERT INTO user_roles (user_id, role_id)
 SELECT $1, unnest($2::bigint[])

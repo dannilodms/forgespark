@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
@@ -31,6 +33,22 @@ func (r *RoleRepository) NextIdentifier(ctx context.Context) (domain.RoleID, err
 		return 0, fmt.Errorf("reserve the identifier of a role: %w", err)
 	}
 	return domain.NewRoleID(value)
+}
+
+// FindByKey finds the role with this key, and locks nothing.
+func (r *RoleRepository) FindByKey(ctx context.Context, key domain.RoleKey) (*domain.Role, bool, error) {
+	row, err := r.queries(ctx).FindRoleByKey(ctx, string(key))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("find the role by its key: %w", err)
+	}
+	id, err := domain.NewRoleID(row.ID)
+	if err != nil {
+		return nil, false, err
+	}
+	return domain.RestoreRole(id, domain.RoleKey(row.Key)), true, nil
 }
 
 // Save writes the role whole: a new row, or every column of the row it

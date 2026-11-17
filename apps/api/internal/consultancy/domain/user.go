@@ -130,6 +130,13 @@ func (u *User) Roles() []RoleID {
 	return slices.Clone(u.roles)
 }
 
+// Deactivate makes the user unable to log in, and keeps their record. The
+// use case that deactivates a user, with its rules, arrives with the screen
+// of the users.
+func (u *User) Deactivate() {
+	u.deactivated = true
+}
+
 // Deactivated tells whether the user was deactivated.
 func (u *User) Deactivated() bool {
 	return u.deactivated

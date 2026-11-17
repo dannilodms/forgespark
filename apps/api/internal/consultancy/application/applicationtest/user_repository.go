@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // UserRepository keeps the users in memory, with their roles. It stores a
@@ -31,6 +32,14 @@ func (r *UserRepository) FailWith(failure error) {
 func (r *UserRepository) NextIdentifier(context.Context) (domain.UserID, error) {
 	r.lastIdentifier++
 	return domain.NewUserID(r.lastIdentifier)
+}
+
+// EmailInUse tells whether a stored user, deactivated or not, has this
+// e-mail.
+func (r *UserRepository) EmailInUse(_ context.Context, email kernel.Email) (bool, error) {
+	return slices.ContainsFunc(r.users, func(stored domain.User) bool {
+		return stored.Details().Email() == email
+	}), nil
 }
 
 // Save stores the user, in place of the one with the same identifier when

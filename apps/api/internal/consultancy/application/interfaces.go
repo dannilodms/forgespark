@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // Transactions opens and closes the transaction of a use case that writes.
@@ -62,6 +63,10 @@ type UserRepository interface {
 	// NextIdentifier reserves the identifier of a user that does not exist
 	// yet.
 	NextIdentifier(ctx context.Context) (domain.UserID, error)
+	// EmailInUse tells whether a user, deactivated or not, has this e-mail.
+	// It locks nothing: the use cases that register a user run under the
+	// lock of the one setup code that works, so two of them do not overlap.
+	EmailInUse(ctx context.Context, email kernel.Email) (bool, error)
 	// Save stores a user whole, with their roles, whether they are new or
 	// changed.
 	Save(ctx context.Context, user *domain.User) error
@@ -72,6 +77,10 @@ type RoleRepository interface {
 	// NextIdentifier reserves the identifier of a role that does not exist
 	// yet.
 	NextIdentifier(ctx context.Context) (domain.RoleID, error)
+	// FindByKey returns the role the setup created with this key, and false
+	// when there is none. It locks nothing: a role with a key is never
+	// removed, and a user who receives it changes nothing of it.
+	FindByKey(ctx context.Context, key domain.RoleKey) (*domain.Role, bool, error)
 	// Save stores a role whole, whether it is new or changed.
 	Save(ctx context.Context, role *domain.Role) error
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 )
 
@@ -32,6 +33,16 @@ func (r *UserRepository) NextIdentifier(ctx context.Context) (domain.UserID, err
 		return 0, fmt.Errorf("reserve the identifier of a user: %w", err)
 	}
 	return domain.NewUserID(value)
+}
+
+// EmailInUse tells whether a user, deactivated or not, has this e-mail, and
+// locks nothing.
+func (r *UserRepository) EmailInUse(ctx context.Context, email kernel.Email) (bool, error) {
+	inUse, err := r.queries(ctx).EmailInUse(ctx, email.String())
+	if err != nil {
+		return false, fmt.Errorf("look for the e-mail among the users: %w", err)
+	}
+	return inUse, nil
 }
 
 // Save writes the user whole, and gives them the roles they have. The error

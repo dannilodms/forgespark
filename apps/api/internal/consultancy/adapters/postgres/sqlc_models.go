@@ -8,6 +8,11 @@ import (
 	"time"
 )
 
+type Role struct {
+	ID  int64
+	Key string
+}
+
 type SetupCode struct {
 	ID        int64
 	CodeHash  []byte
