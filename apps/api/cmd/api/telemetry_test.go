@@ -52,7 +52,9 @@ func TestA5xxWritesOneJSONLineWithItsRawErrorAndTheTraceIdentifierOfItsRequest(t
 	assert.Equal(t, "GET", lines[1]["method"])
 	assert.Equal(t, "/readyz", lines[1]["route"])
 	assert.EqualValues(t, http.StatusServiceUnavailable, lines[1]["status"])
-	assert.Equal(t, "the database schema is at version 0 and this binary expects version 1", lines[1]["error"])
+	// The version the binary expects grows with each migration, so the test
+	// does not say which it is.
+	assert.Regexp(t, `^the database schema is at version 0 and this binary expects version \d+$`, lines[1]["error"])
 	assert.Equal(t, traceID, lines[1]["trace_id"])
 	assert.NotContains(t, api.logs.String(), "in-the-query")
 }
