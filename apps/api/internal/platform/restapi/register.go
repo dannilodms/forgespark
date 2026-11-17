@@ -25,7 +25,9 @@ func Register[I, O any](api *API, operation huma.Operation, failures Failures, h
 	operation.Errors = failures.statuses()
 	// Huma fills this map with the responses of the operation, so they can
 	// be described once it has.
-	operation.Responses = map[string]*huma.Response{}
+	if operation.Responses == nil {
+		operation.Responses = map[string]*huma.Response{}
+	}
 
 	huma.Register(api.API, operation, func(ctx context.Context, input *I) (*O, error) {
 		output, err := handler(ctx, input)
