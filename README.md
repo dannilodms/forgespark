@@ -246,6 +246,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [React Compiler](https://react.dev/learn/react-compiler) | Automatic memoization of components at build time |
 | [Playwright](https://playwright.dev/) and [MSW](https://mswjs.io/) | Screen tests in a real browser with a simulated API (through Vitest), and end-to-end tests |
 | [Knip](https://knip.dev/) | Finds unused files, exports and dependencies |
+| [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) | Checks the imports of the app against its dependency rule |
 | [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Lets coding agents investigate performance in a real Chrome |
 | [react-i18next](https://react.i18next.com/) | Interface translations (English, Brazilian Portuguese, Spanish) |
 | [shadcn/ui](https://ui.shadcn.com/) | Base of the design system: component code copied into `apps/web/src/ui`, on [Base UI](https://base-ui.com/) primitives |
@@ -350,13 +351,13 @@ The browser reaches everything through Caddy, at that one address: the app, and 
 
 `http://localhost/up` answers with the status of the readiness of the API and no body: 503 until the migrations are applied, and 502 while the API is not running. The API itself answers liveness at `http://127.0.0.1:8080/livez` and readiness at `http://127.0.0.1:8080/readyz`, which Caddy does not forward.
 
-A new install has no user and no consultancy. `task issue-setup-code` issues the setup code that opens the setup and prints, to the output of the command itself, the code, when it stops working, what it opens and the address of the setup. The code lasts one hour, and a new one ends the one before. Only its hash is stored, so a code that was lost cannot be read back: issue another. On a server, the same command of the API binary, `issue-setup-code`, runs inside the API container. The screen that takes the code is _TBD_.
+A new install has no user and no consultancy. `task issue-setup-code` issues the setup code that opens the setup and prints, to the output of the command itself, the code, when it stops working, what it opens and the address of the setup. The code lasts one hour, and a new one ends the one before. Only its hash is stored, so a code that was lost cannot be read back: issue another. On a server, the same command of the API binary, `issue-setup-code`, runs inside the API container. The app takes the code at the address of the setup, `/setup`: until the setup is concluded, every address of the app leads there.
 
 The commands, run from the repository root:
 
 | Command | What it does |
 | --- | --- |
-| `task install` | Installs the JavaScript dependencies. Vite+ downloads the versions of Node.js and pnpm that `apps/web/package.json` names |
+| `task install` | Installs the JavaScript dependencies, and the Chromium the screen tests run in. Vite+ downloads the versions of Node.js and pnpm that `apps/web/package.json` names |
 | `task services` | Builds the Caddy image, starts the services of development in Docker (PostgreSQL, Garage with its bucket, its key and its cross-origin rule, and Caddy) and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
 | `task services:stop` | Stops the services of development and keeps their data |
 | `task migrate` | Applies the pending migrations to the development database. A second run applies nothing |
@@ -375,10 +376,14 @@ The commands, run from the repository root:
 | `task api:spec:check` | Fails when the committed OpenAPI spec is stale |
 | `task api:spec:lint` | Lints the committed OpenAPI spec with vacuum: names in `snake_case` and resources in the plural |
 | `task api:spec:breaking` | Shows, with oasdiff, the breaking changes of the OpenAPI spec against `origin/main`. It never fails. `SPEC_BASE=<revision>` compares with another revision |
-| `task check` | Runs every check of a pull request: the exact versions, the format, lint and type checks of `apps/web`, its missing translation keys and its tests, then the lint of the API, the check of the generated code, the check, the lint and the breaking-change report of the OpenAPI spec, the build and the tests of the API |
+| `task web:generate` | Generates, with orval, the API client of the app, its Zod schemas and its simulated responses from `apps/api/openapi.yaml`, into `apps/web/src/shared/api/generated`. What it writes is committed |
+| `task web:generate:check` | Fails when the committed client that orval generated is stale |
+| `task web:imports` | Fails when an import of the app breaks its dependency rule, with dependency-cruiser |
+| `task web:knip` | Fails on a file, an export or a dependency of the app that nothing uses, with Knip |
+| `task check` | Runs every check of a pull request: the exact versions, the check of the generated client, the format, lint and type checks of `apps/web`, its dependency rule, its unused code, its missing translation keys and its tests, then the lint of the API, the check of the generated code, the check, the lint and the breaking-change report of the OpenAPI spec, the build and the tests of the API |
 | `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
 
-The commands of what is not built yet (the worker, the seed and the client generated from the OpenAPI spec) are _TBD_, each written with its code.
+The commands of what is not built yet (the worker and the seed) are _TBD_, each written with its code.
 
 sqlc runs with `go tool`, from a module file of its own, `apps/api/sqlc.mod`. The first time on a machine, Go downloads and builds sqlc, which takes several minutes: one of its dependencies has more than a hundred thousand files, and extracting them on Windows can take half an hour. The command looks idle meanwhile. Do not interrupt it, because the extraction starts over. vacuum and oasdiff run the same way, from `apps/api/vacuum.mod` and `apps/api/oasdiff.mod`, and each is built in a few minutes the first time.
 

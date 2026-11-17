@@ -17,6 +17,8 @@
     "@fontsource-variable/ibm-plex-sans": "catalog:",
     "@fontsource-variable/lilex": "catalog:",
     "@fontsource/ibm-plex-serif": "catalog:",
+    "@tanstack/react-form": "catalog:",
+    "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "class-variance-authority": "catalog:",
     "cmdk": "catalog:",
@@ -28,19 +30,29 @@
     "react-dom": "catalog:",
     "react-i18next": "catalog:",
     "shadcn": "catalog:",
-    "tw-animate-css": "catalog:"
+    "tw-animate-css": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@babel/core": "catalog:",
+    "@faker-js/faker": "catalog:",
     "@rolldown/plugin-babel": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/router-plugin": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+    "@vitest/browser-playwright": "catalog:",
     "babel-plugin-react-compiler": "catalog:",
+    "dependency-cruiser": "catalog:",
+    "knip": "catalog:",
+    "msw": "catalog:",
+    "orval": "catalog:",
+    "playwright": "catalog:",
     "tailwindcss": "catalog:",
-    "vite-plus": "catalog:"
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest-browser-react": "catalog:"
   },
   "devEngines": {
     "packageManager": {

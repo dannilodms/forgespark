@@ -26,15 +26,73 @@ A new install shows only the setup screen. The person types the setup code and g
 
 ## Acceptance criteria
 
-- [ ] With the setup not concluded, the root address and any other address show the setup screen.
-- [ ] With the setup concluded and no setup code waiting, the address of the setup shows the login screen. With a setup code waiting, it shows the step of the code.
-- [ ] A valid code moves to the next step, which says whether the code opened the first setup or the registration of a new administrator.
-- [ ] A code that is not valid shows the message on the field and keeps what was typed. The limit reached shows its own message.
-- [ ] The code is held in memory only: it is in no address and in no browser storage, and a page loaded again asks for it again.
-- [ ] An error that the screen does not expect shows a translated message with its `trace_id`.
-- [ ] The language selector changes every text without a reload. The missing-key check passes for the three languages.
-- [ ] Correct in light and dark, at desktop width and at 375px, with no overflow, and fully operable by keyboard.
-- [ ] The screen tests act as a person does and cover each route before and after the setup, a valid code, a code that is not valid and the limit reached.
-- [ ] A stale client, an unused file, export or dependency, and an import that breaks the dependency rule each fail `task check`.
+- [x] With the setup not concluded, the root address and any other address show the setup screen.
+- [x] With the setup concluded and no setup code waiting, the address of the setup shows the login screen. With a setup code waiting, it shows the step of the code.
+- [x] A valid code moves to the next step, which says whether the code opened the first setup or the registration of a new administrator.
+- [x] A code that is not valid shows the message on the field and keeps what was typed. The limit reached shows its own message.
+- [x] The code is held in memory only: it is in no address and in no browser storage, and a page loaded again asks for it again.
+- [x] An error that the screen does not expect shows a translated message with its `trace_id`.
+- [x] The language selector changes every text without a reload. The missing-key check passes for the three languages.
+- [x] Correct in light and dark, at desktop width and at 375px, with no overflow, and fully operable by keyboard.
+- [x] The screen tests act as a person does and cover each route before and after the setup, a valid code, a code that is not valid and the limit reached.
+- [x] A stale client, an unused file, export or dependency, and an import that breaks the dependency rule each fail `task check`.
 - [ ] The job of the app runs on a pull request and the `Checks` job needs it.
-- [ ] orval works on the spec Huma generates. What had to be adjusted is noted in ADR-0013.
+- [x] orval works on the spec Huma generates. What had to be adjusted is noted in ADR-0013.
+
+## Comments
+
+### What was built
+
+- **The generated client.** orval 8.48.0 (`apps/web/orval.config.ts`) reads `apps/api/openapi.yaml` and writes into `apps/web/src/shared/api/generated` the fetch client, the model types, the Zod schemas (`schemas.ts`) and an MSW handler for every status each operation declares (`client.msw.ts`), the 429 of Caddy included. The client calls `shared/api/request.ts`, which resolves with the body of a success and rejects with an `ApiError` that carries the error body. `task web:generate` writes it; `task web:generate:check` runs orval with `--outdated`, which compares and writes nothing.
+- **The checks.** `task web:imports`: dependency-cruiser 18.7.2 (`apps/web/.dependency-cruiser.mjs`), one rule for each row of the dependency rule. `task web:knip`: Knip 6.45.1 (`apps/web/knip.ts`). `task web:check`, and so `task check`, runs both, the check of the client, `vp check`, the missing keys and the screen tests.
+- **The gate.** The `beforeLoad` of the root route reads the state of the setup (`GET /api/setup`) through TanStack Query, and `leadsToTheSetup` of the data module decides: until the setup is concluded every address leads to `/setup`; afterwards `/setup` leads to `/login` unless a setup code is waiting, and every other address leads to `/login`. The redirect replaces the address.
+- **The consultancy area.** `data/setup.ts` exposes `setupStateQuery`, `leadsToTheSetup`, `useOpenSetup`, the contract of the code (`setupCodeContract`, the generated `OpenSetupBody`) and `OpenedSetupCode`. `screens/setup-screen.tsx` is the route of the setup, whose state is the union `SetupFlow` of `screens/setup-flow.ts` in one reducer: `code`, then `consultancy` (first setup) or `administrator` (new administrator), both rendering `components/next-step-placeholder.tsx`, which says which setup the code opened.
+- **The step of the code** (`components/code-step.tsx`): a TanStack Form with one field and one primary button. It checks the contract before sending; the code goes as typed, in the body, through `POST /api/setup/open`. `setup_code_invalid` shows on the field, which keeps what was typed and takes the focus; a 422 `validation_failed` shows on the fields it names; a 429 and anything else show above the form with the translated title, what to do and the `trace_id`. The button shows a spinner and cannot be pressed while the answer is awaited. The code lives in the state of the form and in the reducer, nowhere else; the field has `autoComplete="off"`.
+- **The access area.** `screens/login-screen.tsx`, provisional: it says the login is not built yet, and shows the notice that the setup is concluded at `/login?notice=setup_concluded`.
+- **shared.** `components/framed-pane.tsx` (the recipe Framed pane, new in `DESIGN.md`) and `components/language-select.tsx`; `errors/`: the translation of an error by its code and params (`texts.ts`), `checkTheContract` and `refusedFields` (`problems.ts`), the message of a field (`field-problem.tsx`), the alert (`error-alert.tsx`) and the error screen with a reload (`error-screen.tsx`), which is the `errorComponent` of the root route; `locales/i18n.ts` loads the texts of each area as a namespace of its own, found by the folder (`./<area>/locales/<language>.json`).
+- **The app put together** in `src/app.tsx`: the translation files, the i18next types of each namespace, the router with the query client in its context, the tooltip provider. `main.tsx` starts it with the languages of the browser.
+- **One list of languages** (asked by the orchestrator during the work): `shared/locales/languages.ts` takes the codes and the `Language` type from the enum of `preferred_language` that orval generates, and keeps only the name of each language in it, `satisfies Record<Language, string>`. ADR-0005, the comment of `kernel/language.go` and Dependency rule in `CODING_STANDARDS.md` say where the list lives and what adding a language takes.
+- **Texts.** Every text in English, Portuguese and Spanish, in `shared/locales`, `consultancy/locales` and `access/locales`. The provisional home page and its texts are gone.
+- **Screen tests** in Vitest's Browser Mode, in Chromium through Playwright: `src/testing` starts an MSW worker (MSW 3, its worker served by `msw/vite`), `renderApp` opens the whole app at an address in the languages of a browser, and each test hands the API the answers it needs with the handlers orval generated. 26 tests of the setup screen and of the gate, 2 of the login screen.
+- **The pipeline.** A job `App` in `ci.yml`: setup-vp v1.22.0 (Vite+ at the version of the catalog), Task, `task install`, the system libraries of Chromium, `task web:check`. `Checks` needs it.
+- **Documents.** `CODING_STANDARDS.md` (Layout, Dependency rule, Contract, Forms and validation, Tests, Enforcement), `DESIGN.md` (the recipe Framed pane), ADR-0013 (what orval needed), ADR-0014 (the tool of the import rule), ADR-0005 (the single list), both READMEs (the targets, the address of the setup, dependency-cruiser).
+
+### Decided while building
+
+- **dependency-cruiser for the import rule.** It reads the rule as regular expressions over paths, with a group for the name of an area, so a new area needs no change; it resolves the `#ui/...` imports of `package.json` by itself; it reports each import with the rule it breaks. It parses TypeScript with the `typescript` package, which supports up to 6, so TypeScript 6.0.3 is a dev dependency for it alone. The lint of Vite+ (Oxlint) has no rule on the place of a file.
+- **The table gained two rows.** A test and `src/testing` may import anything, the generated simulated responses included, and nothing else imports `src/testing`; the files directly in `src` put the app together. `routes` imports nothing of `ui`, as the table says: the tooltip provider moved from the root route to `app.tsx`.
+- **The design system is kept whole for Knip.** Every file of `src/ui` is an entry, so a component no screen uses yet is not reported. The unused functions of the generated client are ignored, and so is the `#ui/lib/*` import of `package.json`, which the shadcn CLI writes into new components.
+- **The gate is the `beforeLoad` of the root route**, which reads the state with `ensureQueryData` and redirects. A failure of that read falls to the error screen.
+- **A form names a broken field with the codes of the API.** `checkTheContract` runs the generated schema and turns its issues into `required`, `too_long` with `{max_length}` or `invalid`, so a refusal of the browser and one of the API are translated by the same texts, `errors.fields.<code>`. A failure of the whole request is `errors.answers.<code>`. A code with no text reads as unexpected, with its `trace_id`.
+- **`setup_code_invalid` shows on the field**, since it is about what was typed: "This setup code does not work: it is wrong, it expired or it was already used. Issue a new one on the server and type it here." The limit reached is the translation of `too_many_requests` above the form: "Too many attempts from this address. Wait a minute and try again."
+- **Queries are not retried.** A failure shows at once, with its identifier.
+- **The language is held by i18next**, not a store. `useLanguage` gives it and changes it; `<html lang>` follows. Nothing is stored: a page loaded again starts from the browser's languages.
+- **The notice of the login screen is a search parameter**, `notice`, whose values `loginNotices` lists. It carries no code.
+- **The trace identifier sits on a line of its own**, in mono, under its label.
+- **Two releases younger than the minimum age of pnpm** (TanStack Query 5.108.0 and dependency-cruiser 18.8.0, out that day and the day before) were left for 5.107.1 and 18.7.2; pnpm had written exclusions for them, which I removed.
+- **esbuild, which orval brings, runs no install script** (`allowBuilds` in `pnpm-workspace.yaml`): its platform package carries the binary, and `vp install` failed on the ignored script otherwise.
+
+### What was checked
+
+- **The screen tests**, 35 in all with the 7 of the missing keys, pass in Chromium: the gate at `/`, `/setup`, `/login` and `/projects/42` before the setup is concluded (the setup) and after it (the login screen, and `/setup` the step of the code while a code is waiting); a valid code sent as typed in the body, moving to the first setup or to the registration of a new administrator; a code that does not work, on its field, as typed, with the focus; the limit reached; a 500 with its `trace_id`; an empty field sending nothing; the code in no address, in no storage and in no cookie, and asked again by a page opened again; the error screen with its `trace_id` and a reload when the state cannot be read; the language of the browser, its regional variant, English for an unsupported one, and the selector changing every text at once while the field keeps what was typed; the code typed and sent, and another language chosen, with the keys alone; the login screen with and without its notice.
+- **That the gate tests bite**: with `leadsToTheSetup` changed to ignore whether a code is waiting, the test of `/setup` after the setup failed.
+- **The real API, through the shared Caddy, in a real Chromium** (Playwright 1.65.1, locale pt-BR), on a database of my own (`fs08_manual`, migrated, then dropped), the API on port 8080 and Vite on 5173: `/projetos/42` led to `/setup` in Portuguese; a wrong code showed its message on the field; the code issued by `issue-setup-code`, typed in lower case with spaces and `o` and `l` for `0` and `1`, opened the first setup; the address stayed `/setup` and the storage and the cookies were empty; a reload asked for the code again; the eleventh `POST` of the minute got the 429 of Caddy, shown translated with its `trace_id`. Every request carried the code in the body only, and the logs of the API had no line with it.
+- **The look**, by screenshots of Vitest's Browser Mode, looked at: the step of the code in Portuguese, the code refused, the limit in Spanish, the placeholder of the next step, the login screen with its notice in Portuguese and the error screen, each in light and in dark, at 1280px and at 375px, with no horizontal overflow measured on any; the language menu open. The real Chromium above was looked at too.
+- **The single list of languages**: `fr` added in Go, `task api:spec` and `task web:generate` made `vp check` fail (`Property 'fr' is missing`); with its name added, the missing-key check failed (`fr has no file in src\shared\locales`, and the same for the two areas); with the tag removed and its name kept, the type check failed (`'fr' does not exist`). All of it was removed and regenerated.
+- **Each check fails `task check`**: the spec regenerated with a fourth language, before the client, failed `task web:generate:check` (`outdated: src\shared\api\generated\schemas.ts`), and so did one generated file edited by hand; an unused file, an unused export and an unused dev dependency each failed Knip; a component of `ui` importing `shared`, `shared` importing an area, an area importing another area's file, a route, the test support and the generated client each failed dependency-cruiser, one finding a rule.
+- **The build** (`vp build`) emits no worker of MSW and no simulated response.
+- **The workflow file**: actionlint 1.7.12 and zizmor 1.32.0 (offline), from their images, report nothing. `task versions:check` passes on it.
+- **`task check`** passes on the branch (about 7 minutes). `feat/foundation-and-setup` had nothing new to merge.
+
+### What was not checked
+
+- **The pipeline.** Nothing was pushed, so the job `App` never ran: neither setup-vp nor `playwright install-deps` on the runner, nor the screen tests on Linux. That is why the criterion of the job is left open.
+- **A screen reader.** The names, the descriptions of the fields and the focus were read by the tests; nothing was heard.
+- **Browsers other than Chromium.**
+- **The translations** were written by the agent and read once.
+
+### Found, and left for a decision
+
+- **The bundle is one chunk of 718 kB (228 kB gzipped)**: React, the router, TanStack Query and Form, Zod, i18next and Base UI. The limit on the size waits for the deploy.
+- **After concluding, the cache of the gate has to be updated** (ticket 09), or `/login` leads back to the setup: the state is read once and kept.
+- **A 502 of Caddy has no body**, so the screen shows "Something went wrong" with no identifier when the API is down.

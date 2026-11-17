@@ -1,0 +1,45 @@
+import type { Problem } from "./generated/model"
+
+/**
+ * A failure the API answered in its error format (ADR-0009): its `code` is
+ * what the app translates, and its `trace_id` finds it in the logs.
+ */
+export class ApiError extends Error {
+  readonly problem: Problem
+
+  constructor(problem: Problem) {
+    super(problem.detail ?? problem.title)
+    this.name = "ApiError"
+    this.problem = problem
+  }
+}
+
+/** Whether a body is in the error format of the API. */
+function isProblem(body: unknown): body is Problem {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "code" in body &&
+    typeof body.code === "string" &&
+    "trace_id" in body
+  )
+}
+
+/**
+ * The fetch of the generated client. It resolves with the body of a success,
+ * and rejects with an `ApiError` when the API answers in its error format.
+ * Anything else, such as a network that fails, rejects as fetch does.
+ */
+export async function request<T>(url: string, init: RequestInit): Promise<T> {
+  const response = await fetch(url, init)
+  // `application/json` and `application/problem+json`. A 204 has no body.
+  const isJSON = response.headers.get("Content-Type")?.includes("json")
+  const body: unknown = isJSON ? await response.json() : undefined
+  if (!response.ok) {
+    if (isProblem(body)) {
+      throw new ApiError(body)
+    }
+    throw new Error(`The API answered ${response.status} out of its format`)
+  }
+  return body as T
+}

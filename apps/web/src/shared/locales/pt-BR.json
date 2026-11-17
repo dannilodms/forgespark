@@ -1,6 +1,63 @@
 {
-  "home": {
-    "title": "My Software Factory Manager",
-    "intro": "O aplicativo começa aqui. As primeiras telas ainda serão construídas."
+  "productName": "My Software Factory Manager",
+  "language": "Idioma",
+  "errors": {
+    "traceId": "Identificador para repassar",
+    "unreachable": {
+      "title": "O servidor não respondeu",
+      "todo": "Confira a conexão e tente de novo."
+    },
+    "unexpected": {
+      "title": "Algo deu errado",
+      "todo": "Tente de novo. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
+    },
+    "answers": {
+      "bad_request": {
+        "title": "O servidor não entendeu o pedido",
+        "todo": "Carregue a página de novo e repita o que você fez."
+      },
+      "not_found": {
+        "title": "O servidor não encontrou o que foi pedido",
+        "todo": "Carregue a página de novo e repita o que você fez."
+      },
+      "method_not_allowed": {
+        "title": "O servidor não faz o que foi pedido",
+        "todo": "Carregue a página de novo e repita o que você fez."
+      },
+      "request_timeout": {
+        "title": "O pedido demorou demais para chegar",
+        "todo": "Confira a conexão e tente de novo."
+      },
+      "request_entity_too_large": {
+        "title": "O que foi enviado é grande demais",
+        "todo": "Envie menos de cada vez."
+      },
+      "unsupported_media_type": {
+        "title": "O servidor não aceita o que foi enviado",
+        "todo": "Carregue a página de novo e repita o que você fez."
+      },
+      "validation_failed": {
+        "title": "Alguns campos precisam de correção",
+        "todo": "Corrija os campos que mostram um erro e tente de novo."
+      },
+      "too_many_requests": {
+        "title": "Tentativas demais deste endereço",
+        "todo": "Espere um minuto e tente de novo."
+      },
+      "internal_server_error": {
+        "title": "O servidor falhou",
+        "todo": "Tente de novo em instantes. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
+      }
+    },
+    "fields": {
+      "required": "Preencha este campo.",
+      "invalid": "Este valor não é aceito. Confira o que foi digitado.",
+      "too_long": "Digite no máximo {{max_length}} caracteres.",
+      "setup_code_invalid": "Este código de configuração não funciona: está errado, expirou ou já foi usado. Emita um novo no servidor e digite-o aqui."
+    }
+  },
+  "errorScreen": {
+    "heading": "Esta tela não pôde abrir",
+    "reload": "Carregar a página de novo"
   }
 }

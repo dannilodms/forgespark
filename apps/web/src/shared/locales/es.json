@@ -1,6 +1,63 @@
 {
-  "home": {
-    "title": "My Software Factory Manager",
-    "intro": "La aplicación empieza aquí. Sus primeras pantallas aún están por construirse."
+  "productName": "My Software Factory Manager",
+  "language": "Idioma",
+  "errors": {
+    "traceId": "Identificador para transmitir",
+    "unreachable": {
+      "title": "El servidor no respondió",
+      "todo": "Revisa la conexión y vuelve a intentarlo."
+    },
+    "unexpected": {
+      "title": "Algo salió mal",
+      "todo": "Vuelve a intentarlo. Si vuelve a ocurrir, transmite el identificador a quien mantiene el sistema."
+    },
+    "answers": {
+      "bad_request": {
+        "title": "El servidor no entendió la solicitud",
+        "todo": "Vuelve a cargar la página y repite lo que hiciste."
+      },
+      "not_found": {
+        "title": "El servidor no encontró lo que se pidió",
+        "todo": "Vuelve a cargar la página y repite lo que hiciste."
+      },
+      "method_not_allowed": {
+        "title": "El servidor no hace lo que se pidió",
+        "todo": "Vuelve a cargar la página y repite lo que hiciste."
+      },
+      "request_timeout": {
+        "title": "La solicitud tardó demasiado en llegar",
+        "todo": "Revisa la conexión y vuelve a intentarlo."
+      },
+      "request_entity_too_large": {
+        "title": "Lo que se envió es demasiado grande",
+        "todo": "Envía menos cada vez."
+      },
+      "unsupported_media_type": {
+        "title": "El servidor no acepta lo que se envió",
+        "todo": "Vuelve a cargar la página y repite lo que hiciste."
+      },
+      "validation_failed": {
+        "title": "Algunos campos necesitan una corrección",
+        "todo": "Corrige los campos que muestran un error y vuelve a intentarlo."
+      },
+      "too_many_requests": {
+        "title": "Demasiados intentos desde esta dirección",
+        "todo": "Espera un minuto y vuelve a intentarlo."
+      },
+      "internal_server_error": {
+        "title": "El servidor falló",
+        "todo": "Vuelve a intentarlo en un momento. Si vuelve a ocurrir, transmite el identificador a quien mantiene el sistema."
+      }
+    },
+    "fields": {
+      "required": "Completa este campo.",
+      "invalid": "Este valor no se acepta. Revisa lo que escribiste.",
+      "too_long": "Escribe como máximo {{max_length}} caracteres.",
+      "setup_code_invalid": "Este código de configuración no funciona: es incorrecto, expiró o ya se usó. Emite uno nuevo en el servidor y escríbelo aquí."
+    }
+  },
+  "errorScreen": {
+    "heading": "Esta pantalla no pudo abrirse",
+    "reload": "Volver a cargar la página"
   }
 }

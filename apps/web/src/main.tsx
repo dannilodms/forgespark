@@ -1,22 +1,13 @@
-import { RouterProvider, createRouter } from "@tanstack/react-router"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 
-import { routeTree } from "./routeTree.gen"
-import { startLanguage } from "./shared/locales/i18n"
+import { createApp } from "./app"
 import { startTheme } from "./shared/theme"
 import "./ui/styles/globals.css"
 
 startTheme()
-startLanguage()
 
-const router = createRouter({ routeTree })
-
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router
-  }
-}
+const App = createApp({ languages: navigator.languages })
 
 const root = document.getElementById("root")
 if (!root) {
@@ -25,6 +16,6 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <App />
   </StrictMode>
 )

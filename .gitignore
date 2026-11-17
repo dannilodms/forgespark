@@ -8,6 +8,8 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+# Screenshots of the screen tests that failed
+.vitest/
 
 # Go build and test output
 *.exe
