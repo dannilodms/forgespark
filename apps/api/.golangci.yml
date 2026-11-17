@@ -1,0 +1,57 @@
+# The linter and the formatter of the Go code. `task api:lint` runs them, and
+# `task api:format` rewrites the files. Rules: Enforcement in the backend
+# rules of CODING_STANDARDS.md.
+#
+# golangci-lint runs with `go tool` from its own module file,
+# golangci-lint.mod, so that its dependencies never meet the ones of the API.
+#
+# The dependency rule, `else` and the level of nesting are not here: the
+# guard in tools/guard checks them, in the same Task target.
+
+version: "2"
+
+run:
+  # Several checkouts of the repository are linted at the same time.
+  allow-parallel-runners: true
+
+linters:
+  # errcheck, govet, ineffassign, staticcheck and unused.
+  default: standard
+  enable:
+    - nolintlint
+  settings:
+    errcheck:
+      exclude-functions:
+        # `defer transaction.Rollback(ctx)` is how pgx ends a transaction
+        # that did not commit, and after a commit it does nothing.
+        - (github.com/jackc/pgx/v5.Tx).Rollback
+    nolintlint:
+      # Silencing a rule names the rule and says why.
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    # A file is generated when it carries the comment Go defines for it,
+    # `// Code generated ... DO NOT EDIT.`, before the package clause. sqlc
+    # writes it. Its style is not judged; its imports are (tools/guard).
+    generated: strict
+    presets:
+      # The error of a `Close`, and of a print to an output, is not checked.
+      - std-error-handling
+
+# The mapping check is turned on with the first mapping between an API type,
+# a domain type and a database row: add `exhaustruct_v5` to `linters.enable`
+# and this to `linters.settings`. A struct literal of a type of an adapter
+# package then fails when it leaves a field out. The zero value returned
+# beside an error is allowed.
+#
+#   exhaustruct_v5:
+#     explicit-mode: true
+#     enforce-patterns:
+#       - .+/internal/.+/adapters/.+
+#     allow-empty-returns: true
+
+formatters:
+  enable:
+    - gofumpt
+  exclusions:
+    generated: strict
