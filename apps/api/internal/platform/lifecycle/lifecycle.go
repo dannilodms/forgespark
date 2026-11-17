@@ -77,19 +77,23 @@ func Serve(shutdown context.Context, listener net.Listener, handler http.Handler
 		BaseContext:       func(net.Listener) context.Context { return requests },
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
-	failed := make(chan error, 1)
-	go func() { failed <- server.Serve(listener) }()
+	var failure error
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		failure = server.Serve(listener)
+	}()
 
 	select {
-	case err := <-failed:
-		return fmt.Errorf("take connections: %w", err)
+	case <-stopped:
+		return fmt.Errorf("take connections: %w", failure)
 	case <-shutdown.Done():
 	}
 
 	// Closing the listener refuses new connections and leaves the open ones
 	// alone, which http.Server.Shutdown would close as soon as they idle.
 	_ = listener.Close()
-	<-failed
+	<-stopped
 	deadline, release := context.WithTimeout(context.Background(), drainDeadline)
 	defer release()
 	if flying.landed(deadline) && server.Shutdown(deadline) == nil {

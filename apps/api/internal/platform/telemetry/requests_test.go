@@ -53,7 +53,7 @@ func (s served) answer(request *http.Request) *httptest.ResponseRecorder {
 func attributesOf(span sdktrace.ReadOnlySpan) map[string]string {
 	attributes := map[string]string{}
 	for _, attribute := range span.Attributes() {
-		attributes[string(attribute.Key)] = attribute.Value.Emit()
+		attributes[string(attribute.Key)] = attribute.Value.String()
 	}
 	return attributes
 }
