@@ -1,6 +1,10 @@
 {
   "productName": "My Software Factory Manager",
   "language": "Language",
+  "form": {
+    "optional": "{{label}} (optional)",
+    "nothingMatches": "Nothing matches what was typed."
+  },
   "errors": {
     "traceId": "Identifier to pass on",
     "unreachable": {
@@ -44,6 +48,10 @@
         "title": "Too many attempts from this address",
         "todo": "Wait a minute and try again."
       },
+      "setup_already_concluded": {
+        "title": "The setup is already concluded",
+        "todo": "Nothing of what was typed here was saved. Load the page again to reach the login screen."
+      },
       "internal_server_error": {
         "title": "The server failed",
         "todo": "Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
@@ -53,6 +61,13 @@
       "required": "Fill in this field.",
       "invalid": "This value is not accepted. Check what was typed.",
       "too_long": "Type at most {{max_length}} characters.",
+      "country_unknown": "Choose a country from the list.",
+      "currency_unknown": "Choose a currency from the list.",
+      "time_zone_unknown": "Choose a time zone from the list.",
+      "language_unsupported": "Choose one of the languages of the system.",
+      "email_invalid": "Type an e-mail address, such as name@example.com.",
+      "telephone_invalid": "Type the telephone in international form: a plus sign and its digits, such as +55 11 3333 4444.",
+      "website_invalid": "Type an address that starts with http:// or https://.",
       "setup_code_invalid": "This setup code does not work: it is wrong, it expired or it was already used. Issue a new one on the server and type it here."
     }
   },

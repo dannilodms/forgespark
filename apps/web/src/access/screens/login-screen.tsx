@@ -1,12 +1,18 @@
-import { CircleCheckIcon } from "lucide-react"
+import { CircleCheckIcon, TriangleAlertIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "#ui/components/alert"
 
 import { FramedPane } from "../../shared/components/framed-pane"
 
-/** What the login screen may be told by the screen the person comes from. */
-export const loginNotices = ["setup_concluded"] as const
+/**
+ * What the login screen may be told by the screen the person comes from:
+ * the setup was concluded, by them or by someone before them.
+ */
+export const loginNotices = [
+  "setup_concluded",
+  "setup_already_concluded",
+] as const
 
 type LoginNotice = (typeof loginNotices)[number]
 
@@ -26,6 +32,15 @@ export function LoginScreen({ notice }: { notice?: LoginNotice }) {
           <CircleCheckIcon className="text-status-done" />
           <AlertTitle>{t("login.setupConcluded.title")}</AlertTitle>
           <AlertDescription>{t("login.setupConcluded.todo")}</AlertDescription>
+        </Alert>
+      ) : null}
+      {notice === "setup_already_concluded" ? (
+        <Alert>
+          <TriangleAlertIcon className="text-status-attention" />
+          <AlertTitle>{t("login.setupAlreadyConcluded.title")}</AlertTitle>
+          <AlertDescription>
+            {t("login.setupAlreadyConcluded.todo")}
+          </AlertDescription>
         </Alert>
       ) : null}
       <p className="text-muted-foreground">{t("login.notBuilt")}</p>

@@ -1,6 +1,10 @@
 {
   "productName": "My Software Factory Manager",
   "language": "Idioma",
+  "form": {
+    "optional": "{{label}} (opcional)",
+    "nothingMatches": "Nada coincide con lo escrito."
+  },
   "errors": {
     "traceId": "Identificador para transmitir",
     "unreachable": {
@@ -44,6 +48,10 @@
         "title": "Demasiados intentos desde esta dirección",
         "todo": "Espera un minuto y vuelve a intentarlo."
       },
+      "setup_already_concluded": {
+        "title": "La configuración inicial ya está concluida",
+        "todo": "Nada de lo que se escribió aquí se guardó. Vuelve a cargar la página para llegar a la pantalla de inicio de sesión."
+      },
       "internal_server_error": {
         "title": "El servidor falló",
         "todo": "Vuelve a intentarlo en un momento. Si vuelve a ocurrir, transmite el identificador a quien mantiene el sistema."
@@ -53,6 +61,13 @@
       "required": "Completa este campo.",
       "invalid": "Este valor no se acepta. Revisa lo que escribiste.",
       "too_long": "Escribe como máximo {{max_length}} caracteres.",
+      "country_unknown": "Elige un país de la lista.",
+      "currency_unknown": "Elige una moneda de la lista.",
+      "time_zone_unknown": "Elige una zona horaria de la lista.",
+      "language_unsupported": "Elige uno de los idiomas del sistema.",
+      "email_invalid": "Escribe una dirección de correo electrónico, como nombre@example.com.",
+      "telephone_invalid": "Escribe el teléfono en formato internacional: un signo más y sus dígitos, como +55 11 3333 4444.",
+      "website_invalid": "Escribe una dirección que empiece con http:// o https://.",
       "setup_code_invalid": "Este código de configuración no funciona: es incorrecto, expiró o ya se usó. Emite uno nuevo en el servidor y escríbelo aquí."
     }
   },

@@ -5,6 +5,10 @@
     "setupConcluded": {
       "title": "The setup is concluded",
       "todo": "The consultancy and its first administrator are registered. The administrator logs in here once the login exists."
+    },
+    "setupAlreadyConcluded": {
+      "title": "The setup was already concluded",
+      "todo": "Someone concluded it before you did, so nothing of what you typed was saved. The administrator registered then logs in here once the login exists."
     }
   }
 }

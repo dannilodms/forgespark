@@ -51,15 +51,37 @@ function problemOf(issue: z.core.$ZodIssue): FieldProblem {
   return { code: "invalid", params: {} }
 }
 
+/** A validator of TanStack Form, of a form or of a group of its fields. */
+type ContractValidator<T> = ({
+  value,
+}: {
+  value: T
+}) => { fields: FieldProblems } | undefined
+
 /**
  * A validator of TanStack Form that checks what the contract declares, with
  * the schema orval generated, and names the problem of each field with the
  * codes the API itself answers with. A form checks nothing else (Forms and
  * validation in CODING_STANDARDS.md).
+ *
+ * A form whose values are not the body as it is sent, such as one that holds
+ * an empty text for an optional field the body leaves out, gives `toBody`,
+ * which turns its values into the body. The name of a field is then its
+ * place in the body, which the form names its field with too.
  */
-export function checkTheContract<T>(contract: z.ZodType<T>) {
-  return ({ value }: { value: T }) => {
-    const result = contract.safeParse(value)
+export function checkTheContract<T>(
+  contract: z.ZodType<unknown, T>
+): ContractValidator<T>
+export function checkTheContract<Typed, T>(
+  contract: z.ZodType<unknown, T>,
+  toBody: (typed: Typed) => T
+): ContractValidator<Typed>
+export function checkTheContract(
+  contract: z.ZodType,
+  toBody: (typed: unknown) => unknown = (typed) => typed
+): ContractValidator<unknown> {
+  return ({ value }) => {
+    const result = contract.safeParse(toBody(value))
     if (result.success) {
       return undefined
     }

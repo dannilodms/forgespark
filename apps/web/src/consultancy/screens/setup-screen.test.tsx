@@ -82,7 +82,7 @@ describe("the gate of the setup", () => {
 })
 
 describe("the step of the setup code", () => {
-  it("sends the code as typed, in the body, and moves on to the first setup", async () => {
+  it("sends the code as typed, in the body, and moves on to the step of the consultancy", async () => {
     setupState(false, true)
     let sent: unknown
     api.use(
@@ -99,7 +99,7 @@ describe("the step of the setup code", () => {
     await screen.getByRole("button", { name: "Continue" }).click()
 
     await expect
-      .element(screen.getByText(/The setup code opened the first setup/))
+      .element(screen.getByRole("heading", { name: "The consultancy" }))
       .toBeVisible()
     expect(sent).toEqual({ code: "abcde fghjk-mnpqr-stvwx" })
   })
@@ -212,7 +212,7 @@ describe("the step of the setup code", () => {
     await first.screen.getByRole("textbox", { name: "Setup code" }).fill(code)
     await first.screen.getByRole("button", { name: "Continue" }).click()
     await expect
-      .element(first.screen.getByText(/The setup code opened the first setup/))
+      .element(first.screen.getByRole("heading", { name: "The consultancy" }))
       .toBeVisible()
 
     expect(first.address()).toBe("/setup")
@@ -325,7 +325,7 @@ describe("the setup screen by keyboard", () => {
     await userEvent.keyboard("ABCDE-FGHJK-MNPQR-STVWX{Enter}")
 
     await expect
-      .element(screen.getByText(/The setup code opened the first setup/))
+      .element(screen.getByRole("heading", { name: "The consultancy" }))
       .toBeVisible()
   })
 

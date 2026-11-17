@@ -60,7 +60,11 @@ export default defineConfig({
     browser: {
       enabled: true,
       headless: true,
-      provider: playwright(),
+      // The browser is in the time zone of São Paulo, which the setup
+      // screen starts its time zone at.
+      provider: playwright({
+        contextOptions: { timezoneId: "America/Sao_Paulo" },
+      }),
       instances: [{ browser: "chromium" }],
     },
     // Starts the simulated API for each test file (src/testing).

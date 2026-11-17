@@ -1,8 +1,9 @@
 import { useForm } from "@tanstack/react-form"
-import { LoaderCircleIcon } from "lucide-react"
+import { LoaderCircleIcon, TriangleAlertIcon } from "lucide-react"
 import { useRef } from "react"
 import { Trans, useTranslation } from "react-i18next"
 
+import { Alert, AlertDescription, AlertTitle } from "#ui/components/alert"
 import { Button } from "#ui/components/button"
 import { Field, FieldGroup, FieldLabel } from "#ui/components/field"
 import { Input } from "#ui/components/input"
@@ -29,10 +30,16 @@ const codeInvalid: FieldProblem = { code: "setup_code_invalid", params: {} }
  * does not work shows on the field and stays as typed. Any other failure
  * shows above the form, with its trace identifier. The code lives in the
  * state of this form, and nowhere else.
+ *
+ * A setup code that stopped working while the person filled in the setup
+ * brings them back here, which says so: what they typed is kept, and a new
+ * code returns them to the step they were on.
  */
 export function CodeStep({
+  stoppedWorking = false,
   onOpened,
 }: {
+  stoppedWorking?: boolean
   onOpened: (opened: OpenedSetupCode) => void
 }) {
   const { t } = useTranslation("consultancy")
@@ -76,6 +83,14 @@ export function CodeStep({
       <form.Subscribe selector={(state) => state.errorMap.onSubmit}>
         {(failure) => (failure ? <ErrorAlert error={failure} /> : null)}
       </form.Subscribe>
+
+      {stoppedWorking ? (
+        <Alert>
+          <TriangleAlertIcon className="text-status-attention" />
+          <AlertTitle>{t("setup.code.stopped.title")}</AlertTitle>
+          <AlertDescription>{t("setup.code.stopped.todo")}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <p>
         <Trans

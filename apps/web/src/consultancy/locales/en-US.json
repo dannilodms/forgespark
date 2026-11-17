@@ -1,15 +1,68 @@
 {
   "setup": {
     "heading": "Setup",
+    "continue": "Continue",
+    "back": "Back",
+    "telephone": "Telephone",
+    "telephoneDescription": "In international form: a plus sign, the code of the country and the number, such as +55 11 3333 4444.",
     "code": {
       "intro": "Type the setup code that the command <command>issue-setup-code</command> printed on the server.",
       "label": "Setup code",
-      "submit": "Continue"
+      "submit": "Continue",
+      "stopped": {
+        "title": "The setup code stopped working",
+        "todo": "Issue a new one on the server and type it here. What was typed in the setup is kept, and the new code returns to the step you were on."
+      }
     },
     "opened": {
-      "firstSetup": "The setup code opened the first setup: the consultancy and its first administrator are registered next.",
       "newAdministrator": "The setup code opened the registration of a new administrator. The users that exist are not changed.",
       "toCome": "The next step of the setup is still to be built."
+    },
+    "consultancy": {
+      "title": "The consultancy",
+      "intro": "How the consultancy is known, where it is and how it is reached. The fields marked optional may be left empty.",
+      "name": "Name",
+      "nameDescription": "The name the consultancy is known by.",
+      "legalName": "Legal name",
+      "legalNameDescription": "The name documents carry.",
+      "country": "Country",
+      "taxId": "Tax ID",
+      "taxIdDescription": "As the tax authority of the country writes it.",
+      "timeZone": "Time zone",
+      "currency": "Currency",
+      "currencyDescription": "The country suggests it.",
+      "email": "E-mail",
+      "website": "Website",
+      "websiteDescription": "An address that starts with http:// or https://.",
+      "address": {
+        "legend": "Address",
+        "line1": "Line 1",
+        "line2": "Line 2",
+        "city": "City",
+        "region": "Region",
+        "postalCode": "Postal code"
+      }
+    },
+    "administrator": {
+      "title": "The first administrator",
+      "intro": "The person who logs in first, with the administrator role, and registers the others.",
+      "name": "Name",
+      "email": "E-mail",
+      "emailDescription": "The administrator logs in with this e-mail.",
+      "country": "Country",
+      "countryDescription": "The country that gave the national ID.",
+      "nationalId": "National ID",
+      "nationalIdDescription": "As the country writes it."
+    },
+    "review": {
+      "title": "Review",
+      "intro": "Check what was typed. Nothing is saved until the setup is concluded.",
+      "change": "Change",
+      "changeConsultancy": "Change the consultancy",
+      "changeAdministrator": "Change the first administrator",
+      "notGiven": "Not given",
+      "logsInWith": "The first administrator logs in with this e-mail. Check that it is right:",
+      "conclude": "Conclude the setup"
     }
   }
 }

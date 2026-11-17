@@ -5,6 +5,10 @@
     "setupConcluded": {
       "title": "La configuración inicial está concluida",
       "todo": "La consultora y su primer administrador están registrados. El administrador inicia sesión aquí cuando exista el inicio de sesión."
+    },
+    "setupAlreadyConcluded": {
+      "title": "La configuración inicial ya estaba concluida",
+      "todo": "Alguien la concluyó antes que tú, así que no se guardó nada de lo que escribiste. El administrador registrado entonces inicia sesión aquí cuando exista el inicio de sesión."
     }
   }
 }

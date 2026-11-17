@@ -1,15 +1,68 @@
 {
   "setup": {
     "heading": "Configuración inicial",
+    "continue": "Continuar",
+    "back": "Volver",
+    "telephone": "Teléfono",
+    "telephoneDescription": "En formato internacional: un signo más, el código del país y el número, como +55 11 3333 4444.",
     "code": {
       "intro": "Escribe el código de configuración que el comando <command>issue-setup-code</command> mostró en el servidor.",
       "label": "Código de configuración",
-      "submit": "Continuar"
+      "submit": "Continuar",
+      "stopped": {
+        "title": "El código de configuración dejó de funcionar",
+        "todo": "Emite uno nuevo en el servidor y escríbelo aquí. Lo que se escribió en la configuración se conserva, y el nuevo código vuelve al paso en el que estabas."
+      }
     },
     "opened": {
-      "firstSetup": "El código de configuración abrió la primera configuración: a continuación se registran la consultora y su primer administrador.",
       "newAdministrator": "El código de configuración abrió el registro de un nuevo administrador. Los usuarios que existen no cambian.",
       "toCome": "El siguiente paso de la configuración inicial aún está por construirse."
+    },
+    "consultancy": {
+      "title": "La consultora",
+      "intro": "Cómo se conoce a la consultora, dónde está y cómo contactarla. Los campos marcados como opcionales pueden quedar vacíos.",
+      "name": "Nombre",
+      "nameDescription": "El nombre por el que se conoce a la consultora.",
+      "legalName": "Razón social",
+      "legalNameDescription": "El nombre que llevan los documentos.",
+      "country": "País",
+      "taxId": "Identificación fiscal",
+      "taxIdDescription": "Como la escribe la autoridad tributaria del país.",
+      "timeZone": "Zona horaria",
+      "currency": "Moneda",
+      "currencyDescription": "El país la sugiere.",
+      "email": "Correo electrónico",
+      "website": "Sitio web",
+      "websiteDescription": "Una dirección que empieza con http:// o https://.",
+      "address": {
+        "legend": "Dirección",
+        "line1": "Línea 1",
+        "line2": "Línea 2",
+        "city": "Ciudad",
+        "region": "Estado o región",
+        "postalCode": "Código postal"
+      }
+    },
+    "administrator": {
+      "title": "El primer administrador",
+      "intro": "La persona que inicia sesión primero, con el rol de administrador, y registra a las demás.",
+      "name": "Nombre",
+      "email": "Correo electrónico",
+      "emailDescription": "El administrador inicia sesión con este correo electrónico.",
+      "country": "País",
+      "countryDescription": "El país que emitió el documento de identidad.",
+      "nationalId": "Documento de identidad",
+      "nationalIdDescription": "Como lo escribe el país."
+    },
+    "review": {
+      "title": "Revisión",
+      "intro": "Revisa lo que se escribió. Nada se guarda hasta que se concluya la configuración inicial.",
+      "change": "Cambiar",
+      "changeConsultancy": "Cambiar la consultora",
+      "changeAdministrator": "Cambiar el primer administrador",
+      "notGiven": "No indicado",
+      "logsInWith": "El primer administrador inicia sesión con este correo electrónico. Comprueba que sea correcto:",
+      "conclude": "Concluir la configuración"
     }
   }
 }
