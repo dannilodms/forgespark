@@ -1,5 +1,10 @@
 version: "3"
 
+# Task loads the variables for every target and for Compose. A value in
+# `.env` wins over the one in `.env.example`, so development runs with no
+# `.env` at all, and a variable of the shell wins over both.
+dotenv: [".env", ".env.example"]
+
 tasks:
   install:
     desc: Install the JavaScript dependencies of the app
@@ -7,13 +12,48 @@ tasks:
     cmds:
       - vp install
 
+  services:
+    desc: Start the services of development and wait until they are healthy
+    cmds:
+      - docker compose up --detach --wait
+
+  services:stop:
+    desc: Stop the services of development and keep their data
+    cmds:
+      - docker compose stop
+
+  migrate:
+    desc: Apply the pending migrations to the development database
+    dir: apps/api
+    cmds:
+      - go run ./cmd/api migrate
+
+  api:
+    desc: Start the API
+    dir: apps/api
+    cmds:
+      - go run ./cmd/api
+
   dev:
     desc: Start the app
     dir: apps/web
     cmds:
       - vp dev
 
-  check:
+  api:build:
+    desc: Build the API binary into apps/api/bin
+    dir: apps/api
+    cmds:
+      - go build -o bin/ ./cmd/api
+
+  api:test:
+    desc: Run the Go tests, against the PostgreSQL of development. Arguments after -- replace the package list
+    dir: apps/api
+    deps: [services]
+    cmds:
+      - go test {{.CLI_ARGS | default "./..."}}
+
+  web:check:
     desc: Format, lint and type checks, the missing translation keys and the tests of the app
     dir: apps/web
     cmds:
@@ -21,8 +61,15 @@ tasks:
       - vp node scripts/missing-keys.mjs
       - vp test run
 
+  check:
+    desc: Every check a pull request runs, on the app and on the API
+    cmds:
+      - task: web:check
+      - task: api:build
+      - task: api:test
+
   check:fix:
-    desc: Format, lint and type checks, fixing what can be fixed
+    desc: Format, lint and type checks of the app, fixing what can be fixed
     dir: apps/web
     cmds:
       - vp check --fix
