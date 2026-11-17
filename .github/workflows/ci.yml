@@ -121,6 +121,9 @@ jobs:
       - name: Start the services of development
         run: task services
 
+      - name: Check that the code sqlc generated is up to date
+        run: task api:generate:check
+
       - name: Build the API binary
         run: task api:build
 

@@ -28,6 +28,12 @@ tasks:
     cmds:
       - go run ./cmd/api migrate
 
+  issue-setup-code:
+    desc: Issue the setup code that opens the setup, in the development database, and print it
+    dir: apps/api
+    cmds:
+      - go run ./cmd/api issue-setup-code
+
   api:
     desc: Start the API
     dir: apps/api
@@ -45,6 +51,19 @@ tasks:
     dir: apps/api
     cmds:
       - go build -o bin/ ./cmd/api
+
+  api:generate:
+    desc: Generate the Go code of the postgres adapters from their SQL files, with sqlc
+    dir: apps/api
+    cmds:
+      # sqlc has its own module file, so its dependencies stay out of go.mod.
+      - go tool -modfile=sqlc.mod sqlc generate
+
+  api:generate:check:
+    desc: Fail when the committed code that sqlc generated is stale
+    dir: apps/api
+    cmds:
+      - go tool -modfile=sqlc.mod sqlc diff
 
   api:test:
     desc: Run the Go tests, against the PostgreSQL of development. Arguments after -- replace the package list
@@ -66,6 +85,7 @@ tasks:
     desc: Every check a pull request runs, on the app and on the API
     cmds:
       - task: web:check
+      - task: api:generate:check
       - task: api:build
       - task: api:test
 
