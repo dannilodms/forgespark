@@ -4,6 +4,7 @@ go 1.27.4
 
 require (
 	github.com/caarlos0/env/v11 v11.4.2
+	github.com/danielgtaylor/huma/v2 v2.40.0
 	github.com/exaring/otelpgx v0.13.0
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/peterldowns/pgtestdb v0.1.1
