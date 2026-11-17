@@ -81,7 +81,9 @@ export function CodeStep({
         <Trans
           t={t}
           i18nKey="setup.code.intro"
-          components={{ command: <code className="type-code" /> }}
+          components={{
+            command: <code className="type-code whitespace-nowrap" />,
+          }}
         />
       </p>
 
