@@ -22,6 +22,7 @@ import {
   fieldsWithProblems,
   suggestTheCurrency,
 } from "./setup-form"
+import { StepHeading } from "./step-heading"
 
 const checkTheConsultancy = checkTheContract(
   consultancyContract.schema,
@@ -43,10 +44,13 @@ export function ConsultancyStep({
   const { t } = useTranslation("consultancy")
   const { language } = useLanguage()
   const element = useRef<HTMLFormElement>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
 
-  // A step opened on a field the API refused puts the focus on it.
+  // The focus goes to a field the API refused, or else to the step.
   useEffect(() => {
-    focusTheFirstProblem(element.current, fieldsWithProblems(form))
+    if (!focusTheFirstProblem(element.current, fieldsWithProblems(form))) {
+      heading.current?.focus()
+    }
   }, [form])
 
   return (
@@ -68,12 +72,11 @@ export function ConsultancyStep({
             void group.handleSubmit()
           }}
         >
-          <header className="flex flex-col gap-1">
-            <h2 className="type-title">{t("setup.consultancy.title")}</h2>
-            <p className="text-muted-foreground">
-              {t("setup.consultancy.intro")}
-            </p>
-          </header>
+          <StepHeading
+            ref={heading}
+            title={t("setup.consultancy.title")}
+            intro={t("setup.consultancy.intro")}
+          />
 
           <FieldGroup>
             <form.Field name="consultancy.name">

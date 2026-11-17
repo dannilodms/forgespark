@@ -14,6 +14,7 @@ import { useLanguage } from "../../shared/locales/i18n"
 import { countryItems } from "../../shared/places/places"
 import { administratorContract } from "../data/setup"
 import { type SetupForm, fieldsWithProblems } from "./setup-form"
+import { StepHeading } from "./step-heading"
 
 const checkTheAdministrator = checkTheContract(
   administratorContract.schema,
@@ -38,10 +39,13 @@ export function AdministratorStep({
   const { t } = useTranslation("consultancy")
   const { language } = useLanguage()
   const element = useRef<HTMLFormElement>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
 
-  // A step opened on a field the API refused puts the focus on it.
+  // The focus goes to a field the API refused, or else to the step.
   useEffect(() => {
-    focusTheFirstProblem(element.current, fieldsWithProblems(form))
+    if (!focusTheFirstProblem(element.current, fieldsWithProblems(form))) {
+      heading.current?.focus()
+    }
   }, [form])
 
   return (
@@ -63,12 +67,11 @@ export function AdministratorStep({
             void group.handleSubmit()
           }}
         >
-          <header className="flex flex-col gap-1">
-            <h2 className="type-title">{t("setup.administrator.title")}</h2>
-            <p className="text-muted-foreground">
-              {t("setup.administrator.intro")}
-            </p>
-          </header>
+          <StepHeading
+            ref={heading}
+            title={t("setup.administrator.title")}
+            intro={t("setup.administrator.intro")}
+          />
 
           <FieldGroup>
             <form.Field name="administrator.name">

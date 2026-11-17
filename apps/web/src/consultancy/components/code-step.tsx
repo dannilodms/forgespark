@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form"
 import { LoaderCircleIcon, TriangleAlertIcon } from "lucide-react"
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 import { Trans, useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "#ui/components/alert"
@@ -45,6 +45,13 @@ export function CodeStep({
   const { t } = useTranslation("consultancy")
   const openSetup = useOpenSetup()
   const input = useRef<HTMLInputElement>(null)
+
+  // Back from a step: the field takes the focus, for the new code.
+  useEffect(() => {
+    if (stoppedWorking) {
+      input.current?.focus()
+    }
+  }, [stoppedWorking])
 
   const form = useForm({
     defaultValues: { code: "" },

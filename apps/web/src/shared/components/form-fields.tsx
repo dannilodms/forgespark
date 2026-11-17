@@ -166,7 +166,7 @@ export function ListField({
 /**
  * Puts the focus on the first control, in the order of the screen, whose
  * field has a problem, inside `container`: after a refused submission, or
- * when a step opens on a field the API refused.
+ * when a step opens on a field the API refused. Tells whether there was one.
  */
 export function focusTheFirstProblem(
   container: HTMLElement | null,
@@ -177,4 +177,5 @@ export function focusTheFirstProblem(
     fieldsWithProblems.includes(control.dataset.field ?? "")
   )
   first?.focus()
+  return first !== undefined
 }

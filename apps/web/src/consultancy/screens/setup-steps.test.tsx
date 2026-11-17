@@ -204,9 +204,13 @@ describe("the step of the consultancy", () => {
     await expect.element(textField(screen, "Tax ID")).toHaveFocus()
     await userEvent.keyboard("12.345.678/0001-90{Enter}")
 
+    // The step that opens takes the focus, so it is read, and the next key
+    // reaches its first field.
     await expect
       .element(screen.getByRole("heading", { name: "The first administrator" }))
-      .toBeVisible()
+      .toHaveFocus()
+    await userEvent.tab()
+    await expect.element(textField(screen, "Name")).toHaveFocus()
   })
 })
 
@@ -601,6 +605,7 @@ describe("a setup code that stops working halfway", () => {
 
     const code = textField(screen, "Setup code")
     await expect.element(code).toHaveValue("")
+    await expect.element(code).toHaveFocus()
     await expect
       .element(screen.getByRole("alert"))
       .toMatchTextContent(/The setup code stopped working/)

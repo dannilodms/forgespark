@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router"
 import { LoaderCircleIcon } from "lucide-react"
-import type { ReactNode } from "react"
+import { type ReactNode, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "#ui/components/button"
@@ -24,6 +24,7 @@ import {
   useConcludeSetup,
 } from "../data/setup"
 import type { SetupForm } from "./setup-form"
+import { StepHeading } from "./step-heading"
 
 /** A step of the setup whose fields the review shows. */
 type TypedStep = "consultancy" | "administrator"
@@ -67,6 +68,11 @@ export function ReviewStep({
   const { language } = useLanguage()
   const navigate = useNavigate()
   const conclusion = useConcludeSetup()
+  const heading = useRef<HTMLHeadingElement>(null)
+
+  useEffect(() => {
+    heading.current?.focus()
+  }, [])
 
   function conclude() {
     conclusion.mutate(
@@ -101,10 +107,11 @@ export function ReviewStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h2 className="type-title">{t("setup.review.title")}</h2>
-        <p className="text-muted-foreground">{t("setup.review.intro")}</p>
-      </header>
+      <StepHeading
+        ref={heading}
+        title={t("setup.review.title")}
+        intro={t("setup.review.intro")}
+      />
 
       <form.Subscribe selector={(state) => state.values}>
         {(typed) => (
