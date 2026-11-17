@@ -263,7 +263,7 @@ A component holds no text of its own. Every word comes from the screen, in the l
 
 ## Recipes
 
-Four compositions are described here. None has code yet: the first screen that needs one writes it in `apps/web`.
+Five compositions are described here. The framed pane has code, `FramedPane` in `apps/web/src/shared/components`. The others have none yet: the first screen that needs one writes it in `apps/web`.
 
 | Recipe | What it is |
 | --- | --- |
@@ -271,6 +271,7 @@ Four compositions are described here. None has code yet: the first screen that n
 | List pane | A filter, a list of rows that each carry a status indicator, and an empty state. Selecting a row drives the detail pane. |
 | Detail pane | A header with the title and the actions of the selected item, and tabs that switch its content. |
 | Form dialog | A dialog with fields, one primary action and a cancel action. It reports a validation error on the field. |
+| Framed pane | A title bar with the product name, the framed page with one bordered pane in its centre, and a status bar that holds the language selector and nothing else. The screens seen before a login: the setup and the login screen. |
 
 A recipe is added when a second screen needs the same composition.
 
@@ -288,6 +289,8 @@ A recipe is added when a second screen needs the same composition.
 - When the filter leaves nothing, the empty state says what was typed and offers to clear it.
 
 **Detail pane.** The header holds the identifier in mono, the status as a badge, the actions at its end, and the title under them, which wraps. The tabs are the `line` variant, across the pane. Under 1024px the list and the detail do not fit side by side: the screen shows the list, then the detail of the item picked, with a button that leads back.
+
+**Framed pane.** The title bar and the status bar are 28px high, on `chrome`: the title bar shows the product name in caption type, and the status bar holds the language selector at its end. The page between them carries the page framing, with a diamond node on each corner of the pane. The pane is on `card`, with a 1px border and 24px of padding, at most 384px wide, in the centre of the page; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. The screen has no theme toggle, no version number and no link to the source code.
 
 **Form dialog.** The fields, then a footer with the cancel action and the primary action. Enter in a field submits. A validation error shows under its field, in the error colour, with a sign and a sentence that says what to do; the field is marked and takes the focus. A dialog that closes keeps nothing of what was typed.
 

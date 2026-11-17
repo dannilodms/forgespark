@@ -28,6 +28,6 @@ The backend is split by domain area (ADR-0007). The frontend follows the same sp
 
 - A data module that only forwards a call is correct, for the same reason a pass-through use case is in the backend.
 - Renaming a domain area changes the backend and the frontend together.
-- The import rules are checked by tooling from the first frontend code. The tool is not chosen yet.
+- The import rules are checked by tooling from the first frontend code: dependency-cruiser, chosen with the first screen (Enforcement in `CODING_STANDARDS.md`).
 - Screen tests need a Chromium installed through Playwright and start slower than jsdom tests.
 - The simulated API in tests comes from the responses orval generates, so it follows the contract.

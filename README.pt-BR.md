@@ -246,6 +246,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [React Compiler](https://react.dev/learn/react-compiler) | Memoização automática dos componentes no build |
 | [Playwright](https://playwright.dev/) e [MSW](https://mswjs.io/) | Testes de tela em navegador real com a API simulada (pelo Vitest) e testes de ponta a ponta |
 | [Knip](https://knip.dev/) | Encontra arquivos, exports e dependências sem uso |
+| [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) | Verifica os imports do app contra a sua regra de dependências |
 | [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Permite aos agentes de código investigar a performance em um Chrome real |
 | [react-i18next](https://react.i18next.com/) | Traduções da interface (inglês, português do Brasil, espanhol) |
 | [shadcn/ui](https://ui.shadcn.com/) | Base do design system: o código dos componentes é copiado para `apps/web/src/ui`, sobre os primitivos do [Base UI](https://base-ui.com/) |
@@ -344,13 +345,13 @@ O navegador chega a tudo pelo Caddy, nesse único endereço: o app, e a API em `
 
 `http://localhost/up` responde com o status da prontidão da API e sem corpo: 503 até as migrations serem aplicadas, e 502 enquanto a API não estiver rodando. A própria API responde à verificação de atividade em `http://127.0.0.1:8080/livez` e à de prontidão em `http://127.0.0.1:8080/readyz`, que o Caddy não encaminha.
 
-Uma instalação nova não tem usuário nem consultoria. `task issue-setup-code` emite o código de configuração que abre a configuração inicial e mostra, na saída do próprio comando, o código, quando ele deixa de funcionar, o que ele abre e o endereço da configuração inicial. O código vale por uma hora, e um novo encerra o anterior. Só o seu hash é guardado, então um código perdido não pode ser lido de volta: emita outro. Em um servidor, o mesmo comando do binário da API, `issue-setup-code`, roda dentro do container da API. A tela que recebe o código está _A definir_.
+Uma instalação nova não tem usuário nem consultoria. `task issue-setup-code` emite o código de configuração que abre a configuração inicial e mostra, na saída do próprio comando, o código, quando ele deixa de funcionar, o que ele abre e o endereço da configuração inicial. O código vale por uma hora, e um novo encerra o anterior. Só o seu hash é guardado, então um código perdido não pode ser lido de volta: emita outro. Em um servidor, o mesmo comando do binário da API, `issue-setup-code`, roda dentro do container da API. O app recebe o código no endereço da configuração inicial, `/setup`: até a configuração inicial ser concluída, todo endereço do app leva até lá.
 
 Os comandos, executados na raiz do repositório:
 
 | Comando | O que faz |
 | --- | --- |
-| `task install` | Instala as dependências JavaScript. O Vite+ baixa as versões de Node.js e pnpm que o `apps/web/package.json` indica |
+| `task install` | Instala as dependências JavaScript e o Chromium em que rodam os testes de tela. O Vite+ baixa as versões de Node.js e pnpm que o `apps/web/package.json` indica |
 | `task services` | Gera a imagem do Caddy, inicia os serviços de desenvolvimento no Docker e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
 | `task services:stop` | Para os serviços de desenvolvimento e mantém os dados |
 | `task migrate` | Aplica as migrations pendentes no banco de desenvolvimento. Uma segunda execução não aplica nada |
@@ -369,10 +370,14 @@ Os comandos, executados na raiz do repositório:
 | `task api:spec:check` | Falha quando a especificação OpenAPI que está no repositório ficou desatualizada |
 | `task api:spec:lint` | Roda o lint da especificação OpenAPI do repositório com o vacuum: nomes em `snake_case` e recursos no plural |
 | `task api:spec:breaking` | Mostra, com o oasdiff, as mudanças incompatíveis da especificação OpenAPI em relação à `origin/main`. Nunca falha. `SPEC_BASE=<revisão>` compara com outra revisão |
-| `task check` | Roda todas as verificações de um pull request: as versões exatas, as de formato, lint e tipos de `apps/web`, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, a verificação, o lint e o relatório de mudanças incompatíveis da especificação OpenAPI, o build e os testes da API |
+| `task web:generate` | Gera, com o orval, o cliente da API do app, os seus schemas Zod e as suas respostas simuladas a partir de `apps/api/openapi.yaml`, em `apps/web/src/shared/api/generated`. O resultado entra no commit |
+| `task web:generate:check` | Falha quando o cliente gerado pelo orval que está no repositório ficou desatualizado |
+| `task web:imports` | Falha quando um import do app quebra a sua regra de dependências, com o dependency-cruiser |
+| `task web:knip` | Falha com um arquivo, um export ou uma dependência do app que nada usa, com o Knip |
+| `task check` | Roda todas as verificações de um pull request: as versões exatas, a verificação do cliente gerado, as de formato, lint e tipos de `apps/web`, a sua regra de dependências, o seu código sem uso, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, a verificação, o lint e o relatório de mudanças incompatíveis da especificação OpenAPI, o build e os testes da API |
 | `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
-Os comandos do que ainda não foi construído (o worker, o seed e o cliente gerado a partir da especificação OpenAPI) estão _A definir_, e cada um será escrito com o seu código.
+Os comandos do que ainda não foi construído (o worker e o seed) estão _A definir_, e cada um será escrito com o seu código.
 
 O sqlc roda com `go tool`, a partir de um arquivo de módulo só dele, `apps/api/sqlc.mod`. Na primeira vez em uma máquina, o Go baixa e compila o sqlc, o que leva vários minutos: uma das dependências dele tem mais de cem mil arquivos, e extraí-los no Windows chega a levar meia hora. O comando parece parado nesse tempo. Não o interrompa, porque a extração recomeça do zero. O vacuum e o oasdiff rodam do mesmo jeito, a partir de `apps/api/vacuum.mod` e `apps/api/oasdiff.mod`, e cada um é compilado em alguns minutos na primeira vez.
 
