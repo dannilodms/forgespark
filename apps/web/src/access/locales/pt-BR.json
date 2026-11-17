@@ -1,0 +1,10 @@
+{
+  "login": {
+    "heading": "Entrar",
+    "notBuilt": "O login ainda não foi construído. Ele vem com a próxima parte do trabalho no sistema.",
+    "setupConcluded": {
+      "title": "A configuração inicial foi concluída",
+      "todo": "A consultoria e o primeiro administrador estão cadastrados. O administrador entra por aqui quando o login existir."
+    }
+  }
+}

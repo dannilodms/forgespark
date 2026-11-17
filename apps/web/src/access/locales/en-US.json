@@ -1,0 +1,10 @@
+{
+  "login": {
+    "heading": "Log in",
+    "notBuilt": "The login is not built yet. It comes with the next part of the work on the system.",
+    "setupConcluded": {
+      "title": "The setup is concluded",
+      "todo": "The consultancy and its first administrator are registered. The administrator logs in here once the login exists."
+    }
+  }
+}

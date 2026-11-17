@@ -1,6 +1,63 @@
 {
-  "home": {
-    "title": "My Software Factory Manager",
-    "intro": "The app starts here. Its first screens are still to be built."
+  "productName": "My Software Factory Manager",
+  "language": "Language",
+  "errors": {
+    "traceId": "Identifier to pass on",
+    "unreachable": {
+      "title": "The server did not answer",
+      "todo": "Check the connection and try again."
+    },
+    "unexpected": {
+      "title": "Something went wrong",
+      "todo": "Try again. If it happens again, pass the identifier to whoever maintains the system."
+    },
+    "answers": {
+      "bad_request": {
+        "title": "The server did not understand the request",
+        "todo": "Load the page again and repeat what you did."
+      },
+      "not_found": {
+        "title": "The server did not find what was asked for",
+        "todo": "Load the page again and repeat what you did."
+      },
+      "method_not_allowed": {
+        "title": "The server does not do what was asked for",
+        "todo": "Load the page again and repeat what you did."
+      },
+      "request_timeout": {
+        "title": "The request took too long to arrive",
+        "todo": "Check the connection and try again."
+      },
+      "request_entity_too_large": {
+        "title": "What was sent is too large",
+        "todo": "Send less at a time."
+      },
+      "unsupported_media_type": {
+        "title": "The server does not accept what was sent",
+        "todo": "Load the page again and repeat what you did."
+      },
+      "validation_failed": {
+        "title": "Some fields need a correction",
+        "todo": "Correct the fields that show an error and try again."
+      },
+      "too_many_requests": {
+        "title": "Too many attempts from this address",
+        "todo": "Wait a minute and try again."
+      },
+      "internal_server_error": {
+        "title": "The server failed",
+        "todo": "Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
+      }
+    },
+    "fields": {
+      "required": "Fill in this field.",
+      "invalid": "This value is not accepted. Check what was typed.",
+      "too_long": "Type at most {{max_length}} characters.",
+      "setup_code_invalid": "This setup code does not work: it is wrong, it expired or it was already used. Issue a new one on the server and type it here."
+    }
+  },
+  "errorScreen": {
+    "heading": "This screen could not open",
+    "reload": "Reload the page"
   }
 }

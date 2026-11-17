@@ -1,39 +1,26 @@
 import i18n from "i18next"
-import { initReactI18next } from "react-i18next"
+import { initReactI18next, useTranslation } from "react-i18next"
 
-import type enUS from "./en-US.json"
 import { type Language, defaultLanguage, supportedLanguages } from "./languages"
 
-// The keys of the English file are the keys of the app: `t` accepts no other.
-declare module "i18next" {
-  interface CustomTypeOptions {
-    defaultNS: "translation"
-    resources: { translation: typeof enUS }
-  }
-}
+/** The texts of one namespace in one language: a text, or a group of texts. */
+type Texts = Record<string, unknown>
 
-/** The file of each language in this folder, by its path from this file. */
-const files = import.meta.glob<Record<string, unknown>>("./*.json", {
-  eager: true,
-  import: "default",
-})
-
-/** The texts of every supported language. A language is loaded by being in the list. */
-const resources = Object.fromEntries(
-  supportedLanguages.map(({ code }) => [
-    code,
-    { translation: files[`./${code}.json`] ?? {} },
-  ])
-)
+/**
+ * Every translation file of the app, by its path from `src`:
+ * `./<namespace>/locales/<language>.json`. The namespace is the domain area,
+ * or `shared`.
+ */
+type TranslationFiles = Record<string, Texts>
 
 /** The supported language closest to what the browser asks for, or English. */
-function browserLanguage(): Language {
-  for (const wanted of navigator.languages) {
-    const exact = supportedLanguages.find(({ code }) => code === wanted)
+function closestLanguage(wanted: readonly string[]): Language {
+  for (const tag of wanted) {
+    const exact = supportedLanguages.find(({ code }) => code === tag)
     if (exact) {
       return exact.code
     }
-    const primary = wanted.split("-")[0]
+    const primary = tag.split("-")[0]
     const close = supportedLanguages.find(
       ({ code }) => code.split("-")[0] === primary
     )
@@ -44,14 +31,58 @@ function browserLanguage(): Language {
   return defaultLanguage
 }
 
-/** Loads the texts in the language of the browser. Call once, before the first render. */
-export function startLanguage() {
-  const language = browserLanguage()
+/** The texts of every supported language, by namespace. */
+function resourcesOf(files: TranslationFiles) {
+  const resources: Record<string, Record<string, Texts>> = {}
+  for (const { code } of supportedLanguages) {
+    resources[code] = {}
+  }
+  for (const [path, texts] of Object.entries(files)) {
+    const [, namespace, , file] = path.split("/")
+    const language = file?.replace(/\.json$/, "") ?? ""
+    const byNamespace = resources[language]
+    if (namespace && byNamespace) {
+      byNamespace[namespace] = texts
+    }
+  }
+  return resources
+}
+
+/**
+ * Loads the texts and puts the screen in the supported language closest to
+ * `wanted`, the languages the browser asks for. Call before the first
+ * render. A later call only changes the language.
+ */
+export function startLanguage(
+  wanted: readonly string[],
+  files: TranslationFiles
+) {
+  const language = closestLanguage(wanted)
   document.documentElement.lang = language
+  if (i18n.isInitialized) {
+    void i18n.changeLanguage(language)
+    return
+  }
+  i18n.on("languageChanged", (code) => {
+    document.documentElement.lang = code
+  })
+  const resources = resourcesOf(files)
   void i18n.use(initReactI18next).init({
     resources,
     lng: language,
     fallbackLng: defaultLanguage,
+    defaultNS: "shared",
+    ns: Object.keys(resources[defaultLanguage] ?? {}),
     interpolation: { escapeValue: false },
+    initAsync: false,
   })
+}
+
+/** The language the screen is in, and a way to change it at once. */
+export function useLanguage() {
+  const { i18n: instance } = useTranslation()
+  return {
+    language: instance.language as Language,
+    choose: (language: Language) => void instance.changeLanguage(language),
+  }
 }

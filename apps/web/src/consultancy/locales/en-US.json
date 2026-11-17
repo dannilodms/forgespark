@@ -1,0 +1,15 @@
+{
+  "setup": {
+    "heading": "Setup",
+    "code": {
+      "intro": "Type the setup code that the command <command>issue-setup-code</command> printed on the server.",
+      "label": "Setup code",
+      "submit": "Continue"
+    },
+    "opened": {
+      "firstSetup": "The setup code opened the first setup: the consultancy and its first administrator are registered next.",
+      "newAdministrator": "The setup code opened the registration of a new administrator. The users that exist are not changed.",
+      "toCome": "The next step of the setup is still to be built."
+    }
+  }
+}

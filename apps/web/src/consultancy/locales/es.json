@@ -1,0 +1,15 @@
+{
+  "setup": {
+    "heading": "Configuración inicial",
+    "code": {
+      "intro": "Escribe el código de configuración que el comando <command>issue-setup-code</command> mostró en el servidor.",
+      "label": "Código de configuración",
+      "submit": "Continuar"
+    },
+    "opened": {
+      "firstSetup": "El código de configuración abrió la primera configuración: a continuación se registran la consultora y su primer administrador.",
+      "newAdministrator": "El código de configuración abrió el registro de un nuevo administrador. Los usuarios que existen no cambian.",
+      "toCome": "El siguiente paso de la configuración inicial aún está por construirse."
+    }
+  }
+}
