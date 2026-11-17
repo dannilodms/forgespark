@@ -1,0 +1,37 @@
+# Development: the services that the API and the app, which run on the
+# machine, talk to. Each one extends deploy/compose.base.yaml, which holds the
+# tag of every image. Rules: Compose files and Development in
+# CODING_STANDARDS.md.
+#
+# The name is fixed so that every checkout of the repository, a Git worktree
+# included, drives the same containers and volumes. For the same reason no
+# service mounts a file of the checkout: Compose would create the container
+# again each time `up` ran from another directory. A file a container needs
+# is written here, as a config with its content.
+
+name: software-factory-manager
+
+services:
+  postgres:
+    extends:
+      file: deploy/compose.base.yaml
+      service: postgres
+    ports:
+      - 127.0.0.1:${POSTGRES_PORT:?Set POSTGRES_PORT, as .env.example does}:5432
+
+volumes:
+  postgres-data:
+
+configs:
+  # What only a superuser can do, done when the data directory is created:
+  # the two roles of ADR-0015, the database handed to the migration role, and
+  # pg_stat_statements, which is not a trusted extension. Everything after
+  # this is a migration.
+  postgres-roles:
+    content: |
+      \getenv migration_password POSTGRES_MIGRATION_PASSWORD
+      \getenv api_password POSTGRES_API_PASSWORD
+      CREATE ROLE migration LOGIN PASSWORD :'migration_password';
+      CREATE ROLE api LOGIN PASSWORD :'api_password';
+      ALTER DATABASE :"DBNAME" OWNER TO migration;
+      CREATE EXTENSION pg_stat_statements;

@@ -24,3 +24,6 @@ coverage/
 # Operating system
 .DS_Store
 Thumbs.db
+
+# Local binaries of the API
+apps/api/bin/
