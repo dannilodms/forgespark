@@ -212,10 +212,14 @@ func TestTheLogsAndTheSpansOfOpeningTheSetupNeverCarryTheCode(t *testing.T) {
 	// than the contract allows, an unknown query parameter and a wrong method.
 	refused := sendJSON(t, http.MethodPost, api.url+"/api/setup/open", `{"code":"`+code+`","step":"`+code+`"}`)
 	require.Equal(t, http.StatusUnprocessableEntity, refused.status)
-	refused = openSetup(t, api.url, strings.Repeat(code, 4))
-	require.Equal(t, http.StatusUnprocessableEntity, refused.status)
-	refused = sendJSON(t, http.MethodPut, api.url+"/api/setup/open", `{"code":"`+code+`"}`)
-	require.Equal(t, http.StatusMethodNotAllowed, refused.status)
+	tooLong := openSetup(t, api.url, strings.Repeat(code, 4))
+	require.Equal(t, http.StatusUnprocessableEntity, tooLong.status)
+	// A caller that sends the code where it must never go, in the address.
+	inTheAddress := sendJSON(t, http.MethodPost, api.url+"/api/setup/open?code="+code, `{"code":"`+code+`"}`)
+	require.Equal(t, http.StatusUnprocessableEntity, inTheAddress.status)
+	require.Contains(t, inTheAddress.body, `"location":"query.code"`)
+	wrongMethod := sendJSON(t, http.MethodPut, api.url+"/api/setup/open", `{"code":"`+code+`"}`)
+	require.Equal(t, http.StatusMethodNotAllowed, wrongMethod.status)
 	// The API role loses the right to read the setup codes, so the query of
 	// the next request fails and its raw error is logged.
 	_, err := asOwner(t, temporary).Exec(context.Background(), "REVOKE SELECT ON setup_codes FROM api")
@@ -232,7 +236,7 @@ func TestTheLogsAndTheSpansOfOpeningTheSetupNeverCarryTheCode(t *testing.T) {
 	require.Contains(t, collector.Text(), "FROM setup_codes", "the scenario exported no span of the query that finds the code")
 	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
-	for _, answer := range []received{refused, failed} {
+	for _, answer := range []received{refused, tooLong, inTheAddress, wrongMethod, failed} {
 		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats the setup code")
 	}
 }
