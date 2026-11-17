@@ -47,3 +47,16 @@ sql:
         omit_unused_structs: true
         output_db_file_name: sqlc_db.go
         output_models_file_name: sqlc_models.go
+
+  - engine: postgresql
+    schema: migrations
+    queries: internal/files/adapters/postgres
+    gen:
+      go:
+        package: postgres
+        out: internal/files/adapters/postgres
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        omit_unused_structs: true
+        output_db_file_name: sqlc_db.go
+        output_models_file_name: sqlc_models.go
