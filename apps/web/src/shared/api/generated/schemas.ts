@@ -22,6 +22,39 @@ export const TellSetupStateResponse = zod.object({
 
 
 /**
+ * The way back in when no administrator can log in: with a setup code issued after the setup was concluded, registers a new user with the administrator role and ends the setup code. No user that exists is changed, and an e-mail that belongs to one is refused, whether that user is deactivated or not. Every field is checked before anything is saved. The photo, when given, is confirmed as in conclude_setup. The answer has no body and no Location: no operation reads a user yet.
+ * @summary Register a new administrator with a setup code
+ */
+
+export const registerAdministratorBodyAdministratorEmailMax = 254;
+
+export const registerAdministratorBodyAdministratorNameMax = 200;
+
+export const registerAdministratorBodyAdministratorNationalIdMax = 50;
+
+export const registerAdministratorBodyAdministratorPhotoFileIdRegExp = new RegExp('^fil_[0-9A-Za-z]{8,}$');
+export const registerAdministratorBodyAdministratorTelephoneRegExp = new RegExp('^\\+( *[0-9]){7,15} *$');
+export const registerAdministratorBodyCodeMax = 64;
+
+
+
+export const RegisterAdministratorBody = zod.object({
+  "administrator": zod.object({
+  "country": zod.string().min(1).describe('The country that gave the national ID, by its ISO 3166-1 alpha-2 code: BR.'),
+  "email": zod.email().min(1).max(registerAdministratorBodyAdministratorEmailMax).describe('The e-mail the administrator logs in with. It is stored in lowercase, and belongs to one user.'),
+  "name": zod.string().min(1).max(registerAdministratorBodyAdministratorNameMax).describe('The name of the person.'),
+  "national_id": zod.string().min(1).max(registerAdministratorBodyAdministratorNationalIdMax).describe('The identifier the country gives the person, as the country writes it.'),
+  "photo_file_id": zod.string().regex(registerAdministratorBodyAdministratorPhotoFileIdRegExp).optional().describe('The file of the photo, as start_setup_upload answered it, once the image was sent to the storage.'),
+  "preferred_language": zod.enum(['en-US', 'es', 'pt-BR']).describe('The supported language the administrator reads the system in: the language the setup screen was in.'),
+  "telephone": zod.string().regex(registerAdministratorBodyAdministratorTelephoneRegExp).optional().describe('The telephone, in international form: a plus sign and 7 to 15 digits. Spaces are dropped.')
+}).describe('The new administrator, who receives the administrator role.'),
+  "code": zod.string().min(1).max(registerAdministratorBodyCodeMax).describe('The setup code, as typed, as in open_setup.')
+})
+
+export const RegisterAdministratorResponse = zod.void()
+
+
+/**
  * Registers the consultancy, its first administrator and the two first roles together, and ends the setup code. Every field is checked before anything is saved, and nothing is saved when one breaks a rule. The logo and the photo, when given, are confirmed: each must have been sent to the storage, and be an image within the limits.
  * @summary Conclude the first setup
  */

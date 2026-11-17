@@ -261,6 +261,10 @@ func TestCaddyAnswers429InTheErrorFormatPastTheLimitOfTheSetup(t *testing.T) {
 		"trace_id": "`+traceID+`"
 	}`, over.body)
 	assertIsAProblem(t, over.body)
+	// The POST operations of the setup share the limit.
+	for _, path := range []string{"/api/setup/uploads", "/api/setup/conclude", "/api/setup/administrators"} {
+		assert.Equal(t, http.StatusTooManyRequests, caddy.send(t, http.MethodPost, path, wrongSetupCode).status, "POST %s", path)
+	}
 }
 
 func TestTheReadOfTheSetupAndEveryOtherPathHaveNoLimit(t *testing.T) {

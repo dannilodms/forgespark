@@ -18,6 +18,7 @@ export * from './openedSetupOpens.ts';
 export * from './openSetupRequest.ts';
 export * from './problem.ts';
 export * from './problemParams.ts';
+export * from './registerAdministratorRequest.ts';
 export * from './setupAddress.ts';
 export * from './setupAdministrator.ts';
 export * from './setupAdministratorPreferredLanguage.ts';

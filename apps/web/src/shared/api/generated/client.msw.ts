@@ -28,6 +28,7 @@ import type {
   OpenSetupRequest,
   OpenedSetup,
   Problem,
+  RegisterAdministratorRequest,
   SetupState,
   SetupUpload,
   StartSetupUploadRequest
@@ -41,6 +42,35 @@ export const getTellSetupStateResponseMock200 = (overrideResponse: Partial<Extra
 
 
 export const getTellSetupStateResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+
+export const getRegisterAdministratorResponseMock409 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getRegisterAdministratorResponseMock422 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getRegisterAdministratorResponseMock429 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getRegisterAdministratorResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
         [faker.string.alphanumeric(5)]: {}
       }})), undefined]), params: {
         [faker.string.alphanumeric(5)]: {}
@@ -161,6 +191,79 @@ export const getTellSetupStateMockHandler500 = (overrideResponse?: Problem | ((i
     return HttpResponse.json(overrideResponse !== undefined
     ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
     : getTellSetupStateResponseMock500(),
+      { status: 500, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+export const getRegisterAdministratorMockHandler = (overrideResponse?: void | ((info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, RegisterAdministratorRequest>('*/api/setup/administrators', async (info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 201
+      })
+  }, options)
+}
+
+
+export const getRegisterAdministratorMockHandler201 = (overrideResponse?: void | ((info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, RegisterAdministratorRequest>('*/api/setup/administrators', async (info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 201
+      })
+  }, options)
+}
+
+
+export const getRegisterAdministratorMockHandler409 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, RegisterAdministratorRequest>('*/api/setup/administrators', async (info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getRegisterAdministratorResponseMock409(),
+      { status: 409, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getRegisterAdministratorMockHandler422 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, RegisterAdministratorRequest>('*/api/setup/administrators', async (info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getRegisterAdministratorResponseMock422(),
+      { status: 422, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getRegisterAdministratorMockHandler429 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, RegisterAdministratorRequest>('*/api/setup/administrators', async (info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getRegisterAdministratorResponseMock429(),
+      { status: 429, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getRegisterAdministratorMockHandler500 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, RegisterAdministratorRequest>('*/api/setup/administrators', async (info: Parameters<HttpResponseResolver<PathParams, RegisterAdministratorRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getRegisterAdministratorResponseMock500(),
       { status: 500, headers: { 'Content-Type': 'application/problem+json' }
       })
   }, options)
@@ -368,6 +471,7 @@ export const getStartSetupUploadMockHandler500 = (overrideResponse?: Problem | (
 }
 export const getMySoftwareFactoryManagerMock = () => [
   getTellSetupStateMockHandler(),
+  getRegisterAdministratorMockHandler(),
   getConcludeSetupMockHandler(),
   getOpenSetupMockHandler(),
   getStartSetupUploadMockHandler()]

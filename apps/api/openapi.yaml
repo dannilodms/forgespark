@@ -104,6 +104,21 @@ components:
         - params
         - trace_id
       type: object
+    RegisterAdministratorRequest:
+      additionalProperties: false
+      properties:
+        administrator:
+          $ref: "#/components/schemas/SetupAdministrator"
+          description: The new administrator, who receives the administrator role.
+        code:
+          description: The setup code, as typed, as in open_setup.
+          maxLength: 64
+          minLength: 1
+          type: string
+      required:
+        - code
+        - administrator
+      type: object
     SetupAddress:
       additionalProperties: false
       properties:
@@ -328,6 +343,46 @@ paths:
                 $ref: "#/components/schemas/Problem"
           description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
       summary: Tell the state of the setup
+      tags:
+        - Setup
+  /api/setup/administrators:
+    post:
+      description: "The way back in when no administrator can log in: with a setup code issued after the setup was concluded, registers a new user with the administrator role and ends the setup code. No user that exists is changed, and an e-mail that belongs to one is refused, whether that user is deactivated or not. Every field is checked before anything is saved. The photo, when given, is confirmed as in conclude_setup. The answer has no body and no Location: no operation reads a user yet."
+      operationId: register_administrator
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterAdministratorRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Conflict. `setup_not_concluded`: the setup is not concluded. `email_in_use`: the e-mail belongs to a user."
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unprocessable Entity. `setup_code_invalid`: the setup code is wrong, expired or was ended. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule. The rules of a field: `required`: the field is required. `too_long`: the text is longer than the field allows. `country_unknown`: the country is not an ISO 3166-1 alpha-2 code. `language_unsupported`: the language is not a supported language. `email_invalid`: the text is not an e-mail address. `telephone_invalid`: the text is not a telephone in international form: a plus sign and 7 to 15 digits. `file_not_found`: no file of this kind has this identifier. `file_not_uploaded`: the file was never sent to the storage. `file_too_large`: the file is larger than 2097152 bytes. `file_type_unsupported`: the file is not a PNG, a JPEG or a WebP image."
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Too Many Requests. `too_many_requests`: too many requests from this address, answered by Caddy before the API; the header Retry-After says how many seconds to wait."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Register a new administrator with a setup code
       tags:
         - Setup
   /api/setup/conclude:

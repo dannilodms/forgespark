@@ -120,7 +120,7 @@ func TestEveryPostOperationOfTheSetupDeclaresTheLimitOfCaddy(t *testing.T) {
 		return !strings.HasPrefix(path, "/api/setup") || item.Post == nil
 	})
 
-	require.Len(t, posts, 3, "the POST operations of the setup")
+	require.Len(t, posts, 4, "the POST operations of the setup")
 	for path, item := range posts {
 		limited := item.Post.Responses["429"]
 		require.NotNil(t, limited, "POST %s does not declare the 429 of Caddy", path)

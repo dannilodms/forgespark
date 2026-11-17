@@ -84,6 +84,24 @@ func registerSetup(api *restapi.API, useCases UseCases) {
 		http.StatusConflict:            {domain.SetupAlreadyConcludedError{}},
 		http.StatusTooManyRequests:     {restapi.LimitedByCaddy},
 	}, concludeSetup{useCase: useCases.ConcludeSetup}.handle)
+
+	restapi.Register(api, huma.Operation{
+		OperationID:   "register_administrator",
+		Method:        http.MethodPost,
+		Path:          restapi.Prefix + "/setup/administrators",
+		DefaultStatus: http.StatusCreated,
+		Summary:       "Register a new administrator with a setup code",
+		Description: "The way back in when no administrator can log in: with a setup code issued after the setup was " +
+			"concluded, registers a new user with the administrator role and ends the setup code. No user that exists " +
+			"is changed, and an e-mail that belongs to one is refused, whether that user is deactivated or not. " +
+			"Every field is checked before anything is saved. The photo, when given, is confirmed as in conclude_setup. " +
+			"The answer has no body and no Location: no operation reads a user yet.",
+		Tags: []string{setupTag},
+	}, restapi.Failures{
+		http.StatusUnprocessableEntity: slices.Concat([]restapi.Failure{domain.SetupCodeInvalidError{}}, administratorRules, imageRules),
+		http.StatusConflict:            {domain.SetupNotConcludedError{}, domain.EmailInUseError{}},
+		http.StatusTooManyRequests:     {restapi.LimitedByCaddy},
+	}, registerAdministrator{useCase: useCases.RegisterAdministrator}.handle)
 }
 
 // imageRules are the rules an image chosen in the setup may break when the
@@ -109,6 +127,17 @@ var fieldRules = []restapi.Failure{
 	restapi.InField(kernel.EmailInvalidError{}),
 	restapi.InField(kernel.TelephoneInvalidError{}),
 	restapi.InField(kernel.WebsiteInvalidError{}),
+}
+
+// administratorRules are the rules a field of an administrator may break, as
+// the domain checks them: the ones of fieldRules that a user has.
+var administratorRules = []restapi.Failure{
+	restapi.InField(kernel.RequiredError{}),
+	restapi.InField(kernel.TooLongError{}),
+	restapi.InField(kernel.CountryUnknownError{}),
+	restapi.InField(kernel.LanguageUnsupportedError{}),
+	restapi.InField(kernel.EmailInvalidError{}),
+	restapi.InField(kernel.TelephoneInvalidError{}),
 }
 
 type tellSetupState struct {
@@ -208,6 +237,42 @@ func (o concludeSetup) handle(ctx context.Context, input *concludeSetupInput) (*
 		return nil, err
 	}
 	return &concludeSetupOutput{}, nil
+}
+
+type registerAdministrator struct {
+	useCase *application.RegisterAdministrator
+}
+
+type registerAdministratorInput struct {
+	Body RegisterAdministratorRequest
+}
+
+// RegisterAdministratorRequest carries the setup code and the new
+// administrator.
+type RegisterAdministratorRequest struct {
+	Code          string             `json:"code" minLength:"1" maxLength:"64" doc:"The setup code, as typed, as in open_setup."`
+	Administrator SetupAdministrator `json:"administrator" doc:"The new administrator, who receives the administrator role."`
+}
+
+// registerAdministratorOutput has no body: the operation answers 201.
+type registerAdministratorOutput struct{}
+
+func (o registerAdministrator) handle(ctx context.Context, input *registerAdministratorInput) (*registerAdministratorOutput, error) {
+	photo, photoKnown := fileID(input.Body.Administrator.PhotoFileID)
+	var unknown kernel.InvalidFieldsError
+	unknown.Check("administrator.photo_file_id", unknownUnless(photoKnown))
+	if err := unknown.Err(); err != nil {
+		return nil, err
+	}
+
+	err := o.useCase.Execute(ctx, application.RegisterAdministratorInput{
+		Code:          input.Body.Code,
+		Administrator: input.Body.Administrator.typed(photo),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &registerAdministratorOutput{}, nil
 }
 
 // fileID reads the identifier of a file on the way in. The contract already

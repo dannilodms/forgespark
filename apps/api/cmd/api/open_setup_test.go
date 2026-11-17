@@ -43,7 +43,8 @@ func sendJSON(t *testing.T, method, url, body string) received {
 		allow:     response.Header.Get("Allow"),
 		body:      string(raw),
 	}
-	if response.StatusCode == http.StatusNoContent {
+	// A 204 has no body, and neither has a 201 that points at nothing.
+	if response.StatusCode == http.StatusNoContent || len(raw) == 0 && response.StatusCode == http.StatusCreated {
 		return answer
 	}
 	require.NoError(t, json.Unmarshal(raw, &answer.fields), "the answer is not a JSON object: %s", raw)

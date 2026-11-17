@@ -395,3 +395,90 @@ func TestTheLogsTheSpansAndTheAuditLogOfConcludingTheSetupNeverCarryTheDataOfAPe
 	require.Contains(t, auditLog, "setup_concluded", "the scenario recorded no conclusion")
 	assert.Empty(t, guarded.foundIn(auditLog), "the audit log carries a sensitive value")
 }
+
+// Registering an administrator, the way back in, carries the data of a person
+// and may carry the e-mail of a user that exists. This scenario concludes the
+// setup, issues a second code and registers on a migrated database through
+// each way the operation can go: refused by the contract, refused by a rule
+// of the domain, refused for an e-mail in use, failed with a 5xx whose raw
+// error is logged, registered, and tried again with the code it ended. It
+// then searches the logs, the spans, the answers and the audit log for each
+// value.
+func TestTheLogsTheSpansAndTheAuditLogOfRegisteringAnAdministratorNeverCarryTheDataOfAPerson(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	environment := environmentOf(temporary)
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	api := launchAPI(t, environment)
+	owner := asOwner(t, temporary)
+	_, first := issueSetupCodeIn(t, temporary)
+	guarded.add("the first setup code", first)
+	require.Equal(t, http.StatusNoContent, concludeSetup(t, api.url, setupBody(first)).status)
+	_, code := issueSetupCodeIn(t, temporary)
+	guarded.add("the setup code of the way back in", code)
+
+	// A value the system rewrites is registered as typed and as stored.
+	body := administratorBody(code)
+	administrator := object(body, "administrator")
+	administrator["name"] = guarded.add("the name of the new administrator", "Guarded Bruno Lima")
+	administrator["email"] = guarded.add("the e-mail as typed", "Guarded.Bruno@Fabrica.example")
+	guarded.add("the e-mail as stored", "guarded.bruno@fabrica.example")
+	administrator["national_id"] = guarded.add("the national ID", "GUARDED-987 654 321")
+	administrator["telephone"] = guarded.add("the telephone as typed", "+351 21 864 2097")
+	guarded.add("the telephone as stored", "+351218642097")
+
+	answers := []received{}
+	send := func(body map[string]any, status int) {
+		t.Helper()
+		answer := registerAdministrator(t, api.url, body)
+		require.Equal(t, status, answer.status, answer.body)
+		answers = append(answers, answer)
+	}
+	// Refused by the contract: an e-mail that is two, and a national ID too
+	// long.
+	refusedByTheContract := administratorBody(code)
+	object(refusedByTheContract, "administrator")["email"] = "bruno@fabrica.example, guarded.bruno@fabrica.example"
+	object(refusedByTheContract, "administrator")["national_id"] = strings.Repeat("GUARDED-987 654 321", 3)
+	send(refusedByTheContract, http.StatusUnprocessableEntity)
+	// Refused by a rule of the domain, with every other value of the person.
+	refusedByTheDomain := administratorBody(code)
+	maps.Copy(object(refusedByTheDomain, "administrator"), administrator)
+	object(refusedByTheDomain, "administrator")["country"] = "ZZ"
+	send(refusedByTheDomain, http.StatusUnprocessableEntity)
+	// Refused: the e-mail of the user that exists, typed in another case.
+	inUse := administratorBody(code)
+	maps.Copy(object(inUse, "administrator"), administrator)
+	object(inUse, "administrator")["email"] = guarded.add("the e-mail of a user that exists, as typed", "ANA.Souza@Fabrica.example")
+	guarded.add("the e-mail of a user that exists, as stored", theFirstAdministrator)
+	send(inUse, http.StatusConflict)
+	// A 5xx: the API role may not write users.
+	_, err := owner.Exec(context.Background(), "REVOKE INSERT ON users FROM api")
+	require.NoError(t, err)
+	send(body, http.StatusInternalServerError)
+	_, err = owner.Exec(context.Background(), "GRANT INSERT ON users TO api")
+	require.NoError(t, err)
+	// Registered, and tried again with the code it ended.
+	send(body, http.StatusCreated)
+	send(body, http.StatusUnprocessableEntity)
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	logs := api.logs.String()
+	require.Contains(t, logs, "permission denied for table users", "the scenario logged no raw error of a permission")
+	require.Contains(t, collector.Text(), "POST /api/setup/administrators", "the scenario exported no span of the operation")
+	require.Contains(t, collector.Text(), "FROM users WHERE email", "the scenario exported no span of the query that looks for the e-mail")
+	require.Contains(t, collector.Text(), "INSERT INTO users", "the scenario exported no span of the query that saves the user")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+	for _, answer := range answers {
+		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats a sensitive value: %s", answer.body)
+	}
+	var auditLog string
+	require.NoError(t, owner.QueryRow(context.Background(),
+		"SELECT string_agg(row_to_json(audit_log)::text, E'\n') FROM audit_log").Scan(&auditLog))
+	require.Contains(t, auditLog, "administrator_registered", "the scenario recorded no registration")
+	assert.Empty(t, guarded.foundIn(auditLog), "the audit log carries a sensitive value")
+}

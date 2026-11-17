@@ -13,6 +13,7 @@ import type {
   ConcludeSetupRequest,
   OpenSetupRequest,
   OpenedSetup,
+  RegisterAdministratorRequest,
   SetupState,
   SetupUpload,
   StartSetupUploadRequest
@@ -60,6 +61,31 @@ export const tellSetupState = async ( options?: Parameters<typeof request>[1]): 
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export const getRegisterAdministratorUrl = () => {
+
+
+
+
+  return `/api/setup/administrators`
+}
+
+/**
+ * The way back in when no administrator can log in: with a setup code issued after the setup was concluded, registers a new user with the administrator role and ends the setup code. No user that exists is changed, and an e-mail that belongs to one is refused, whether that user is deactivated or not. Every field is checked before anything is saved. The photo, when given, is confirmed as in conclude_setup. The answer has no body and no Location: no operation reads a user yet.
+ * @summary Register a new administrator with a setup code
+ */
+export const registerAdministrator = async (registerAdministratorRequest: RegisterAdministratorRequest, options?: Parameters<typeof request>[1]): Promise<void> => {
+
+  return request<void>(getRegisterAdministratorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+    body: JSON.stringify(registerAdministratorRequest)
   }
 );}
 
