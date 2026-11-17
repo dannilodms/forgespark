@@ -34,8 +34,10 @@ export default defineConfig({
     semi: false,
     trailingComma: "es5",
     printWidth: 80,
+    // Generated files: the route tree, the lists of the API (`task
+    // api:lists`) and the client of orval.
     ignorePatterns: [
-      "**/routeTree.gen.ts",
+      "**/*.gen.ts",
       "pnpm-lock.yaml",
       "src/shared/api/generated/**",
     ],
@@ -43,7 +45,7 @@ export default defineConfig({
   lint: {
     plugins: ["typescript", "react"],
     ignorePatterns: [
-      "**/routeTree.gen.ts",
+      "**/*.gen.ts",
       "**/dist/**",
       "src/shared/api/generated/**",
     ],

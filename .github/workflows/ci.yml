@@ -147,6 +147,9 @@ jobs:
       - name: Check that the committed OpenAPI spec is up to date
         run: task api:spec:check
 
+      - name: Check that the lists of the app are the ones the API accepts
+        run: task api:lists:check
+
       - name: Lint the OpenAPI spec for snake_case names and plural paths
         run: task api:spec:lint
 
