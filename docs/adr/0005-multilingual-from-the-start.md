@@ -16,6 +16,7 @@ Everything the system itself says is translated: interface text, error and valid
 - The interface uses react-i18next, with one file per language and screen area. English files are the source of truth, and an automated check fails when another language is missing a key, so whoever adds a text delivers all translations in the same change.
 - The API returns a stable error code, its parameters and an English message. The frontend translates by code; AI agents consuming the API read the English. The backend keeps its own catalog only for what it sends itself, such as e-mails and notifications.
 - Adding a language is a small code change followed by a deploy: add its code to the single list of supported languages and deliver its interface files. It must never require a database schema change.
+- The single list is `supportedLanguages` in `apps/api/internal/kernel/language.go`. The contract carries it as the values of `preferred_language`, and the app reads the codes from the client generated from the contract (`apps/web/src/shared/locales/languages.ts`), which adds only the name of each language in its own language. A language on one side only fails the type check, and one without its interface files fails the missing-key check, so `task check` fails until a new language is complete.
 
 ## Considered Options
 

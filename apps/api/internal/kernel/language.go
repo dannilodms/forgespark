@@ -1,9 +1,14 @@
 package kernel
 
 // supportedLanguages are the languages the system offers, by their BCP 47
-// tag, as `apps/web/src/shared/locales/languages.ts` lists them. English is
-// the default language. Adding a language is a line here and one there, and
-// never a change to the database (ADR-0005).
+// tag: the single list of ADR-0005. English is the default language. The
+// contract carries it as the values of `preferred_language`, and the app
+// reads it from the client generated from the contract.
+//
+// Adding a language is a tag here, `task api:spec` and `task web:generate`,
+// its name in `apps/web/src/shared/locales/languages.ts` and its file in
+// every `locales` folder of the app; `task check` fails until each is done.
+// It is never a change to the database.
 var supportedLanguages = []string{"en-US", "es", "pt-BR"}
 
 // Language is a supported language: one the system offers for its
