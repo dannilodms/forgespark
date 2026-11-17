@@ -56,7 +56,7 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 ### Between domain areas
 
 - One area uses another by calling its use cases, and holds the other area's aggregates by ID.
-- A domain type moves to `kernel` when a second area needs it. `kernel` holds value objects only, with no rule that belongs to a single area.
+- A domain type moves to `kernel` when a second area needs it. `kernel` holds value objects only, with no rule that belongs to a single area, and the error that lists the fields of an input that break a rule (see Errors).
 
 ### Use cases
 
@@ -95,7 +95,7 @@ These apply to REST. Names, identifiers, lists and error codes apply to MCP tool
 - **Lists.** An envelope with an opaque cursor. `limit` has a default and a ceiling, sorting accepts only listed fields, filters are query parameters, the total is computed only when asked for. No field selection.
 - **Single resource.** It is the root of the body. No `success` wrapper.
 - **Allowed actions.** When a screen or a tool needs to know what can be done now, the query use case returns `allowed_actions`. The client never derives it from the status.
-- **Values.** Timestamps in ISO 8601 UTC. Business dates without a time. Money as a decimal string beside its currency, never a float. Enums as lowercase strings. A country is its ISO 3166-1 two-letter code, a currency its ISO 4217 code and a time zone its IANA name; the browser writes their names in the user's language.
+- **Values.** Timestamps in ISO 8601 UTC. Business dates without a time. Money as a decimal string beside its currency, never a float. Enums as lowercase strings. A country is its ISO 3166-1 two-letter code, a currency its ISO 4217 code and a time zone its IANA name; the browser writes their names in the user's language. The backend checks each against a list it carries in `kernel`, whose file names its source.
 - **Limits.** A size limit and a read timeout on request bodies: one megabyte, sent within five seconds, set where the REST adapter is mounted. A timeout on every outbound call, and a retry only when the call is idempotent.
 - **Sessions.** A request authenticated by the session cookie that changes state must come from the app's own origin.
 - **Compression and caching.** The API compresses no response and sets no cache header. Caddy does both (see Delivery).
@@ -225,8 +225,10 @@ A broken rule is a typed error with a stable code and its parameters, declared b
 Every REST failure uses that format, including unknown routes, wrong methods and panics, which need their own handlers because they bypass Huma's error hook. No response carries a stack trace, SQL or an internal name.
 
 - **A broken rule.** Its error type has `Code() string`, which returns the stable code, and a text in English that is safe to answer with. One with parameters also has `Params() map[string]any`. `SetupCodeInvalidError` in `consultancy/domain` is the model.
-- **Status.** A REST operation lists the broken rules it answers with, under the status of each: 422 for a broken rule, 409 for a conflict. A broken rule it does not list answers 500, so the spec names every code an operation answers with.
-- **Body.** `title`, `status`, `detail` (the text in English), `code`, `params` and `trace_id`. A failed validation adds `errors`, with one entry for each field: its `location` (`body.name`, `query.limit`, `path.id`), a `code` (`required` or `invalid`), its `params` and a `message` in English. No entry repeats the value that was refused. `type` is left out, which RFC 9457 reads as its default.
+- **A rule about a field.** A rule one value of the input breaks, such as a country outside its list or a text over its limit, is a broken rule declared beside its value object. A use case checks every field before it saves anything and returns the ones that break a rule together, in a `kernel.InvalidFieldsError` that names each field as its input is structured: `consultancy.address.city`. `ConcludeSetup` in `consultancy/application` is the model.
+- **Status.** A REST operation lists the broken rules it answers with, under the status of each: 422 for a broken rule, 409 for a conflict. A rule about a field is listed under 422 with `restapi.InField`. A broken rule it does not list answers 500, so the spec names every code an operation answers with.
+- **Body.** `title`, `status`, `detail` (the text in English), `code`, `params` and `trace_id`. A failed validation adds `errors`, with one entry for each field: its `location` (`body.name`, `query.limit`, `path.id`), a `code` (`required`, `invalid`, or the code of the rule about the field), its `params` and a `message` in English. Fields that break a rule of the domain answer the same way, with `validation_failed`, so a screen shows each on its field. An empty text where the contract asks at least one character is `required`. No entry repeats the value that was refused. `type` is left out, which RFC 9457 reads as its default.
+- **The contract checks first.** A body declares what a client can check before it sends: a required text has at least one character, the limits of a text and the forms of an e-mail, a telephone and a website. The body type takes them from the domain, in its `TransformSchema`, so the two never drift. A list a value must be on is checked by the domain alone.
 - **Other failures.** A failure that is not a broken rule takes its code from the name of its status: `bad_request`, `not_found`, `method_not_allowed`, `request_entity_too_large`, `too_many_requests`, `internal_server_error`. The one exception is a request that does not follow the contract, which is `validation_failed`.
 - **5xx.** The answer carries the title, the status, the code and the `trace_id`, and nothing else. The raw error goes to the logs (see Telemetry).
 
