@@ -88,3 +88,31 @@ func TestTheMigrationsApplyNothingOnASecondRun(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, applied)
 }
+
+func TestTheAPIRoleAddsAndReadsEntriesOfTheAuditLogAndCannotChangeOrRemoveOne(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+	ctx := context.Background()
+	connection, err := pgx.Connect(ctx, temporary.APIURL)
+	require.NoError(t, err)
+	defer connection.Close(ctx)
+
+	_, err = connection.Exec(ctx, `
+		INSERT INTO audit_log (occurred_at, operation, actor_kind, subject_kind, subject_id)
+		VALUES (now(), 'setup_code_issued', 'installer', 'setup_code', 1)`)
+	require.NoError(t, err)
+	var entries int
+	require.NoError(t, connection.QueryRow(ctx, "SELECT count(*) FROM audit_log").Scan(&entries))
+	assert.Equal(t, 1, entries)
+
+	statements := []string{
+		"UPDATE audit_log SET subject_id = 2",
+		"DELETE FROM audit_log",
+		"TRUNCATE audit_log",
+	}
+	for _, statement := range statements {
+		assert.Equal(t, insufficientPrivilege, refusal(t, temporary, statement), statement)
+	}
+	require.NoError(t, connection.QueryRow(ctx, "SELECT count(*) FROM audit_log WHERE subject_id = 1").Scan(&entries))
+	assert.Equal(t, 1, entries, "the entry was changed or removed")
+}

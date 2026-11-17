@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"io/fs"
 	"net/http"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -121,8 +123,14 @@ func TestMigrateAppliesTheMigrationsAndASecondRunAppliesNothing(t *testing.T) {
 	firstStatus := run(context.Background(), []string{"migrate"}, environmentOf(temporary), &first, &stderr)
 	secondStatus := run(context.Background(), []string{"migrate"}, environmentOf(temporary), &second, &stderr)
 
+	// One line for each migration the binary carries, in the order of their
+	// numbers.
+	files, err := fs.Glob(migrations.Files, "*.sql")
+	require.NoError(t, err)
+	require.NotEmpty(t, files)
+	assert.Equal(t, "00001_grant_the_api_role_its_rights.sql", files[0])
 	assert.Equal(t, 0, firstStatus, stderr.String())
-	assert.Equal(t, "applied 00001_grant_the_api_role_its_rights.sql\n", first.String())
+	assert.Equal(t, "applied "+strings.Join(files, "\napplied ")+"\n", first.String())
 	assert.Equal(t, 0, secondStatus, stderr.String())
 	assert.Equal(t, "no migration to apply\n", second.String())
 }
