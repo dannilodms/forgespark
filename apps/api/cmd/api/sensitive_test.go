@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry/telemetrytest"
 )
@@ -150,4 +151,31 @@ func TestTheTestOfSensitiveValuesFindsAValueWrittenAsAQueryStringWritesIt(t *tes
 	found := guarded.foundIn(`{"msg":"request","query":"email=ana.souza%40example.com"}`)
 
 	assert.Equal(t, []string{"the e-mail of the administrator"}, found)
+}
+
+// The scenario of the test above runs with PostgreSQL out of reach, and a
+// setup code only exists once the database stored its hash. This one issues a
+// code on a migrated database, with the logs at their lowest level and the
+// spans collected, and then searches both for the code the command printed.
+func TestTheLogsAndTheSpansOfIssuingASetupCodeNeverCarryTheCode(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	environment := issueEnvironment(databasetest.Migrated(t))
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+
+	var printed, logs output
+	require.Equal(t, 0, run(context.Background(), []string{"issue-setup-code"}, environment, &printed, &logs), logs.String())
+
+	// The command makes the code up, so it is read from what the command
+	// printed, and registered as printed and as it is hashed.
+	code := printedSetupCode.FindString(printed.String())
+	require.NotEmpty(t, code, "the command printed no setup code")
+	guarded.add("the setup code", code)
+	guarded.add("the setup code without its hyphens", strings.ReplaceAll(code, "-", ""))
+	require.Contains(t, collector.Text(), "INSERT INTO setup_codes", "the scenario exported no span of the query that stores the code")
+	require.Contains(t, collector.Text(), "INSERT INTO audit_log", "the scenario exported no span of the query that records the operation")
+	assert.Empty(t, guarded.foundIn(logs.String()), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
 }

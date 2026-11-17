@@ -17,34 +17,55 @@ import (
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 	"github.com/dannilodms/software-factory-manager/apps/api/migrations"
 )
 
 // setupPath is where the app shows the setup, after its origin.
 const setupPath = "/setup"
 
+// commandTracer names the tracer that opens the span of a command.
+const commandTracer = "github.com/dannilodms/software-factory-manager/apps/api/cmd/api"
+
 // issueSetupCode issues a setup code and prints it, with when it stops
 // working, what it opens and the address of the setup.
 //
 // The code goes to the output of the command, which is the terminal of
-// whoever ran it and not the output of the container, and nowhere else: the
-// command writes no log, and the database keeps the hash.
-func issueSetupCode(ctx context.Context, environment map[string]string, stdout, _ io.Writer) error {
+// whoever ran it and not the output of the container, and nowhere else. The
+// logs, on the error output, hold a failed export of traces and nothing of
+// the code. A span holds the SQL text of a query and never its parameters,
+// and the database keeps the hash.
+//
+// When it returns, the span of the command ends, the pool is closed and then
+// the last spans are sent, in that order.
+func issueSetupCode(ctx context.Context, environment map[string]string, stdout, stderr io.Writer) error {
 	settings, err := config.Load(config.IssueSetupCode, environment)
 	if err != nil {
 		return err
 	}
+
+	logger := telemetry.NewLogger(stderr, settings.LogLevel)
+	tracing, err := telemetry.StartTracing("api", settings.TelemetryExportURL.String(), logger)
+	if err != nil {
+		return err
+	}
+	defer tracing.Stop()
 
 	pool, err := database.NewPool(database.PoolSettings{
 		ConnectionURL:            settings.DatabaseURL.ConnectionString(),
 		MaxSize:                  settings.DatabasePoolMaxSize,
 		StatementTimeout:         settings.DatabaseStatementTimeout,
 		IdleInTransactionTimeout: settings.DatabaseIdleInTransactionTimeout,
+		TracerProvider:           tracing.Provider,
 	})
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
+
+	// One span around the work, so the queries of the command are one trace.
+	ctx, span := tracing.Provider.Tracer(commandTracer).Start(ctx, "issue-setup-code")
+	defer span.End()
 	if err := checkSchema(ctx, pool, settings); err != nil {
 		return err
 	}
