@@ -60,7 +60,7 @@ The mapping check, the one that fails when a mapping between API type, domain ty
 
 ### What was checked
 
-- **`task check` passes** on the branch, with the code of ticket 01 unchanged: the linter reported `0 issues`, the guard and the version check printed nothing, and the Go tests passed.
+- **`task check` passes** on the branch, with the code of ticket 01 unchanged: the linter reported `0 issues`, the guard and the version check printed nothing, and the Go tests passed. It passed again after the integration branch was merged in with ticket 03, whose code needed no change either.
 - **A Go file that is not formatted.** With `apps/api/cmd/api/zz_unformatted.go`, which gofmt accepts and gofumpt does not, `task check` failed at `api:lint`: `cmd\api\zz_unformatted.go:4:1: File is not properly formatted (gofumpt)`. A test runs the linter on a fixture with the same fault.
 - **Imports.** `imports_test.go` has one case for each forbidden import, seventeen in all, the four of the criterion among them, and one tree with every allowed import in areas that do not exist yet. By hand, with five packages under `apps/api/internal/zzarea` and `zzother`, `task api:lint` failed with one line for each: domain to application, domain to the domain of another area, application to an adapter, an adapter to another adapter.
 - **`else` and nesting.** `controlflow_test.go` covers an `else`, an `else if`, ten shapes of a second level and four shapes that hold one. The same run by hand reported the `else` and the `if` inside the `for ... range`.
