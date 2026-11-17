@@ -14,11 +14,12 @@ import (
 // `issue-setup-code` command of the binary runs it: it has no REST operation,
 // because whoever runs it has the server and no session.
 type IssueSetupCode struct {
-	transactions Transactions
-	setupCodes   SetupCodeRepository
-	recordEntry  *auditapplication.RecordEntry
-	clock        Clock
-	random       io.Reader
+	transactions  Transactions
+	setupCodes    SetupCodeRepository
+	consultancies ConsultancyRepository
+	recordEntry   *auditapplication.RecordEntry
+	clock         Clock
+	random        io.Reader
 }
 
 // NewIssueSetupCode builds the use case. The random source is the
@@ -26,16 +27,18 @@ type IssueSetupCode struct {
 func NewIssueSetupCode(
 	transactions Transactions,
 	setupCodes SetupCodeRepository,
+	consultancies ConsultancyRepository,
 	recordEntry *auditapplication.RecordEntry,
 	clock Clock,
 	random io.Reader,
 ) *IssueSetupCode {
 	return &IssueSetupCode{
-		transactions: transactions,
-		setupCodes:   setupCodes,
-		recordEntry:  recordEntry,
-		clock:        clock,
-		random:       random,
+		transactions:  transactions,
+		setupCodes:    setupCodes,
+		consultancies: consultancies,
+		recordEntry:   recordEntry,
+		clock:         clock,
+		random:        random,
 	}
 }
 
@@ -48,7 +51,9 @@ type IssuedSetupCode struct {
 }
 
 // Execute ends every setup code issued before, stores the hash of a new one
-// and records the operation in the audit log, all in one transaction.
+// and records the operation in the audit log, all in one transaction. The
+// code opens the first setup while no consultancy exists, and the
+// registration of a new administrator once one does.
 func (u *IssueSetupCode) Execute(ctx context.Context) (IssuedSetupCode, error) {
 	var issued IssuedSetupCode
 	err := u.transactions.Run(ctx, func(ctx context.Context) error {
@@ -90,11 +95,15 @@ func (u *IssueSetupCode) issue(ctx context.Context) (IssuedSetupCode, error) {
 	if err != nil {
 		return IssuedSetupCode{}, err
 	}
+	concluded, err := u.consultancies.Exists(ctx)
+	if err != nil {
+		return IssuedSetupCode{}, err
+	}
 
 	return IssuedSetupCode{
 		Code:      plain,
 		ExpiresAt: setupCode.ExpiresAt(),
-		Opens:     domain.OpensFirstSetup,
+		Opens:     domain.SetupCodeOpensWhen(concluded),
 	}, nil
 }
 

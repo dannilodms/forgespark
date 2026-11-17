@@ -88,7 +88,7 @@ func newInstallation() installation {
 		files:            files,
 		objects:          objects,
 		transactions:     transactions,
-		issueSetupCode:   application.NewIssueSetupCode(transactions, setupCodes, recordEntry, clock, &countingBytes{}),
+		issueSetupCode:   application.NewIssueSetupCode(transactions, setupCodes, consultancies, recordEntry, clock, &countingBytes{}),
 		openSetup:        application.NewOpenSetup(setupCodes, consultancies, clock),
 		startSetupUpload: application.NewStartSetupUpload(setupCodes, startUpload, clock),
 		concludeSetup: application.NewConcludeSetup(
@@ -107,6 +107,18 @@ func TestIssuingASetupCodeReturnsTheCodeItsExpiryAndWhatItOpens(t *testing.T) {
 	assert.Equal(t, firstCode, issued.Code.Reveal())
 	assert.Equal(t, noon.Add(time.Hour), issued.ExpiresAt)
 	assert.Equal(t, "first_setup", string(issued.Opens))
+}
+
+// The way back in: once the consultancy exists, a setup code registers a new
+// administrator.
+func TestASetupCodeIssuedOnceTheSetupIsConcludedOpensTheRegistrationOfANewAdministrator(t *testing.T) {
+	installed := concluded(t)
+
+	issued, err := installed.issueSetupCode.Execute(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, secondCode, issued.Code.Reveal())
+	assert.Equal(t, "new_administrator", string(issued.Opens))
 }
 
 func TestTheSetupCodeIsStoredAsItsHashAndNeverAsTheCode(t *testing.T) {

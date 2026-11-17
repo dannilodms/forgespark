@@ -73,6 +73,7 @@ func issueSetupCode(ctx context.Context, environment map[string]string, stdout, 
 	issue := consultancyapplication.NewIssueSetupCode(
 		database.NewTransactions(pool),
 		consultancypostgres.NewSetupCodeRepository(pool),
+		consultancypostgres.NewConsultancyRepository(pool),
 		auditapplication.NewRecordEntry(auditpostgres.NewAuditLog(pool)),
 		clock.System{},
 		rand.Reader,
@@ -99,12 +100,13 @@ Address:           %s
 Type the code at the address. A new setup code ends this one.
 `
 
-// openedBy says in words what a setup code opens.
+// openedBy says in words what a setup code opens. The way back in also says
+// that it leaves the users that exist as they are.
 func openedBy(opens consultancydomain.SetupCodeOpens) string {
-	if opens == consultancydomain.OpensFirstSetup {
-		return "the first setup, which registers the consultancy and its first administrator"
+	if opens == consultancydomain.OpensNewAdministrator {
+		return "the registration of a new administrator. The users that exist are not changed."
 	}
-	return string(opens)
+	return "the first setup, which registers the consultancy and its first administrator"
 }
 
 // checkSchema stops the command, with what to do, when PostgreSQL does not
