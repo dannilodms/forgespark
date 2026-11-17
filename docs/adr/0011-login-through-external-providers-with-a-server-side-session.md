@@ -44,7 +44,7 @@ A person logs in through an external provider or with a login code sent to their
 - A person locked out of one provider logs in through another with the same verified e-mail, or with a login code.
 - Whoever reads a user's mailbox can log in as that user.
 - The login code depends on the e-mail server, an optional part of the system health. With it down, only the providers work.
-- Caddy has no rate limit of its own, so its image is built in this repository with a plugin. The plugin and the numbers of the limit are chosen with the setup (ADR-0024), the first code that needs the limit.
+- Caddy has no rate limit of its own, so its image is built in this repository with a plugin. The setup (ADR-0024), the first code that needs the limit, chose `mholt/caddy-ratelimit` and the number for the setup code, recorded in Rate limit in `CODING_STANDARDS.md`. The numbers of the login code are chosen with the login.
 - The key of the login code is one more secret in the deploy configuration. Changing it only ends the codes not yet used.
 - Rate limiting, which ADR-0009 had left out, exists for the login code.
 - Staging does not use the local provider. It is public, so it logs in through the real providers, or with a login code read from a Mailpit that sits behind a password (ADR-0019).
