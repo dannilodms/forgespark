@@ -297,6 +297,9 @@ A command of the binary requires only the variables it uses. The ones the binary
 | Variable | What it is | Default |
 | --- | --- | --- |
 | `API_LISTEN_ADDRESS` | Where the API listens, as `host:port`. An empty host is every interface | None: the API requires it |
+| `SHUTDOWN_DRAIN_DEADLINE` | How long the requests in flight have to finish once the API is told to stop | `20s` |
+| `LOG_LEVEL` | The lowest level the binary logs: `debug`, `info`, `warn` or `error` | `info` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Base URL of the OTLP/HTTP receiver the traces are exported to, such as `http://localhost:4318`. Empty exports nothing | Empty |
 | `DATABASE_URL` | Connection URL of the API role, which reads and writes rows | None: the API requires it |
 | `MIGRATION_DATABASE_URL` | Connection URL of the migration role, which owns the tables | None: `migrate` requires it |
 | `DATABASE_POOL_MAX_SIZE` | The most connections the pool of the API opens | `10` |

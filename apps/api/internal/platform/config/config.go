@@ -5,6 +5,7 @@ package config
 
 import (
 	"errors"
+	"log/slog"
 	"reflect"
 	"slices"
 	"strings"
@@ -27,6 +28,9 @@ const (
 // variable is listed, with what it is for, in .env.example at the root.
 type Config struct {
 	ListenAddress                    ListenAddress `env:"API_LISTEN_ADDRESS"`
+	ShutdownDrainDeadline            time.Duration `env:"SHUTDOWN_DRAIN_DEADLINE" envDefault:"20s"`
+	LogLevel                         slog.Level    `env:"LOG_LEVEL" envDefault:"info"`
+	TelemetryExportURL               HTTPURL       `env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
 	DatabaseURL                      PostgresURL   `env:"DATABASE_URL"`
 	DatabasePoolMaxSize              int32         `env:"DATABASE_POOL_MAX_SIZE" envDefault:"10"`
 	DatabaseStatementTimeout         time.Duration `env:"DATABASE_STATEMENT_TIMEOUT" envDefault:"30s"`
@@ -54,6 +58,7 @@ func Load(command Command, environment map[string]string) (Config, error) {
 		found.addWhen(environment[variable] == "", variable, "is required")
 	}
 	found.addUnparsed(env.ParseWithOptions(&loaded, env.Options{Environment: environment}))
+	found.addWhen(loaded.ShutdownDrainDeadline <= 0, "SHUTDOWN_DRAIN_DEADLINE", "is not valid: expected more than zero")
 	found.addWhen(loaded.DatabasePoolMaxSize < 1, "DATABASE_POOL_MAX_SIZE", "is not valid: expected at least 1")
 	found.addWhen(loaded.DatabaseStatementTimeout <= 0, "DATABASE_STATEMENT_TIMEOUT", "is not valid: expected more than zero")
 	found.addWhen(loaded.DatabaseIdleInTransactionTimeout <= 0, "DATABASE_IDLE_IN_TRANSACTION_TIMEOUT", "is not valid: expected more than zero")
@@ -138,6 +143,10 @@ func variableOf(fieldName string) string {
 
 func expectationOf(valueType reflect.Type) string {
 	switch valueType {
+	case reflect.TypeFor[slog.Level]():
+		return "debug, info, warn or error"
+	case reflect.TypeFor[HTTPURL]():
+		return "an http or https URL"
 	case reflect.TypeFor[ListenAddress]():
 		return "host:port"
 	case reflect.TypeFor[PostgresURL]():

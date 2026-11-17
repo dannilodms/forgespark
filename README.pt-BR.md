@@ -297,6 +297,9 @@ Cada comando do binário exige apenas as variáveis que usa. As que o binário l
 | Variável | O que é | Padrão |
 | --- | --- | --- |
 | `API_LISTEN_ADDRESS` | Onde a API escuta, no formato `host:porta`. Um host vazio significa todas as interfaces | Nenhum: a API exige |
+| `SHUTDOWN_DRAIN_DEADLINE` | Quanto tempo as requisições em andamento têm para terminar depois que a API recebe a ordem de parar | `20s` |
+| `LOG_LEVEL` | O menor nível que o binário registra nos logs: `debug`, `info`, `warn` ou `error` | `info` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | URL base do receptor OTLP/HTTP para onde os traces são exportados, como `http://localhost:4318`. Vazia, nada é exportado | Vazio |
 | `DATABASE_URL` | URL de conexão do papel da API, que lê e grava linhas | Nenhum: a API exige |
 | `MIGRATION_DATABASE_URL` | URL de conexão do papel de migração, que é dono das tabelas | Nenhum: o `migrate` exige |
 | `DATABASE_POOL_MAX_SIZE` | O máximo de conexões que o pool da API abre | `10` |
