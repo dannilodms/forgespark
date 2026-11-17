@@ -61,7 +61,9 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 - Every operation an inbound adapter exposes is one use case in `application`. A Huma handler or an MCP tool parses its input, calls one use case and maps the result.
 - A use case that only passes the call through is correct. So is the mapping between API types and domain types. Both are deliberate, not a middle man or duplication.
 - A use case's inputs and outputs carry no type from Huma, the MCP SDK or any other adapter library.
-- **Writes.** One use case is one transaction, opened and closed through an interface. It loads the aggregate from its repository, which locks the row, calls the aggregate, and saves it whole. It may save several aggregates of its own area. An effect on another area runs after the commit and before the response, inside the request; one that must not be lost is a job instead. An effect on an external service whose result the caller waits to see, such as a streamed LLM answer or an on-demand translation, also runs after the commit, inside the request. Any other effect on an external service is a job. A job is saved inside the transaction (see Jobs).
+- **Shape.** A use case is a type in `application`, named after what it does. The command that wires it builds it once, with the interfaces it needs, and an inbound adapter runs it with `Execute`. Those interfaces are declared in the same package.
+- **Clock.** A use case takes the current time from a clock it receives when it is built, never from the machine, so a test decides what time it is. The command passes the clock of the machine, `clock.System` in `platform`.
+- **Writes.** One use case is one transaction, opened and closed through an interface. It loads the aggregate from its repository, which locks the row, calls the aggregate, and saves it whole. It may save several aggregates of its own area. An effect on another area runs after the commit and before the response, inside the request; one that must not be lost is a job instead. The audit log is the one exception: an entry is written in the transaction of the operation it records, so an operation never succeeds without its record. An effect on an external service whose result the caller waits to see, such as a streamed LLM answer or an on-demand translation, also runs after the commit, inside the request. Any other effect on an external service is a job. A job is saved inside the transaction (see Jobs).
 - **Reads.** A query use case calls a read-only interface that returns data already shaped for the caller. It builds no aggregate.
 
 ### Inbound adapters
@@ -113,7 +115,7 @@ The term login code is defined in `GLOSSARY.md`. The reasons are in ADR-0011.
 
 The terms setup and setup code are defined in `GLOSSARY.md`. The reasons are in ADR-0024.
 
-- **Command.** `issue-setup-code`, a command of the API binary, prints a setup code and says what it opens: the first setup, or the registration of a new administrator when the setup is already concluded.
+- **Command.** `issue-setup-code`, a command of the API binary, prints a setup code and says what it opens: the first setup, or the registration of a new administrator when the setup is already concluded. It also prints when the code stops working and the address of the setup, which is the origin of the app, taken from configuration, followed by `/setup`.
 - **Setup code.** Twenty letters and digits in four groups, with no character that reads like another. It lasts one hour, and a new one ends the one before. Only its SHA-256 hash is stored. The code is in no table, log or span.
 - **In the body.** The screen keeps the code in memory and sends it in the body of each request of the setup, never in a path, a query parameter or a header.
 - **No limit of its own.** A wrong code does not end the setup code. Caddy limits the checking for each IP address (see Delivery).
@@ -221,6 +223,8 @@ Every REST failure uses that format, including unknown routes, wrong methods and
 PostgreSQL 18 is the only database, with one schema.
 
 - **Access.** A `postgres` adapter runs SQL through pgx, version 5.13.0 or later. Its queries are SQL files inside the adapter package, and sqlc generates the Go functions and the row structs from them. The generated code is committed and never edited.
+- **Generating.** `apps/api/sqlc.yaml` has one entry for each `postgres` adapter, and reads the schema from the migrations. `task api:generate` writes the code into the adapter package, in the files named `sqlc_*.go` and `*.sql.go`. `task api:generate:check` fails when the committed code is stale, and `task check` and the pipeline run it.
+- **Transactions.** `platform` opens the transaction of a use case and carries it in the context (`database.Transactions`). A `postgres` adapter keeps no connection: every method runs its SQL on what the context carries (`database.Within`), the transaction when there is one and the pool otherwise. So everything a use case writes, through the adapters of any area, is in its one transaction.
 - **Parameters.** A value reaches SQL as a parameter. No value is concatenated into SQL text.
 - **Lists.** A list is fixed SQL: an optional filter is `(parameter IS NULL OR column = parameter)`, and each allowed sort is its own query. A list that does not fit is written by hand on pgx, with a comment saying why.
 - **Pool.** One pgxpool in `platform`, shared by every domain area and by the session store. Its maximum size, the statement timeout and the idle-in-transaction timeout come from configuration. `platform` stops the session store's cleanup routine during the shutdown.
@@ -295,7 +299,11 @@ A domain concept uses the exact term from `GLOSSARY.md`, spelled in full, in eve
 
 The default seam is the use case, exercised with in-memory implementations of its interfaces. Each real adapter (Postgres, the S3 storage, SMTP, LLM) has its own tests against the real service.
 
-A `postgres` adapter test runs against the development PostgreSQL container. Each test gets a temporary database, cloned by pgtestdb from a template that the migrations built, so tests run in parallel and never touch the development database.
+Assertions use testify: `require` for what the rest of the test depends on, `assert` for what it checks.
+
+The in-memory implementations of an area live in its `application/applicationtest` package: its repositories, a clock that stands still until the test moves it, and transactions that undo what a failed operation wrote, as a rollback does. A test of another area that calls the use cases of this one builds them on the same implementations.
+
+A `postgres` adapter test runs against the development PostgreSQL container. Each test gets a temporary database, cloned by pgtestdb from a template that the migrations built, so tests run in parallel and never touch the development database. `databasetest.Migrated` in `platform` gives it. The template is built by the function the `migrate` command calls, and again only when a migration file changes.
 
 A use case that saves a job is tested with an in-memory implementation of the interface that saves it. A job worker in `adapters/river` is tested with River's test helpers, in a temporary database. The `smtp` adapter is tested against Mailpit, and the `resend` adapter against Resend's test addresses, which deliver nothing.
 
@@ -321,7 +329,7 @@ Nothing is cached yet. A read measured as slow first gets an in-memory cache ins
 
 A lint for migrations and the column type for case-insensitive text are decided with the first case that needs one.
 
-The first backend code is the foundation and the setup: `.scratch/foundation-and-setup/spec.md`. Two efforts follow it, each specified when the one before ends: the login and the shell of the app, then the consultancy settings, the users and the system health. There is no walking skeleton. That spec lists the joints that the ADRs record as not tried and that these three efforts do not cross; the work that builds the deploy tries most of them. Three conventions are fixed with the first code and then recorded here. Where dependencies are wired is in Commands. Where a use case takes the current time from and the assertion library of the tests are recorded with the first use case. Whether a record is deleted or archived is fixed with the first record that is removed; a user is deactivated and never removed.
+The first backend code is the foundation and the setup: `.scratch/foundation-and-setup/spec.md`. Two efforts follow it, each specified when the one before ends: the login and the shell of the app, then the consultancy settings, the users and the system health. There is no walking skeleton. That spec lists the joints that the ADRs record as not tried and that these three efforts do not cross; the work that builds the deploy tries most of them. Three conventions were fixed with the first code: where dependencies are wired is in Commands, where a use case takes the current time from is in Use cases, and the assertion library of the tests is in Tests. Whether a record is deleted or archived is fixed with the first record that is removed; a user is deactivated and never removed.
 
 The Go linter and formatter, the Go type for money (`kernel` imports the standard library only), the client library for LLM providers, and the templates and translation files of e-mails are each chosen with the first code that needs one.
 
@@ -661,7 +669,7 @@ Every tool, library and container image runs at a version written in a committed
 | The system itself | `VERSION` at the root (see Releases) |
 | Go toolchain | the `go` and `toolchain` lines of `go.mod` |
 | Go libraries | `go.mod` and `go.sum` |
-| Go command-line tools (sqlc, vacuum, oasdiff, the River CLI) | `tool` lines of `go.mod`, run with `go tool` |
+| Go command-line tools (sqlc, vacuum, oasdiff, the River CLI) | the `tool` line of a module file of its own beside `go.mod`, one for each tool (`apps/api/sqlc.mod`), run with `go tool -modfile=sqlc.mod` |
 | Node.js | `devEngines.runtime` in `apps/web/package.json`, written by `vp env pin` |
 | pnpm | `devEngines.packageManager` in `apps/web/package.json`, written by `vp env pin` |
 | JavaScript libraries and tools, Vite+ included | the catalog in `apps/web/pnpm-workspace.yaml`, and `apps/web/pnpm-lock.yaml` |

@@ -225,6 +225,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [sqlc](https://sqlc.dev/) | Gera código Go tipado a partir de SQL escrito à mão |
 | [goose](https://github.com/pressly/goose) | Aplica as migrations do banco, só para frente |
 | [pgtestdb](https://github.com/peterldowns/pgtestdb) | Dá a cada teste de banco o seu próprio banco temporário |
+| [testify](https://github.com/stretchr/testify) | Asserções dos testes em Go |
 | [River](https://riverqueue.com/) | Trabalhos em segundo plano guardados no PostgreSQL e executados pelo comando `worker`, com um painel web |
 | [AWS SDK para Go v2](https://github.com/aws/aws-sdk-go-v2) | Cliente do armazenamento S3; assina as URLs de upload e download |
 | [go-mail](https://github.com/wneessen/go-mail) | Envia e-mail por SMTP em desenvolvimento e nos testes |
@@ -297,12 +298,13 @@ Cada comando do binário exige apenas as variáveis que usa. As que o binário l
 | Variável | O que é | Padrão |
 | --- | --- | --- |
 | `API_LISTEN_ADDRESS` | Onde a API escuta, no formato `host:porta`. Um host vazio significa todas as interfaces | Nenhum: a API exige |
-| `DATABASE_URL` | URL de conexão do papel da API, que lê e grava linhas | Nenhum: a API exige |
+| `DATABASE_URL` | URL de conexão do papel da API, que lê e grava linhas | Nenhum: a API e o `issue-setup-code` exigem |
 | `MIGRATION_DATABASE_URL` | URL de conexão do papel de migração, que é dono das tabelas | Nenhum: o `migrate` exige |
 | `DATABASE_POOL_MAX_SIZE` | O máximo de conexões que o pool da API abre | `10` |
 | `DATABASE_STATEMENT_TIMEOUT` | Por quanto tempo um comando SQL pode rodar | `30s` |
 | `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT` | Por quanto tempo uma transação pode ficar ociosa | `1m` |
 | `HEALTH_CHECK_TIMEOUT` | Quanto tempo a verificação de uma parte pode levar, incluída a de prontidão | `2s` |
+| `APP_ORIGIN` | O endereço em que as pessoas abrem o app: esquema, host e, se houver, porta, sem nada depois. O `issue-setup-code` monta com ele o endereço da configuração inicial | Nenhum: o `issue-setup-code` exige |
 
 O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, e a conexão com que os testes em Go criam seus bancos temporários.
 
@@ -336,6 +338,8 @@ Da tabela acima, o PostgreSQL é o que roda hoje, ao lado da API e do app. Para 
 
 Nada é configurado à mão: os valores do `.env.example` funcionam como estão. A API responde à verificação de atividade em `http://127.0.0.1:8080/livez` e à de prontidão em `http://127.0.0.1:8080/readyz`, que responde 503 até as migrations serem aplicadas.
 
+Uma instalação nova não tem usuário nem consultoria. `task issue-setup-code` emite o código de configuração que abre a configuração inicial e mostra, na saída do próprio comando, o código, quando ele deixa de funcionar, o que ele abre e o endereço da configuração inicial. O código vale por uma hora, e um novo encerra o anterior. Só o seu hash é guardado, então um código perdido não pode ser lido de volta: emita outro. Em um servidor, o mesmo comando do binário da API, `issue-setup-code`, roda dentro do container da API. A tela que recebe o código está _A definir_.
+
 Os comandos, executados na raiz do repositório:
 
 | Comando | O que faz |
@@ -344,14 +348,19 @@ Os comandos, executados na raiz do repositório:
 | `task services` | Inicia os serviços de desenvolvimento no Docker e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
 | `task services:stop` | Para os serviços de desenvolvimento e mantém os dados |
 | `task migrate` | Aplica as migrations pendentes no banco de desenvolvimento. Uma segunda execução não aplica nada |
+| `task issue-setup-code` | Emite um código de configuração no banco de desenvolvimento e o mostra, com quando deixa de funcionar, o que abre e o endereço da configuração inicial |
 | `task api` | Inicia a API em `http://127.0.0.1:8080` |
 | `task dev` | Inicia o app em `http://localhost:5173` |
 | `task api:build` | Gera o binário da API em `apps/api/bin` |
 | `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário. Os argumentos depois de `--` substituem a lista de pacotes |
-| `task check` | Roda todas as verificações de um pull request: as de formato, lint e tipos de `apps/web`, as chaves de tradução ausentes e os testes do app e, em seguida, o build da API e os testes em Go |
+| `task api:generate` | Gera, com o sqlc, o código Go dos adaptadores `postgres` a partir dos arquivos SQL de cada um. O resultado entra no commit |
+| `task api:generate:check` | Falha quando o código gerado pelo sqlc que está no repositório ficou desatualizado |
+| `task check` | Roda todas as verificações de um pull request: as de formato, lint e tipos de `apps/web`, as chaves de tradução ausentes e os testes do app e, em seguida, a verificação do código gerado, o build da API e os testes em Go |
 | `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
-Os comandos do que ainda não foi construído (o worker, o seed, o código gerado) estão _A definir_, e cada um será escrito com o seu código.
+Os comandos do que ainda não foi construído (o worker, o seed, a especificação OpenAPI e o cliente gerado a partir dela) estão _A definir_, e cada um será escrito com o seu código.
+
+O sqlc roda com `go tool`, a partir de um arquivo de módulo só dele, `apps/api/sqlc.mod`. Na primeira vez em uma máquina, o Go baixa e compila o sqlc, o que leva vários minutos: uma das dependências dele tem mais de cem mil arquivos, e extraí-los no Windows chega a levar meia hora. O comando parece parado nesse tempo. Não o interrompa, porque a extração recomeça do zero.
 
 <!-- Comandos para subir o ambiente local do zero: clonar, configurar, iniciar os serviços e acessar a aplicação. -->
 
