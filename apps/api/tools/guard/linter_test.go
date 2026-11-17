@@ -40,8 +40,13 @@ func TestTheLinterFailsOnWhatItsConfigurationRejects(t *testing.T) {
 	assert.Contains(t, output, "unchecked.go:8:10: Error return value of `os.Mkdir` is not checked (errcheck)")
 	// A rule silenced without its name and without a reason.
 	assert.Contains(t, output, "silenced.go:9:24: directive `//nolint` should mention specific linter")
+	// A struct literal of a type of an adapter package that leaves a field
+	// out: the mapping check. The same file maps every field in one place,
+	// returns the zero value beside an error in another and leaves a field
+	// of a type of the domain out in a third, and none of the three fails.
+	assert.Contains(t, output, "mapping.go:21:9: rest.Body is missing field LegalName (exhaustruct_v5)")
 	// Code that keeps the rules, and a generated file that does not.
 	assert.NotContains(t, output, "clean.go")
 	assert.NotContains(t, output, "generated.go")
-	assert.Contains(t, output, "3 issues:")
+	assert.Contains(t, output, "4 issues:")
 }

@@ -18,8 +18,19 @@ linters:
   # errcheck, govet, ineffassign, staticcheck and unused.
   default: standard
   enable:
+    # The mapping check: a struct literal of a type of an adapter package
+    # fails when it leaves a field out, so a field added to an API type or to
+    # a database row is mapped or the lint fails. The zero value returned
+    # beside an error is allowed. The types of the domain are not judged: an
+    # aggregate is built through its constructor.
+    - exhaustruct_v5
     - nolintlint
   settings:
+    exhaustruct_v5:
+      explicit-mode: true
+      enforce-patterns:
+        - .+/internal/.+/adapters/.+
+      allow-empty-returns: true
     errcheck:
       exclude-functions:
         # `defer transaction.Rollback(ctx)` is how pgx ends a transaction
@@ -37,18 +48,6 @@ linters:
     presets:
       # The error of a `Close`, and of a print to an output, is not checked.
       - std-error-handling
-
-# The mapping check is turned on with the first mapping between an API type,
-# a domain type and a database row: add `exhaustruct_v5` to `linters.enable`
-# and this to `linters.settings`. A struct literal of a type of an adapter
-# package then fails when it leaves a field out. The zero value returned
-# beside an error is allowed.
-#
-#   exhaustruct_v5:
-#     explicit-mode: true
-#     enforce-patterns:
-#       - .+/internal/.+/adapters/.+
-#     allow-empty-returns: true
 
 formatters:
   enable:
