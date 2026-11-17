@@ -234,6 +234,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) | Container that gathers traces, metrics and logs from every service and from the server |
 | [Grafana otel-lgtm](https://grafana.com/docs/opentelemetry/docker-lgtm/) | One container that stores and shows the telemetry, and sends the alerts |
 | [vacuum](https://quobix.com/vacuum/) and [oasdiff](https://github.com/oasdiff/oasdiff) | Lint of the API conventions and report of breaking changes on the OpenAPI spec |
+| [golangci-lint](https://golangci-lint.run/) and [gofumpt](https://github.com/mvdan/gofumpt) | Linter and formatter of the Go code |
 | [React](https://react.dev/) | Web frontend (single-page app) |
 | [Vite+](https://viteplus.dev/) | Frontend toolchain behind one CLI (`vp`): dev server and build (Vite, Rolldown), tests (Vitest), lint (Oxlint), format (Oxfmt), plus the Node.js runtime and package manager |
 | [TanStack Router](https://tanstack.com/router) | Typed client-side routing; filters and pagination live in the URL |
@@ -348,7 +349,10 @@ The commands, run from the repository root:
 | `task dev` | Starts the app at `http://localhost:5173` |
 | `task api:build` | Builds the API binary into `apps/api/bin` |
 | `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there. Arguments after `--` replace the list of packages |
-| `task check` | Runs every check of a pull request: the format, lint and type checks of `apps/web`, its missing translation keys and its tests, then the build of the API and the Go tests |
+| `task api:lint` | Lints the Go code and checks its format, the imports between layers and between domain areas, `else` and the level of nesting |
+| `task api:format` | Rewrites the Go files as the formatter asks |
+| `task versions:check` | Checks that every version the repository pins is exact: no range, no `latest`, no floating tag |
+| `task check` | Runs every check of a pull request: the exact versions, the format, lint and type checks of `apps/web`, its missing translation keys and its tests, then the lint, the build and the tests of the API |
 | `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
 
 The commands of what is not built yet (the worker, the seed, the generated code) are _TBD_, each written with its code.

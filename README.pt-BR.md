@@ -234,6 +234,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) | Container que reúne traces, métricas e logs de todos os serviços e do servidor |
 | [Grafana otel-lgtm](https://grafana.com/docs/opentelemetry/docker-lgtm/) | Um container que guarda e mostra a telemetria e envia os alertas |
 | [vacuum](https://quobix.com/vacuum/) e [oasdiff](https://github.com/oasdiff/oasdiff) | Lint das convenções da API e relatório de mudanças incompatíveis na especificação OpenAPI |
+| [golangci-lint](https://golangci-lint.run/) e [gofumpt](https://github.com/mvdan/gofumpt) | Linter e formatador do código Go |
 | [React](https://react.dev/) | Frontend web (single-page app) |
 | [Vite+](https://viteplus.dev/) | Ferramentas do frontend em uma única CLI (`vp`): servidor de desenvolvimento e build (Vite, Rolldown), testes (Vitest), lint (Oxlint), formatação (Oxfmt), além do runtime Node.js e do gerenciador de pacotes |
 | [TanStack Router](https://tanstack.com/router) | Roteamento tipado no cliente; filtros e paginação ficam na URL |
@@ -348,7 +349,10 @@ Os comandos, executados na raiz do repositório:
 | `task dev` | Inicia o app em `http://localhost:5173` |
 | `task api:build` | Gera o binário da API em `apps/api/bin` |
 | `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário. Os argumentos depois de `--` substituem a lista de pacotes |
-| `task check` | Roda todas as verificações de um pull request: as de formato, lint e tipos de `apps/web`, as chaves de tradução ausentes e os testes do app e, em seguida, o build da API e os testes em Go |
+| `task api:lint` | Roda o lint do código Go e verifica o formato, os imports entre camadas e entre áreas de domínio, o `else` e o nível de aninhamento |
+| `task api:format` | Reescreve os arquivos Go como o formatador pede |
+| `task versions:check` | Verifica se toda versão fixada no repositório é exata: sem intervalo, sem `latest`, sem tag flutuante |
+| `task check` | Roda todas as verificações de um pull request: as versões exatas, as de formato, lint e tipos de `apps/web`, as chaves de tradução ausentes e os testes do app e, em seguida, o lint, o build e os testes da API |
 | `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
 Os comandos do que ainda não foi construído (o worker, o seed, o código gerado) estão _A definir_, e cada um será escrito com o seu código.
