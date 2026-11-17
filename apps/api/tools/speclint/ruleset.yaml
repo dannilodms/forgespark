@@ -1,0 +1,61 @@
+# The lint of the OpenAPI spec, run by vacuum: `task api:spec:lint`.
+# Rules: API conventions and Enforcement in CODING_STANDARDS.md, and ADR-0009.
+#
+# Only the conventions of this repository are checked. The rules vacuum
+# recommends are turned off: they judge the documentation of a public API.
+extends: [[vacuum:oas, off]]
+
+rules:
+  # Names. Huma takes the name of a property from the tag of its Go field and
+  # has no switch for the case, so the rule is kept here.
+  #
+  # `$schema` is the one name that is not snake_case and passes: Huma adds
+  # that property to every body unless its schema links are turned off, and
+  # the API turns them off. The lint must not be what breaks if they come
+  # back.
+  snake-case-properties:
+    description: A property of a body is written in snake_case
+    message: "the property {{property}} is not in snake_case"
+    severity: error
+    given: $..properties[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: ^(\$schema|[a-z][a-z0-9]*(_[a-z0-9]+)*)$
+
+  snake-case-query-parameters:
+    description: A query parameter is written in snake_case
+    message: "the query parameter {{value}} is not in snake_case"
+    severity: error
+    given: $.paths[*][*].parameters[?(@.in == 'query')]
+    then:
+      field: name
+      function: pattern
+      functionOptions:
+        match: ^[a-z][a-z0-9]*(_[a-z0-9]+)*$
+
+  snake-case-path-parameters:
+    description: A path parameter is written in snake_case
+    message: "the path parameter {{value}} is not in snake_case"
+    severity: error
+    given: $.paths[*][*].parameters[?(@.in == 'path')]
+    then:
+      field: name
+      function: pattern
+      functionOptions:
+        match: ^[a-z][a-z0-9]*(_[a-z0-9]+)*$
+
+  # Paths. A resource is a plural noun. A resource that exists once has a
+  # singular path and is listed here: add the path with the operation that
+  # creates it. A `POST` may end in the verb of its use case.
+  plural-paths:
+    description: A resource is a plural noun, unless its path is listed as one that exists once
+    severity: error
+    given: $.paths
+    then:
+      function: pluralPaths
+      functionOptions:
+        prefix: /api
+        singular:
+          - /api/setup
+          - /api/health
