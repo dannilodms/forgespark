@@ -6,11 +6,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
@@ -56,32 +58,30 @@ func TestAQueryMadeDuringARequestIsASpanUnderItWithItsSQLTextAndNoParameter(t *t
 
 func spanOfTheRequest(t *testing.T, spans []sdktrace.ReadOnlySpan) sdktrace.ReadOnlySpan {
 	t.Helper()
-	for _, span := range spans {
-		if span.SpanKind() == trace.SpanKindServer {
-			return span
-		}
-	}
-	require.Fail(t, "the request opened no span")
-	return nil
+	index := slices.IndexFunc(spans, func(span sdktrace.ReadOnlySpan) bool {
+		return span.SpanKind() == trace.SpanKindServer
+	})
+	require.GreaterOrEqual(t, index, 0, "the request opened no span")
+	return spans[index]
 }
 
 func spanOfTheQuery(t *testing.T, spans []sdktrace.ReadOnlySpan, sql string) sdktrace.ReadOnlySpan {
 	t.Helper()
-	for _, span := range spans {
+	index := slices.IndexFunc(spans, func(span sdktrace.ReadOnlySpan) bool {
 		// The span that prepares the statement carries the SQL text too.
-		if textOf(span, "db.query.text") == sql && textOf(span, "pgx.prepare_stmt.name") == "" {
-			return span
-		}
-	}
-	require.Fail(t, "no span of a query carries the SQL text", "%s", sql)
-	return nil
+		return textOf(span, "db.query.text") == sql && textOf(span, "pgx.prepare_stmt.name") == ""
+	})
+	require.GreaterOrEqual(t, index, 0, "no span of a query carries the SQL text: %s", sql)
+	return spans[index]
 }
 
 func textOf(span sdktrace.ReadOnlySpan, key string) string {
-	for _, attribute := range span.Attributes() {
-		if string(attribute.Key) == key {
-			return attribute.Value.AsString()
-		}
+	attributes := span.Attributes()
+	index := slices.IndexFunc(attributes, func(each attribute.KeyValue) bool {
+		return string(each.Key) == key
+	})
+	if index < 0 {
+		return ""
 	}
-	return ""
+	return attributes[index].Value.AsString()
 }
