@@ -72,6 +72,7 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 		return database.CheckSchema(ctx, pool, migrations.Files)
 	}
 	health.Mount(mux, ready, settings.HealthCheckTimeout)
+	mountREST(mux, pool)
 
 	listener, err := net.Listen("tcp", settings.ListenAddress.String())
 	if err != nil {
