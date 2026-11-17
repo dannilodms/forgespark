@@ -160,10 +160,7 @@ Frontend and backend live in this single repository. Folders not yet in use hold
 .
 ├── apps/
 │   ├── api/          # Go backend and API
-│   ├── web/          # the real React app
-│   └── prototype/    # clickable prototype with fake data, and the gallery
-├── packages/
-│   └── ui/           # design system: style variables and components
+│   └── web/          # the React app, with the design system in src/ui
 ├── deploy/           # Caddyfile, Compose files of the servers, cloud-init
 ├── .github/          # pipeline workflows
 ├── docs/
@@ -172,13 +169,12 @@ Frontend and backend live in this single repository. Folders not yet in use hold
 │   └── design/       # analysis of the visual references
 ├── .scratch/         # local issues
 ├── compose.yaml      # development
-├── Taskfile.yml
-└── pnpm-workspace.yaml
+└── Taskfile.yml
 ```
 
-The three JavaScript packages (`apps/web`, `apps/prototype`, `packages/ui`) form a pnpm workspace run through Vite+. A root Taskfile coordinates Go and frontend tasks: dev, build, test and code generation. No separate monorepo orchestrator is used.
+`apps/web` is the only JavaScript package, run through Vite+. It holds its own `package.json`, catalog and lockfile, and the root has none. A root Taskfile coordinates Go and frontend tasks: dev, build, test and code generation. No separate monorepo orchestrator is used.
 
-Screens are designed and approved in the prototype first, then rebuilt in the real app on the same design system. The design system is written in [`DESIGN.md`](DESIGN.md) and shown in the prototype's gallery, which stays as the reference while the prototype's screens come and go.
+Screens are built directly in the app, on the design system, with no prototype first. The design system is written in [`DESIGN.md`](DESIGN.md), which is the reference for every screen, and its components live in `apps/web/src/ui`.
 
 The system is multilingual: English is the default, with Brazilian Portuguese and Spanish also supported, and each user chooses their language. Adding a language is a small code change with no database schema change.
 
@@ -193,7 +189,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0003 - OpenAPI contract generated from Go](docs/adr/0003-openapi-contract-generated-from-go.md): Go types are the source of truth for the REST API, via Huma
 - [0004 - LLM providers and agents over HTTP](docs/adr/0004-llm-providers-and-agents-over-http.md): one internal interface for providers; agents are separate services that act only through the API
 - [0005 - Multilingual from the start](docs/adr/0005-multilingual-from-the-start.md): English, Brazilian Portuguese and Spanish; the frontend translates API error codes; configuration content has a version per language, free text is translated on demand
-- [0006 - Design system proven in a disposable prototype](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui in `packages/ui`, shared by the product and a clickable prototype whose approved screens are rebuilt, not moved
+- [0006 - Design system proven in a disposable prototype](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui in `packages/ui`, shared by the product and a clickable prototype; superseded by ADR-0025, which keeps shadcn/ui and the Zed style
 - [0007 - Backend organized by domain area](docs/adr/0007-backend-organized-by-domain-area.md): one package tree per domain area with dependencies pointing inward, a use case for every operation, selective tactical DDD and part of object calisthenics
 - [0008 - Use cases served by several inbound adapters](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md): a complete REST API and an MCP server with a chosen set of tools, both in the Go backend; access tokens with scopes; GraphQL, gRPC and WebSocket deferred
 - [0009 - REST API conventions](docs/adr/0009-rest-api-conventions.md): snake_case, named operations with no PATCH, strict input, problem+json errors, cursor pagination, no versioning while every consumer ships with the backend
@@ -211,6 +207,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0021 - A public repository under AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): public on GitHub's free plan, with the rules that being public sets for commits and for the pipeline
 - [0022 - A record with a lifecycle is a state machine in the domain](docs/adr/0022-a-record-with-a-lifecycle-is-a-state-machine-in-the-domain.md): a fixed set of statuses and one transition table per aggregate, in plain Go; the allowed actions come from the same table, and only the name of a status is configuration content
 - [0023 - A release names a milestone already in production](docs/adr/0023-a-release-names-a-milestone-already-in-production.md): one version for the whole system in a `VERSION` file; a release is a pull request that changes it and `CHANGELOG.md`, and the pipeline creates the tag after the publish
+- [0025 - The design system lives in the product, and there is no prototype](docs/adr/0025-the-design-system-lives-in-the-product-and-there-is-no-prototype.md): the prototype, the shared package and the gallery are removed; a screen is built directly in `apps/web`, which holds the components and is the only JavaScript package
 
 ## Tech stack
 
@@ -247,7 +244,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [Knip](https://knip.dev/) | Finds unused files, exports and dependencies |
 | [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Lets coding agents investigate performance in a real Chrome |
 | [react-i18next](https://react.i18next.com/) | Interface translations (English, Brazilian Portuguese, Spanish) |
-| [shadcn/ui](https://ui.shadcn.com/) | Base of the design system: component code copied into `packages/ui`, on [Base UI](https://base-ui.com/) primitives |
+| [shadcn/ui](https://ui.shadcn.com/) | Base of the design system: component code copied into `apps/web/src/ui`, on [Base UI](https://base-ui.com/) primitives |
 | [Tailwind CSS](https://tailwindcss.com/) | Styling and the design system's style variables (light and dark themes) |
 | [PostgreSQL](https://www.postgresql.org/) | Relational database (version 18) and the only data service |
 | [Garage](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage (documents and files) in development and staging |
@@ -319,9 +316,9 @@ The frontend commands, run from the repository root:
 
 | Command | What it does |
 | --- | --- |
-| `task install` | Installs the JavaScript dependencies. Vite+ downloads the versions of Node.js and pnpm that the root `package.json` names |
-| `task prototype` | Starts the clickable prototype at `http://localhost:5173` |
-| `task check` | Runs the format, lint and type checks of the JavaScript workspace, then the checks of the prototype: the coverage of the gallery, the missing translation keys and its tests |
+| `task install` | Installs the JavaScript dependencies. Vite+ downloads the versions of Node.js and pnpm that `apps/web/package.json` names |
+| `task dev` | Starts the app at `http://localhost:5173` |
+| `task check` | Runs the format, lint and type checks of `apps/web`, then its missing translation keys and its tests |
 | `task check:fix` | Runs the format, lint and type checks and fixes what can be fixed |
 
 The other commands are _TBD_, written with the first backend code.

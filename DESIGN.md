@@ -1,8 +1,8 @@
 # Design system
 
-How the product looks, and the rules every screen follows. This file is the source: the code in `packages/ui` implements it, and the gallery in `apps/prototype` renders it. When the two disagree with this file, this file is right and the code is fixed.
+How the product looks, and the rules every screen follows. This file is the source: the code in `apps/web/src/ui` implements it. When the code disagrees with this file, this file is right and the code is fixed.
 
-The style follows Zed, its site and its application. The evidence behind every value is in section 1 of [`docs/design/references.md`](docs/design/references.md). Why Zed, and what else was considered, is in ADR-0006. The work is tracked in `.scratch/design-system-prototype/`.
+The style follows Zed, its site and its application. The evidence behind every value is in section 1 of [`docs/design/references.md`](docs/design/references.md). Why Zed, and what else was considered, is in ADR-0006. Why the design system lives in the app, with no prototype and no gallery, is in ADR-0025.
 
 A change to a style variable, a component or a recipe updates this file in the same change.
 
@@ -14,15 +14,10 @@ A CSS custom property that holds one style value: a colour, a radius, a font, a 
 **Theme**:
 Light or dark. Every style variable that changes with the theme has a value in each.
 
-**Gallery**:
-The section of the prototype that shows every style variable and every component of `packages/ui`, in every variant and state. It is permanent: it is the reference for every screen.
-
 **Recipe**:
 A named composition of components that several screens reuse, such as the app shell.
 
 ## Rules
-
-The gallery renders each of these eight as a Do and Don't pair.
 
 1. **Borders carry the structure.** Surfaces are separated by 1px lines. A shadow appears only on a floating surface: popover, dialog, command palette, toast.
 2. **One accent, and colour means status.** The one accent colour is blue. Any other colour is a status colour with a fixed meaning: blue is working, amber needs attention, green is done, red is an error. A status colour is never decoration.
@@ -38,7 +33,7 @@ One exception to rule 2: the mark of a login provider keeps the colours its owne
 ## Accessibility and layout
 
 - The style meets WCAG AA: 4.5:1 for text, 3:1 for large text, for the boundary of a control and for the focus indicator.
-- A value taken from Zed that fails is changed by the smallest step that passes. The colour table then gives both the value of Zed and the value in use. The gallery measures every pair, so a failure is visible.
+- A value taken from Zed that fails is changed by the smallest step that passes. The colour table then gives both the value of Zed and the value in use. Nothing measures the pairs automatically: a value is measured when it is added or changed.
 - Every interactive component is operable by keyboard and shows a visible focus state: a 3px outline with a 2px offset. A box of InputOTP has no offset, because its neighbours touch it. A row of a list pane and a control in a 28px bar draw the outline inside themselves, because the pane or the bar would cut it.
 - Motion respects `prefers-reduced-motion`.
 - Layouts are designed for desktop first and adapt down to a 375px-wide viewport with no overflow.
@@ -247,9 +242,9 @@ The shape of the mark and the background of the preview came from image models. 
 
 ## Components
 
-`packages/ui` holds shadcn/ui components on Base UI primitives. A component enters when a screen needs it, through the shadcn CLI, and it appears in the gallery in the same change. A check fails when a component of `packages/ui` is missing from the gallery.
+`apps/web/src/ui` holds shadcn/ui components on Base UI primitives. A component enters when a screen needs it, through the shadcn CLI, and this table gains it in the same change.
 
-| Gallery section | Components |
+| Group | Components |
 | --- | --- |
 | Actions | Button (with icon, with shortcut chip), Badge, Kbd |
 | Inputs | Field, Label, Input, InputOTP, Textarea, Select, Checkbox, RadioGroup, Switch, InputGroup |
@@ -268,7 +263,7 @@ A component holds no text of its own. Every word comes from the screen, in the l
 
 ## Recipes
 
-The sample work screen of the prototype is built from these four.
+Four compositions are described here. None has code yet: the first screen that needs one writes it in `apps/web`.
 
 | Recipe | What it is |
 | --- | --- |
@@ -277,7 +272,7 @@ The sample work screen of the prototype is built from these four.
 | Detail pane | A header with the title and the actions of the selected item, and tabs that switch its content. |
 | Form dialog | A dialog with fields, one primary action and a cancel action. It reports a validation error on the field. |
 
-A recipe is added when a second screen needs the same composition. In the prototype the four are in `apps/prototype/src/recipes`, and the Recipes route of the gallery shows each on its own.
+A recipe is added when a second screen needs the same composition.
 
 **App shell.** The title bar and the status bar are 28px high, on `chrome`. The top bar is 28px high, on `card`, and its controls are 24px high. The shell takes the height it is given and never scrolls: each pane scrolls inside itself.
 
@@ -295,20 +290,6 @@ A recipe is added when a second screen needs the same composition. In the protot
 **Detail pane.** The header holds the identifier in mono, the status as a badge, the actions at its end, and the title under them, which wraps. The tabs are the `line` variant, across the pane. Under 1024px the list and the detail do not fit side by side: the screen shows the list, then the detail of the item picked, with a button that leads back.
 
 **Form dialog.** The fields, then a footer with the cancel action and the primary action. Enter in a field submits. A validation error shows under its field, in the error colour, with a sign and a sentence that says what to do; the field is marked and takes the focus. A dialog that closes keeps nothing of what was typed.
-
-## Gallery
-
-The gallery has one route per section, with side navigation, in this order: Foundations, Actions, Inputs, Navigation, Data display, Feedback, Overlays, Do and Don't, Recipes.
-
-- **Foundations** shows every style variable: colour roles as surface and text pairs with the measured contrast, type roles as a specimen table, spacing, radius, elevation, motion and icons.
-- **A component block** shows, in order: the name with one line on when to use it, the typical case in real content, the variants, the sizes, the icon forms, the states, and the edge cases (long label, empty, error, loading, disabled).
-- **States** are pinned side by side without interaction: default, hover, focus, active, disabled, plus loading for Button and invalid for fields.
-- **Do and Don't** renders the eight rules as pairs.
-- **Recipes** shows each recipe on its own in a framed preview, with one line on when to use it, and links to the sample work screen.
-- The theme and the language are chosen in the prototype bar, which applies to every route (see Prototype in `CODING_STANDARDS.md`). The bar is a floating surface: its edge is the one `shadow-floating` draws.
-- Navigation, the name of a route and the sample content inside components are in the three supported languages, and a date or a number in them is written for the language. The edge case of a component shows a long label in each language.
-- Explanatory text is in English: the line on when to use a component, the name of a part, the caption of a Do and Don't pair, the names and roles of the style variables, and the label of a button that opens an example. It is kept apart from the translation files, in one module per route.
-- What a person would have typed, such as a name, a title or a description, stays in the language it was typed in.
 
 ## Known gaps
 

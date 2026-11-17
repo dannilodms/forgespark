@@ -160,10 +160,7 @@ Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm
 .
 ├── apps/
 │   ├── api/          # backend e API em Go
-│   ├── web/          # o app React real
-│   └── prototype/    # protótipo clicável com dados falsos, e a galeria
-├── packages/
-│   └── ui/           # design system: variáveis de estilo e componentes
+│   └── web/          # o app React, com o design system em src/ui
 ├── deploy/           # Caddyfile, arquivos Compose dos servidores, cloud-init
 ├── .github/          # workflows da pipeline
 ├── docs/
@@ -172,13 +169,12 @@ Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm
 │   └── design/       # análise das referências visuais
 ├── .scratch/         # issues locais
 ├── compose.yaml      # desenvolvimento
-├── Taskfile.yml
-└── pnpm-workspace.yaml
+└── Taskfile.yml
 ```
 
-Os três pacotes JavaScript (`apps/web`, `apps/prototype`, `packages/ui`) formam um workspace pnpm executado pelo Vite+. Um Taskfile na raiz coordena as tarefas de Go e de frontend: desenvolvimento, build, testes e geração de código. Não é usado orquestrador de monorepo à parte.
+`apps/web` é o único pacote JavaScript, executado pelo Vite+. Ele tem o próprio `package.json`, catálogo e lockfile, e a raiz não tem nenhum. Um Taskfile na raiz coordena as tarefas de Go e de frontend: desenvolvimento, build, testes e geração de código. Não é usado orquestrador de monorepo à parte.
 
-As telas são desenhadas e aprovadas primeiro no protótipo e depois refeitas no app real, sobre o mesmo design system. O design system está escrito em [`DESIGN.md`](DESIGN.md) e é mostrado na galeria do protótipo, que fica como referência enquanto as telas do protótipo vêm e vão.
+As telas são construídas direto no app, sobre o design system, sem protótipo antes. O design system está escrito em [`DESIGN.md`](DESIGN.md), que é a referência para todas as telas, e os componentes ficam em `apps/web/src/ui`.
 
 O sistema é multilíngue: inglês é a língua padrão, com suporte também a português do Brasil e espanhol, e cada usuário escolhe a sua. Adicionar uma língua é uma mudança pequena de código, sem alterar a estrutura do banco de dados.
 
@@ -193,7 +189,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0003 - Contrato OpenAPI gerado do Go](docs/adr/0003-openapi-contract-generated-from-go.md): os tipos Go são a fonte da verdade da API REST, via Huma
 - [0004 - Provedores de LLM e agentes via HTTP](docs/adr/0004-llm-providers-and-agents-over-http.md): uma interface interna para os provedores; agentes são serviços separados que agem apenas pela API
 - [0005 - Multilíngue desde o início](docs/adr/0005-multilingual-from-the-start.md): inglês, português do Brasil e espanhol; o front traduz os códigos de erro da API; conteúdo de configuração tem uma versão por língua, texto livre é traduzido sob demanda
-- [0006 - Design system validado em um protótipo descartável](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui em `packages/ui`, compartilhado pelo produto e por um protótipo clicável cujas telas aprovadas são refeitas, não movidas
+- [0006 - Design system validado em um protótipo descartável](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui em `packages/ui`, compartilhado pelo produto e por um protótipo clicável; substituído pelo ADR-0025, que mantém o shadcn/ui e o estilo do Zed
 - [0007 - Backend organizado por área de domínio](docs/adr/0007-backend-organized-by-domain-area.md): uma árvore de pacotes por área de domínio com dependências apontando para dentro, um caso de uso para cada operação, DDD tático seletivo e parte do object calisthenics
 - [0008 - Casos de uso atendidos por vários adaptadores de entrada](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md): uma API REST completa e um servidor MCP com um conjunto escolhido de ferramentas, ambos no backend Go; tokens de acesso com escopos; GraphQL, gRPC e WebSocket adiados
 - [0009 - Convenções da API REST](docs/adr/0009-rest-api-conventions.md): snake_case, operações nomeadas sem PATCH, entrada estrita, erros em problem+json, paginação por cursor, sem versionamento enquanto todo consumidor sair junto com o backend
@@ -211,6 +207,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0021 - Um repositório público sob a AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): público no plano gratuito do GitHub, com as regras que isso impõe aos commits e à pipeline
 - [0022 - Um registro com ciclo de vida é uma máquina de estados no domínio](docs/adr/0022-a-record-with-a-lifecycle-is-a-state-machine-in-the-domain.md): um conjunto fixo de status e uma tabela de transições por agregado, em Go puro; as ações permitidas saem da mesma tabela, e só o nome de um status é conteúdo de configuração
 - [0023 - Uma release dá nome a um marco que já está em produção](docs/adr/0023-a-release-names-a-milestone-already-in-production.md): uma versão para o sistema inteiro em um arquivo `VERSION`; uma release é um pull request que muda esse arquivo e o `CHANGELOG.md`, e a pipeline cria a tag depois da publicação
+- [0025 - O design system fica no produto, e não há protótipo](docs/adr/0025-the-design-system-lives-in-the-product-and-there-is-no-prototype.md): o protótipo, o pacote compartilhado e a galeria são removidos; uma tela é construída direto em `apps/web`, que guarda os componentes e é o único pacote JavaScript
 
 ## Tecnologias
 
@@ -247,7 +244,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [Knip](https://knip.dev/) | Encontra arquivos, exports e dependências sem uso |
 | [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Permite aos agentes de código investigar a performance em um Chrome real |
 | [react-i18next](https://react.i18next.com/) | Traduções da interface (inglês, português do Brasil, espanhol) |
-| [shadcn/ui](https://ui.shadcn.com/) | Base do design system: o código dos componentes é copiado para `packages/ui`, sobre os primitivos do [Base UI](https://base-ui.com/) |
+| [shadcn/ui](https://ui.shadcn.com/) | Base do design system: o código dos componentes é copiado para `apps/web/src/ui`, sobre os primitivos do [Base UI](https://base-ui.com/) |
 | [Tailwind CSS](https://tailwindcss.com/) | Estilos e variáveis de estilo do design system (temas claro e escuro) |
 | [PostgreSQL](https://www.postgresql.org/) | Banco de dados relacional (versão 18) e único serviço de dados |
 | [Garage](https://garagehq.deuxfleurs.fr/) | Armazenamento de objetos compatível com S3 (documentos e arquivos) em desenvolvimento e na homologação |
@@ -319,9 +316,9 @@ Os comandos do frontend, executados na raiz do repositório:
 
 | Comando | O que faz |
 | --- | --- |
-| `task install` | Instala as dependências JavaScript. O Vite+ baixa as versões de Node.js e pnpm que o `package.json` da raiz indica |
-| `task prototype` | Inicia o protótipo clicável em `http://localhost:5173` |
-| `task check` | Roda as verificações de formato, lint e tipos do workspace JavaScript e, em seguida, as do protótipo: a cobertura da galeria, as chaves de tradução ausentes e os testes |
+| `task install` | Instala as dependências JavaScript. O Vite+ baixa as versões de Node.js e pnpm que o `apps/web/package.json` indica |
+| `task dev` | Inicia o app em `http://localhost:5173` |
+| `task check` | Roda as verificações de formato, lint e tipos de `apps/web` e, em seguida, as chaves de tradução ausentes e os testes |
 | `task check:fix` | Roda as verificações de formato, lint e tipos e corrige o que for possível |
 
 Os outros comandos estão _A definir_ e serão escritos com o primeiro código do backend.

@@ -2,25 +2,27 @@ version: "3"
 
 tasks:
   install:
-    desc: Install the JavaScript dependencies
+    desc: Install the JavaScript dependencies of the app
+    dir: apps/web
     cmds:
       - vp install
 
-  prototype:
-    desc: Start the clickable prototype
-    dir: apps/prototype
+  dev:
+    desc: Start the app
+    dir: apps/web
     cmds:
       - vp dev
 
   check:
-    desc: Format, lint and type checks, the coverage of the gallery, the missing translation keys and the tests of the prototype
+    desc: Format, lint and type checks, the missing translation keys and the tests of the app
+    dir: apps/web
     cmds:
       - vp check
-      - vp node apps/prototype/scripts/gallery-coverage.mjs
-      - vp node apps/prototype/scripts/missing-keys.mjs
-      - vp test run --root apps/prototype
+      - vp node scripts/missing-keys.mjs
+      - vp test run
 
   check:fix:
     desc: Format, lint and type checks, fixing what can be fixed
+    dir: apps/web
     cmds:
       - vp check --fix

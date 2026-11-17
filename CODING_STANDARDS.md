@@ -290,9 +290,9 @@ The rate-limit plugin of Caddy and its numbers are chosen in the walking skeleto
 
 `ETag` with `If-Match`, `Idempotency-Key` and rate limiting beyond the login code are added to the first case that needs one, without a new ADR. A version in the path waits for the first consumer that does not ship with the backend, and reopens ADR-0009.
 
-## Frontend (`apps/web`, `apps/prototype`, `packages/ui`)
+## Frontend (`apps/web`)
 
-These rules apply to `apps/web`. `apps/prototype` follows only "Naming", "Components" and "Prototype".
+`apps/web` is the only JavaScript package of the repository. It holds the app and the design system, and a screen is built in it directly, with no prototype first (ADR-0025).
 
 ### Layout
 
@@ -305,26 +305,27 @@ apps/web/src/
 │   ├── data/            # collections, queries and writes
 │   ├── locales/         # en-US.json, pt-BR.json, es.json
 │   └── index.ts         # what routes and other areas import
-└── shared/
-    ├── api/generated/   # orval output, never edited
-    ├── errors/          # translation of API error codes
-    ├── stores/          # Zustand stores used by more than one area
-    └── locales/         # texts used by more than one area
+├── shared/
+│   ├── api/generated/   # orval output, never edited
+│   ├── errors/          # translation of API error codes
+│   ├── stores/          # Zustand stores used by more than one area
+│   └── locales/         # texts used by more than one area
+└── ui/                  # the design system: components, hooks, the stylesheet
 ```
 
 A domain area has the same name as in the backend and in `GLOSSARY.md`. A route file declares the path, the search parameters and the loader, and opens a screen from an area.
 
 ### Dependency rule
 
-Dependencies point one way: `routes` → a domain area → `shared` → `packages/ui`.
+Dependencies point one way: `routes` → a domain area → `shared` → `ui`.
 
 | Code | Imports |
 | --- | --- |
 | `routes` | the `index.ts` of areas, `shared` |
-| a domain area | its own files, the `index.ts` of other areas, `shared`, `packages/ui` |
+| a domain area | its own files, the `index.ts` of other areas, `shared`, `ui` |
 | `data` of an area | the same, plus `shared/api/generated` |
-| `shared` | `packages/ui`, third-party libraries; no area |
-| `packages/ui` | third-party libraries; no app |
+| `shared` | `ui`, third-party libraries; no area |
+| `ui` | third-party libraries; nothing else of the app |
 
 Only `data` imports the generated client. Screens and components never call it or build a URL.
 
@@ -365,10 +366,10 @@ The frontend formats values with the browser's `Intl`, in the user's language, a
 
 ### Components
 
-- `packages/ui` holds the design system: shadcn/ui components on Base UI primitives, styled with Tailwind CSS. Every colour, radius, font, spacing step and shadow is a CSS custom property.
-- `packages/ui` has no translation of its own. A component takes each word as a prop and the screen supplies it, in its language. That includes a name read only by assistive technology, such as the label of a close button: the component requires it and writes no default.
+- `apps/web/src/ui` holds the design system: shadcn/ui components on Base UI primitives, styled with Tailwind CSS. Every colour, radius, font, spacing step and shadow is a CSS custom property. The rest of the app imports it as `#ui/components/<name>`, `#ui/hooks/<name>` and `#ui/lib/<name>`.
+- `ui` has no translation of its own. A component takes each word as a prop and the screen supplies it, in its language. That includes a name read only by assistive technology, such as the label of a close button: the component requires it and writes no default.
 - [`DESIGN.md`](DESIGN.md) is the source of the design system: its rules, the style variables with their roles and values, the components and the recipes. Code that disagrees with it is fixed, and a change to any of these updates it in the same change.
-- A component enters `packages/ui` when a screen needs it, through the shadcn CLI, and is shown in the gallery in the same change. The CLI is run in `apps/prototype`, with its exact version. It writes each dependency of the component as a range, and into the app: move it to `packages/ui` as `catalog:` and add its exact version to the catalog.
+- A component enters `ui` when a screen needs it, through the shadcn CLI, and the component table of `DESIGN.md` gains it in the same change. The CLI is run in `apps/web`, with its exact version. It writes each dependency of the component as a range: change it to `catalog:` and add its exact version to the catalog.
 - A specialised library (charts, rich text, drag and drop, calendar) is added when the first screen needs it. The one shadcn/ui already wraps is the first candidate.
 - React Compiler memoizes components. Do not write `useMemo`, `useCallback` or `memo`.
 
@@ -380,24 +381,11 @@ A domain concept uses the exact term from `GLOSSARY.md` in component, route, fol
 
 The default test renders a whole screen in Vitest's Browser Mode, with the API simulated by MSW from the generated responses, and acts as a user does: it clicks, types and reads what is on the screen. A few end-to-end tests in Playwright cover critical flows against the real backend. They log in through the local provider, or with a login code read from Mailpit (see Login in the backend rules).
 
-### Prototype
-
-`apps/prototype` uses React, TanStack Router, react-i18next and `packages/ui`, with fake data in plain modules and its own translation files. A Zustand store may hold the theme and the scenario. Nothing is imported from it into `apps/web` (ADR-0006).
-
-The prototype bar is a small floating bar shown over every route, outside the page it floats over. It holds the theme, the language and the scenarios of the current screen. A scenario is a named condition a screen can be put in, such as an expired login code: a screen declares its scenarios, in groups when two of them can hold at once, and its fake data answers according to the ones chosen. The route of the screen carries the groups in its `staticData`, the bar lists the groups of the current route, and only the fake data of the screen reads a scenario by name (see `apps/prototype/src/stores/scenarios.ts`). A choice lasts until the page is reloaded. A screen carries no control that exists only because it is in the prototype.
-
-The prototype is in the three supported languages (ADR-0005). The single list of them is `apps/prototype/src/locales/languages.ts`, and each has one translation file beside it. A screen and a block of the gallery write no text of their own: a translated text comes from the translation files, and a date or a number is written by `useFormat`. Two kinds of text stay out of the translation files. The explanatory text of the gallery is in English, in one module per route under `gallery/explanations`. What a person would have typed stays in the language it was typed in, in the sample data. `apps/prototype/scripts/missing-keys.mjs` fails when a language lacks a key that English has, and `task check` runs it. The README of the prototype says where each text lives and how a language is added.
-
-The prototype has no screen tests. The reducer of a flow, the fake data of a screen and a module with no screen have their tests beside them, and `task check` runs them.
-
-The gallery is the permanent part of the prototype: it shows every style variable and every component of `packages/ui`, as `DESIGN.md` describes. The screens around it are disposable. The stylesheet that pins hover, focus and active for the gallery stays in `apps/prototype`.
-
 ### Enforcement
 
 - `vp check` (format, lint, types) and the screen tests fail the build. `vp staged` runs format and lint on changed files at each commit.
 - Knip fails the build on unused files, exports and dependencies.
 - The build fails when an import breaks the dependency rule, when the generated client is stale, or when a language is missing a translation key (ADR-0005).
-- The build fails when a component of `packages/ui` is shown nowhere in the gallery.
 - The size of the JavaScript of `apps/web`, initial and per route, has a limit that fails the build. It is measured on the Brotli copies the build writes (see Delivery), which is what the browser downloads. The numbers are set with the first real screen.
 - Load and response times of the main screens (LCP, CLS, INP) are reported against the "good" Core Web Vitals thresholds (2.5 s, 0.1, 200 ms) and do not fail the build.
 
@@ -409,7 +397,7 @@ For investigating performance in a real browser, agents have the Chrome DevTools
 
 A client for Server-Sent Events is written with the first streaming operation. Telemetry from the browser waits for users other than the maintainer.
 
-The system health screen waits for the health report (see Health in the backend rules) and is designed in the prototype first. It reads the health report when it opens and on a refresh button, with no automatic refresh and no warning on other screens.
+The system health screen waits for the health report (see Health in the backend rules). It reads the health report when it opens and on a refresh button, with no automatic refresh and no warning on other screens.
 
 ## Delivery (`deploy`)
 
@@ -435,7 +423,7 @@ How responses travel from the server to browsers and agents. Compression, cache 
 - **In Caddy only.** The `Caddyfile` sets them for the app's site. The API sets none.
 - **Content-Security-Policy.** Scripts, styles, fonts and connections come from the app's own origin only, plus the host name of the file storage for connections, images and media. That host name comes from configuration, because it differs by environment. No inline script, no `eval`, no other origin. The page cannot be shown inside a frame.
 - **Others.** `Strict-Transport-Security`, `X-Content-Type-Options: nosniff` and `Referrer-Policy`.
-- **Frontend.** Code in `apps/web` and `packages/ui` loads nothing from another origin and writes no inline script.
+- **Frontend.** Code in `apps/web` loads nothing from another origin and writes no inline script.
 - **Exact values.** The directives are closed with the first real screen, which shows what Base UI and the fonts need.
 
 ### Rate limit
@@ -634,9 +622,9 @@ Every tool, library and container image runs at a version written in a committed
 | Go toolchain | the `go` and `toolchain` lines of `go.mod` |
 | Go libraries | `go.mod` and `go.sum` |
 | Go command-line tools (sqlc, vacuum, oasdiff, the River CLI) | `tool` lines of `go.mod`, run with `go tool` |
-| Node.js | `devEngines.runtime` in the root `package.json`, written by `vp env pin` |
-| pnpm | `devEngines.packageManager` in the root `package.json`, written by `vp env pin` |
-| JavaScript libraries and tools, Vite+ included | the catalog in `pnpm-workspace.yaml`, and `pnpm-lock.yaml` |
+| Node.js | `devEngines.runtime` in `apps/web/package.json`, written by `vp env pin` |
+| pnpm | `devEngines.packageManager` in `apps/web/package.json`, written by `vp env pin` |
+| JavaScript libraries and tools, Vite+ included | the catalog in `apps/web/pnpm-workspace.yaml`, and `apps/web/pnpm-lock.yaml` |
 | Container images (PostgreSQL, Garage, Mailpit, Dex, Caddy, OpenTelemetry Collector, Grafana otel-lgtm) | the image tag in `deploy/compose.base.yaml` and in each Dockerfile |
 | Caddy plugins | the Dockerfile that builds the Caddy image |
 | pgBackRest | the Dockerfile that builds the PostgreSQL image |
@@ -649,11 +637,11 @@ Every tool, library and container image runs at a version written in a committed
 ### Rules
 
 - **Exact.** A version is exact: no range (`^`, `~`), no `latest`, no floating tag such as `postgres:18`. Only the prerequisites table holds minimums.
-- **Catalog.** The three JavaScript packages take their versions from the pnpm catalog (`catalog:`), so a library has one version in the whole workspace.
+- **Catalog.** `apps/web`, the only JavaScript package, takes its versions from the pnpm catalog (`catalog:`), so each version is written once, beside the settings of pnpm. The root of the repository has no `package.json`.
 - **Lockfiles.** `go.sum` and `pnpm-lock.yaml` are committed. The build installs from them and fails when they would change.
 - **Nothing global.** A tool the build uses runs from its home above (`go tool`, `vp`), never from a copy installed on the machine. Docker, Task, the global `vp`, the GitHub CLI and the installed Go, which only downloads the toolchain that `go.mod` names, are the only exceptions.
 - **One-off commands.** A command that downloads what it runs (`npx`, `pnpm dlx`, `go run` with a module path) carries an exact version.
-- **Copied code.** The shadcn/ui components in `packages/ui` have no version. Updating one means running the shadcn CLI again for that component and reviewing the diff.
+- **Copied code.** The shadcn/ui components in `apps/web/src/ui` have no version. Updating one means running the shadcn CLI again for that component and reviewing the diff.
 - **Prose.** A document names a version only when a rule depends on it, as a minimum (PostgreSQL 18, pgx 5.13.0 or later). The version in force is read from its home. A number that must appear in two files is listed in both as such, as in [`docs/agents/browser-tools.md`](docs/agents/browser-tools.md).
 
 ### Updating
