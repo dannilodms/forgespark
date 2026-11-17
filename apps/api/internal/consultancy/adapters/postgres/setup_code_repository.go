@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
@@ -59,6 +60,23 @@ func (r *SetupCodeRepository) LoadNotEnded(ctx context.Context) ([]*domain.Setup
 		return nil, unreadable
 	}
 	return setupCodes, nil
+}
+
+// FindByHash finds the setup code with this hash, ended or not, and locks
+// nothing.
+func (r *SetupCodeRepository) FindByHash(ctx context.Context, hash domain.SetupCodeHash) (*domain.SetupCode, bool, error) {
+	row, err := r.queries(ctx).FindSetupCodeByHash(ctx, hash[:])
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("find the setup code by its hash: %w", err)
+	}
+	setupCode, err := setupCodeOf(row)
+	if err != nil {
+		return nil, false, err
+	}
+	return setupCode, true, nil
 }
 
 // Save writes the setup code whole: a new row, or every column of the row it

@@ -33,6 +33,10 @@ type SetupCodeRepository interface {
 	// LoadNotEnded loads every setup code that was not ended, expired or
 	// not, and locks each one until the transaction ends.
 	LoadNotEnded(ctx context.Context) ([]*domain.SetupCode, error)
+	// FindByHash returns the setup code with this hash, ended or not, and
+	// false when there is none. It locks nothing: it serves a use case that
+	// checks a setup code and saves nothing.
+	FindByHash(ctx context.Context, hash domain.SetupCodeHash) (*domain.SetupCode, bool, error)
 	// Save stores a setup code whole, whether it is new or changed.
 	Save(ctx context.Context, setupCode *domain.SetupCode) error
 }

@@ -81,6 +81,12 @@ func (c *SetupCode) End(at time.Time) {
 	c.ended = true
 }
 
+// Works tells whether the setup code opens the setup at this moment: it
+// does until it expires or is ended, whichever comes first.
+func (c *SetupCode) Works(at time.Time) bool {
+	return !c.ended && at.Before(c.expiresAt)
+}
+
 // ID returns the identifier of the setup code.
 func (c *SetupCode) ID() SetupCodeID {
 	return c.id

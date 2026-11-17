@@ -10,6 +10,13 @@ WHERE ended_at IS NULL
 ORDER BY id
 FOR UPDATE;
 
+-- name: FindSetupCodeByHash :one
+-- It locks nothing: it serves a use case that checks a setup code and saves
+-- nothing. A hash belongs to one setup code at most.
+SELECT id, code_hash, issued_at, expires_at, ended_at
+FROM setup_codes
+WHERE code_hash = @code_hash;
+
 -- name: SaveSetupCode :exec
 INSERT INTO setup_codes (id, code_hash, issued_at, expires_at, ended_at)
 VALUES (@id, @code_hash, @issued_at, @expires_at, @ended_at)

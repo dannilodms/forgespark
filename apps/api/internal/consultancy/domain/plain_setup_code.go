@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
 )
 
 // setupCodeAlphabet is Crockford's Base32: the digits and the letters
@@ -36,6 +37,33 @@ func newPlainSetupCode(random io.Reader) (PlainSetupCode, error) {
 		drawn[i] = setupCodeAlphabet[each&0b11111]
 	}
 	return PlainSetupCode{normalised: string(drawn)}, nil
+}
+
+// ReadPlainSetupCode reads a setup code as a person typed it. Case, hyphens
+// and spaces do not count, and the letters that are never printed because
+// they read like a digit are taken for that digit: O for 0, I and L for 1.
+//
+// A text that is not a setup code after that is answered as a wrong code is.
+func ReadPlainSetupCode(typed string) (PlainSetupCode, error) {
+	normalised := strings.Map(readAsPrinted, strings.ToUpper(typed))
+	if len(normalised) != setupCodeLength || strings.Trim(normalised, setupCodeAlphabet) != "" {
+		return PlainSetupCode{}, SetupCodeInvalidError{}
+	}
+	return PlainSetupCode{normalised: normalised}, nil
+}
+
+// readAsPrinted gives the character of a printed setup code that a typed,
+// upper-case character stands for, and drops the ones that separate groups.
+func readAsPrinted(typed rune) rune {
+	switch {
+	case typed == '-' || unicode.IsSpace(typed):
+		return -1
+	case typed == 'O':
+		return '0'
+	case typed == 'I' || typed == 'L':
+		return '1'
+	}
+	return typed
 }
 
 // Reveal returns the code in four groups of five characters, as it is shown

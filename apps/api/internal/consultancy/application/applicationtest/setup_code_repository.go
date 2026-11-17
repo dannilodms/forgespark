@@ -51,6 +51,18 @@ func (r *SetupCodeRepository) All() []domain.SetupCode {
 	return slices.Clone(r.setupCodes)
 }
 
+// FindByHash returns a copy of the setup code with this hash, ended or not.
+func (r *SetupCodeRepository) FindByHash(_ context.Context, hash domain.SetupCodeHash) (*domain.SetupCode, bool, error) {
+	position := slices.IndexFunc(r.setupCodes, func(stored domain.SetupCode) bool {
+		return stored.Hash() == hash
+	})
+	if position < 0 {
+		return nil, false, nil
+	}
+	found := r.setupCodes[position]
+	return &found, true, nil
+}
+
 // LoadNotEnded returns a copy of every setup code that was not ended.
 func (r *SetupCodeRepository) LoadNotEnded(context.Context) ([]*domain.SetupCode, error) {
 	var notEnded []*domain.SetupCode

@@ -192,3 +192,61 @@ func TestTheDatabaseRefusesASecondSetupCodeThatWasNotEnded(t *testing.T) {
 	assert.Equal(t, uniqueViolation, sqlState(t, err))
 	assert.Len(t, temporary.notEnded(t), 1)
 }
+
+func TestASetupCodeIsFoundByItsHashWhetherItWasEndedOrNot(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	ctx := context.Background()
+	first := temporary.issue(t, noon)
+	endedAt := noon.Add(10 * time.Minute)
+	first.End(endedAt)
+	require.NoError(t, temporary.setupCodes.Save(ctx, first))
+	second := temporary.issue(t, noon.Add(10*time.Minute))
+
+	foundFirst, firstExists, err := temporary.setupCodes.FindByHash(ctx, first.Hash())
+	require.NoError(t, err)
+	foundSecond, secondExists, err := temporary.setupCodes.FindByHash(ctx, second.Hash())
+	require.NoError(t, err)
+
+	require.True(t, firstExists)
+	assert.Equal(t, first.ID(), foundFirst.ID())
+	assert.Equal(t, noon.Add(time.Hour), foundFirst.ExpiresAt())
+	foundEndedAt, ended := foundFirst.EndedAt()
+	assert.True(t, ended)
+	assert.Equal(t, endedAt, foundEndedAt)
+	require.True(t, secondExists)
+	assert.Equal(t, second.ID(), foundSecond.ID())
+	assert.Equal(t, noon.Add(10*time.Minute), foundSecond.IssuedAt())
+	_, ended = foundSecond.EndedAt()
+	assert.False(t, ended)
+}
+
+func TestNoSetupCodeIsFoundByAHashThatWasNeverStored(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	temporary.issue(t, noon)
+	_, never, err := domain.IssueSetupCode(1, noon, bytes.NewReader(bytes.Repeat([]byte{31}, 20)))
+	require.NoError(t, err)
+
+	found, exists, err := temporary.setupCodes.FindByHash(context.Background(), never.Hash())
+
+	require.NoError(t, err)
+	assert.False(t, exists)
+	assert.Nil(t, found)
+}
+
+func TestFindingASetupCodeByItsHashLocksNothing(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	issued := temporary.issue(t, noon)
+
+	var whileFound error
+	err := temporary.transactions.Run(context.Background(), func(ctx context.Context) error {
+		_, _, err := temporary.setupCodes.FindByHash(ctx, issued.Hash())
+		whileFound = temporary.loadWithoutWaiting(t)
+		return err
+	})
+
+	require.NoError(t, err)
+	assert.NoError(t, whileFound)
+}

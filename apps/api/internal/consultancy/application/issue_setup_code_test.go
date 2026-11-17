@@ -50,6 +50,7 @@ type installation struct {
 	setupCodes     *applicationtest.SetupCodeRepository
 	auditLog       *auditapplicationtest.AuditLog
 	issueSetupCode *application.IssueSetupCode
+	openSetup      *application.OpenSetup
 }
 
 func newInstallation() installation {
@@ -68,6 +69,7 @@ func newInstallation() installation {
 			clock,
 			&countingBytes{},
 		),
+		openSetup: application.NewOpenSetup(setupCodes, clock),
 	}
 }
 
