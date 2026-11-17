@@ -45,6 +45,7 @@ What each environment runs:
 - **The local login provider in staging.** A simple way in for automated tests, but anyone who found the address could log in as any seeded user.
 - **Resend in staging.** The login code would reach a real mailbox, with a second key to keep and real e-mail leaving a test environment.
 - **A real LLM provider outside production, with a spending limit on each key.** LLM features could be tried before a merge. The maintainer chose to spend nothing outside production.
+- **Scheduled tests of the LLM adapter against a real provider.** The first version of this decision. A change at the provider would show before production met it, for a second key and a little spent every day.
 - **A small local model as the stand-in.** Real answers at no cost per call, but it takes gigabytes of memory, its answers change from one run to the next, and it does not fit the staging server.
 - **A server in São Paulo or in the United States.** Lower latency for people in Brazil, at a higher price.
 - **Kamal.** Deploys with no interruption through a proxy of its own, which competes with Caddy, and the Compose files would no longer describe production.
@@ -70,7 +71,7 @@ What each environment runs:
 - Let's Encrypt refuses more than five identical certificates in a week, and each staging server would ask for the same ones. Caddy's certificate data is kept in a private bucket between one staging server and the next. This was not tried.
 - Staging needs its own application registered with each of the three login providers.
 - An automated test cannot get past a real login provider, so nothing automated logs in to staging. The end-to-end tests run in the pipeline, against the development Compose file.
-- An LLM feature meets a real provider only in production, in the scheduled tests of the LLM adapter, or when the maintainer points the development configuration at a real provider to work on a prompt.
+- An LLM feature meets a real provider only in production. Nothing automated calls one anywhere else, so the tests of the LLM adapter run against the stand-in, and a change at the provider shows first in production. The one exception is the maintainer pointing the development configuration at a real provider, by hand, to work on a prompt.
 - The three Compose files extend one base file, so the version of each container image keeps a single home.
 - Going back to an earlier version is a manual workflow that publishes an earlier commit of `main`. Going back in the data is a restore (ADR-0020).
 - Earlier documents call this environment staging. The label on a pull request and the GitHub Environment use the same name.

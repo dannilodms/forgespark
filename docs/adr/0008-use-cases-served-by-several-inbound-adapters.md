@@ -8,7 +8,7 @@ The backend has to be reachable in more than one way: the React app calls a REST
 
 Two inbound adapters are built first:
 
-- **REST**, complete. Every use case has a REST operation, because the React app needs all of them. Streaming to the browser (LLM answers, progress of long tasks) is Server-Sent Events inside this adapter, described in the same OpenAPI spec, and is added with the first use case that needs it.
+- **REST**, complete for the screens. Every use case that a person reaches from a screen has a REST operation, because the React app needs all of them. A use case that only a job runs (ADR-0016), or only a command of the binary, such as the one that issues a setup code (ADR-0024), has none. Streaming to the browser (LLM answers, progress of long tasks) is Server-Sent Events inside this adapter, described in the same OpenAPI spec, and is added with the first use case that needs it. How the progress of a job reaches the stream is in ADR-0016.
 - **MCP**, a chosen subset. It runs in the same Go binary, built with the official Go MCP SDK and served over HTTP beside the REST API. It exposes tools only. A tool is designed for what an agent is trying to do and calls exactly one use case; a tool that needs a composed result or a different shape gets a new use case. A use case becomes a tool only when an agent has a real use for it.
 
 Callers that are not a person at a screen authenticate with an **access token**: created by a user in the app, named, revocable, and carrying scopes chosen at creation. A scope is read or write in one domain area. The same access tokens serve the agents of ADR-0004 on the REST API. An inbound adapter only authenticates and tells the use case who is acting and with which scopes; the use case decides whether the action is allowed. An action taken with an access token is recorded as its user's, together with the token used.
@@ -28,13 +28,13 @@ Keeping the door open costs rules, not code. Nothing is written for an inbound a
 - **OAuth for MCP from the start.** Needed for claude.ai and Claude Desktop connectors, which are not among the consumers. The Go MCP SDK is a resource server only, so it would also mean building or operating an authorization server.
 - **MCP that never returns a credential's value.** Safest, but an agent could not use a credential by itself, which is one of the reasons for MCP here.
 - **Authorization in each inbound adapter.** Simpler use cases, but each new adapter repeats the rules and can forget one.
-- **A CLI.** Dropped: the agents that would use it all speak MCP.
+- **A CLI for agents.** Dropped: the agents that would use it all speak MCP. The commands of the API binary (`migrate`, `worker`, the one that issues a setup code) are for whoever operates the server.
 - **WebSocket for all real-time traffic.** One mechanism for everything, but outside the OpenAPI spec, with no generated client and no support in Huma.
 
 ## Consequences
 
 - GraphQL and gRPC stay rejected for the reasons in ADR-0003. Each one, like WebSocket, starts with a new ADR when a concrete case appears. The first expected case for WebSocket is live collaboration between people.
-- Screens that update by themselves and live notifications need the backend to announce what changed, which reopens the decision on domain events deferred in ADR-0007.
+- Screens that update by themselves and live notifications need the backend to announce what changed, which reopens the decision on domain events deferred in ADR-0007. The progress of a job is the one case already served: the use case of the job announces the change of status (ADR-0016).
 - OAuth, MCP resources and MCP prompts are added when a consumer needs them.
 - The list of MCP tools is not decided: the domain areas for clients, projects and hours are not modelled yet.
 - How a person logs in to the React app is decided in ADR-0011. It produces the same "who is acting" that an access token does.

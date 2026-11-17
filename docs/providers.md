@@ -155,14 +155,14 @@ Each provider needs two registered applications, because staging and production 
 
 **Why.** The backend calls models through one interface in the Chat Completions format, so the provider is configuration: a base address, a key and a model (ADR-0004). Only production calls a real provider. Development, the pipeline and staging use the stand-in written in this repository.
 
-**Cost.** By use. The scheduled tests of the LLM adapter spend a little every day, with a key of their own.
+**Cost.** By use, in production only. Nothing automated calls a real provider anywhere else (ADR-0019).
 
 | Item | Value |
 | --- | --- |
 | Provider | _not chosen_ |
 | Base address | _not chosen_ |
 | Default model | _not chosen_ |
-| Keys | One for production and one for the scheduled tests (the values are secrets) |
+| Keys | One, for production (the value is a secret) |
 
 ## Hosted monitor
 

@@ -12,7 +12,7 @@ Every aggregate is identified by a sequential integer taken from a database sequ
 - **Alphabets and prefixes are constants in the code.** Every environment and every test produce the same identifiers, and no configuration value can be lost and invalidate them.
 - **Encoding happens at the edge.** Inbound adapters decode on the way in and encode on the way out. The domain, the database and foreign keys use the integer.
 
-Sqids is not a security measure, and its documentation says so: it is not encryption, and anyone who knows the alphabet can decode the numbers. Nothing here relies on identifiers being unguessable. Every operation requires authentication, and the use case checks whether the actor may touch that record.
+Sqids is not a security measure, and its documentation says so: it is not encryption, and anyone who knows the alphabet can decode the numbers. Nothing here relies on identifiers being unguessable. Every operation that reaches a record by its identifier requires an authenticated caller, and the use case checks whether the actor may touch that record. The operations open to anyone take no identifier: asking for and checking a login code (ADR-0011), telling whether the setup is concluded (ADR-0024) and `/up` (ADR-0012).
 
 ## Considered Options
 

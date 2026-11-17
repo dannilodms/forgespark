@@ -64,7 +64,7 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 
 ### Inbound adapters
 
-- **REST is complete.** Every use case has a REST operation. Streaming to the browser is a Server-Sent Events operation in `adapters/rest`, added with the first use case that needs it.
+- **REST is complete for the screens.** Every use case that a person reaches from a screen has a REST operation. A use case that only a job or a command of the binary runs has none. Streaming to the browser is a Server-Sent Events operation in `adapters/rest`, added with the first use case that needs it.
 - **MCP is a chosen subset.** A use case becomes an MCP tool only when an agent has a real use for it. MCP exposes tools only.
 - **One tool, one use case.** A tool is designed for what the agent is trying to do, not copied from a REST operation. When it needs a composed result or a different shape, that is a new use case.
 - **Authentication in the adapter, authorization in the use case.** The inbound adapter authenticates the caller (a session or an access token) and passes the actor to the use case: the user, the scopes, and the access token when there is one. The use case checks the scopes. The actor type lives in `kernel`.
@@ -144,8 +144,8 @@ The terms system health, part and health report are defined in `GLOSSARY.md`.
 - **Health report.** `GET /api/health` is a query use case in the system health area, which has no aggregate. It follows the API conventions, except that its path is singular, which the plural-path lint allows for this path only. It always answers 200, with the system health in the body: `operational`, `degraded` or `down`.
 - **Checks.** They run when the health report is asked for, in parallel, each under a timeout taken from configuration (2 seconds by default). Nothing is checked in the background and nothing is stored. The LLM provider is checked by a call that spends no tokens, such as listing its models. The telemetry collector is not probed: its state is the last export of metrics, and it is `down` when that export failed or is overdue. The job worker is checked in the database, through the leader record River keeps there. The e-mail server is checked by a call that sends nothing.
 - **Content.** For each part: its name, whether it is essential or optional, its state (`operational`, `down` or `not_configured`), the response time, the time of the check and, when it is down, a stable error code. The raw error goes to the logs only. The health report also carries the version, which is the number in `VERSION` (see Releases), the commit, the build date, the time the process started, the schema version applied and the one expected, and the login providers that are turned on.
-- **Access.** Only a user who administers the system reads the health report, through the session or through an access token that carries the read scope of the system health area.
-- **When.** Liveness and readiness are written with the first backend code. The health report waits for the modelling of users, which has to say who administers the system. Nothing provisional shows the state of the optional parts until then.
+- **Access.** Only an administrator reads the health report, through the session or through an access token that carries the read scope of the system health area.
+- **When.** Liveness and readiness are written with the first backend code. The health report needs administrators, who exist once the setup is built (ADR-0024). Nothing provisional shows the state of the optional parts until then.
 - **Not built.** An MCP tool for the health report, a check of the login providers, an operation per part, and history, which would be a periodic job (see Jobs). Alerts come from Grafana (see Observability).
 
 ### Shutdown
@@ -182,7 +182,7 @@ Every REST failure uses that format, including unknown routes, wrong methods and
 
 ### Database
 
-PostgreSQL 18 is the only data service: one database, one schema.
+PostgreSQL 18 is the only database, with one schema.
 
 - **Access.** A `postgres` adapter runs SQL through pgx, version 5.13.0 or later. Its queries are SQL files inside the adapter package, and sqlc generates the Go functions and the row structs from them. The generated code is committed and never edited.
 - **Parameters.** A value reaches SQL as a parameter. No value is concatenated into SQL text.
@@ -206,12 +206,13 @@ Work that nobody waits for on a screen runs as a job. Jobs are stored in Postgre
 - **Attempts.** Five by default. A job kind that needs more attempts, or more time than River's default timeout, declares it. When the attempts run out, the domain record is marked as failed, and a person can ask for a new attempt.
 - **Queues.** Light work and heavy work run in separate queues, each with a limit of concurrent jobs taken from configuration.
 - **Periodic work.** A periodic job is declared in the worker and scheduled by River. It tolerates a missed run.
-- **Answer.** An operation that starts a job answers 202 with the resource, whose status says the work is in progress. The screen reads the resource again while it is.
+- **Answer.** An operation that starts a job answers 202 with the resource, whose status says the work is in progress.
+- **Progress.** The use case of a job announces each change of status inside its transaction, through an interface it declares. The adapter sends the announcement with PostgreSQL's `NOTIFY`, and the API, on a connection that only listens, passes it to the progress stream (see Shutdown). The announcement says which record changed and nothing else. The screen reads the resource when the stream opens and at each announcement; an agent reads the resource.
 - **Kept.** River deletes finished jobs. What must be kept is a domain record, never a job.
 - **Shutdown.** The worker handles the signal as the API does. It stops taking jobs, gives the running ones a deadline taken from configuration, then cancels them. A cancelled job returns an error, so River runs it again later.
 - **Tables.** River's tables come from SQL exported by the River CLI, one migration per River schema version. An update of River that changes its schema brings the new migration in the same commit. The worker uses the API role, which gets row permissions on these tables.
 - **Traces.** River is traced with its OpenTelemetry middleware.
-- **Panel.** The River panel is served by the API at `/api/river`, behind the session, only to a user who administers the system, and outside the OpenAPI spec. In production it waits for the modelling of users. Until then it runs in development only.
+- **Panel.** The River panel is served by the API at `/api/river`, behind the session, only to an administrator, and outside the OpenAPI spec. Until the API serves it that way, it runs in development only.
 
 ### Files
 
@@ -262,7 +263,7 @@ A `postgres` adapter test runs against the development PostgreSQL container. Eac
 
 A use case that saves a job is tested with an in-memory implementation of the interface that saves it. A job worker in `adapters/river` is tested with River's test helpers, in a temporary database. The `smtp` adapter is tested against Mailpit, and the `resend` adapter against Resend's test addresses, which deliver nothing.
 
-The tests of the `resend` adapter and of the LLM adapter call a service outside the repository. They run on a schedule and never on a pull request (see Pipeline). Every other test meets the LLM stand-in (see Environments).
+The tests of the `resend` adapter call a service outside the repository. They run on a schedule and never on a pull request (see Pipeline). No test calls a real LLM provider: every one meets the LLM stand-in (see Environments).
 
 ### Enforcement
 
@@ -274,9 +275,9 @@ The generated OpenAPI spec and the code generated by sqlc are committed, and the
 
 Domain events, CQRS, event sourcing and a second bounded context each start with a new ADR, written when a concrete case needs one. So do WebSocket, GraphQL and gRPC as inbound adapters, live notifications (which need domain events), OAuth for agents, and MCP resources and prompts.
 
-Running more than one instance of the API, and Kubernetes, are intended and not built. They start with a new ADR. The known obstacles are listed in ADR-0016.
+The system runs as one instance of the API, on Docker Compose. More than one instance, and Kubernetes, are not planned, and each starts with a new ADR. The known obstacles are listed in ADR-0016.
 
-The steps of the document processing pipeline, and where files are converted, are decided when the processors are implemented. Recording who moved a record from one status to another waits for the history of work that screens show. How the system writes to a project's Git repository starts with its own decision. The domain area that owns e-mails is named with the first e-mail, and the language of a client's contact with the modelling of contacts. Progress pushed to the browser waits for a case that a periodic read does not serve.
+The steps of the document processing pipeline, and where files are converted, are decided when the processors are implemented. Recording who moved a record from one status to another waits for the history of work that screens show. How the system writes to a project's Git repository starts with its own decision. The domain area that owns e-mails is named with the first e-mail, and the language of a client's contact with the modelling of contacts.
 
 Nothing is cached yet. A read measured as slow first gets an in-memory cache inside the API. A cache service (Redis, Valkey) and a connection pooler (PgBouncer) each start with a new ADR.
 
@@ -288,7 +289,7 @@ The Go linter and formatter, the Go type for money (`kernel` imports the standar
 
 The rate-limit plugin of Caddy and its numbers are chosen in the walking skeleton. The routine that encrypts credential values again under a new key is written with the first change of key.
 
-`ETag` with `If-Match`, `Idempotency-Key` and rate limiting beyond the login code are added to the first case that needs one, without a new ADR. A version in the path waits for the first consumer that does not ship with the backend, and reopens ADR-0009.
+`ETag` with `If-Match`, `Idempotency-Key` and rate limiting beyond the login code and the setup code are added to the first case that needs one, without a new ADR. A version in the path waits for the first consumer that does not ship with the backend, and reopens ADR-0009.
 
 ## Frontend (`apps/web`)
 
@@ -401,7 +402,7 @@ The system health screen waits for the health report (see Health in the backend 
 
 ## Delivery (`deploy`)
 
-How responses travel from the server to browsers and agents. Compression, cache headers, security headers and the limit on the login code are set in one place, the `Caddyfile` in `deploy/`.
+How responses travel from the server to browsers and agents. Compression, cache headers, security headers and the limit on the login code and the setup code are set in one place, the `Caddyfile` in `deploy/`.
 
 ### Compression
 
@@ -428,7 +429,7 @@ How responses travel from the server to browsers and agents. Compression, cache 
 
 ### Rate limit
 
-- **Login code only.** Caddy limits, for each IP address, the two operations of the login code: asking for one and checking one. No other path has a limit.
+- **The two codes only.** Caddy limits, for each IP address, the two operations of the login code, asking for one and checking one, and the checking of a setup code. No other path has a limit.
 - **Answer.** Over the limit, Caddy answers 429 in the error format of the API, with the code `too_many_requests`.
 - **Image.** Caddy has no rate limit of its own, so its image is built in this repository with a plugin.
 
@@ -503,7 +504,7 @@ Where the system runs and what each environment declares. The reasons, and the t
 
 - **Tools on the machine.** `task dev` runs the API, the worker and Vite on the machine. The Compose file runs the services they talk to.
 - **Variables.** A `.env` file copied from `.env.example`, never committed, loaded by Task and by Compose.
-- **A real LLM provider.** The stand-in is the default. Pointing at a real provider to work on a prompt is a change to the local `.env`.
+- **A real LLM provider.** The stand-in is the default. Pointing at a real provider to work on a prompt is a change to the local `.env`, made by the maintainer. Nothing automated calls a real provider outside production (ADR-0019).
 
 ### Seed
 
@@ -568,7 +569,7 @@ How a change reaches `main` and the servers. The repository is public, which set
 
 ### Scheduled workflows
 
-- **Outside services.** The tests of the `resend` adapter and of the LLM adapter run every day and on a manual trigger, with a key of their own.
+- **Outside services.** The tests of the `resend` adapter run every day and on a manual trigger, with a key of their own. No scheduled test calls a real LLM provider (ADR-0019).
 - **Vulnerabilities.** govulncheck, `pnpm audit` and Trivy on the images run every week.
 - **New versions.** `task outdated` runs every week and its list is kept in one open issue on GitHub. The workflow rewrites the issue, adds a comment when the list changed and closes it when the list is empty. It opens no pull request. The issue is a notice: work is still tracked in `.scratch/` (see [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md)).
 - **Restore test.** Every month (see Backup).
