@@ -309,10 +309,16 @@ A command of the binary requires only the variables it uses. The ones the binary
 | `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT` | How long a transaction may sit idle | `1m` |
 | `HEALTH_CHECK_TIMEOUT` | How long the check of a part may take, readiness included | `2s` |
 | `APP_ORIGIN` | The address people open the app at: a scheme, a host and maybe a port, with nothing after them. `issue-setup-code` builds the address of the setup from it | None: `issue-setup-code` requires it |
+| `FILE_STORAGE_URL` | The origin where the API reaches the S3 API of the file storage | None: the API requires it |
+| `FILE_STORAGE_PUBLIC_URL` | The origin where the browser reaches the file storage. A signed URL is signed for its host name | None: the API requires it |
+| `FILE_STORAGE_REGION` | The region the file storage signs with | None: the API requires it |
+| `FILE_STORAGE_BUCKET` | The one private bucket of the files | None: the API requires it |
+| `FILE_STORAGE_ACCESS_KEY_ID` | The key the API signs with for the file storage | None: the API requires it |
+| `FILE_STORAGE_SECRET_ACCESS_KEY` | The secret of that key. It is a secret, and never printed | None: the API requires it |
 
-`.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, the port of Caddy, the interface Vite listens on, and the connection with which the Go tests create their temporary databases.
+`.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, the port of Caddy, the port of Garage and the secret its nodes share, the interface Vite listens on, and the connection with which the Go tests create their temporary databases. Garage creates its bucket and its key from the `FILE_STORAGE_` variables.
 
-The variables of what is not built yet (the storage credentials and bucket, the e-mail server and the rest) are _TBD_, each added with the code that reads it.
+The variables of what is not built yet (the e-mail server and the rest) are _TBD_, each added with the code that reads it.
 
 ### Local development
 
@@ -332,7 +338,7 @@ The seed fills the database with fictitious data, the same on every run. To work
 
 The pipeline calls the same Task targets, so a check that fails there fails the same way on the machine.
 
-Of the table above, PostgreSQL and Caddy are what run today, beside the API and the app. To start them from a fresh clone, with the prerequisites installed and Docker running, run from the repository root:
+Of the table above, PostgreSQL, Garage and Caddy are what run today, beside the API and the app. To start them from a fresh clone, with the prerequisites installed and Docker running, run from the repository root:
 
 1. `task install`
 2. `task services`
@@ -340,7 +346,7 @@ Of the table above, PostgreSQL and Caddy are what run today, beside the API and 
 4. `task dev`, which starts the API and the app together
 5. Open `http://localhost`
 
-The browser reaches everything through Caddy, at that one address: the app, and the API under `/api`. Nothing is configured by hand: the values of `.env.example` work as they are with Docker Desktop. With Docker Engine on Linux, Caddy reaches the API and Vite only when they listen on every interface: write `API_LISTEN_ADDRESS=0.0.0.0:8080` and `WEB_LISTEN_HOST=0.0.0.0` in a `.env`. When port 80 is taken, change `CADDY_PORT` there and add the port to `APP_ORIGIN`.
+The browser reaches everything through Caddy, at that one address: the app, and the API under `/api`. The file storage has a host name of its own, `http://files.localhost`, where the browser sends an image to a URL the API signed; Garage accepts it from the origin of the app only. Nothing is configured by hand: the values of `.env.example` work as they are with Docker Desktop. With Docker Engine on Linux, Caddy reaches the API and Vite only when they listen on every interface: write `API_LISTEN_ADDRESS=0.0.0.0:8080` and `WEB_LISTEN_HOST=0.0.0.0` in a `.env`. When port 80 is taken, change `CADDY_PORT` there and add the port to `APP_ORIGIN` and to `FILE_STORAGE_PUBLIC_URL`.
 
 `http://localhost/up` answers with the status of the readiness of the API and no body: 503 until the migrations are applied, and 502 while the API is not running. The API itself answers liveness at `http://127.0.0.1:8080/livez` and readiness at `http://127.0.0.1:8080/readyz`, which Caddy does not forward.
 
@@ -351,7 +357,7 @@ The commands, run from the repository root:
 | Command | What it does |
 | --- | --- |
 | `task install` | Installs the JavaScript dependencies. Vite+ downloads the versions of Node.js and pnpm that `apps/web/package.json` names |
-| `task services` | Builds the Caddy image, starts the services of development in Docker and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
+| `task services` | Builds the Caddy image, starts the services of development in Docker (PostgreSQL, Garage with its bucket, its key and its cross-origin rule, and Caddy) and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
 | `task services:stop` | Stops the services of development and keeps their data |
 | `task migrate` | Applies the pending migrations to the development database. A second run applies nothing |
 | `task issue-setup-code` | Issues a setup code in the development database and prints it, with when it stops working, what it opens and the address of the setup |
@@ -359,7 +365,7 @@ The commands, run from the repository root:
 | `task api` | Starts the API alone, at `http://127.0.0.1:8080` |
 | `task web` | Starts Vite alone, at port 5173, behind Caddy |
 | `task api:build` | Builds the API binary into `apps/api/bin` |
-| `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there. Arguments after `--` replace the list of packages |
+| `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there; a test of the file storage writes objects of its own to the bucket of Garage and removes them. Arguments after `--` replace the list of packages |
 | `task api:lint` | Lints the Go code and checks its format, the imports between layers and between domain areas, `else` and the level of nesting |
 | `task api:format` | Rewrites the Go files as the formatter asks |
 | `task versions:check` | Checks that every version the repository pins is exact: no range, no `latest`, no floating tag |

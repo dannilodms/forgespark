@@ -136,6 +136,8 @@ jobs:
       - name: Lint the Go code and check its format, its imports, else and nesting
         run: task api:lint
 
+      # PostgreSQL, Garage with its bucket and Caddy: the adapter tests run
+      # against the first two.
       - name: Start the services of development
         run: task services
 

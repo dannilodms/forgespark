@@ -309,10 +309,16 @@ Cada comando do binário exige apenas as variáveis que usa. As que o binário l
 | `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT` | Por quanto tempo uma transação pode ficar ociosa | `1m` |
 | `HEALTH_CHECK_TIMEOUT` | Quanto tempo a verificação de uma parte pode levar, incluída a de prontidão | `2s` |
 | `APP_ORIGIN` | O endereço em que as pessoas abrem o app: esquema, host e, se houver, porta, sem nada depois. O `issue-setup-code` monta com ele o endereço da configuração inicial | Nenhum: o `issue-setup-code` exige |
+| `FILE_STORAGE_URL` | A origem em que a API alcança a API S3 do armazenamento de arquivos | Nenhum: a API exige |
+| `FILE_STORAGE_PUBLIC_URL` | A origem em que o navegador alcança o armazenamento de arquivos. Uma URL assinada é assinada para o nome de host dela | Nenhum: a API exige |
+| `FILE_STORAGE_REGION` | A região com que o armazenamento de arquivos assina | Nenhum: a API exige |
+| `FILE_STORAGE_BUCKET` | O único bucket privado dos arquivos | Nenhum: a API exige |
+| `FILE_STORAGE_ACCESS_KEY_ID` | A chave com que a API assina para o armazenamento de arquivos | Nenhum: a API exige |
+| `FILE_STORAGE_SECRET_ACCESS_KEY` | O segredo dessa chave. É um segredo e nunca é impresso | Nenhum: a API exige |
 
-O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, a porta do Caddy, a interface em que o Vite escuta e a conexão com que os testes em Go criam seus bancos temporários.
+O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, a porta do Caddy, a porta do Garage e o segredo que os nós dele compartilham, a interface em que o Vite escuta e a conexão com que os testes em Go criam seus bancos temporários. O Garage cria o seu bucket e a sua chave a partir das variáveis `FILE_STORAGE_`.
 
-As variáveis do que ainda não foi construído (as credenciais e o bucket do armazenamento, o servidor de e-mail e as demais) estão _A definir_, e cada uma entra com o código que a lê.
+As variáveis do que ainda não foi construído (o servidor de e-mail e as demais) estão _A definir_, e cada uma entra com o código que a lê.
 
 ### Ambiente de desenvolvimento
 
@@ -332,7 +338,7 @@ O seed preenche o banco com dados fictícios, os mesmos a cada execução. Para 
 
 A pipeline chama os mesmos alvos do Task, então uma verificação que falha nela falha do mesmo jeito na máquina.
 
-Da tabela acima, o PostgreSQL e o Caddy são o que roda hoje, ao lado da API e do app. Para iniciá-los a partir de um clone novo, com os pré-requisitos instalados e o Docker em execução, rode na raiz do repositório:
+Da tabela acima, o PostgreSQL, o Garage e o Caddy são o que roda hoje, ao lado da API e do app. Para iniciá-los a partir de um clone novo, com os pré-requisitos instalados e o Docker em execução, rode na raiz do repositório:
 
 1. `task install`
 2. `task services`
@@ -340,7 +346,7 @@ Da tabela acima, o PostgreSQL e o Caddy são o que roda hoje, ao lado da API e d
 4. `task dev`, que inicia a API e o app juntos
 5. Abra `http://localhost`
 
-O navegador chega a tudo pelo Caddy, nesse único endereço: o app, e a API em `/api`. Nada é configurado à mão: os valores do `.env.example` funcionam como estão com o Docker Desktop. Com o Docker Engine no Linux, o Caddy só alcança a API e o Vite quando eles escutam em todas as interfaces: escreva `API_LISTEN_ADDRESS=0.0.0.0:8080` e `WEB_LISTEN_HOST=0.0.0.0` em um `.env`. Quando a porta 80 estiver ocupada, mude ali o `CADDY_PORT` e acrescente a porta ao `APP_ORIGIN`.
+O navegador chega a tudo pelo Caddy, nesse único endereço: o app, e a API em `/api`. O armazenamento de arquivos tem um nome de host próprio, `http://files.localhost`, onde o navegador envia uma imagem para uma URL que a API assinou; o Garage só a aceita vinda da origem do app. Nada é configurado à mão: os valores do `.env.example` funcionam como estão com o Docker Desktop. Com o Docker Engine no Linux, o Caddy só alcança a API e o Vite quando eles escutam em todas as interfaces: escreva `API_LISTEN_ADDRESS=0.0.0.0:8080` e `WEB_LISTEN_HOST=0.0.0.0` em um `.env`. Quando a porta 80 estiver ocupada, mude ali o `CADDY_PORT` e acrescente a porta ao `APP_ORIGIN` e ao `FILE_STORAGE_PUBLIC_URL`.
 
 `http://localhost/up` responde com o status da prontidão da API e sem corpo: 503 até as migrations serem aplicadas, e 502 enquanto a API não estiver rodando. A própria API responde à verificação de atividade em `http://127.0.0.1:8080/livez` e à de prontidão em `http://127.0.0.1:8080/readyz`, que o Caddy não encaminha.
 
@@ -351,7 +357,7 @@ Os comandos, executados na raiz do repositório:
 | Comando | O que faz |
 | --- | --- |
 | `task install` | Instala as dependências JavaScript. O Vite+ baixa as versões de Node.js e pnpm que o `apps/web/package.json` indica |
-| `task services` | Gera a imagem do Caddy, inicia os serviços de desenvolvimento no Docker e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
+| `task services` | Gera a imagem do Caddy, inicia os serviços de desenvolvimento no Docker (o PostgreSQL, o Garage com o seu bucket, a sua chave e a sua regra de origem cruzada, e o Caddy) e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
 | `task services:stop` | Para os serviços de desenvolvimento e mantém os dados |
 | `task migrate` | Aplica as migrations pendentes no banco de desenvolvimento. Uma segunda execução não aplica nada |
 | `task issue-setup-code` | Emite um código de configuração no banco de desenvolvimento e o mostra, com quando deixa de funcionar, o que abre e o endereço da configuração inicial |
@@ -359,7 +365,7 @@ Os comandos, executados na raiz do repositório:
 | `task api` | Inicia só a API, em `http://127.0.0.1:8080` |
 | `task web` | Inicia só o Vite, na porta 5173, atrás do Caddy |
 | `task api:build` | Gera o binário da API em `apps/api/bin` |
-| `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário. Os argumentos depois de `--` substituem a lista de pacotes |
+| `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário; um teste do armazenamento de arquivos grava objetos próprios no bucket do Garage e os remove. Os argumentos depois de `--` substituem a lista de pacotes |
 | `task api:lint` | Roda o lint do código Go e verifica o formato, os imports entre camadas e entre áreas de domínio, o `else` e o nível de aninhamento |
 | `task api:format` | Reescreve os arquivos Go como o formatador pede |
 | `task versions:check` | Verifica se toda versão fixada no repositório é exata: sem intervalo, sem `latest`, sem tag flutuante |

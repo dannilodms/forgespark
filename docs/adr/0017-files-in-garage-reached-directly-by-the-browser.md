@@ -29,9 +29,14 @@ Files live in S3-compatible storage. The server is Garage, which replaces MinIO,
 
 - Garage has no object versioning, no bucket notifications and no official web panel, and a small team maintains it (v2.5.0 when this was decided). Its licence is AGPLv3. It runs as a separate service, so the licence does not reach this repository's code.
 - Without versioning, an object deleted or overwritten in Garage is gone. That is accepted in development and staging, which hold no real file. Production keeps its files in a provider with versioning (ADR-0020).
-- The AWS SDK for Go v2 was not tried against Garage. S3-compatible servers sometimes need adjustments in the client, such as path-style addresses and checksum settings.
+- The AWS SDK for Go v2 was tried against Garage with the setup (Garage v2.5.0, `service/s3` v1.114.10), and the tests of `apps/api/internal/files/adapters/s3` run against it. What it needed:
+  - **Path-style addresses** (`UsePathStyle`). With the bucket in the host name, Garage reads the bucket from the path and takes the key for it.
+  - **No checksum setting.** The defaults of the SDK (`WhenSupported` for requests and for responses) work against Garage, a `PutObject` with a body that cannot be read twice included, and a signed `PUT` carries no checksum, so the browser sends none. A later version of the SDK that changed this would fail those tests.
+  - **A second client for signing**, whose endpoint is the public host name (`FILE_STORAGE_PUBLIC_URL`), beside the one the API calls the storage with (`FILE_STORAGE_URL`). Caddy passes the `Host` header on to Garage, and the signature covers it.
+  - **The declared type and size are signed.** Given the `Content-Type` and the `Content-Length`, the SDK signs both (`X-Amz-SignedHeaders=content-length;content-type;host`), and Garage refuses with 403 a `PUT` of another type or size. An expired URL is refused with 400, `Date is too old`, where AWS answers 403.
+  - **The cross-origin rule** is set with `PutBucketCors`, signed by curl in a step of the development Compose file. Garage answers the preflight of another origin with 403, so a browser sends nothing; a request sent without a browser is not refused for its `Origin`.
 - The storage is reachable from the internet. What protects a file is the signature and the expiry of each URL: whoever holds a signed URL can use it until it expires, so the expiry is minutes.
-- A signed upload URL cannot limit the size of what is sent. The API checks the size when the upload is confirmed and removes an object over the limit.
+- A signed upload URL bounds the size of what is sent only where the storage checks the signed `Content-Length`: Garage does, and Backblaze B2 is not tried. The API checks the size when the upload is confirmed and removes an object over the limit.
 - A signed URL is signed for the public host name of the storage, so the backend has to know that name.
 - The file storage stays an optional part of the system health (ADR-0012).
 - The library that uploads in parts from the browser is chosen with the first upload screen.
