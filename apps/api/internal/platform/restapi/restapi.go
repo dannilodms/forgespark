@@ -18,6 +18,17 @@ const (
 	// The contract carries no version: every consumer ships with the backend
 	// (ADR-0009).
 	version = "unversioned"
+	// description tells a reader of the spec what holds for every operation.
+	description = "The REST contract of the system, generated from the Go code and committed.\n\n" +
+		"Every failure answers `application/problem+json` with the schema `Problem`. " +
+		"Its `code` is stable and is what a client translates, its `params` fill the translated text, " +
+		"and its `trace_id` finds the request in the logs. " +
+		"Each operation lists, under its statuses, the codes of the rules it can break. " +
+		"Any operation may also answer `bad_request` (400, the body is not JSON), `not_found` (404), " +
+		"`method_not_allowed` (405), `request_timeout` (408, the body took too long to arrive), " +
+		"`request_entity_too_large` (413), `unsupported_media_type` (415), `validation_failed` (422), " +
+		"`too_many_requests` (429) and `internal_server_error` (500).\n\n" +
+		"An unknown property of a body and an unknown query parameter are rejected with `validation_failed`."
 )
 
 // Limits bound the body of a request.
@@ -39,6 +50,7 @@ type API struct {
 // copy of the spec and no schema: the committed spec is the reference.
 func New(mux *http.ServeMux, limits Limits) *API {
 	config := huma.DefaultConfig(title, version)
+	config.Info.Description = description
 	config.DocsPath = ""
 	config.OpenAPIPath = ""
 	config.SchemasPath = ""

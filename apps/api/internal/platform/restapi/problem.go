@@ -39,7 +39,7 @@ type Problem struct {
 	Code    string         `json:"code" doc:"The stable code of the failure, which a client translates."`
 	Params  map[string]any `json:"params" doc:"The values the text of the code is filled with."`
 	TraceID string         `json:"trace_id" doc:"The trace identifier of the request, to find it in the logs."`
-	Errors  []FieldError   `json:"errors,omitempty" doc:"The fields that were refused, when the failure is about fields."`
+	Errors  []FieldError   `json:"errors,omitempty" nullable:"false" doc:"The fields that were refused, when the failure is about fields."`
 }
 
 // FieldError is one field of a request that was refused.
