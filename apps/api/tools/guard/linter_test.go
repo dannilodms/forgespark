@@ -22,6 +22,12 @@ func lint(t *testing.T, pattern string) (string, error) {
 
 func TestTheLinterFailsOnWhatItsConfigurationRejects(t *testing.T) {
 	t.Parallel()
+	// `go tool` looks at every package of the linter before it runs it, which
+	// takes seconds, and minutes on a busy machine. `task check` and the
+	// pipeline run this test; `task api:test -- -short ./...` leaves it out.
+	if testing.Short() {
+		t.Skip("runs the linter, which is slow to start")
+	}
 
 	output, err := lint(t, "./tools/guard/testdata/linter/...")
 
