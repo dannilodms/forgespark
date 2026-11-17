@@ -247,7 +247,7 @@ The shape of the mark and the background of the preview came from image models. 
 | Group | Components |
 | --- | --- |
 | Actions | Button (with icon, with shortcut chip), Badge, Kbd |
-| Inputs | Field, Label, Input, InputOTP, Textarea, Select, Checkbox, RadioGroup, Switch, InputGroup |
+| Inputs | Field, Label, Input, InputOTP, Textarea, Select, Combobox, Checkbox, RadioGroup, Switch, InputGroup |
 | Navigation | Tabs, Breadcrumb, Sidebar |
 | Data display | Card, Table, Avatar, Separator |
 | Feedback | Alert, Toast, Skeleton, Empty, Status indicator |
@@ -256,6 +256,8 @@ The shape of the mark and the background of the preview came from image models. 
 The status indicator is this project's own component: a sign in one of the four status colours, and a word. The sign belongs to the meaning: a dashed circle for working, a triangle for needs attention, a check for done, a cross for error. It is plain in a row, where the sign carries the colour and the word is set in `foreground`, at the weight of text. It is a badge where it stands alone, with the sign and the word in the colour, on its subtle background. A badge is not put on a row that can be hovered or selected.
 
 InputGroup and Sheet are in the list because Command and Sidebar are built on them. Command is built on the `cmdk` library, which brings its own primitives.
+
+Combobox is a field whose value is chosen from a long list filtered by typing, such as a country: Select is for a short list read whole. Its list floats like a menu. The input is its one stop of the keyboard, and the arrow keys open the list from it; the button beside it is for the pointer and is out of the order of the Tab key.
 
 A component is restyled through style variables and through its variants.
 
