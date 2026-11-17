@@ -7,7 +7,8 @@ package kernel
 //
 // Source: release 2026c of the IANA time zone database, as Go 1.27.4 carries
 // it in lib/time/zoneinfo.zip, every file but Factory, which is no place.
-// To update, take that file of a newer release of Go and list its files.
+// To update, take that file of a newer release of Go and list its files,
+// then run `task api:lists`: the app offers this list.
 var timeZones = []string{
 	"Africa/Abidjan",
 	"Africa/Accra",

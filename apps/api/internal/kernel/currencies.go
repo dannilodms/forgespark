@@ -10,7 +10,8 @@ package kernel
 // UYW), and the precious metals, the bond market units, the units of account
 // of institutions, the code for testing and the code for no currency (XAD,
 // XAG, XAU, XBA, XBB, XBC, XBD, XDR, XPD, XPT, XSU, XTS, XUA, XXX).
-// To update, take that file of a newer release and leave the same kinds out.
+// To update, take that file of a newer release and leave the same kinds out,
+// then run `task api:lists`: the app offers this list.
 var currencies = []string{
 	"AED", "AFN", "ALL", "AMD", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM",
 	"BBD", "BDT", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BTN",

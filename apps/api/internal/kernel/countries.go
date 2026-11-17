@@ -5,7 +5,8 @@ package kernel
 //
 // Source: data/iso_3166-1.json of Debian's iso-codes, release v4.20.1
 // (https://salsa.debian.org/iso-codes-team/iso-codes), every alpha_2 code.
-// To update, take that file of a newer release and write its codes here.
+// To update, take that file of a newer release and write its codes here,
+// then run `task api:lists`: the app offers this list.
 var countries = []string{
 	"AD", "AE", "AF", "AG", "AI", "AL", "AM", "AO", "AQ", "AR",
 	"AS", "AT", "AU", "AW", "AX", "AZ", "BA", "BB", "BD", "BE",

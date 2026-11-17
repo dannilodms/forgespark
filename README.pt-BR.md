@@ -374,13 +374,15 @@ Os comandos, executados na raiz do repositório:
 | `task api:generate:check` | Falha quando o código gerado pelo sqlc que está no repositório ficou desatualizado |
 | `task api:spec` | Gera a especificação OpenAPI a partir do código Go, em `apps/api/openapi.yaml`. O resultado entra no commit |
 | `task api:spec:check` | Falha quando a especificação OpenAPI que está no repositório ficou desatualizada |
+| `task api:lists` | Escreve no app os países, as moedas e os fusos horários que a API aceita, em `apps/web/src/shared/places/lists.gen.ts`. O resultado entra no commit |
+| `task api:lists:check` | Falha quando as listas do app que estão no repositório não são as que a API aceita |
 | `task api:spec:lint` | Roda o lint da especificação OpenAPI do repositório com o vacuum: nomes em `snake_case` e recursos no plural |
 | `task api:spec:breaking` | Mostra, com o oasdiff, as mudanças incompatíveis da especificação OpenAPI em relação à `origin/main`. Nunca falha. `SPEC_BASE=<revisão>` compara com outra revisão |
 | `task web:generate` | Gera, com o orval, o cliente da API do app, os seus schemas Zod e as suas respostas simuladas a partir de `apps/api/openapi.yaml`, em `apps/web/src/shared/api/generated`. O resultado entra no commit |
 | `task web:generate:check` | Falha quando o cliente gerado pelo orval que está no repositório ficou desatualizado |
 | `task web:imports` | Falha quando um import do app quebra a sua regra de dependências, com o dependency-cruiser |
 | `task web:knip` | Falha com um arquivo, um export ou uma dependência do app que nada usa, com o Knip |
-| `task check` | Roda todas as verificações de um pull request: as versões exatas, a verificação do cliente gerado, as de formato, lint e tipos de `apps/web`, a sua regra de dependências, o seu código sem uso, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, a verificação, o lint e o relatório de mudanças incompatíveis da especificação OpenAPI, o build e os testes da API |
+| `task check` | Roda todas as verificações de um pull request: as versões exatas, a verificação do cliente gerado, as de formato, lint e tipos de `apps/web`, a sua regra de dependências, o seu código sem uso, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, a verificação da especificação OpenAPI, a verificação das listas do app, o lint e o relatório de mudanças incompatíveis da especificação, o build e os testes da API |
 | `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
 Os comandos do que ainda não foi construído (o worker e o seed) estão _A definir_, e cada um será escrito com o seu código.
