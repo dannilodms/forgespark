@@ -134,14 +134,19 @@ export function useSetupImage({
     }
   }
 
-  /** Takes a file the person chose, in place of any image before it. */
-  function choose(file: File) {
+  /** Puts an image on the screen in place of any before it, or none. */
+  function show(image: ChosenImage | undefined) {
     if (onTheScreen.current) {
       URL.revokeObjectURL(onTheScreen.current.preview)
     }
-    const image = { file, preview: URL.createObjectURL(file) }
     onTheScreen.current = image
     onFileChanged("")
+  }
+
+  /** Takes a file the person chose, in place of any image before it. */
+  function choose(file: File) {
+    const image = { file, preview: URL.createObjectURL(file) }
+    show(image)
     if (code === undefined) {
       dispatch({ type: "waiting", image })
       return
@@ -149,7 +154,21 @@ export function useSetupImage({
     void send(image, code)
   }
 
-  return { upload, choose }
+  /** Removes the image, sent or not: concluding sends none. */
+  function remove() {
+    show(undefined)
+    dispatch({ type: "removed" })
+  }
+
+  /** Sends again an image that failed, with an upload of its own. */
+  function tryAgain() {
+    if (upload.step !== "failed" || code === undefined) {
+      return
+    }
+    void send(upload.image, code)
+  }
+
+  return { upload, choose, remove, tryAgain }
 }
 
 /** One image of the setup, as the screen holds it. */

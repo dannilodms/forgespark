@@ -13,7 +13,7 @@
       "sent": "Sent",
       "notSent": "Not sent",
       "waiting": "Waiting for a new setup code",
-      "failed": "The image was not sent.",
+      "failed": "The image was not sent. {{reason}}.",
       "tryAgain": "Try again"
     },
     "code": {

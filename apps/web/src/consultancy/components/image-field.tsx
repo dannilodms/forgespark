@@ -1,4 +1,4 @@
-import { ImageIcon } from "lucide-react"
+import { CircleAlertIcon, ImageIcon } from "lucide-react"
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -8,6 +8,7 @@ import { StatusIndicator } from "#ui/components/status-indicator"
 
 import { FieldProblemMessage } from "../../shared/errors/field-problem"
 import type { FieldProblem } from "../../shared/errors/problems"
+import { useErrorTexts } from "../../shared/errors/texts"
 import { largestImage, refusalOf } from "../data/setup"
 import type { ChosenImage, SetupImage, SetupImageField } from "./setup-image"
 
@@ -19,6 +20,8 @@ type ImageTexts = {
   choose: string
   /** The name of the button that chooses another image in its place. */
   replace: string
+  /** The name of the button that removes the image. */
+  remove: string
 }
 
 /**
@@ -53,6 +56,7 @@ export function ImageField({
   const { t } = useTranslation("consultancy")
   const { t: tShared } = useTranslation()
   const input = useRef<HTMLInputElement>(null)
+  const chooser = useRef<HTMLButtonElement>(null)
   const [refusal, setRefusal] = useState<FieldProblem>()
   const id = `field-${field.name.replaceAll(".", "-")}`
   const problem =
@@ -68,6 +72,18 @@ export function ImageField({
     }
   }
 
+  function remove() {
+    setRefusal(undefined)
+    image.remove()
+    // The button that was pressed is gone: the focus stays in the field.
+    chooser.current?.focus()
+  }
+
+  function tryAgain() {
+    image.tryAgain()
+    chooser.current?.focus()
+  }
+
   return (
     <Field aria-labelledby={`${id}-label`}>
       <FieldLabel id={`${id}-label`}>
@@ -79,7 +95,7 @@ export function ImageField({
         type="file"
         accept="image/png,image/jpeg,image/webp"
         hidden
-        aria-label={texts.choose}
+        aria-label={texts.label}
         onChange={(event) => {
           const file = event.target.files?.[0]
           // The same file can be chosen again after it was removed.
@@ -105,22 +121,36 @@ export function ImageField({
               </>
             ) : null}
           </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            data-field={field.name}
-            aria-label={chosen ? texts.replace : undefined}
-            aria-describedby={[
-              `${id}-description`,
-              problem ? `${id}-problem` : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            onClick={() => input.current?.click()}
-          >
-            {chosen ? t("setup.image.replace") : texts.choose}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              ref={chooser}
+              type="button"
+              variant="outline"
+              size="sm"
+              data-field={field.name}
+              aria-label={chosen ? texts.replace : undefined}
+              aria-describedby={[
+                `${id}-description`,
+                problem ? `${id}-problem` : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => input.current?.click()}
+            >
+              {chosen ? t("setup.image.replace") : texts.choose}
+            </Button>
+            {chosen ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label={texts.remove}
+                onClick={remove}
+              >
+                {t("setup.image.remove")}
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
       <FieldDescription id={`${id}-description`}>
@@ -129,7 +159,48 @@ export function ImageField({
       {problem ? (
         <FieldProblemMessage id={`${id}-problem`} problem={problem} />
       ) : null}
+      {upload.step === "failed" ? (
+        <ImageNotSent error={upload.error} onTryAgain={tryAgain} />
+      ) : null}
     </Field>
+  )
+}
+
+/**
+ * An image that did not reach the storage: why, in the error colour with a
+ * sign, the trace identifier of the answer, and a way to send it again.
+ */
+function ImageNotSent({
+  error,
+  onTryAgain,
+}: {
+  error: unknown
+  onTryAgain: () => void
+}) {
+  const { t } = useTranslation("consultancy")
+  const { t: tShared } = useTranslation()
+  const { ofError } = useErrorTexts()
+  const { title, todo, traceId } = ofError(error)
+
+  return (
+    <div role="alert" className="flex flex-col items-start gap-2">
+      <p className="flex items-start gap-1 text-destructive">
+        <CircleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
+        <span>{t("setup.image.failed", { reason: title })}</span>
+      </p>
+      <p className="text-muted-foreground">{todo}</p>
+      {traceId ? (
+        <p className="max-w-full text-muted-foreground">
+          {tShared("errors.traceId")}:
+          <code className="block type-code break-all text-foreground">
+            {traceId}
+          </code>
+        </p>
+      ) : null}
+      <Button type="button" variant="outline" size="sm" onClick={onTryAgain}>
+        {t("setup.image.tryAgain")}
+      </Button>
+    </div>
   )
 }
 

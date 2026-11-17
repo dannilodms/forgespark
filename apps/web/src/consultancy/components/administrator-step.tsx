@@ -143,6 +143,7 @@ export function AdministratorStep({
                     label: t("setup.administrator.photo.label"),
                     choose: t("setup.administrator.photo.choose"),
                     replace: t("setup.administrator.photo.replace"),
+                    remove: t("setup.administrator.photo.remove"),
                   }}
                 />
               )}

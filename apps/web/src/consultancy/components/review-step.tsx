@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router"
-import { LoaderCircleIcon } from "lucide-react"
+import { CircleDashedIcon, CircleXIcon, LoaderCircleIcon } from "lucide-react"
 import { type ReactNode, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -38,6 +38,22 @@ function stepHolding(fields: FieldProblems): TypedStep | undefined {
   return steps.find((step) => names.some((name) => name.startsWith(`${step}.`)))
 }
 
+/**
+ * What keeps concluding from sending the files of the images on the screen:
+ * an image still on its way to the storage, or one that did not reach it.
+ * Concluding sends the files of the images shown, so it waits for both.
+ */
+function imagesHolding(images: SetupImages) {
+  const steps = [images.logo.upload.step, images.photo.upload.step]
+  if (steps.includes("failed")) {
+    return "notSent"
+  }
+  if (steps.includes("sending") || steps.includes("waitingForCode")) {
+    return "sending"
+  }
+  return undefined
+}
+
 /** The name of the item of a list a field chose, or the code it holds. */
 function nameIn(items: ListItem[], code: string) {
   return items.find((item) => item.value === code)?.label ?? code
@@ -73,6 +89,7 @@ export function ReviewStep({
   const navigate = useNavigate()
   const conclusion = useConcludeSetup()
   const heading = useRef<HTMLHeadingElement>(null)
+  const waitingFor = imagesHolding(images)
 
   useEffect(() => {
     heading.current?.focus()
@@ -136,6 +153,19 @@ export function ReviewStep({
 
       {conclusion.error ? <ErrorAlert error={conclusion.error} /> : null}
 
+      {waitingFor === "sending" ? (
+        <p className="flex items-start gap-1.5 text-muted-foreground">
+          <CircleDashedIcon className="mt-0.5 size-3.5 shrink-0 stroke-status-working" />
+          {t("setup.review.imagesSending")}
+        </p>
+      ) : null}
+      {waitingFor === "notSent" ? (
+        <p className="flex items-start gap-1.5">
+          <CircleXIcon className="mt-0.5 size-3.5 shrink-0 stroke-status-error" />
+          {t("setup.review.imageNotSent")}
+        </p>
+      ) : null}
+
       <div className="flex gap-2">
         <Button
           type="button"
@@ -147,7 +177,7 @@ export function ReviewStep({
         <Button
           type="button"
           className="flex-1"
-          disabled={conclusion.isPending}
+          disabled={conclusion.isPending || waitingFor !== undefined}
           onClick={conclude}
         >
           {conclusion.isPending ? (

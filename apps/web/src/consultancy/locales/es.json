@@ -13,7 +13,7 @@
       "sent": "Enviada",
       "notSent": "No enviada",
       "waiting": "Esperando un nuevo código de configuración",
-      "failed": "La imagen no se envió.",
+      "failed": "La imagen no se envió. {{reason}}.",
       "tryAgain": "Intentar de nuevo"
     },
     "code": {

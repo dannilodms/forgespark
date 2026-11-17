@@ -254,6 +254,7 @@ export function ConsultancyStep({
                     label: t("setup.consultancy.logo.label"),
                     choose: t("setup.consultancy.logo.choose"),
                     replace: t("setup.consultancy.logo.replace"),
+                    remove: t("setup.consultancy.logo.remove"),
                   }}
                 />
               )}
