@@ -239,6 +239,26 @@ func TestConcludingTheFirstSetupOnceItIsConcludedAnswers409(t *testing.T) {
 		"the code issued after the setup does not open the registration of a new administrator")
 }
 
+// The last step of concluding, the entry of the audit log, fails: what the
+// steps before it wrote is rolled back with it.
+func TestAFailureAtTheLastStepOfConcludingLeavesNothingSavedAndTheSetupCodeWorking(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+	_, code := issueSetupCodeIn(t, temporary)
+	owner := asOwner(t, temporary)
+	_, err := owner.Exec(context.Background(), "REVOKE INSERT ON audit_log FROM api")
+	require.NoError(t, err)
+	api := startAPI(t, environmentOf(temporary))
+
+	answer := concludeSetup(t, api, setupBody(code))
+
+	require.Equal(t, http.StatusInternalServerError, answer.status, answer.body)
+	for _, table := range []string{"consultancy", "users", "roles", "user_roles"} {
+		assert.Equal(t, 0, countOf(t, owner, table), "the failed setup left rows in %s", table)
+	}
+	assert.Equal(t, http.StatusOK, openSetup(t, api, code).status, "the setup code stopped working")
+}
+
 // postedAnswer posts a JSON body and says what came back: the status, and the
 // code of a failure. It fails no test, so a goroutine may call it.
 func postedAnswer(url string, body []byte) string {
