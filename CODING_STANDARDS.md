@@ -366,6 +366,7 @@ The frontend formats values with the browser's `Intl`, in the user's language, a
 ### Components
 
 - `packages/ui` holds the design system: shadcn/ui components on Base UI primitives, styled with Tailwind CSS. Every colour, radius, font, spacing step and shadow is a CSS custom property.
+- `packages/ui` has no translation of its own. A component takes each word as a prop and the screen supplies it, in its language. That includes a name read only by assistive technology, such as the label of a close button: the component requires it and writes no default.
 - [`DESIGN.md`](DESIGN.md) is the source of the design system: its rules, the style variables with their roles and values, the components and the recipes. Code that disagrees with it is fixed, and a change to any of these updates it in the same change.
 - A component enters `packages/ui` when a screen needs it, through the shadcn CLI, and is shown in the gallery in the same change. The CLI is run in `apps/prototype`, with its exact version. It writes each dependency of the component as a range, and into the app: move it to `packages/ui` as `catalog:` and add its exact version to the catalog.
 - A specialised library (charts, rich text, drag and drop, calendar) is added when the first screen needs it. The one shadcn/ui already wraps is the first candidate.
@@ -385,7 +386,9 @@ The default test renders a whole screen in Vitest's Browser Mode, with the API s
 
 The prototype bar is a small floating bar shown over every route, outside the page it floats over. It holds the theme, the language and the scenarios of the current screen. A scenario is a named condition a screen can be put in, such as an expired login code: a screen declares its scenarios, in groups when two of them can hold at once, and its fake data answers according to the ones chosen. The route of the screen carries the groups in its `staticData`, the bar lists the groups of the current route, and only the fake data of the screen reads a scenario by name (see `apps/prototype/src/stores/scenarios.ts`). A choice lasts until the page is reloaded. A screen carries no control that exists only because it is in the prototype.
 
-The prototype has no screen tests. The reducer of a flow and the fake data of a screen have their tests beside them, and `task check` runs them.
+The prototype is in the three supported languages (ADR-0005). The single list of them is `apps/prototype/src/locales/languages.ts`, and each has one translation file beside it. A screen and a block of the gallery write no text of their own: a translated text comes from the translation files, and a date or a number is written by `useFormat`. Two kinds of text stay out of the translation files. The explanatory text of the gallery is in English, in one module per route under `gallery/explanations`. What a person would have typed stays in the language it was typed in, in the sample data. `apps/prototype/scripts/missing-keys.mjs` fails when a language lacks a key that English has, and `task check` runs it. The README of the prototype says where each text lives and how a language is added.
+
+The prototype has no screen tests. The reducer of a flow, the fake data of a screen and a module with no screen have their tests beside them, and `task check` runs them.
 
 The gallery is the permanent part of the prototype: it shows every style variable and every component of `packages/ui`, as `DESIGN.md` describes. The screens around it are disposable. The stylesheet that pins hover, focus and active for the gallery stays in `apps/prototype`.
 

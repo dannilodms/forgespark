@@ -321,8 +321,8 @@ The frontend commands, run from the repository root:
 | --- | --- |
 | `task install` | Installs the JavaScript dependencies. Vite+ downloads the versions of Node.js and pnpm that the root `package.json` names |
 | `task prototype` | Starts the clickable prototype at `http://localhost:5173` |
-| `task check` | Runs the format, lint and type checks of the JavaScript workspace |
-| `task check:fix` | Runs the same checks and fixes what can be fixed |
+| `task check` | Runs the format, lint and type checks of the JavaScript workspace, then the checks of the prototype: the coverage of the gallery, the missing translation keys and its tests |
+| `task check:fix` | Runs the format, lint and type checks and fixes what can be fixed |
 
 The other commands are _TBD_, written with the first backend code.
 

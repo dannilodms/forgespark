@@ -321,8 +321,8 @@ Os comandos do frontend, executados na raiz do repositório:
 | --- | --- |
 | `task install` | Instala as dependências JavaScript. O Vite+ baixa as versões de Node.js e pnpm que o `package.json` da raiz indica |
 | `task prototype` | Inicia o protótipo clicável em `http://localhost:5173` |
-| `task check` | Roda as verificações de formato, lint e tipos do workspace JavaScript |
-| `task check:fix` | Roda as mesmas verificações e corrige o que for possível |
+| `task check` | Roda as verificações de formato, lint e tipos do workspace JavaScript e, em seguida, as do protótipo: a cobertura da galeria, as chaves de tradução ausentes e os testes |
+| `task check:fix` | Roda as verificações de formato, lint e tipos e corrige o que for possível |
 
 Os outros comandos estão _A definir_ e serão escritos com o primeiro código do backend.
 

@@ -264,6 +264,8 @@ InputGroup and Sheet are in the list because Command and Sidebar are built on th
 
 A component is restyled through style variables and through its variants.
 
+A component holds no text of its own. Every word comes from the screen, in the language of the person, and so does a name that only assistive technology reads: the label of the close button of a dialog, a sheet or a toast, the name of the sidebar when it is a sheet and of the button that toggles it, the title and the description of the command palette, the label of a breadcrumb. A component that needs such a name requires it as a prop.
+
 ## Recipes
 
 The sample work screen of the prototype is built from these four.
@@ -303,8 +305,10 @@ The gallery has one route per section, with side navigation, in this order: Foun
 - **States** are pinned side by side without interaction: default, hover, focus, active, disabled, plus loading for Button and invalid for fields.
 - **Do and Don't** renders the eight rules as pairs.
 - **Recipes** shows each recipe on its own in a framed preview, with one line on when to use it, and links to the sample work screen.
-- The theme and the language are chosen in the prototype bar, which applies to every route (see Prototype in `CODING_STANDARDS.md`).
-- Navigation and the sample content inside components are in the three supported languages. Explanatory text is in English.
+- The theme and the language are chosen in the prototype bar, which applies to every route (see Prototype in `CODING_STANDARDS.md`). The bar is a floating surface: its edge is the one `shadow-floating` draws.
+- Navigation, the name of a route and the sample content inside components are in the three supported languages, and a date or a number in them is written for the language. The edge case of a component shows a long label in each language.
+- Explanatory text is in English: the line on when to use a component, the name of a part, the caption of a Do and Don't pair, the names and roles of the style variables, and the label of a button that opens an example. It is kept apart from the translation files, in one module per route.
+- What a person would have typed, such as a name, a title or a description, stays in the language it was typed in.
 
 ## Known gaps
 

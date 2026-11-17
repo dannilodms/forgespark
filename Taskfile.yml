@@ -21,6 +21,6 @@ tasks:
       - vp test run --root apps/prototype
 
   check:fix:
-    desc: The same checks, fixing what can be fixed
+    desc: Format, lint and type checks, fixing what can be fixed
     cmds:
       - vp check --fix
