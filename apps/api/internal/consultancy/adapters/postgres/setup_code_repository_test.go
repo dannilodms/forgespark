@@ -30,10 +30,13 @@ type stored struct {
 func newStored(t *testing.T) stored {
 	t.Helper()
 	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            databasetest.Migrated(t).APIURL,
-		MaxSize:                  4,
-		StatementTimeout:         10 * time.Second,
-		IdleInTransactionTimeout: 10 * time.Second,
+		ConnectionURL:    databasetest.Migrated(t).APIURL,
+		MaxSize:          4,
+		StatementTimeout: 10 * time.Second,
+		// A test holds one transaction open while a second one runs. On a
+		// loaded machine the second takes its time to connect, and the first
+		// must not be ended for waiting.
+		IdleInTransactionTimeout: time.Minute,
 	})
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
