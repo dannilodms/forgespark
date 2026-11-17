@@ -168,7 +168,18 @@ export function useSetupImage({
     void send(upload.image, code)
   }
 
-  return { upload, choose, remove, tryAgain }
+  /**
+   * A new setup code opened the setup: an image that waited for one is sent
+   * with it. An image already sent stays as it is.
+   */
+  function resume(newCode: string) {
+    if (upload.step !== "waitingForCode") {
+      return
+    }
+    void send(upload.image, newCode)
+  }
+
+  return { upload, choose, remove, tryAgain, resume }
 }
 
 /** One image of the setup, as the screen holds it. */

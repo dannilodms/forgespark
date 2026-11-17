@@ -4,8 +4,10 @@ import { userEvent } from "vite-plus/test/browser"
 
 import {
   getConcludeSetupMockHandler,
+  getConcludeSetupMockHandler422,
   getOpenSetupMockHandler,
   getStartSetupUploadMockHandler,
+  getStartSetupUploadMockHandler422,
   getStartSetupUploadMockHandler429,
   getStartSetupUploadMockHandler500,
   getTellSetupStateMockHandler,
@@ -576,5 +578,132 @@ describe("an image removed", () => {
     await conclude(screen)
     expect(sent).toHaveLength(1)
     expect(sent[0]?.consultancy).not.toHaveProperty("logo_file_id")
+  })
+})
+
+/** The API answers that the setup code no longer works, to the next upload. */
+function theCodeStopsWorkingOnTheNextUpload() {
+  api.use(
+    getStartSetupUploadMockHandler422(problem(422, "setup_code_invalid"), {
+      once: true,
+    })
+  )
+}
+
+/** Types a new setup code on the step of the code, which says why it is back. */
+async function typeANewCode(screen: Screen, code: string) {
+  const field = textField(screen, "Setup code")
+  await expect.element(field).toHaveFocus()
+  await expect
+    .element(screen.getByRole("alert"))
+    .toMatchTextContent(/The setup code stopped working/)
+  await field.fill(code)
+  await screen.getByRole("button", { name: "Continue" }).click()
+}
+
+describe("a setup code that stops working while an image is sent", () => {
+  const newCode = "QRSTV-WXYZ0-12345-6789A"
+
+  it("returns to the step of the code, and a new code sends the image again", async () => {
+    const { screen } = await openTheFirstSetup()
+    const started = uploadsStart("fil_logo0001")
+    theStorage()
+    theCodeStopsWorkingOnTheNextUpload()
+    await textField(screen, "Name").fill("Acme Software")
+
+    await chooseImage(screen, "Logo", await imageFile("acme-logo.png"))
+    await typeANewCode(screen, newCode)
+
+    await expect
+      .element(screen.getByRole("heading", { name: "The consultancy" }))
+      .toBeVisible()
+    await expect.element(textField(screen, "Name")).toHaveValue("Acme Software")
+    await expect
+      .element(screen.getByRole("status"))
+      .toMatchTextContent(/acme-logo\.png\s*Sent/)
+    expect(started).toEqual([
+      expect.objectContaining({ code: newCode, purpose: "consultancy_logo" }),
+    ])
+  })
+
+  it("keeps an image already sent, which concluding sends with the new code", async () => {
+    const { screen } = await openTheFirstSetup()
+    const started = uploadsStart("fil_logo0001", "fil_photo001")
+    theStorage()
+    await chooseImage(screen, "Logo", await imageFile("acme-logo.png"))
+    await expect.element(screen.getByRole("status")).toMatchTextContent(/Sent/)
+    await fillTheConsultancy(screen)
+    theCodeStopsWorkingOnTheNextUpload()
+
+    await chooseImage(screen, "Photo", await imageFile("ana.png"))
+    await typeANewCode(screen, newCode)
+
+    await expect
+      .element(screen.getByRole("heading", { name: "The first administrator" }))
+      .toBeVisible()
+    await expect
+      .element(screen.getByRole("status"))
+      .toMatchTextContent(/ana\.png\s*Sent/)
+    expect(started.map(({ code, purpose }) => ({ code, purpose }))).toEqual([
+      { code: typedCode, purpose: "consultancy_logo" },
+      { code: newCode, purpose: "user_photo" },
+    ])
+    await fillTheAdministrator(screen)
+    const sent = concludingRequests()
+    await conclude(screen)
+    expect(sent).toEqual([
+      expect.objectContaining({
+        code: newCode,
+        consultancy: expect.objectContaining({ logo_file_id: "fil_logo0001" }),
+        administrator: expect.objectContaining({
+          photo_file_id: "fil_photo001",
+        }),
+      }),
+    ])
+  })
+})
+
+describe("an image concluding refuses", () => {
+  it("shows the reason on its field, on its step, and an image chosen again is concluded", async () => {
+    const { screen } = await openTheFirstSetup()
+    uploadsStart("fil_logo0001", "fil_logo0002")
+    theStorage()
+    await chooseImage(screen, "Logo", await imageFile("acme-logo.png"))
+    await reachTheReview(screen)
+    api.use(
+      getConcludeSetupMockHandler422(
+        problem(422, "validation_failed", {
+          errors: [
+            {
+              location: "body.consultancy.logo_file_id",
+              code: "file_not_uploaded",
+              params: {},
+              message: "the file was not uploaded",
+            },
+          ],
+        }),
+        { once: true }
+      )
+    )
+
+    await screen.getByRole("button", { name: "Conclude the setup" }).click()
+
+    const replace = screen.getByRole("button", { name: "Replace the logo" })
+    await expect
+      .element(replace)
+      .toHaveAccessibleDescription(
+        /This image did not reach the storage\. Choose it again\./
+      )
+    await expect.element(replace).toHaveFocus()
+    await chooseImage(screen, "Logo", await imageFile("acme-logo.png"))
+    await expect.element(screen.getByRole("status")).toMatchTextContent(/Sent/)
+    await expect
+      .element(replace)
+      .not.toHaveAccessibleDescription(/did not reach the storage/)
+    await screen.getByRole("button", { name: "Continue" }).click()
+    await screen.getByRole("button", { name: "Continue" }).click()
+    const sent = concludingRequests()
+    await conclude(screen)
+    expect(sent[0]?.consultancy.logo_file_id).toBe("fil_logo0002")
   })
 })

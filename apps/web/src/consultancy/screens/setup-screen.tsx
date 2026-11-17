@@ -7,11 +7,7 @@ import { CodeStep } from "../components/code-step"
 import { ConsultancyStep } from "../components/consultancy-step"
 import { NextStepPlaceholder } from "../components/next-step-placeholder"
 import { ReviewStep } from "../components/review-step"
-import {
-  type SetupForm,
-  keepTheFile,
-  useSetupForm,
-} from "../components/setup-form"
+import { type SetupForm, useSetupForm } from "../components/setup-form"
 import { type SetupImages, useSetupImage } from "../components/setup-image"
 import {
   type SetupAction,
@@ -33,18 +29,25 @@ export function SetupScreen() {
   const form = useSetupForm()
   const code = flow.step === "code" ? undefined : flow.opened.code
   const codeStoppedWorking = () => dispatch({ type: "codeStoppedWorking" })
+  // The file of each image is a field of the form, which concluding sends
+  // and where a problem the API names about it shows. A problem goes when
+  // the file changes: TanStack Form clears it on a change of the value.
   const logo = useSetupImage({
     purpose: "consultancy_logo",
     code,
     onFileChanged: (fileId) =>
-      keepTheFile(form, "consultancy.logo_file_id", fileId),
+      form.setFieldValue("consultancy.logo_file_id", fileId, {
+        dontUpdateMeta: true,
+      }),
     onCodeStoppedWorking: codeStoppedWorking,
   })
   const photo = useSetupImage({
     purpose: "user_photo",
     code,
     onFileChanged: (fileId) =>
-      keepTheFile(form, "administrator.photo_file_id", fileId),
+      form.setFieldValue("administrator.photo_file_id", fileId, {
+        dontUpdateMeta: true,
+      }),
     onCodeStoppedWorking: codeStoppedWorking,
   })
   const images: SetupImages = { logo, photo }
@@ -73,7 +76,11 @@ function Step({
       return (
         <CodeStep
           stoppedWorking={flow.resumeAt !== undefined}
-          onOpened={(opened) => dispatch({ type: "codeAccepted", opened })}
+          onOpened={(opened) => {
+            dispatch({ type: "codeAccepted", opened })
+            images.logo.resume(opened.code)
+            images.photo.resume(opened.code)
+          }}
         />
       )
     case "consultancy":
