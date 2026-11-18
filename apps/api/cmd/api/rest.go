@@ -34,13 +34,19 @@ func mountREST(mux *http.ServeMux, pool *pgxpool.Pool, storage *filess3.Storage)
 	api := restapi.New(mux, bodyLimits)
 
 	transactions := database.NewTransactions(pool)
-	recordEntry := auditapplication.NewRecordEntry(auditpostgres.NewAuditLog(pool))
 	files := filespostgres.NewFileRepository(pool)
 	setupCodes := consultancypostgres.NewSetupCodeRepository(pool)
 	consultancies := consultancypostgres.NewConsultancyRepository(pool)
-	users := consultancypostgres.NewUserRepository(pool)
-	roles := consultancypostgres.NewRoleRepository(pool)
-	confirmUpload := filesapplication.NewConfirmUpload(transactions, files, storage, clock.System{})
+	setup := consultancyapplication.SetupDependencies{
+		Transactions:  transactions,
+		SetupCodes:    setupCodes,
+		Consultancies: consultancies,
+		Users:         consultancypostgres.NewUserRepository(pool),
+		Roles:         consultancypostgres.NewRoleRepository(pool),
+		ConfirmUpload: filesapplication.NewConfirmUpload(transactions, files, storage, clock.System{}),
+		RecordEntry:   auditapplication.NewRecordEntry(auditpostgres.NewAuditLog(pool)),
+		Clock:         clock.System{},
+	}
 	consultancyrest.Register(api, consultancyrest.UseCases{
 		TellSetupState: consultancyapplication.NewTellSetupState(consultancypostgres.NewSetupStateReader(pool), clock.System{}),
 		OpenSetup:      consultancyapplication.NewOpenSetup(setupCodes, consultancies, clock.System{}),
@@ -49,12 +55,8 @@ func mountREST(mux *http.ServeMux, pool *pgxpool.Pool, storage *filess3.Storage)
 			filesapplication.NewStartUpload(transactions, files, storage, clock.System{}, rand.Reader),
 			clock.System{},
 		),
-		ConcludeSetup: consultancyapplication.NewConcludeSetup(
-			transactions, setupCodes, consultancies, users, roles, confirmUpload, recordEntry, clock.System{},
-		),
-		RegisterAdministrator: consultancyapplication.NewRegisterAdministrator(
-			transactions, setupCodes, consultancies, users, roles, confirmUpload, recordEntry, clock.System{},
-		),
+		ConcludeSetup:         consultancyapplication.NewConcludeSetup(setup),
+		RegisterAdministrator: consultancyapplication.NewRegisterAdministrator(setup),
 	})
 
 	return api

@@ -78,27 +78,32 @@ func newInstallation() installation {
 	transactions := applicationtest.NewTransactions(setupCodes, consultancies, users, roles, auditLog, files)
 	recordEntry := auditapplication.NewRecordEntry(auditLog)
 	startUpload := filesapplication.NewStartUpload(transactions, files, objects, clock, &countingBytes{})
-	confirmUpload := filesapplication.NewConfirmUpload(transactions, files, objects, clock)
+	setup := application.SetupDependencies{
+		Transactions:  transactions,
+		SetupCodes:    setupCodes,
+		Consultancies: consultancies,
+		Users:         users,
+		Roles:         roles,
+		ConfirmUpload: filesapplication.NewConfirmUpload(transactions, files, objects, clock),
+		RecordEntry:   recordEntry,
+		Clock:         clock,
+	}
 	return installation{
-		clock:            clock,
-		setupCodes:       setupCodes,
-		consultancies:    consultancies,
-		users:            users,
-		roles:            roles,
-		auditLog:         auditLog,
-		files:            files,
-		objects:          objects,
-		transactions:     transactions,
-		issueSetupCode:   application.NewIssueSetupCode(transactions, setupCodes, consultancies, recordEntry, clock, &countingBytes{}),
-		openSetup:        application.NewOpenSetup(setupCodes, consultancies, clock),
-		startSetupUpload: application.NewStartSetupUpload(setupCodes, startUpload, clock),
-		concludeSetup: application.NewConcludeSetup(
-			transactions, setupCodes, consultancies, users, roles, confirmUpload, recordEntry, clock,
-		),
-		registerAdministrator: application.NewRegisterAdministrator(
-			transactions, setupCodes, consultancies, users, roles, confirmUpload, recordEntry, clock,
-		),
-		tellSetupState: application.NewTellSetupState(applicationtest.NewSetupStateReader(consultancies, setupCodes), clock),
+		clock:                 clock,
+		setupCodes:            setupCodes,
+		consultancies:         consultancies,
+		users:                 users,
+		roles:                 roles,
+		auditLog:              auditLog,
+		files:                 files,
+		objects:               objects,
+		transactions:          transactions,
+		issueSetupCode:        application.NewIssueSetupCode(transactions, setupCodes, consultancies, recordEntry, clock, &countingBytes{}),
+		openSetup:             application.NewOpenSetup(setupCodes, consultancies, clock),
+		startSetupUpload:      application.NewStartSetupUpload(setupCodes, startUpload, clock),
+		concludeSetup:         application.NewConcludeSetup(setup),
+		registerAdministrator: application.NewRegisterAdministrator(setup),
+		tellSetupState:        application.NewTellSetupState(applicationtest.NewSetupStateReader(consultancies, setupCodes), clock),
 	}
 }
 
