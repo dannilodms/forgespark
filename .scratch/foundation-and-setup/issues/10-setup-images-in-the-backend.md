@@ -1,6 +1,6 @@
 # 10 - Images of the setup in the backend
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 06, 07
 
 Read `../spec.md`, ADR-0017, ADR-0010 and, in `CODING_STANDARDS.md`, Files and API conventions.

@@ -1,6 +1,6 @@
 # 04 - Issue a setup code
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01
 
 Read `../spec.md`, ADR-0024 and, in `CODING_STANDARDS.md`, Setup, Use cases, Domain modelling, Database and Tests. The terms setup code and audit log are in `GLOSSARY.md`.

@@ -1,6 +1,6 @@
 # 07 - Development behind Caddy, with the limit on the setup code
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 05
 
 Read `../spec.md` and, in `CODING_STANDARDS.md`, Delivery, Health and Compose files. The reasons are in ADR-0009, ADR-0011 and ADR-0024.

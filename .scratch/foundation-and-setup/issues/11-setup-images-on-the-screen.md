@@ -1,6 +1,6 @@
 # 11 - Images on the setup screen
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 09, 10
 
 Read `../spec.md`, `DESIGN.md` and, in `CODING_STANDARDS.md`, State and Components in the frontend rules.

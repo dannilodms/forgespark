@@ -1,6 +1,6 @@
 # 05 - REST contract, and opening the setup with a setup code
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 03, 04
 
 Read `../spec.md`, ADR-0003, ADR-0009 and, in `CODING_STANDARDS.md`, Inbound adapters, API conventions, Errors and Enforcement in the backend rules.

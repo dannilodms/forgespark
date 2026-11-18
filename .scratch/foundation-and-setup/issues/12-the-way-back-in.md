@@ -1,6 +1,6 @@
 # 12 - The way back in: a new administrator registered with a setup code
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 11
 
 Read `../spec.md`, ADR-0024 and, in `CODING_STANDARDS.md`, Setup and Users and roles.

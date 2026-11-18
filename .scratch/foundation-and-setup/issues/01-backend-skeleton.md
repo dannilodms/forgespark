@@ -1,6 +1,6 @@
 # 01 - Backend skeleton: the API starts, migrates and answers liveness and readiness
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: None (can start immediately)
 
 Read `../spec.md` and the backend rules of `CODING_STANDARDS.md` first: Layout, Dependency rule, Configuration, Health, Database, and Compose files and Development under Environments. The reasons are in ADR-0001, ADR-0007, ADR-0015 and ADR-0019.

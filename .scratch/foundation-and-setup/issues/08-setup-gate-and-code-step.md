@@ -1,6 +1,6 @@
 # 08 - First screen: the gate of the setup and the step of the setup code
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 06, 07
 
 Read `../spec.md`, `DESIGN.md` and the frontend rules of `CODING_STANDARDS.md` first. The reasons are in ADR-0013, ADR-0014 and ADR-0025. The layout follows the login screen of the removed prototype, described in `.scratch/login-screen-prototype/spec.md` at commit `cc48eb1`.

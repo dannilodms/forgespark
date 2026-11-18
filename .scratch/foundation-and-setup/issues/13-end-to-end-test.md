@@ -1,6 +1,6 @@
 # 13 - End-to-end test of the setup, through Caddy
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 12
 
 Read `../spec.md` and, in `CODING_STANDARDS.md`, Tests in the frontend rules and Checks on a pull request.

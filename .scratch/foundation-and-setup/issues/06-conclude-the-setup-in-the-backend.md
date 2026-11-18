@@ -1,6 +1,6 @@
 # 06 - Conclude the setup in the backend
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 05
 
 Read `../spec.md`, ADR-0024, ADR-0026 and, in `CODING_STANDARDS.md`, Setup, Users and roles, Domain modelling and API conventions. The terms consultancy, user, role, administrator, developer, tax ID and national ID are in `GLOSSARY.md`.

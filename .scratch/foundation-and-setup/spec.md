@@ -1,6 +1,6 @@
 # Foundation and setup
 
-Status: ready-for-agent
+Status: resolved
 
 The first of three efforts. The second is the login and the shell of the app, and the third is the consultancy settings, the users and the system health. Each of those is specified when the one before it ends.
 

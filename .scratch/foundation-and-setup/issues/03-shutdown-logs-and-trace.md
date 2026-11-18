@@ -1,6 +1,6 @@
 # 03 - Shutdown, logs and trace
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01
 
 Read `../spec.md` and, in `CODING_STANDARDS.md`, Shutdown and Telemetry. The reasons are in ADR-0012.

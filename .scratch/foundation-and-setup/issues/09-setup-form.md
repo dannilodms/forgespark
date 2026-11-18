@@ -1,6 +1,6 @@
 # 09 - The setup form: consultancy, administrator, review and concluding
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 08
 
 Read `../spec.md`, `DESIGN.md` and, in `CODING_STANDARDS.md`, State, Forms and validation, Errors, Values and Components in the frontend rules.

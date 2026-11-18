@@ -1,6 +1,6 @@
 # 02 - Backend guards: the build fails on a broken rule
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01
 
 Read `../spec.md` and, in `CODING_STANDARDS.md`, Dependency rule, Control flow, Enforcement in the backend rules, and Versions.
