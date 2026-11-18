@@ -33,7 +33,7 @@ The area has no REST operation of its own and no download yet. The job that remo
 - [x] The identifier of a file in a response has its prefix, at least 8 characters after it, and never the integer.
 - [x] The adapter tests run against Garage and cover the signed URL for the public host name, the confirmation and the removal.
 - [x] The AWS SDK for Go v2 works against Garage with path-style addresses and the checksum settings it needs. What had to be set is noted in ADR-0017.
-- [ ] The spec, the generated code and the lint are up to date, and the pipeline starts Garage for the adapter tests.
+- [x] The spec, the generated code and the lint are up to date, and the pipeline starts Garage for the adapter tests.
 
 ## Comments
 
@@ -97,3 +97,7 @@ The area has no REST operation of its own and no download yet. The job that remo
 - **A confirmed image could be replaced** through its signed URL within its five minutes, after it was confirmed. Garage checks the signed size and type, so it stayed an image of the same type and size; its bytes were not checked again until another confirmation. Decided after the effort: confirming copies the object to a key no signed URL reaches and removes the uploaded one (ADR-0017).
 - **Images of an abandoned setup stay in the bucket**, the tests of the binary included, until the cleanup job of the second effort.
 - **The health of the storage** (an optional part, ADR-0012) is not built: the API requires the variables and does not probe Garage at the start.
+
+### Checked in the pipeline
+
+In run [44225480372](https://github.com/dannilodms/software-factory-manager/actions/runs/44225480372) of pull request #5, on `0c751a9`, the `backend` job started Garage with `task services` and the `s3` adapter tests passed against it, with the spec, the code sqlc generates, the client of the app and the lint checked as up to date. The box is ticked on that run.

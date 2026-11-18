@@ -27,7 +27,7 @@ Compression, the security headers, the Brotli copies and the cache headers of th
 - [x] A response under `/api` carries `Cache-Control: no-store`.
 - [x] `/up` answers 200 with no body when the API is ready and a failure status when it is not.
 - [x] Liveness and readiness cannot be reached through Caddy.
-- [ ] Caddy reaches the API and Vite on the machine both under Docker Desktop and on the runner of the pipeline.
+- [x] Caddy reaches the API and Vite on the machine both under Docker Desktop and on the runner of the pipeline.
 - [x] The Caddy image and its plugin have exact versions, and the check of ticket 02 covers its Dockerfile.
 - [x] `CODING_STANDARDS.md` names the plugin and the limit.
 
@@ -92,3 +92,7 @@ Compression, the security headers, the Brotli copies and the cache headers of th
 - **The plugin logs the full IP address** of each refused request, at the info level, on the output of the container. Privacy in Observability wants it cut to its network, which the collector does once it exists. (Fixed after the review of the effort: the default log of the `Caddyfile` filters every line, the plugin's included, and keeps the network of the address only; `caddy_test.go` checks it.)
 - **v0.1.0 is from August 2024.** The plugin's main branch has the prefixes of IPv4 and IPv6 keys (so an IPv6 caller is limited by its /64, not by one address) and metrics, with no release. Moving to a commit of the main branch is a pseudo-version, which the version check accepts.
 - **Caddy's spans carry what `otelhttp` records**, the client address and the path among them. Nothing is exported now. When the telemetry containers export them, the collector has to cut them as Privacy says.
+
+### Checked in the pipeline
+
+In run [44225480372](https://github.com/dannilodms/software-factory-manager/actions/runs/44225480372) of pull request #5, on `0c751a9`, the `end-to-end` job passed on the GitHub runner, through Caddy in Docker Engine to the API and Vite listening on `0.0.0.0`, and the Caddy tests of the `backend` job passed there too. The box of the runner is ticked on that run.

@@ -32,7 +32,7 @@ The first Go code of the repository. One command starts the services of developm
 - [ ] The first migration creates `pg_stat_statements` without a superuser. If it cannot, ADR-0015 is updated with what was found before the work goes on.
 - [x] The API role cannot create or alter a table.
 - [x] Every image tag is exact and lives in the base Compose file only.
-- [ ] The backend job runs on a pull request and the `Checks` job needs it.
+- [x] The backend job runs on a pull request and the `Checks` job needs it.
 - [x] `CODING_STANDARDS.md` records where dependencies are wired.
 
 ## Comments
@@ -99,3 +99,7 @@ The superuser now creates the extension once, in the script that creates the two
 - **The API role can still create a temporary table.** PostgreSQL gives that right on a database to everyone. It lives in the session and changes no schema. Taking it away is one statement in the script of the roles.
 - **A file a container needs cannot be mounted from the checkout** while worktrees share containers. Ticket 07 brings a `Caddyfile` and meets this.
 - **A test that is killed leaves its temporary database behind.** Its name starts with `test_`.
+
+### Checked in the pipeline
+
+In run [44225480372](https://github.com/dannilodms/software-factory-manager/actions/runs/44225480372) of pull request #5, on `0c751a9`, the `backend` job built the binary and ran the Go tests against the PostgreSQL container on the GitHub runner, and `Checks` ran after it. The box of the job is ticked on that run. The box of `pg_stat_statements` stays open, as above.

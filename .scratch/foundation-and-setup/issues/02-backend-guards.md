@@ -73,3 +73,7 @@ The mapping check, the one that fails when a mapping between API type, domain ty
 - **The pipeline.** Nothing is pushed, so the `backend` job did not run. It calls the same Task targets as the machine. The first run builds golangci-lint from its sources, which took about five minutes here.
 - **actionlint and zizmor on the changed `ci.yml`.** Neither is installed, and the command that downloads actionlint was refused in this session. The file parses as YAML, which the version check does on every run.
 - **The checks on Linux.** They are Go with no path of Windows in them, and ran on Windows only.
+
+### Checked in the pipeline
+
+In run [44225480372](https://github.com/dannilodms/software-factory-manager/actions/runs/44225480372) of pull request #5, on `0c751a9`, the `backend` job ran `task versions:check` and `task api:lint` (golangci-lint and the guard) on the Linux runner and passed, as on the machine. No broken rule was pushed on purpose, so a failure of the pipeline matching one of the machine is still not seen, and the box stays open. The run before it, [44222903777](https://github.com/dannilodms/software-factory-manager/actions/runs/44222903777), failed in the pipeline on a race the machine had not shown (`TestConcludingRequestsAtTheSameMomentSaveOneConsultancy`), fixed in `0c751a9`.

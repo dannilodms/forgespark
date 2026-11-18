@@ -19,7 +19,7 @@ One test drives the real system the way whoever installs it does, and the pipeli
 
 ## Acceptance criteria
 
-- [ ] One Task target runs the end-to-end test from an empty database, on the machine and in the pipeline.
+- [x] One Task target runs the end-to-end test from an empty database, on the machine and in the pipeline.
 - [x] The test completes the first setup with both images and reaches the login screen.
 - [x] The test registers a new administrator with a second setup code.
 - [x] The check of the limit reads a 429 with the code `too_many_requests`.
@@ -75,3 +75,7 @@ One test drives the real system the way whoever installs it does, and the pipeli
 - **The pipeline.** Nothing was pushed: the job on the Linux runner (Docker Engine, the API and Vite on `0.0.0.0`, Caddy reaching them through the host gateway), the artifact of a failure, and `Checks` waiting for the job. The same holds for the last criterion, `task check` and the pipeline on `main`.
 - **A clean machine.** The steps of the README were run on this one, where Go, Vite+, Task, Docker and Chromium were already installed and the caches warm; its box is ticked on that run, as issue 01 ticked its own.
 - **Another browser than Chromium**, and the screen in another language than English in this test (the screen tests cover the three).
+
+### Checked in the pipeline
+
+In run [44225480372](https://github.com/dannilodms/software-factory-manager/actions/runs/44225480372) of pull request #5, on `0c751a9`, the `end-to-end` job ran `task e2e` from an empty database on the GitHub runner and passed, and `Checks` ran after it. The first box is ticked on that run. Two stay open: a failure leaving its trace was not seen, since the job did not fail, and `task check` and the pipeline on `main` wait for the merge.

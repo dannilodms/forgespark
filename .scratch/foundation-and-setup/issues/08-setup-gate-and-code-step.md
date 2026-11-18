@@ -36,7 +36,7 @@ A new install shows only the setup screen. The person types the setup code and g
 - [x] Correct in light and dark, at desktop width and at 375px, with no overflow, and fully operable by keyboard.
 - [x] The screen tests act as a person does and cover each route before and after the setup, a valid code, a code that is not valid and the limit reached.
 - [x] A stale client, an unused file, export or dependency, and an import that breaks the dependency rule each fail `task check`.
-- [ ] The job of the app runs on a pull request and the `Checks` job needs it.
+- [x] The job of the app runs on a pull request and the `Checks` job needs it.
 - [x] orval works on the spec Huma generates. What had to be adjusted is noted in ADR-0013.
 
 ## Comments
@@ -96,3 +96,7 @@ A new install shows only the setup screen. The person types the setup code and g
 - **The bundle is one chunk of 718 kB (228 kB gzipped)**: React, the router, TanStack Query and Form, Zod, i18next and Base UI. The limit on the size waits for the deploy.
 - **After concluding, the cache of the gate has to be updated** (ticket 09), or `/login` leads back to the setup: the state is read once and kept.
 - **A 502 of Caddy has no body**, so the screen shows "Something went wrong" with no identifier when the API is down.
+
+### Checked in the pipeline
+
+In run [44225480372](https://github.com/dannilodms/software-factory-manager/actions/runs/44225480372) of pull request #5, on `0c751a9`, the `app` job passed on the GitHub runner, and `Checks` ran after it. The box of the job is ticked on that run.
