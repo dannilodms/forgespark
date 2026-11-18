@@ -105,11 +105,12 @@ jobs:
         uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: apps/api/go.mod
-          # The linter, vacuum and oasdiff are each built from a module file
-          # of their own.
+          # The linter, sqlc, vacuum and oasdiff are each built from a module
+          # file of their own.
           cache-dependency-path: |
             apps/api/go.sum
             apps/api/golangci-lint.sum
+            apps/api/sqlc.sum
             apps/api/vacuum.sum
             apps/api/oasdiff.sum
 
