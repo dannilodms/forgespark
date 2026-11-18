@@ -31,8 +31,12 @@ The one-time registration of the consultancy and of its first administrator, don
 _Avoid_: Onboarding, installation, sign-up, first login
 
 **Setup code**:
-A code that opens the setup. Whoever installs the system issues it on the server, and it stops working when the setup is concluded. A new one, issued when no administrator can log in, opens the setup again to register an administrator. It is not a user.
+A code that opens the setup. The installer issues it on the server, and it stops working when the setup is concluded. A new one, issued when no administrator can log in, opens the setup again to register an administrator. It is not a user.
 _Avoid_: Super admin, root user, initial password, bootstrap token
+
+**Installer**:
+Whoever installs the system and runs its commands on the server, acting as no user. The audit log names the installer as the one who issued a setup code.
+_Avoid_: Operator, system administrator, root, admin
 
 **Tax ID**:
 The identifier a country's tax authority gives a company, such as the CNPJ in Brazil. It is read together with the country of the company.
