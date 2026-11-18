@@ -54,7 +54,7 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 	defer tracing.Stop()
 
 	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            settings.DatabaseURL.ConnectionString(),
+		ConnectionURL:            settings.DatabaseURL,
 		MaxSize:                  settings.DatabasePoolMaxSize,
 		StatementTimeout:         settings.DatabaseStatementTimeout,
 		IdleInTransactionTimeout: settings.DatabaseIdleInTransactionTimeout,
@@ -79,7 +79,7 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 		Region:          settings.FileStorageRegion,
 		Bucket:          settings.FileStorageBucket,
 		AccessKeyID:     settings.FileStorageAccessKeyID,
-		SecretAccessKey: settings.FileStorageSecretAccessKey.Reveal(),
+		SecretAccessKey: settings.FileStorageSecretAccessKey,
 		TracerProvider:  tracing.Provider,
 	})
 	mountREST(mux, pool, storage)

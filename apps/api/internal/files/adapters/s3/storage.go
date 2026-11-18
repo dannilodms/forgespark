@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 )
 
 // callTimeout bounds each call to the storage, below the drain deadline of
@@ -39,9 +40,10 @@ type Settings struct {
 	Region string
 	// Bucket is the one private bucket of the files.
 	Bucket string
-	// AccessKeyID and SecretAccessKey are the key the API signs with.
+	// AccessKeyID and SecretAccessKey are the key the API signs with. The
+	// secret prints as a placeholder, and only the SDK receives it.
 	AccessKeyID     string
-	SecretAccessKey string
+	SecretAccessKey config.Secret
 	// TracerProvider traces each call to the storage. Nil traces nothing.
 	TracerProvider trace.TracerProvider
 }
@@ -71,7 +73,7 @@ func optionsFor(settings Settings, endpoint string) s3.Options {
 		BaseEndpoint: aws.String(endpoint),
 		UsePathStyle: true,
 		Region:       settings.Region,
-		Credentials:  credentials.NewStaticCredentialsProvider(settings.AccessKeyID, settings.SecretAccessKey, ""),
+		Credentials:  credentials.NewStaticCredentialsProvider(settings.AccessKeyID, settings.SecretAccessKey.Reveal(), ""),
 		HTTPClient:   awshttp.NewBuildableClient().WithTimeout(callTimeout),
 	}
 	if settings.TracerProvider != nil {

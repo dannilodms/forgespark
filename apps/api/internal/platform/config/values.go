@@ -87,6 +87,20 @@ func (u *PostgresURL) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// NewPostgresURL reads a connection URL that comes from somewhere other than
+// a variable, such as a temporary database of the tests, as a variable is
+// read.
+func NewPostgresURL(text string) (PostgresURL, error) {
+	var connection PostgresURL
+	err := connection.UnmarshalText([]byte(text))
+	return connection, err
+}
+
+// GoString keeps the URL out of a %#v as well.
+func (u PostgresURL) GoString() string {
+	return u.String()
+}
+
 // ConnectionString returns the URL, password included. It goes to the
 // database driver and nowhere else.
 func (u PostgresURL) ConnectionString() string {
@@ -127,6 +141,12 @@ func (o Origin) String() string {
 // for the file storage. It prints as a placeholder: only Reveal gives it.
 type Secret struct {
 	value string
+}
+
+// NewSecret holds a secret that comes from somewhere other than a variable,
+// such as the key the tests read.
+func NewSecret(value string) Secret {
+	return Secret{value: value}
 }
 
 // UnmarshalText reads a secret from the text of a variable.

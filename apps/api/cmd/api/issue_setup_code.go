@@ -52,7 +52,7 @@ func issueSetupCode(ctx context.Context, environment map[string]string, stdout, 
 	defer tracing.Stop()
 
 	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            settings.DatabaseURL.ConnectionString(),
+		ConnectionURL:            settings.DatabaseURL,
 		MaxSize:                  settings.DatabasePoolMaxSize,
 		StatementTimeout:         settings.DatabaseStatementTimeout,
 		IdleInTransactionTimeout: settings.DatabaseIdleInTransactionTimeout,

@@ -9,12 +9,15 @@ import (
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 )
 
 // PoolSettings is what the pool takes from configuration.
 type PoolSettings struct {
-	// ConnectionURL is the connection of the role the pool logs in as.
-	ConnectionURL string
+	// ConnectionURL is the connection of the role the pool logs in as. It
+	// prints as a placeholder, and only the driver receives the URL itself.
+	ConnectionURL config.PostgresURL
 	// MaxSize is the most connections the pool opens.
 	MaxSize int32
 	// StatementTimeout is how long one statement may run before PostgreSQL
@@ -31,7 +34,7 @@ type PoolSettings struct {
 // NewPool builds the one pool of the process. It opens no connection yet, so
 // the process starts while PostgreSQL is down and readiness tells.
 func NewPool(settings PoolSettings) (*pgxpool.Pool, error) {
-	parsed, err := pgxpool.ParseConfig(settings.ConnectionURL)
+	parsed, err := pgxpool.ParseConfig(settings.ConnectionURL.ConnectionString())
 	if err != nil {
 		// The error of the driver quotes the connection URL.
 		return nil, errors.New("the connection of the pool is not valid")

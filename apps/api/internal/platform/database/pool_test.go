@@ -2,6 +2,7 @@ package database_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
 )
@@ -20,11 +22,23 @@ func sqlState(t *testing.T, err error) string {
 	return failure.Code
 }
 
+// The connection keeps its secret type until the pool hands it to the driver,
+// so settings printed by mistake show no password.
+func TestTheSettingsOfThePoolPrintNoPassword(t *testing.T) {
+	connection, err := config.NewPostgresURL("postgres://api:a-password-to-hide@localhost:5432/software_factory")
+	require.NoError(t, err)
+	settings := database.PoolSettings{ConnectionURL: connection, MaxSize: 1}
+
+	for _, printed := range []string{fmt.Sprint(settings), fmt.Sprintf("%+v", settings), fmt.Sprintf("%#v", settings)} {
+		assert.NotContains(t, printed, "a-password-to-hide")
+	}
+}
+
 func TestThePoolCancelsAStatementThatOutlastsItsTimeout(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.New(t)
 	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            temporary.APIURL,
+		ConnectionURL:            temporary.APIConnection(t),
 		MaxSize:                  1,
 		StatementTimeout:         100 * time.Millisecond,
 		IdleInTransactionTimeout: 10 * time.Second,
@@ -42,7 +56,7 @@ func TestThePoolEndsATransactionLeftIdle(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.New(t)
 	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            temporary.APIURL,
+		ConnectionURL:            temporary.APIConnection(t),
 		MaxSize:                  1,
 		StatementTimeout:         10 * time.Second,
 		IdleInTransactionTimeout: 100 * time.Millisecond,
@@ -63,7 +77,7 @@ func TestThePoolOpensNoMoreConnectionsThanItsMaximumSize(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.New(t)
 	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            temporary.APIURL,
+		ConnectionURL:            temporary.APIConnection(t),
 		MaxSize:                  2,
 		StatementTimeout:         10 * time.Second,
 		IdleInTransactionTimeout: 10 * time.Second,

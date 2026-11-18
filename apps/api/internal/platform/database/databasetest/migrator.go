@@ -12,6 +12,7 @@ import (
 
 	"github.com/peterldowns/pgtestdb"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/migrations"
 )
@@ -51,6 +52,10 @@ func addMigration(digest hash.Hash, file string) error {
 
 // Migrate applies every migration to the new template, as the migration role.
 func (migrator) Migrate(ctx context.Context, _ *sql.DB, template pgtestdb.Config) error {
-	_, err := database.Migrate(ctx, template.URL(), migrations.Files)
+	connection, err := config.NewPostgresURL(template.URL())
+	if err != nil {
+		return fmt.Errorf("the connection of the template is not valid: %w", err)
+	}
+	_, err = database.Migrate(ctx, connection, migrations.Files)
 	return err
 }

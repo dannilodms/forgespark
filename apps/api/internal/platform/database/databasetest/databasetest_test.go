@@ -25,7 +25,7 @@ func TestAMigratedDatabaseIsAtTheVersionTheBinaryExpects(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.Migrated(t)
 
-	applied, err := database.Migrate(context.Background(), temporary.MigrationURL, migrations.Files)
+	applied, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), migrations.Files)
 
 	require.NoError(t, err)
 	assert.Empty(t, applied, "the template left a migration to apply")

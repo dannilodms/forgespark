@@ -13,14 +13,16 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/lock"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 )
 
 // Migrate applies the migrations the database lacks, in order, and returns
 // the file name of each one it applied. A run with nothing pending applies
 // nothing. The connection is the one of the migration role, and goose holds
 // its lock during the run, so two runs never apply the same migration.
-func Migrate(ctx context.Context, connectionURL string, migrations fs.FS) ([]string, error) {
-	connection, err := pgx.ParseConfig(connectionURL)
+func Migrate(ctx context.Context, connectionURL config.PostgresURL, migrations fs.FS) ([]string, error) {
+	connection, err := pgx.ParseConfig(connectionURL.ConnectionString())
 	if err != nil {
 		return nil, fmt.Errorf("the connection of the migration role is not valid")
 	}

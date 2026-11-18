@@ -113,7 +113,7 @@ func TestTheProcessStopsOnSIGINTWithStatusZero(t *testing.T) {
 func TestTheProcessDrainsOnSIGTERMAndASecondSignalExitsItAtOnce(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.New(t)
-	_, err := database.Migrate(context.Background(), temporary.MigrationURL, migrations.Files)
+	_, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), migrations.Files)
 	require.NoError(t, err)
 	postgres := stallablePostgres(t, temporary.APIURL)
 	environment := environmentOf(temporary)

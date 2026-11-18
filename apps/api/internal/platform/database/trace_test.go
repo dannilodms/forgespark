@@ -28,7 +28,7 @@ func TestAQueryMadeDuringARequestIsASpanUnderItWithItsSQLTextAndNoParameter(t *t
 	spans := tracetest.NewSpanRecorder()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spans))
 	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            temporary.APIURL,
+		ConnectionURL:            temporary.APIConnection(t),
 		MaxSize:                  1,
 		StatementTimeout:         10 * time.Second,
 		IdleInTransactionTimeout: 10 * time.Second,

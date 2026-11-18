@@ -22,7 +22,7 @@ var noon = time.Date(2026, time.November, 17, 12, 0, 0, 0, time.UTC)
 func apiPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            databasetest.Migrated(t).APIURL,
+		ConnectionURL:            databasetest.Migrated(t).APIConnection(t),
 		MaxSize:                  2,
 		StatementTimeout:         10 * time.Second,
 		IdleInTransactionTimeout: 10 * time.Second,

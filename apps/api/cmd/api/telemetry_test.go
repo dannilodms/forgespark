@@ -94,7 +94,7 @@ func TestTheLogsGoToTheErrorOutputFromTheLevelOfTheConfigurationUp(t *testing.T)
 func TestTheAPIExportsTheSpanOfARequestAndOfItsQueriesToTheAddressOfTheConfiguration(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.New(t)
-	_, err := database.Migrate(context.Background(), temporary.MigrationURL, migrations.Files)
+	_, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), migrations.Files)
 	require.NoError(t, err)
 	collector := telemetrytest.NewCollector(t)
 	environment := environmentOf(temporary)

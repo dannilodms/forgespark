@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/s3"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 )
 
 // The s3 adapter against the Garage of development, which `task services`
@@ -41,7 +43,7 @@ func settingsOf(t *testing.T) s3.Settings {
 		Region:          read("FILE_STORAGE_REGION"),
 		Bucket:          read("FILE_STORAGE_BUCKET"),
 		AccessKeyID:     read("FILE_STORAGE_ACCESS_KEY_ID"),
-		SecretAccessKey: read("FILE_STORAGE_SECRET_ACCESS_KEY"),
+		SecretAccessKey: config.NewSecret(read("FILE_STORAGE_SECRET_ACCESS_KEY")),
 		// Tests run with no telemetry.
 		TracerProvider: nil,
 	}
@@ -105,7 +107,7 @@ func storedPast(t *testing.T, settings s3.Settings, key domain.ObjectKey, conten
 		BaseEndpoint: aws.String(settings.URL),
 		UsePathStyle: true,
 		Region:       settings.Region,
-		Credentials:  credentials.NewStaticCredentialsProvider(settings.AccessKeyID, settings.SecretAccessKey, ""),
+		Credentials:  credentials.NewStaticCredentialsProvider(settings.AccessKeyID, settings.SecretAccessKey.Reveal(), ""),
 	})
 	_, err := client.PutObject(context.Background(), &awss3.PutObjectInput{
 		Bucket: aws.String(settings.Bucket),
@@ -327,6 +329,19 @@ func TestRemovingAKeyWithNoObjectIsNoFailure(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// The secret key keeps its secret type until the adapter hands it to the SDK,
+// so settings printed by mistake show no key.
+func TestTheSettingsOfTheStoragePrintNoSecretKey(t *testing.T) {
+	settings := s3.Settings{
+		URL: "http://localhost:3900", Region: "garage", Bucket: "files", AccessKeyID: "GK0123",
+		SecretAccessKey: config.NewSecret("a-secret-key-to-hide"),
+	}
+
+	for _, printed := range []string{fmt.Sprint(settings), fmt.Sprintf("%+v", settings), fmt.Sprintf("%#v", settings)} {
+		assert.NotContains(t, printed, "a-secret-key-to-hide")
+	}
+}
+
 func TestAStorageThatDoesNotAnswerFailsWithinItsTimeout(t *testing.T) {
 	t.Parallel()
 	settings := settingsOf(t)
@@ -337,5 +352,5 @@ func TestAStorageThatDoesNotAnswerFailsWithinItsTimeout(t *testing.T) {
 	_, _, err := storage.Inspect(context.Background(), domain.ObjectKey("absent"))
 
 	require.Error(t, err)
-	assert.NotContains(t, err.Error(), settings.SecretAccessKey)
+	assert.NotContains(t, err.Error(), settings.SecretAccessKey.Reveal())
 }

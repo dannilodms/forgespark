@@ -17,7 +17,7 @@ import (
 // `notes`, to write to.
 func poolWithNotes(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	pool := openPool(t, databasetest.New(t).MigrationURL)
+	pool := openPool(t, databasetest.New(t).MigrationConnection(t))
 	_, err := pool.Exec(context.Background(), "CREATE TABLE notes (text text NOT NULL)")
 	require.NoError(t, err)
 	return pool

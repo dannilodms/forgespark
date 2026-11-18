@@ -18,6 +18,8 @@ import (
 	// The driver pgtestdb opens its connections with.
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/peterldowns/pgtestdb"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 )
 
 // Database is a temporary database, reached by the two roles of the system.
@@ -26,6 +28,29 @@ type Database struct {
 	MigrationURL string
 	// APIURL connects as the API role.
 	APIURL string
+}
+
+// MigrationConnection is MigrationURL as the configuration holds a
+// connection, for what takes one: the migrations and the pool.
+func (d Database) MigrationConnection(t testing.TB) config.PostgresURL {
+	t.Helper()
+	return connection(t, d.MigrationURL)
+}
+
+// APIConnection is APIURL as the configuration holds a connection, for the
+// pool.
+func (d Database) APIConnection(t testing.TB) config.PostgresURL {
+	t.Helper()
+	return connection(t, d.APIURL)
+}
+
+func connection(t testing.TB, url string) config.PostgresURL {
+	t.Helper()
+	read, err := config.NewPostgresURL(url)
+	if err != nil {
+		t.Fatalf("the connection of a temporary database is not valid: %v", err)
+	}
+	return read
 }
 
 // Migrated creates a database with every migration applied, which lives until

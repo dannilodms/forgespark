@@ -42,7 +42,7 @@ func TestMigrateAppliesThePendingMigrationsInOrder(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.New(t)
 
-	applied, err := database.Migrate(context.Background(), temporary.MigrationURL, twoMigrations())
+	applied, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), twoMigrations())
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{"00001_create_clients.sql", "00002_create_projects.sql"}, applied)
@@ -52,10 +52,10 @@ func TestMigrateAppliesThePendingMigrationsInOrder(t *testing.T) {
 func TestMigrateRunTwiceChangesNothingTheSecondTime(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.New(t)
-	_, err := database.Migrate(context.Background(), temporary.MigrationURL, twoMigrations())
+	_, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), twoMigrations())
 	require.NoError(t, err)
 
-	applied, err := database.Migrate(context.Background(), temporary.MigrationURL, twoMigrations())
+	applied, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), twoMigrations())
 
 	require.NoError(t, err)
 	assert.Empty(t, applied)
@@ -65,10 +65,10 @@ func TestMigrateRunTwiceChangesNothingTheSecondTime(t *testing.T) {
 func TestMigrateAppliesOnlyWhatTheDatabaseLacks(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.New(t)
-	_, err := database.Migrate(context.Background(), temporary.MigrationURL, onlyTheFirst(twoMigrations()))
+	_, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), onlyTheFirst(twoMigrations()))
 	require.NoError(t, err)
 
-	applied, err := database.Migrate(context.Background(), temporary.MigrationURL, twoMigrations())
+	applied, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), twoMigrations())
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{"00002_create_projects.sql"}, applied)

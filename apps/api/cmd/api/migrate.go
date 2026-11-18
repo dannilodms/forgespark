@@ -18,7 +18,7 @@ func migrate(ctx context.Context, environment map[string]string, stdout, _ io.Wr
 		return err
 	}
 
-	applied, err := database.Migrate(ctx, settings.MigrationDatabaseURL.ConnectionString(), migrations.Files)
+	applied, err := database.Migrate(ctx, settings.MigrationDatabaseURL, migrations.Files)
 	if err != nil {
 		return err
 	}

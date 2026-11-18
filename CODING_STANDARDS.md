@@ -151,7 +151,7 @@ The terms user, role, administrator, developer and scope are defined in `GLOSSAR
 - **Environment variables only.** The binary reads its configuration from environment variables, once, when it starts, into one typed struct in `platform` (caarlos0/env). No other code reads the environment. The OpenTelemetry SDK is the one exception: it reads the `OTEL_` variables its specification defines, such as the headers and the timeout of an export. The address it exports to is read by the configuration and passed to it.
 - **Fails at the start.** A missing or invalid value stops the process before it serves anything, with a line that names the variable and never its value.
 - **By command.** A command requires only the variables it uses. The API never receives the connection of the migration role, and `migrate` never receives the one of the API role.
-- **Secrets do not print.** A value that carries a secret, such as a connection URL, is a type that prints as a placeholder.
+- **Secrets do not print.** A value that carries a secret, such as a connection URL, is a type that prints as a placeholder. It keeps that type until the adapter hands it to the library that uses it, at the last moment: the settings of the pool and of the storage hold the type, not the text.
 - **No file.** The binary reads no `.env` and no configuration file. Compose and Task load the variables.
 - **Passed in.** A domain area receives the values it needs when it is built. `application` and `domain` never import the configuration struct.
 - **Example.** Every variable is listed in the committed `.env.example`, with no real secret.
