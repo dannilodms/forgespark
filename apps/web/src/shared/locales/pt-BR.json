@@ -59,6 +59,18 @@
       "internal_server_error": {
         "title": "O servidor falhou",
         "todo": "Tente de novo em instantes. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
+      },
+      "bad_gateway": {
+        "title": "O servidor está fora de alcance",
+        "todo": "Ele pode estar reiniciando. Tente de novo em instantes. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
+      },
+      "service_unavailable": {
+        "title": "O servidor está fora de alcance",
+        "todo": "Ele pode estar reiniciando. Tente de novo em instantes. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
+      },
+      "gateway_timeout": {
+        "title": "O servidor demorou demais para responder",
+        "todo": "Tente de novo em instantes. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
       }
     },
     "fields": {

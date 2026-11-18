@@ -59,6 +59,18 @@
       "internal_server_error": {
         "title": "The server failed",
         "todo": "Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
+      },
+      "bad_gateway": {
+        "title": "The server is out of reach",
+        "todo": "It may be restarting. Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
+      },
+      "service_unavailable": {
+        "title": "The server is out of reach",
+        "todo": "It may be restarting. Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
+      },
+      "gateway_timeout": {
+        "title": "The server took too long to answer",
+        "todo": "Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
       }
     },
     "fields": {

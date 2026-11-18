@@ -417,6 +417,41 @@ func TestUpAnswersTheStatusOfReadinessWithNoBody(t *testing.T) {
 	}
 }
 
+// Every failure under /api is in the error format, the ones Caddy answers
+// for an API it cannot reach too: the app translates them by their code and
+// shows the trace Caddy started.
+func TestCaddyAnswersInTheErrorFormatWhenTheAPICannotBeReached(t *testing.T) {
+	t.Parallel()
+	api := launchAPI(t, onTheMachine(t, databasetest.Migrated(t)))
+	caddy := behindCaddy(t, api.url)
+	api.signal()
+	require.Equal(t, 0, <-api.status, "the API stopped with: %s", api.logs)
+
+	for _, path := range []string{"/api/setup", "/api/setup/open"} {
+		method := http.MethodGet
+		body := ""
+		if path == "/api/setup/open" {
+			method, body = http.MethodPost, wrongSetupCode
+		}
+
+		answer := caddy.send(t, method, path, body)
+
+		require.Equal(t, http.StatusBadGateway, answer.status, "%s %s: %s", method, path, answer.body)
+		assert.Equal(t, "application/problem+json", answer.mediaType)
+		assert.Equal(t, "no-store", answer.header.Get("Cache-Control"))
+		traceID, _ := answer.fields["trace_id"].(string)
+		assert.Regexp(t, `^[0-9a-f]{32}$`, traceID, "Caddy starts the trace of the request")
+		assert.JSONEq(t, `{
+			"title": "Bad Gateway",
+			"status": 502,
+			"code": "bad_gateway",
+			"params": {},
+			"trace_id": "`+traceID+`"
+		}`, answer.body)
+		assertIsAProblem(t, answer.body)
+	}
+}
+
 func TestUpAnswersAFailureWhenTheAPIIsStopped(t *testing.T) {
 	t.Parallel()
 	api := launchAPI(t, onTheMachine(t, databasetest.Migrated(t)))

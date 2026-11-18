@@ -62,6 +62,23 @@ http://localhost {
 		header Cache-Control no-store
 		respond `{"title":"Too Many Requests","status":429,"code":"too_many_requests","params":{},"trace_id":"{http.vars.trace_id}"}` 429
 	}
+
+	# The API cannot be reached: under /api, Caddy answers in the error format
+	# too, with the code the API would give the status. /up keeps its status
+	# and no body.
+	handle_errors 502 503 504 {
+		@apiFailure path /api /api/*
+		handle @apiFailure {
+			map {err.status_code} {problem_code} {
+				502 bad_gateway
+				503 service_unavailable
+				504 gateway_timeout
+			}
+			header Content-Type application/problem+json
+			header Cache-Control no-store
+			respond `{"title":"{err.status_text}","status":{err.status_code},"code":"{problem_code}","params":{},"trace_id":"{http.vars.trace_id}"}` {err.status_code}
+		}
+	}
 }
 
 # The file storage, at a host name of its own: the browser sends and fetches

@@ -1,3 +1,4 @@
+import { HttpResponse, http } from "msw"
 import { describe, expect, it } from "vite-plus/test"
 import { userEvent } from "vite-plus/test/browser"
 
@@ -183,6 +184,33 @@ describe("the step of the setup code", () => {
 
     const alert = screen.getByRole("alert")
     await expect.element(alert).toMatchTextContent(/The server failed/)
+    await expect.element(alert).toMatchTextContent(traceId)
+  })
+
+  it("says the server is out of reach when Caddy answers for it, with the trace identifier Caddy wrote", async () => {
+    setupState(false, true)
+    api.use(
+      http.post("*/api/setup/open", () =>
+        HttpResponse.json(
+          problem(502, "bad_gateway", { title: "Bad Gateway" }),
+          {
+            status: 502,
+            headers: { "Content-Type": "application/problem+json" },
+          }
+        )
+      )
+    )
+    const { screen } = await renderApp({ at: "/setup" })
+
+    await screen
+      .getByRole("textbox", { name: "Setup code" })
+      .fill("ABCDE-FGHJK-MNPQR-STVWX")
+    await screen.getByRole("button", { name: "Continue" }).click()
+
+    const alert = screen.getByRole("alert")
+    await expect
+      .element(alert)
+      .toMatchTextContent(/The server is out of reach/)
     await expect.element(alert).toMatchTextContent(traceId)
   })
 

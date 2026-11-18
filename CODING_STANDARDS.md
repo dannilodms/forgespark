@@ -229,7 +229,7 @@ Every REST failure uses that format, including unknown routes, wrong methods and
 - **Status.** A REST operation lists the broken rules it answers with, under the status of each: 422 for a broken rule, 409 for a conflict. A rule about a field is listed under 422 with `restapi.InField`. A broken rule it does not list answers 500, so the spec names every code an operation answers with.
 - **Body.** `title`, `status`, `detail` (the text in English), `code`, `params` and `trace_id`. A failed validation adds `errors`, with one entry for each field: its `location` (`body.name`, `query.limit`, `path.id`), a `code` (`required`, `invalid`, or the code of the rule about the field), its `params` and a `message` in English. Fields that break a rule of the domain answer the same way, with `validation_failed`, so a screen shows each on its field. An empty text where the contract asks at least one character is `required`. No entry repeats the value that was refused. `type` is left out, which RFC 9457 reads as its default.
 - **The contract checks first.** A body declares what a client can check before it sends: a required text has at least one character, the limits of a text and the forms of an e-mail, a telephone and a website. The body type takes them from the domain, in its `TransformSchema`, so the two never drift. A list a value must be on is checked by the domain alone.
-- **Other failures.** A failure that is not a broken rule takes its code from the name of its status: `bad_request`, `not_found`, `method_not_allowed`, `request_entity_too_large`, `too_many_requests`, `internal_server_error`. The one exception is a request that does not follow the contract, which is `validation_failed`.
+- **Other failures.** A failure that is not a broken rule takes its code from the name of its status: `bad_request`, `not_found`, `method_not_allowed`, `request_entity_too_large`, `too_many_requests`, `internal_server_error`. The one exception is a request that does not follow the contract, which is `validation_failed`. Caddy names the failures it answers for the API the same way, in the same format (see Delivery): `too_many_requests`, and `bad_gateway`, `service_unavailable` and `gateway_timeout` when the API cannot be reached.
 - **5xx.** The answer carries the title, the status, the code and the `trace_id`, and nothing else. The raw error goes to the logs (see Telemetry).
 
 ### Database
@@ -525,6 +525,10 @@ How responses travel from the server to browsers and agents. Compression, cache 
 - **Files with a hash.** A file whose name carries a content hash is served with `Cache-Control: public, max-age=31536000, immutable`.
 - **Files without a hash.** `index.html`, and any other file of the SPA without a hash in its name, is served with `Cache-Control: no-cache`, so the browser revalidates it and a deploy shows on the next load.
 - **API.** Every response under `/api` carries `Cache-Control: no-store`, set by Caddy.
+
+### API out of reach
+
+- **Same format.** When Caddy cannot reach the API, it answers a 502, 503 or 504 under `/api` in the error format of the API, with the code of the status (`bad_gateway`, `service_unavailable`, `gateway_timeout`), `params` and the `trace_id` of the trace it started, as it answers the 429 (see Rate limit). The body is written in the `Caddyfile`, and `apps/api/cmd/api/caddy_test.go` checks it against the schema `Problem`. The app translates the three codes. `/up` keeps its status and no body.
 
 ### Security headers
 

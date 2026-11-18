@@ -27,7 +27,9 @@ const (
 		"Any operation may also answer `bad_request` (400, the body is not JSON), `not_found` (404), " +
 		"`method_not_allowed` (405), `request_timeout` (408, the body took too long to arrive), " +
 		"`request_entity_too_large` (413), `unsupported_media_type` (415), `validation_failed` (422), " +
-		"`too_many_requests` (429) and `internal_server_error` (500).\n\n" +
+		"`too_many_requests` (429) and `internal_server_error` (500). " +
+		"When the API cannot be reached, Caddy answers in the same format, with `bad_gateway` (502), " +
+		"`service_unavailable` (503) or `gateway_timeout` (504), and the `trace_id` of the trace it started.\n\n" +
 		"An unknown property of a body and an unknown query parameter are rejected with `validation_failed`."
 )
 
