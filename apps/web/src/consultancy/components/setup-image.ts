@@ -187,3 +187,22 @@ export type SetupImageField = ReturnType<typeof useSetupImage>
 
 /** The two images of the setup. */
 export type SetupImages = { logo: SetupImageField; photo: SetupImageField }
+
+/**
+ * Why the images on the screen are not all in the storage yet, which keeps
+ * them from being sent with the setup: one is still on its way there
+ * (`sending`, waiting for a setup code included), or one did not reach it
+ * (`notSent`). Nothing when every image chosen is stored, or none was chosen.
+ */
+export function whyTheImagesAreNotStored(
+  images: SetupImages
+): "sending" | "notSent" | undefined {
+  const steps = [images.logo.upload.step, images.photo.upload.step]
+  if (steps.includes("failed")) {
+    return "notSent"
+  }
+  if (steps.includes("sending") || steps.includes("waitingForCode")) {
+    return "sending"
+  }
+  return undefined
+}

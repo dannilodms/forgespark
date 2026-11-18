@@ -27,7 +27,11 @@ import {
 } from "../data/setup"
 import { ImageStatus, ImageThumbnail } from "./image-field"
 import type { SetupForm, TypedStep } from "./setup-form"
-import type { SetupImage, SetupImages } from "./setup-image"
+import {
+  type SetupImage,
+  type SetupImages,
+  whyTheImagesAreNotStored,
+} from "./setup-image"
 import { StepHeading } from "./step-heading"
 
 /**
@@ -41,22 +45,6 @@ function fieldsRefusedBy(error: unknown): FieldProblems | undefined {
     return { "administrator.email": emailInUse }
   }
   return refusedFields(error)
-}
-
-/**
- * What keeps concluding from sending the files of the images on the screen:
- * an image still on its way to the storage, or one that did not reach it.
- * Concluding sends the files of the images shown, so it waits for both.
- */
-function imagesHolding(images: SetupImages) {
-  const steps = [images.logo.upload.step, images.photo.upload.step]
-  if (steps.includes("failed")) {
-    return "notSent"
-  }
-  if (steps.includes("sending") || steps.includes("waitingForCode")) {
-    return "sending"
-  }
-  return undefined
 }
 
 /** What the login screen says after concluding, by how concluding ended. */
@@ -110,7 +98,7 @@ export function ReviewStep({
   const conclusion = useConcludeSetup()
   const registration = useRegisterAdministrator()
   const heading = useRef<HTMLHeadingElement>(null)
-  const waitingFor = imagesHolding(images)
+  const waitingFor = whyTheImagesAreNotStored(images)
   const newAdministrator = opened.opens === "new_administrator"
   const sending = conclusion.isPending || registration.isPending
   const failure = conclusion.error ?? registration.error
