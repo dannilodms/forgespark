@@ -544,7 +544,7 @@ How responses travel from the server to browsers and agents. Compression, cache 
 - **Setup code.** Every `POST` under `/api/setup` checks a setup code, so they share one limit: 10 requests a minute for each IP address, counted together. `GET /api/setup` has none. The numbers of the login code are chosen with the login.
 - **Answer.** Over the limit, Caddy answers 429 in the error format of the API, with the code `too_many_requests`, `Retry-After` and `Cache-Control: no-store`. Its `trace_id` is the trace Caddy started for the request, which never reached the API. The body is written in the `Caddyfile`, and `apps/api/cmd/api/caddy_test.go` checks it against the schema `Problem` of the committed spec. An operation under the limit lists `restapi.LimitedByCaddy` under 429, so the spec, and the client generated from it, declare the answer.
 - **Development.** Every request of the machine reaches Caddy from the gateway of Docker, so the browser, `curl` and the tests share one count of ten. The count lives in the memory of Caddy: `docker compose restart caddy` empties it, as `task e2e` does before it runs.
-- **Image.** Caddy has no rate limit of its own, so its image is built in this repository with a plugin: [`mholt/caddy-ratelimit`](https://github.com/mholt/caddy-ratelimit), the rate limiter of Caddy's author, in `deploy/caddy/Dockerfile`. Its `rate_limit` directive keeps a sliding window for each key in memory, and its 429 is an error that `handle_errors` writes.
+- **Image.** Caddy has no rate limit of its own, so its image is built in this repository with a plugin: [`mholt/caddy-ratelimit`](https://github.com/mholt/caddy-ratelimit), the rate limiter of Caddy's author, in `deploy/caddy/Dockerfile`. Its `rate_limit` directive keeps a sliding window for each key in memory, and its 429 is an error that `handle_errors` writes. It logs each request it refuses with the address of the caller, which the default log of the `Caddyfile` cuts down to its network (see Privacy in Observability).
 
 ## Observability (`deploy`)
 
@@ -569,7 +569,7 @@ How telemetry is collected, kept and shown. The configuration of the collector a
 
 The rule that telemetry carries nothing sensitive covers every container.
 
-- **Caddy.** Tracing is on for the app's site, so the trace starts in Caddy and its identifier is in the access log. The access log carries the caller's IP address cut down to its network, and no query string.
+- **Caddy.** Tracing is on for the app's site, so the trace starts in Caddy and its identifier is in the access log. The access log carries the caller's IP address cut down to its network, and no query string. So does every other line Caddy writes, such as the one of the rate-limit plugin when it refuses a request and the one of a request that failed: the default log of the `Caddyfile` filters the fields that hold an address (`remote_ip`, `client_ip`, `request>remote_ip`, `request>client_ip`) and keeps 24 bits of an IPv4 address and 48 of an IPv6 one, which `apps/api/cmd/api/caddy_test.go` checks.
 - **Spans.** A span carries the caller's IP address cut down to its network, and no query string. The collector removes what a source cannot leave out.
 - **PostgreSQL.** It logs an error without its detail (`log_error_verbosity = terse`), because the detail can carry the values of a row.
 

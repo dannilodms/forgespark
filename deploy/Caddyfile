@@ -15,6 +15,25 @@
 # the machine, which Docker reaches as host.docker.internal, and Garage, a
 # container of the same network, by the name of its service.
 
+# Privacy in Observability: the output of Caddy carries the address of a
+# caller cut down to its network, never whole. The rate-limit plugin writes
+# it as remote_ip when it refuses a request, and Caddy writes the request of
+# an error with remote_ip and client_ip. Every line goes through the filter,
+# which keeps 24 bits of an IPv4 address and 48 of an IPv6 one.
+{
+	log default {
+		format filter {
+			wrap json
+			fields {
+				remote_ip ip_mask 24 48
+				client_ip ip_mask 24 48
+				request>remote_ip ip_mask 24 48
+				request>client_ip ip_mask 24 48
+			}
+		}
+	}
+}
+
 # Plain HTTP: development has no certificate, so no site redirects to HTTPS.
 http://localhost {
 	# The trace of a request starts here. Its identifier reaches the API in

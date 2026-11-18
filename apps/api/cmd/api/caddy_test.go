@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -45,6 +46,8 @@ const (
 type site struct {
 	url    string
 	client *http.Client
+	// container is the container of Caddy, whose output the tests read.
+	container string
 }
 
 // reply is what the site answered.
@@ -131,7 +134,8 @@ func behindCaddy(t *testing.T, apiURL string) site {
 	published := strings.Fields(docker(t, "port", container, "80/tcp"))
 	require.NotEmpty(t, published)
 	caddy := site{
-		url: "http://" + published[0],
+		container: container,
+		url:       "http://" + published[0],
 		client: &http.Client{
 			Timeout:       30 * time.Second,
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
@@ -450,6 +454,81 @@ func TestCaddyAnswersInTheErrorFormatWhenTheAPICannotBeReached(t *testing.T) {
 		}`, answer.body)
 		assertIsAProblem(t, answer.body)
 	}
+}
+
+// output is what Caddy wrote on the output of its container: its logs.
+func (s site) output(t *testing.T) string {
+	t.Helper()
+	printed, err := exec.CommandContext(t.Context(), "docker", "logs", s.container).CombinedOutput()
+	require.NoError(t, err, "docker logs: %s", printed)
+	return string(printed)
+}
+
+// standInAPI listens where the API would and answers 204 to every request,
+// after it recorded the address Caddy forwarded it for: the address of the
+// caller as Caddy saw it.
+type standInAPI struct {
+	server *httptest.Server
+	caller atomic.Value
+}
+
+func standInForTheAPI(t *testing.T) *standInAPI {
+	t.Helper()
+	listener, err := net.Listen("tcp", net.JoinHostPort(machineHost(t), "0"))
+	require.NoError(t, err)
+	api := &standInAPI{}
+	api.caller.Store("")
+	api.server = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		api.caller.Store(r.Header.Get("X-Forwarded-For"))
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	api.server.Listener = listener
+	api.server.Start()
+	t.Cleanup(api.server.Close)
+	return api
+}
+
+// callerSeen is the address of the caller of the last request, as Caddy
+// forwarded it.
+func (a *standInAPI) callerSeen() string {
+	text, _ := a.caller.Load().(string)
+	return text
+}
+
+// The output of Caddy carries the address of a caller cut down to its
+// network, and never whole (Privacy in Observability): the line the limit
+// writes when it refuses a request, and the one of a request the API could
+// not answer.
+func TestTheOutputOfCaddyCarriesNoAddressOfACallerWhole(t *testing.T) {
+	t.Parallel()
+	api := standInForTheAPI(t)
+	caddy := behindCaddy(t, api.server.URL)
+	for range 10 {
+		require.Equal(t, http.StatusNoContent, caddy.send(t, http.MethodPost, "/api/setup/open", wrongSetupCode).status)
+	}
+	require.Equal(t, http.StatusTooManyRequests, caddy.send(t, http.MethodPost, "/api/setup/open", wrongSetupCode).status)
+	caller := api.callerSeen()
+	require.NotEmpty(t, caller, "Caddy forwarded no address of the caller")
+	api.server.Close()
+	require.Equal(t, http.StatusBadGateway, caddy.send(t, http.MethodGet, "/api/setup", "").status)
+
+	logs := caddy.output(t)
+
+	assert.Contains(t, logs, "rate limit exceeded", "the limit wrote no line")
+	assert.NotContains(t, logs, `"`+caller+`"`, "the output of Caddy carries the whole address of the caller: %s", logs)
+	assert.Contains(t, logs, `"remote_ip":"`+networkOf(t, caller)+`"`, "the line of the limit lost the network of the caller")
+}
+
+// networkOf cuts an address down to its network, as the Caddyfile does: 24
+// bits of an IPv4 address, 48 of an IPv6 one.
+func networkOf(t *testing.T, address string) string {
+	t.Helper()
+	ip := net.ParseIP(address)
+	require.NotNil(t, ip, "%q is no address", address)
+	if v4 := ip.To4(); v4 != nil {
+		return v4.Mask(net.CIDRMask(24, 32)).String()
+	}
+	return ip.Mask(net.CIDRMask(48, 128)).String()
 }
 
 func TestUpAnswersAFailureWhenTheAPIIsStopped(t *testing.T) {
