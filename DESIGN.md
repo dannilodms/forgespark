@@ -257,11 +257,11 @@ The status indicator is this project's own component: a sign in one of the four 
 
 InputGroup and Sheet are in the list because Command and Sidebar are built on them. Command is built on the `cmdk` library, which brings its own primitives.
 
-Combobox is a field whose value is chosen from a long list filtered by typing, such as a country: Select is for a short list read whole. Its list floats like a menu. The input is its one stop of the keyboard, and the arrow keys open the list from it; the button beside it is for the pointer and is out of the order of the Tab key.
+Combobox is a field whose value is chosen from a long list filtered by typing, such as a country: Select is for a short list read whole. Its list floats like a menu. The input is its one stop of the keyboard, and the arrow keys open the list from it; the button beside it is for the pointer and is out of the order of the Tab key. That button, the one that clears the field and the one that removes a chip are icons alone, so each requires its name as a prop, as the close button of a dialog does: `triggerLabel` and `clearLabel` on `ComboboxInput`, `removeLabel` on `ComboboxChip`. `ListField` names the button after its field ("Country: show the list").
 
 A component is restyled through style variables and through its variants.
 
-A component holds no text of its own. Every word comes from the screen, in the language of the person, and so does a name that only assistive technology reads: the label of the close button of a dialog, a sheet or a toast, the name of the sidebar when it is a sheet and of the button that toggles it, the title and the description of the command palette, the label of a breadcrumb. A component that needs such a name requires it as a prop.
+A component holds no text of its own. Every word comes from the screen, in the language of the person, and so does a name that only assistive technology reads: the label of the close button of a dialog, a sheet or a toast, of the buttons of a combobox, the name of the sidebar when it is a sheet and of the button that toggles it, the title and the description of the command palette, the label of a breadcrumb. A component that needs such a name requires it as a prop.
 
 ## Recipes
 

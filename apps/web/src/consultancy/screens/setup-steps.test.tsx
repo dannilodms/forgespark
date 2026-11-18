@@ -267,6 +267,16 @@ describe("the lists of the step of the consultancy", () => {
       .toHaveValue("US Dollar (USD)")
   })
 
+  it("names the button that shows a list after its field, in the language of the screen", async () => {
+    const { screen } = await openTheFirstSetup("pt-BR")
+
+    await screen.getByRole("button", { name: "País: mostrar a lista" }).click()
+
+    await expect
+      .element(screen.getByRole("option", { name: "Brasil" }))
+      .toBeVisible()
+  })
+
   it("starts the time zone at the one of the browser, by its name in the language of the screen", async () => {
     const { screen } = await openTheFirstSetup("pt-BR")
 

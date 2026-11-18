@@ -3,7 +3,8 @@
   "language": "Idioma",
   "form": {
     "optional": "{{label}} (opcional)",
-    "nothingMatches": "Nada coincide con lo escrito."
+    "nothingMatches": "Nada coincide con lo escrito.",
+    "showTheList": "{{label}}: mostrar la lista"
   },
   "errors": {
     "traceId": "Identificador para transmitir",

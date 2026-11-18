@@ -3,7 +3,8 @@
   "language": "Idioma",
   "form": {
     "optional": "{{label}} (opcional)",
-    "nothingMatches": "Nada corresponde ao que foi digitado."
+    "nothingMatches": "Nada corresponde ao que foi digitado.",
+    "showTheList": "{{label}}: mostrar a lista"
   },
   "errors": {
     "traceId": "Identificador para repassar",

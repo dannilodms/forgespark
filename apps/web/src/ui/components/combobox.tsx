@@ -36,12 +36,21 @@ function ComboboxTrigger({
   )
 }
 
-function ComboboxClear({ className, ...props }: ComboboxPrimitive.Clear.Props) {
+/**
+ * The clear button is an icon alone: `label` names it, in the language of the
+ * screen.
+ */
+function ComboboxClear({
+  className,
+  label,
+  ...props
+}: ComboboxPrimitive.Clear.Props & { label: string }) {
   return (
     <ComboboxPrimitive.Clear
       data-slot="combobox-clear"
       render={<InputGroupButton variant="ghost" size="icon-xs" />}
       className={cn(className)}
+      aria-label={label}
       {...props}
     >
       <XIcon className="pointer-events-none" />
@@ -49,17 +58,29 @@ function ComboboxClear({ className, ...props }: ComboboxPrimitive.Clear.Props) {
   )
 }
 
+/**
+ * The button that shows the list and the one that clears the field are icons
+ * alone: `triggerLabel` and `clearLabel` name them, in the language of the
+ * screen. A field without one of them takes no label for it.
+ */
 function ComboboxInput({
   className,
   children,
   disabled = false,
   showTrigger = true,
   showClear = false,
+  triggerLabel,
+  clearLabel,
   ...props
-}: ComboboxPrimitive.Input.Props & {
-  showTrigger?: boolean
-  showClear?: boolean
-}) {
+}: ComboboxPrimitive.Input.Props &
+  (
+    | { showTrigger?: true; triggerLabel: string }
+    | { showTrigger: false; triggerLabel?: never }
+  ) &
+  (
+    | { showClear?: false; clearLabel?: never }
+    | { showClear: true; clearLabel: string }
+  )) {
   return (
     <InputGroup className={cn("w-auto", className)}>
       <ComboboxPrimitive.Input
@@ -78,9 +99,12 @@ function ComboboxInput({
             data-slot="input-group-button"
             className="group-has-data-[slot=combobox-clear]/input-group:hidden data-pressed:bg-transparent"
             disabled={disabled}
+            aria-label={triggerLabel}
           />
         )}
-        {showClear && <ComboboxClear disabled={disabled} />}
+        {showClear && clearLabel !== undefined && (
+          <ComboboxClear disabled={disabled} label={clearLabel} />
+        )}
       </InputGroupAddon>
       {children}
     </InputGroup>
@@ -235,14 +259,21 @@ function ComboboxChips({
   )
 }
 
+/**
+ * The remove button of a chip is an icon alone: `removeLabel` names it, in
+ * the language of the screen. A chip without one takes no label.
+ */
 function ComboboxChip({
   className,
   children,
   showRemove = true,
+  removeLabel,
   ...props
-}: ComboboxPrimitive.Chip.Props & {
-  showRemove?: boolean
-}) {
+}: ComboboxPrimitive.Chip.Props &
+  (
+    | { showRemove?: true; removeLabel: string }
+    | { showRemove: false; removeLabel?: never }
+  )) {
   return (
     <ComboboxPrimitive.Chip
       data-slot="combobox-chip"
@@ -258,6 +289,7 @@ function ComboboxChip({
           render={<Button variant="ghost" size="icon-xs" />}
           className="-ml-1 opacity-50 hover:opacity-100"
           data-slot="combobox-chip-remove"
+          aria-label={removeLabel}
         >
           <XIcon className="pointer-events-none" />
         </ComboboxPrimitive.ChipRemove>

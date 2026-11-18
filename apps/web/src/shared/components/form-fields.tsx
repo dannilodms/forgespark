@@ -148,7 +148,10 @@ export function ListField({
       locale={language}
       autoHighlight
     >
-      <ComboboxInput {...control} />
+      <ComboboxInput
+        {...control}
+        triggerLabel={t("form.showTheList", { label })}
+      />
       <ComboboxContent>
         <ComboboxEmpty>{t("form.nothingMatches")}</ComboboxEmpty>
         <ComboboxList>

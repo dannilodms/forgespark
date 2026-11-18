@@ -3,7 +3,8 @@
   "language": "Language",
   "form": {
     "optional": "{{label}} (optional)",
-    "nothingMatches": "Nothing matches what was typed."
+    "nothingMatches": "Nothing matches what was typed.",
+    "showTheList": "{{label}}: show the list"
   },
   "errors": {
     "traceId": "Identifier to pass on",
