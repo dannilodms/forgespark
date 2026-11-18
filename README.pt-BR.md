@@ -319,6 +319,7 @@ Cada comando do binário exige apenas as variáveis que usa. As que o binário l
 | `FILE_STORAGE_BUCKET` | O único bucket privado dos arquivos | Nenhum: a API exige |
 | `FILE_STORAGE_ACCESS_KEY_ID` | A chave com que a API assina para o armazenamento de arquivos | Nenhum: a API exige |
 | `FILE_STORAGE_SECRET_ACCESS_KEY` | O segredo dessa chave. É um segredo e nunca é impresso | Nenhum: a API exige |
+| `SEED_MAILBOX` | A caixa de e-mail de que os endereços do seed derivam: o administrador é o endereço dela com a etiqueta `+admin`, o desenvolvedor com `+developer`. Lida pelo binário do seed, não pela API | Nenhum: o `seed` exige. O `.env.example` traz uma fictícia |
 
 O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, a porta do Caddy, a porta do Garage e o segredo que os nós dele compartilham, a interface em que o Vite escuta e a conexão com que os testes em Go criam seus bancos temporários. O Garage cria o seu bucket e a sua chave a partir das variáveis `FILE_STORAGE_`.
 
@@ -354,6 +355,8 @@ Da tabela acima, o PostgreSQL, o Garage e o Caddy são o que roda hoje, ao lado 
 
 O app então leva à tela de login, que diz que a configuração inicial foi concluída. O login em si chega com a próxima parte do trabalho. `task e2e` percorre o mesmo caminho em um navegador, em um banco só dele.
 
+Para pular a configuração inicial, rode `task seed` no lugar dos passos 6 e 7. Ele cadastra uma consultoria fictícia, a Fábrica Exemplo, e a sua administradora, Ana Exemplo, pelos mesmos casos de uso que a configuração inicial roda, então os dados obedecem a todas as regras, e o app abre na tela de login. Toda execução em um banco vazio cria os mesmos dados com os mesmos identificadores, e uma execução em um banco cuja configuração inicial foi concluída não altera nada. O e-mail da administradora é a caixa de `SEED_MAILBOX` com a etiqueta `+admin`: `seed+admin@fabrica.example` com o valor do `.env.example`. Nada no seed é real.
+
 O navegador chega a tudo pelo Caddy, em um único endereço, `http://localhost`: o app, e a API em `/api`. O armazenamento de arquivos tem um nome de host próprio, `http://files.localhost`, onde o navegador envia uma imagem para uma URL que a API assinou; o Garage só a aceita vinda da origem do app. Nada é configurado à mão: os valores do `.env.example` funcionam como estão com o Docker Desktop. Com o Docker Engine no Linux, o Caddy só alcança a API e o Vite quando eles escutam em todas as interfaces: escreva `API_LISTEN_ADDRESS=0.0.0.0:8080` e `WEB_LISTEN_HOST=0.0.0.0` em um `.env`. Quando a porta 80 estiver ocupada, mude ali o `CADDY_PORT` e acrescente a porta ao `APP_ORIGIN` e ao `FILE_STORAGE_PUBLIC_URL`.
 
 `http://localhost/up` responde com o status da prontidão da API e sem corpo: 503 até as migrations serem aplicadas, e 502 enquanto a API não estiver rodando. A própria API responde à verificação de atividade em `http://127.0.0.1:8080/livez` e à de prontidão em `http://127.0.0.1:8080/readyz`, que o Caddy não encaminha.
@@ -369,6 +372,7 @@ Os comandos, executados na raiz do repositório:
 | `task services:stop` | Para os serviços de desenvolvimento e mantém os dados |
 | `task migrate` | Aplica as migrations pendentes no banco de desenvolvimento. Uma segunda execução não aplica nada |
 | `task issue-setup-code` | Emite um código de configuração no banco de desenvolvimento e o mostra, com quando deixa de funcionar, o que abre e o endereço da configuração inicial |
+| `task seed` | Preenche o banco de desenvolvimento com a consultoria fictícia e a sua administradora, pelos casos de uso da configuração inicial, para o app abrir na tela de login. Em um banco cuja configuração inicial foi concluída, não altera nada |
 | `task dev` | Inicia a API e o Vite juntos. O app abre em `http://localhost`, pelo Caddy |
 | `task api` | Inicia só a API, em `http://127.0.0.1:8080` |
 | `task web` | Inicia só o Vite, na porta 5173, atrás do Caddy |
@@ -396,7 +400,7 @@ Os comandos, executados na raiz do repositório:
 | `task check:quick` | Roda tudo o que o `task check` roda, menos o teste de ponta a ponta, para o uso do dia a dia. Não precisa de porta livre nem reinicia o Caddy, então roda ao lado do `task dev`. Antes de um pull request, rode o `task check` |
 | `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
-Os comandos do que ainda não foi construído (o worker e o seed) estão _A definir_, e cada um será escrito com o seu código.
+Os comandos do que ainda não foi construído (o worker) estão _A definir_, e cada um será escrito com o seu código.
 
 O sqlc roda com `go tool`, a partir de um arquivo de módulo só dele, `apps/api/sqlc.mod`. Na primeira vez em uma máquina, o Go baixa e compila o sqlc, o que leva vários minutos: uma das dependências dele tem mais de cem mil arquivos, e extraí-los no Windows chega a levar meia hora. O comando parece parado nesse tempo. Não o interrompa, porque a extração recomeça do zero. O vacuum e o oasdiff rodam do mesmo jeito, a partir de `apps/api/vacuum.mod` e `apps/api/oasdiff.mod`, e cada um é compilado em alguns minutos na primeira vez.
 
@@ -412,7 +416,7 @@ O contrato REST é o arquivo `apps/api/openapi.yaml`. Ele é gerado a partir das
 - **Versões.** O build instala a partir do `go.sum` e do `pnpm-lock.yaml` e falha quando eles mudariam.
 - **Imagens.** O GitHub Actions as constrói, marca cada uma com o hash do commit e envia para o registro de containers do GitHub. A produção só roda imagem construída a partir da `main`. As imagens de uma release levam também o número dela.
 
-O `task api:build` gera o binário da API em `apps/api/bin`. Os outros comandos estão _A definir_, e cada um será escrito com o que ele constrói.
+O `task api:build` gera o binário da API em `apps/api/bin`. A imagem do seed é construída a partir de `apps/api/cmd/seed/Dockerfile` pelo serviço `seed` do `compose.yaml`, que fica em um perfil próprio do Compose para que o `task services` não o inicie: `docker compose --profile seed run --rm --build seed` a constrói e a roda no banco de desenvolvimento. Os outros comandos estão _A definir_, e cada um será escrito com o que ele constrói.
 
 ### Deploy
 

@@ -143,7 +143,8 @@ The terms user, role, administrator, developer and scope are defined in `GLOSSAR
 
 ### Commands
 
-- **One binary.** `apps/api/cmd/api` builds it. With no command it serves the API; `migrate` applies the pending migrations. Commands are parsed with the standard library, and each one is a file of that package.
+- **One binary.** `apps/api/cmd/api` builds it. With no command it serves the API; `migrate` applies the pending migrations; `issue-setup-code` issues a setup code (see Setup). Commands are parsed with the standard library, and each one is a file of that package.
+- **The seed apart.** `apps/api/cmd/seed` is a second `main` package of the module, with the `seed` command alone, built into its own image (see Seed in Environments). It keeps the rules below as the commands of the API binary do.
 - **Wired by hand.** A command wires its own dependencies, in its file: it loads the configuration, builds the pool and the adapters, and passes each part to what uses it. No injection library is used, and no other package builds a dependency for another.
 - **Testable whole.** A command receives its arguments, the environment and its outputs, and returns the exit status: 0 when it succeeded, 1 when it failed, 2 when it was not understood. A test runs it as the process would.
 
@@ -377,7 +378,7 @@ The foundation and the setup are built: the first backend code, the first screen
 
 Some joints between the decided tools are recorded in their ADRs as read in documentation and not tried yet. Each is proven by the work named below, and a joint that does not hold changes its ADR before that work goes on:
 
-- **The login and the shell of the app.** sqlc reading the SQL that River exports, goose applying it, and the permissions the API role needs on River's tables. Whether River's OpenTelemetry middleware links the trace that saved a job to the one that ran it. The login with a login code read from Mailpit, and through Dex. The seed creating its data twice with the same result.
+- **The login and the shell of the app.** sqlc reading the SQL that River exports, goose applying it, and the permissions the API role needs on River's tables. Whether River's OpenTelemetry middleware links the trace that saved a job to the one that ran it. The login with a login code read from Mailpit, and through Dex. The seed creating its data twice with the same result: proven, by the tests of `cmd/seed` (see Seed in Environments).
 - **The consultancy settings, the users and the system health.** A TanStack DB collection loaded by following the cursor of the API to the end. The check of the job worker and of the e-mail server for the health report.
 - **The deploy.** Backblaze B2 with the AWS SDK for Go v2, and pgBackRest against it. The Content-Security-Policy with Base UI and the fonts, and a Vite plugin that writes Brotli copies under Vite+. The server created from the cloud-init file, the life of a staging server, its reserved address and its certificates. The publish and its check of the variables. The restore test. A pull request from a fork. `task outdated` and its weekly workflow. The first release and the ruleset that protects its tag. What ADR-0012 lists about Grafana and the collector, which waits for the telemetry containers.
 - **Their own efforts.** The MCP handler on the same router as Huma (ADR-0008). The LLM stand-in and a call to a provider that spends no tokens (ADR-0004, ADR-0019). How each login provider states that an e-mail is verified (ADR-0011).
@@ -640,11 +641,12 @@ Where the system runs and what each environment declares. The reasons, and the t
 ### Seed
 
 - **Its own command.** The seed is a `main` package of its own in the Go module of the API, built into its own image. It is not a command of the API binary.
-- **Through use cases.** It creates data by calling use cases. It runs no SQL.
-- **Deterministic.** Two runs on an empty database produce the same data, with the same identifiers.
-- **Users.** Their e-mail addresses are derived from one mailbox taken from configuration (`name+admin@`, `name+developer@`). The default is a fictitious mailbox, whose users are the ones in the configuration of Dex.
+- **Through use cases.** It creates data by calling use cases, as a person would: it issues a setup code and concludes the setup with it. It runs no SQL.
+- **Deterministic.** Two runs on an empty database produce the same data, with the same identifiers: each identifier is the next value of a sequence, and the seed takes the same steps in the same order. The times recorded, and the hash of the setup code it issues, are the moment of the run; the code is random, so a run cut short leaves no code anyone could guess. A run on a database whose setup is concluded changes nothing and succeeds. The tests of `cmd/seed` prove both.
+- **Users.** Their e-mail addresses are derived from one mailbox taken from configuration, `SEED_MAILBOX` (`name+admin@`, `name+developer@`). The default is a fictitious mailbox, whose users are the ones in the configuration of Dex. The seed prints no address: in a container its output is a log.
 - **Nothing real.** No real client, person or address appears in the seed (ADR-0021).
-- **Staging.** Every publish to staging recreates the database, applies the migrations and runs the seed.
+- **In development.** `task seed` runs the package on the machine, with `go run`, as `task migrate` runs the migrations: the tools run on the machine, and the services they talk to in Compose (see Development). The image is built from `apps/api/cmd/seed/Dockerfile`, with the Go module as its context, and declared by `compose.yaml` as the `seed` service, in a Compose profile of its own, because it runs once and exits and `task services` waits for services that stay up.
+- **Staging.** Every publish to staging recreates the database, applies the migrations and runs the seed, from that image.
 
 ### LLM stand-in
 
