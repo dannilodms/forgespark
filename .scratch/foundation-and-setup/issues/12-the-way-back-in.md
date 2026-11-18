@@ -51,7 +51,7 @@ When no administrator can log in, whoever installs the system issues a setup cod
 
 ### Decided while building
 
-- **A 201 with no body and no `Location`**: no operation reads a user, and no identifier of a user leaves the backend in this effort. API conventions ask for a `Location` on a creation; ticket 10 left it out of `start_setup_upload` for the same reason.
+- **A 201 with no body and no `Location`**: no operation reads a user, and no identifier of a user leaves the backend in this effort. API conventions then asked for a `Location` on a creation; ticket 10 left it out of `start_setup_upload` for the same reason. (Decided after the effort: API conventions now leave it out while the resource created has no address of its own.)
 - **`email_in_use` is a 409 about no field in the contract**, as the spec says, and the screen puts it on `administrator.email` by hand, as the step of the code does with `setup_code_invalid`.
 - **The e-mail is checked inside the transaction and locks nothing**: every use case that registers a user runs under the lock of the one setup code that works, so two of them do not overlap; `users_email_key` stays the last guard.
 - **The photo is confirmed before the transaction**, after the fields and an unlocked check of the code, as concluding does (ticket 10). An install whose setup is not concluded can therefore confirm a photo before it is answered `setup_not_concluded`.

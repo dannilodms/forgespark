@@ -43,6 +43,6 @@ Files live in S3-compatible storage. The server is Garage, which replaces MinIO,
 - `CopyObject` copies up to 5 GB in one call. A larger file, which arrives in parts, is copied in parts (`UploadPartCopy`), chosen with the first upload in parts.
 - A signed upload URL bounds the size of what is sent only where the storage checks the signed `Content-Length`: Garage does, and Backblaze B2 is not tried. The API checks the size when the upload is confirmed and removes an object over the limit.
 - A signed URL is signed for the public host name of the storage, so the backend has to know that name.
-- The file storage stays an optional part of the system health (ADR-0012).
+- The file storage stays an optional part of the system health (ADR-0012): down, it makes the system degraded and leaves it serving. It is required, though: the API refuses to start without its configuration, so it is never `not_configured` (Health in `CODING_STANDARDS.md`).
 - The library that uploads in parts from the browser is chosen with the first upload screen.
 - How a document reaches a person outside the system, as an attachment or as a link, is not decided.

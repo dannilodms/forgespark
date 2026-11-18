@@ -93,7 +93,7 @@ The area has no REST operation of its own and no download yet. The job that remo
 
 ### Found, and left for a decision
 
-- **`Location` on the 201** of `start_setup_upload`, which API conventions ask of a creation, waits for an operation that reads a file.
+- **`Location` on the 201** of `start_setup_upload`, which API conventions then asked of a creation, waits for an operation that reads a file. Decided after the effort: API conventions now leave it out while the resource created has no address of its own.
 - **A confirmed image could be replaced** through its signed URL within its five minutes, after it was confirmed. Garage checks the signed size and type, so it stayed an image of the same type and size; its bytes were not checked again until another confirmation. Decided after the effort: confirming copies the object to a key no signed URL reaches and removes the uploaded one (ADR-0017).
 - **Images of an abandoned setup stay in the bucket**, the tests of the binary included, until the cleanup job of the second effort.
 - **The health of the storage** (an optional part, ADR-0012) is not built: the API requires the variables and does not probe Garage at the start.
