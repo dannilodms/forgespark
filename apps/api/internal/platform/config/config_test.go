@@ -26,7 +26,26 @@ func validEnvironment() map[string]string {
 		"FILE_STORAGE_BUCKET":            "factory-files",
 		"FILE_STORAGE_ACCESS_KEY_ID":     "GK0123456789abcdef01234567",
 		"FILE_STORAGE_SECRET_ACCESS_KEY": "storage-secret-access-key",
+		"SEED_MAILBOX":                   "seed@fabrica.example",
 	}
+}
+
+func TestTheMailboxOfTheSeedGivesTheAddressOfEachSeededUser(t *testing.T) {
+	loaded, err := config.Load(config.Seed, validEnvironment())
+
+	require.NoError(t, err)
+	assert.Equal(t, "seed@fabrica.example", loaded.SeedMailbox.String())
+	assert.Equal(t, "seed+admin@fabrica.example", loaded.SeedMailbox.Subaddress("admin"))
+	assert.Equal(t, "seed+developer@fabrica.example", loaded.SeedMailbox.Subaddress("developer"))
+}
+
+func TestTheSeedNeedsOnlyTheDatabaseAndTheMailbox(t *testing.T) {
+	_, err := config.Load(config.Seed, map[string]string{
+		"DATABASE_URL": "postgres://api:api-password@localhost:5432/software_factory",
+		"SEED_MAILBOX": "seed@fabrica.example",
+	})
+
+	require.NoError(t, err)
 }
 
 func TestLoadReadsWhereTheFileStorageIsAndTheKeyToSignWith(t *testing.T) {
@@ -133,6 +152,8 @@ func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
 		{config.Migrate, "MIGRATION_DATABASE_URL"},
 		{config.IssueSetupCode, "DATABASE_URL"},
 		{config.IssueSetupCode, "APP_ORIGIN"},
+		{config.Seed, "DATABASE_URL"},
+		{config.Seed, "SEED_MAILBOX"},
 	}
 	for _, c := range cases {
 		t.Run(string(c.command)+" without "+c.variable, func(t *testing.T) {
@@ -189,6 +210,10 @@ func TestLoadNamesAnInvalidVariableAndNeverShowsItsValue(t *testing.T) {
 		{"FILE_STORAGE_URL", "garage:3900", "configuration: FILE_STORAGE_URL is not valid: expected an origin such as https://example.com"},
 		{"FILE_STORAGE_URL", "http://garage:3900/bucket", "configuration: FILE_STORAGE_URL is not valid: expected an origin such as https://example.com"},
 		{"FILE_STORAGE_PUBLIC_URL", "files.localhost", "configuration: FILE_STORAGE_PUBLIC_URL is not valid: expected an origin such as https://example.com"},
+		{"SEED_MAILBOX", "seed.fabrica.example", "configuration: SEED_MAILBOX is not valid: expected a mailbox such as name@example.com"},
+		{"SEED_MAILBOX", "Seed <seed@fabrica.example>", "configuration: SEED_MAILBOX is not valid: expected a mailbox such as name@example.com"},
+		{"SEED_MAILBOX", "seed@fabrica.example, other@fabrica.example", "configuration: SEED_MAILBOX is not valid: expected a mailbox such as name@example.com"},
+		{"SEED_MAILBOX", "@fabrica.example", "configuration: SEED_MAILBOX is not valid: expected a mailbox such as name@example.com"},
 	}
 	for _, c := range cases {
 		t.Run(c.variable+"="+c.value, func(t *testing.T) {
