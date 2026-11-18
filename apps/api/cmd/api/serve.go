@@ -78,6 +78,7 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 	}
 	logger.Info("the API started", slog.String("address", listener.Addr().String()))
 
-	handler := telemetry.Requests(mux, logger, tracing.Provider)
+	// A probe every few seconds would fill the traces.
+	handler := telemetry.Requests(mux, logger, tracing.Provider, health.Paths()...)
 	return lifecycle.Serve(shutdown, listener, handler, settings.ShutdownDrainDeadline, logger)
 }

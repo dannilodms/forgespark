@@ -30,7 +30,9 @@ type Tracing struct {
 }
 
 // StartTracing builds the tracer of a command. Every trace is kept: nothing
-// is sampled, whatever the caller of a request decided.
+// is sampled, whatever the caller of a request decided. The one exception is
+// a request that Requests marks as recording no span, a probe, whose spans
+// are all dropped.
 //
 // The address is the base URL of an OTLP/HTTP receiver, such as
 // http://collector:4318. With no address nothing is exported, and a span
@@ -38,7 +40,7 @@ type Tracing struct {
 // the command.
 func StartTracing(service, exportURL string, logger *slog.Logger) (*Tracing, error) {
 	options := []sdktrace.TracerProviderOption{
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithSampler(everySpanButTheProbes{}),
 		sdktrace.WithResource(resource.NewWithAttributes(semconv.SchemaURL, semconv.ServiceName(service))),
 	}
 	if exportURL == "" {
@@ -89,4 +91,24 @@ func (e loggedExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOn
 		e.logger.Error("export of traces failed", slog.String("error", err.Error()))
 	}
 	return nil
+}
+
+// everySpanButTheProbes keeps every span, except one started under a request
+// that records none, such as liveness and readiness (see Requests). A span it
+// drops still carries the trace of its parent, so a line names the trace of
+// the caller, and every span under it is dropped too.
+type everySpanButTheProbes struct{}
+
+func (everySpanButTheProbes) ShouldSample(parameters sdktrace.SamplingParameters) sdktrace.SamplingResult {
+	if recordsNoSpan(parameters.ParentContext) {
+		return sdktrace.SamplingResult{
+			Decision:   sdktrace.Drop,
+			Tracestate: trace.SpanContextFromContext(parameters.ParentContext).TraceState(),
+		}
+	}
+	return sdktrace.AlwaysSample().ShouldSample(parameters)
+}
+
+func (everySpanButTheProbes) Description() string {
+	return "EverySpanButTheProbes"
 }

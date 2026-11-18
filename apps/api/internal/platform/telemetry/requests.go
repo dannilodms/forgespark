@@ -26,9 +26,15 @@ const instrumentationName = "github.com/dannilodms/software-factory-manager/apps
 // method, the route and the status, and never a path, a query string, a
 // header or a body.
 //
+// A request to one of the paths withoutSpan names, liveness and readiness,
+// records no span, and nothing under it does, its queries included: a probe
+// every few seconds would fill the traces. The tracer of StartTracing drops
+// them. Its line, when it fails, is still written, under the trace of an
+// incoming `traceparent`.
+//
 // A panic that reaches this handler answers 500 with no body.
-func Requests(next http.Handler, logger *slog.Logger, tracerProvider trace.TracerProvider) http.Handler {
-	return requests{next: next, logger: logger, tracer: tracerProvider.Tracer(instrumentationName)}
+func Requests(next http.Handler, logger *slog.Logger, tracerProvider trace.TracerProvider, withoutSpan ...string) http.Handler {
+	return requests{next: next, logger: logger, tracer: tracerProvider.Tracer(instrumentationName), withoutSpan: withoutSpan}
 }
 
 // RecordFailure keeps the raw error behind the 5xx a request is about to
@@ -51,14 +57,27 @@ type failure struct {
 	err error
 }
 
+// noSpanKey marks the context of a request that records no span.
+type noSpanKey struct{}
+
+// recordsNoSpan tells whether a span started in the context belongs to a
+// request that records none.
+func recordsNoSpan(ctx context.Context) bool {
+	return ctx.Value(noSpanKey{}) != nil
+}
+
 type requests struct {
-	next   http.Handler
-	logger *slog.Logger
-	tracer trace.Tracer
+	next        http.Handler
+	logger      *slog.Logger
+	tracer      trace.Tracer
+	withoutSpan []string
 }
 
 func (t requests) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := propagation.TraceContext{}.Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+	if slices.Contains(t.withoutSpan, r.URL.Path) {
+		ctx = context.WithValue(ctx, noSpanKey{}, true)
+	}
 	ctx, span := t.tracer.Start(ctx, methodOf(r), trace.WithSpanKind(trace.SpanKindServer))
 	defer span.End()
 
