@@ -82,7 +82,7 @@ func registerSetup(api *restapi.API, useCases UseCases) {
 			"within the limits.",
 		Tags: []string{setupTag},
 	}, restapi.Failures{
-		http.StatusUnprocessableEntity: slices.Concat([]restapi.Failure{domain.SetupCodeInvalidError{}}, fieldRules, imageRules),
+		http.StatusUnprocessableEntity: slices.Concat([]kernel.BrokenRule{domain.SetupCodeInvalidError{}}, fieldRules, imageRules),
 		http.StatusConflict:            {domain.SetupAlreadyConcludedError{}},
 		http.StatusTooManyRequests:     {restapi.LimitedByCaddy},
 	}, concludeSetup{useCase: useCases.ConcludeSetup}.handle)
@@ -100,7 +100,7 @@ func registerSetup(api *restapi.API, useCases UseCases) {
 			"The answer has no body and no Location: no operation reads a user yet.",
 		Tags: []string{setupTag},
 	}, restapi.Failures{
-		http.StatusUnprocessableEntity: slices.Concat([]restapi.Failure{domain.SetupCodeInvalidError{}}, administratorRules, imageRules),
+		http.StatusUnprocessableEntity: slices.Concat([]kernel.BrokenRule{domain.SetupCodeInvalidError{}}, administratorRules, imageRules),
 		http.StatusConflict:            {domain.SetupNotConcludedError{}, domain.EmailInUseError{}},
 		http.StatusTooManyRequests:     {restapi.LimitedByCaddy},
 	}, registerAdministrator{useCase: useCases.RegisterAdministrator}.handle)
@@ -108,7 +108,7 @@ func registerSetup(api *restapi.API, useCases UseCases) {
 
 // imageRules are the rules an image chosen in the setup may break when the
 // setup is concluded, on the field that holds its identifier.
-var imageRules = []restapi.Failure{
+var imageRules = []kernel.BrokenRule{
 	restapi.InField(application.FileNotFoundError{}),
 	restapi.InField(application.FileNotUploadedError{}),
 	restapi.InField(application.FileTooLargeError{}),
@@ -119,7 +119,7 @@ var imageRules = []restapi.Failure{
 // may break, as the domain checks them. The contract declares what it can of
 // them, for a client to check before it sends: a required text, its length,
 // the form of an e-mail, of a telephone and of a website.
-var fieldRules = []restapi.Failure{
+var fieldRules = []kernel.BrokenRule{
 	restapi.InField(kernel.RequiredError{}),
 	restapi.InField(domain.TooLongError{}),
 	restapi.InField(kernel.CountryUnknownError{}),
@@ -133,7 +133,7 @@ var fieldRules = []restapi.Failure{
 
 // administratorRules are the rules a field of an administrator may break, as
 // the domain checks them: the ones of fieldRules that a user has.
-var administratorRules = []restapi.Failure{
+var administratorRules = []kernel.BrokenRule{
 	restapi.InField(kernel.RequiredError{}),
 	restapi.InField(domain.TooLongError{}),
 	restapi.InField(kernel.CountryUnknownError{}),

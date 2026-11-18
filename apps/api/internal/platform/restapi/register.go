@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // Register adds an operation to the API. The handler parses nothing and
@@ -89,8 +91,8 @@ func appendIf(texts []string, text string, wanted bool) []string {
 
 // containsCode tells whether the operation declares a broken rule with this
 // code. A rule about a field is declared for the fields only.
-func containsCode(declared []Failure, code string) bool {
-	return slices.ContainsFunc(declared, func(failure Failure) bool {
+func containsCode(declared []kernel.BrokenRule, code string) bool {
+	return slices.ContainsFunc(declared, func(failure kernel.BrokenRule) bool {
 		_, inField := failure.(fieldRule)
 		return !inField && failure.Code() == code
 	})

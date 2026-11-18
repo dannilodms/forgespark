@@ -167,25 +167,18 @@ func fieldErrorOf(detail *huma.ErrorDetail) FieldError {
 	return field
 }
 
-// Failure is a broken rule, as `domain` and `application` declare one: an
-// error with a stable code. Its text is in English and safe to answer with.
-// One that has parameters also has `Params() map[string]any`.
-type Failure interface {
-	error
-	Code() string
-}
-
 // Failures lists, for each status, the broken rules an operation answers
-// with. An example of each error is enough: its code is read from it. A rule
-// about one field is listed under 422 with InField.
-type Failures map[int][]Failure
+// with, as `domain` and `application` declare them (kernel.BrokenRule). An
+// example of each error is enough: its code is read from it. A rule about one
+// field is listed under 422 with InField.
+type Failures map[int][]kernel.BrokenRule
 
 // InField declares a rule that a field of the request may break, which the
 // use case returns inside a kernel.InvalidFieldsError. It is answered as a
 // failed validation, with an entry in `errors` that names the field and
 // carries the code of the rule. List it under 422.
-func InField(rule Failure) Failure {
-	return fieldRule{Failure: rule}
+func InField(rule kernel.BrokenRule) kernel.BrokenRule {
+	return fieldRule{BrokenRule: rule}
 }
 
 // LimitedByCaddy stands for the limit Caddy sets in front of an operation for
@@ -194,7 +187,7 @@ func InField(rule Failure) Failure {
 // reaches the API. An operation under that limit lists it under 429, so the
 // spec and the client generated from it know the answer. No use case returns
 // it.
-var LimitedByCaddy Failure = limitedByCaddy{}
+var LimitedByCaddy kernel.BrokenRule = limitedByCaddy{}
 
 type limitedByCaddy struct{}
 
@@ -209,7 +202,7 @@ func (limitedByCaddy) Code() string {
 
 // fieldRule is a rule an operation declares about one field.
 type fieldRule struct {
-	Failure
+	kernel.BrokenRule
 }
 
 // answerTo turns the error of a use case into the answer. Fields that break a
@@ -221,7 +214,7 @@ func (f Failures) answerTo(ctx context.Context, err error) error {
 	if errors.As(err, &invalid) {
 		return f.answerToFields(ctx, invalid, err)
 	}
-	var broken Failure
+	var broken kernel.BrokenRule
 	if !errors.As(err, &broken) {
 		return err
 	}
@@ -260,7 +253,7 @@ func (f Failures) answerToFields(ctx context.Context, invalid kernel.InvalidFiel
 }
 
 func (f Failures) declaresInField(code string) bool {
-	return slices.ContainsFunc(f[http.StatusUnprocessableEntity], func(declared Failure) bool {
+	return slices.ContainsFunc(f[http.StatusUnprocessableEntity], func(declared kernel.BrokenRule) bool {
 		_, inField := declared.(fieldRule)
 		return inField && declared.Code() == code
 	})
@@ -268,7 +261,7 @@ func (f Failures) declaresInField(code string) bool {
 
 // paramsOrNone returns the parameters of a broken rule, and an empty object
 // when it has none.
-func paramsOrNone(broken Failure) map[string]any {
+func paramsOrNone(broken kernel.BrokenRule) map[string]any {
 	params := paramsOf(broken)
 	if params == nil {
 		return map[string]any{}
@@ -277,7 +270,7 @@ func paramsOrNone(broken Failure) map[string]any {
 }
 
 // paramsOf returns the parameters of a broken rule, and nil when it has none.
-func paramsOf(broken Failure) map[string]any {
+func paramsOf(broken kernel.BrokenRule) map[string]any {
 	parameterised, has := broken.(interface{ Params() map[string]any })
 	if !has {
 		return nil
