@@ -679,7 +679,7 @@ How a change reaches `main` and the servers. The repository is public, which set
 
 - **Nothing from outside.** A pull request runs every check that needs no outside service: format, lint, types, generated code up to date, the tests of use cases and of screens, the adapter tests against containers of PostgreSQL, Garage and Mailpit, and the end-to-end tests against the development Compose file.
 - **The same commands.** A workflow calls Task targets. A check that fails in the pipeline fails the same way on the machine.
-- **Workflows are checked too.** actionlint and zizmor run on every workflow file.
+- **Workflows are checked too.** actionlint and zizmor run on every workflow file, each from its image: `task workflows:check`, which `task check` runs as well. The system libraries Chromium needs on the Linux runner are installed by `task install:linux`.
 - **Documents only.** A pull request that changes only documents skips the builds and the tests. `VERSION` is not a document (see Releases).
 - **One required check.** The ruleset of `main` requires a single check: the `Checks` job of `ci.yml`, which fails when a job it needs failed or was cancelled, and passes when one was skipped. A new check is a job added to its `needs`, never a change to the ruleset.
 
@@ -746,7 +746,8 @@ Every tool, library and container image runs at a version written in a committed
 | Container images (PostgreSQL, Garage, Mailpit, Dex, Caddy, OpenTelemetry Collector, Grafana otel-lgtm) | the image tag in `deploy/compose.base.yaml` and in each Dockerfile |
 | Caddy plugins | the Dockerfile that builds the Caddy image |
 | pgBackRest | the Dockerfile that builds the PostgreSQL image |
-| GitHub Actions and the tools a workflow installs (Task, the provider's command-line tool, actionlint, zizmor, Trivy) | the workflow file: an action by its full commit hash, a tool by its exact version |
+| GitHub Actions and the tools a workflow installs (Task, the provider's command-line tool, Trivy) | the workflow file: an action by its full commit hash, a tool by its exact version |
+| The linters of the workflows (actionlint, zizmor), run from their images | a variable of `workflows:check` in `Taskfile.yml` whose name ends in `_VERSION` |
 | The system image of the servers | `deploy/cloud-init.yaml` and the workflow that creates a server |
 | MCP servers for agents | `.mcp.json` |
 | Docker, Task, the global `vp`, the installed Go and the GitHub CLI | the prerequisites table of `README.md`, as a minimum version |
@@ -780,5 +781,6 @@ Every tool, library and container image runs at a version written in a committed
 - **Workflows**, and any other YAML file under `.github`: an action by its full commit hash, a tool by the three numbers of a variable whose name ends in `_VERSION` or of an input named `version` or ending in `-version`, an image as above, and a runner by the version of its system, never `-latest`.
 - **The pnpm catalog** in `pnpm-workspace.yaml`, with its overrides, and `package.json`: a dependency is `catalog:` or one version, and so are the runtime and the package manager.
 - **`.mcp.json`**: a server that `npx` or `pnpm dlx` downloads names its package as `name@1.2.3`.
+- **`Taskfile.yml`**: a variable under `vars` whose name ends in `_VERSION`, by its three numbers, such as the image of a linter that `workflows:check` runs.
 
-What the check does not read stays a rule for the author: pgBackRest in its Dockerfile, the system image of the servers, and a one-off command in `Taskfile.yml`. Each joins the check when its file is written.
+What the check does not read stays a rule for the author: pgBackRest in its Dockerfile, the system image of the servers, and a one-off command in `Taskfile.yml` that names its version in its text. Each joins the check when its file is written.

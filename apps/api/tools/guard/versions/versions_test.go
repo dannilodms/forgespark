@@ -158,6 +158,13 @@ var kinds = map[string]kind{
 		exact:    []string{"3.54.0", "v3.54.0", `"3.54.0"`},
 		inexact:  []string{"3.54", "3", "latest", "3.x", `"^3.54.0"`},
 	},
+	"a tool a Task target runs": {
+		file:     "Taskfile.yml",
+		template: "version: \"3\"\n\ntasks:\n  workflows:lint:\n    vars:\n      ACTIONLINT_VERSION: %s\n",
+		line:     6,
+		exact:    []string{"1.7.12", `"1.7.12"`},
+		inexact:  []string{"1.7", "1", "latest", `"^1.7.12"`},
+	},
 	"a tool an action installs": {
 		file:     ".github/workflows/ci.yml",
 		template: "jobs:\n  app:\n    steps:\n      - uses: ./.github/actions/setup\n        with:\n          node-version: %s\n          go-version-file: apps/api/go.mod\n",

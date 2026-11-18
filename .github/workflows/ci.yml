@@ -16,9 +16,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  ACTIONLINT_VERSION: 1.7.12
-  ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
-  ZIZMOR_VERSION: 1.32.0
   TASK_VERSION: 3.54.0
   TASK_SHA256: 680859dbb4d881a9c72d4d9a8f510825450849af8567deacd7302c01124416fb
   # Caddy, in a container, reaches what listens on the runner. Docker Engine
@@ -41,27 +38,26 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install actionlint
+      - name: Install Task
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          gh release download "v${ACTIONLINT_VERSION}" \
-            --repo rhysd/actionlint \
+          archive="task_linux_amd64.tar.gz"
+          gh release download "v${TASK_VERSION}" \
+            --repo go-task/task \
             --pattern "$archive" \
             --dir "$RUNNER_TEMP"
-          echo "${ACTIONLINT_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          echo "${TASK_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
           mkdir -p "$RUNNER_TEMP/bin"
-          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" actionlint
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: Run actionlint
-        run: actionlint -color
-
-      - name: Run zizmor
+      # actionlint and zizmor run from their images, at the versions of the
+      # Task target. The token lets zizmor run its online audits.
+      - name: Check the workflow files with actionlint and zizmor
         env:
           GH_TOKEN: ${{ github.token }}
-        run: pipx run --spec "zizmor==${ZIZMOR_VERSION}" zizmor --color=always .
+        run: task workflows:check
 
   # Tells the builds and the tests whether to run. A pull request that changes
   # only documents skips them. `VERSION` is not a document.
@@ -217,8 +213,7 @@ jobs:
         run: task install
 
       - name: Install the system libraries Chromium needs on Linux
-        working-directory: apps/web
-        run: vp exec playwright install-deps chromium
+        run: task install:linux
 
       - name: Check the generated client, format, lint, types, imports, unused code and translations, and run the screen tests
         run: task web:check
@@ -271,8 +266,7 @@ jobs:
         run: task install
 
       - name: Install the system libraries Chromium needs on Linux
-        working-directory: apps/web
-        run: vp exec playwright install-deps chromium
+        run: task install:linux
 
       - name: Run the end-to-end test of the setup
         run: task e2e

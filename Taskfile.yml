@@ -15,6 +15,12 @@ tasks:
       # for each version, into the cache of Playwright on the machine.
       - vp exec playwright install chromium
 
+  install:linux:
+    desc: Install the system libraries the Chromium of the tests needs on Linux, as the pipeline does. It uses sudo
+    dir: apps/web
+    cmds:
+      - vp exec playwright install-deps chromium
+
   services:
     desc: Build the Caddy image, start the services of development and wait until they are healthy
     env:
@@ -227,6 +233,19 @@ tasks:
     cmds:
       - go tool -modfile=golangci-lint.mod golangci-lint fmt ./...
 
+  workflows:check:
+    desc: Check the workflow files with actionlint and zizmor, each from its image
+    vars:
+      # The images of the two linters. A variable whose name ends in _VERSION
+      # is judged by `task versions:check`.
+      ACTIONLINT_VERSION: 1.7.12
+      ZIZMOR_VERSION: 1.32.0
+    cmds:
+      - docker run --rm --volume "{{.ROOT_DIR}}:/repository:ro" --workdir /repository rhysd/actionlint:{{.ACTIONLINT_VERSION}} -color
+      # With GH_TOKEN, which the pipeline gives it, zizmor runs its online
+      # audits too; without it, the offline ones.
+      - docker run --rm --volume "{{.ROOT_DIR}}:/repository:ro" --workdir /repository --env GH_TOKEN ghcr.io/zizmorcore/zizmor:{{.ZIZMOR_VERSION}} --color=always .
+
   versions:check:
     desc: Check that every version the repository pins is exact
     dir: apps/api
@@ -237,6 +256,7 @@ tasks:
     desc: Every check a pull request runs, on the app and on the API
     cmds:
       - task: versions:check
+      - task: workflows:check
       - task: web:check
       - task: api:lint
       - task: api:generate:check

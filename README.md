@@ -376,6 +376,7 @@ The commands, run from the repository root:
 | `task api:lint` | Lints the Go code and checks its format, the imports between layers and between domain areas, `else` and the level of nesting |
 | `task api:format` | Rewrites the Go files as the formatter asks |
 | `task versions:check` | Checks that every version the repository pins is exact: no range, no `latest`, no floating tag |
+| `task workflows:check` | Checks the workflow files with actionlint and zizmor, each run from its Docker image |
 | `task api:generate` | Generates, with sqlc, the Go code of the `postgres` adapters from the SQL files of each one. What it writes is committed |
 | `task api:generate:check` | Fails when the committed code that sqlc generated is stale |
 | `task api:spec` | Generates the OpenAPI spec from the Go code, into `apps/api/openapi.yaml`. What it writes is committed |
@@ -389,7 +390,7 @@ The commands, run from the repository root:
 | `task web:imports` | Fails when an import of the app breaks its dependency rule, with dependency-cruiser |
 | `task web:knip` | Fails on a file, an export or a dependency of the app that nothing uses, with Knip |
 | `task e2e` | Runs the end-to-end test of the setup in Chromium, through Caddy, with Playwright. It starts the services, builds the API, restarts Caddy so that its limit starts empty, creates the database `software_factory_e2e` empty and applies the migrations; Playwright starts the API and Vite, and stops them at the end. The development database is not touched. Ports 8080 and 5173 must be free: stop `task dev` first. A failed test leaves its trace in `apps/web/test-results`, which `vp exec playwright show-trace <file>`, run in `apps/web`, opens |
-| `task check` | Runs every check of a pull request: the exact versions, the check of the generated client, the format, lint and type checks of `apps/web`, its dependency rule, its unused code, its missing translation keys and its tests, then the lint of the API, the check of the generated code, the check of the OpenAPI spec, the check of the lists of the app, the lint and the breaking-change report of the spec, the build and the tests of the API, and the end-to-end test |
+| `task check` | Runs every check of a pull request: the exact versions, the check of the workflow files, the check of the generated client, the format, lint and type checks of `apps/web`, its dependency rule, its unused code, its missing translation keys and its tests, then the lint of the API, the check of the generated code, the check of the OpenAPI spec, the check of the lists of the app, the lint and the breaking-change report of the spec, the build and the tests of the API, and the end-to-end test |
 | `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
 
 The commands of what is not built yet (the worker and the seed) are _TBD_, each written with its code.

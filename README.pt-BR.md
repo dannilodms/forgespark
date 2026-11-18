@@ -376,6 +376,7 @@ Os comandos, executados na raiz do repositório:
 | `task api:lint` | Roda o lint do código Go e verifica o formato, os imports entre camadas e entre áreas de domínio, o `else` e o nível de aninhamento |
 | `task api:format` | Reescreve os arquivos Go como o formatador pede |
 | `task versions:check` | Verifica se toda versão fixada no repositório é exata: sem intervalo, sem `latest`, sem tag flutuante |
+| `task workflows:check` | Verifica os arquivos de workflow com o actionlint e o zizmor, cada um rodado a partir da sua imagem Docker |
 | `task api:generate` | Gera, com o sqlc, o código Go dos adaptadores `postgres` a partir dos arquivos SQL de cada um. O resultado entra no commit |
 | `task api:generate:check` | Falha quando o código gerado pelo sqlc que está no repositório ficou desatualizado |
 | `task api:spec` | Gera a especificação OpenAPI a partir do código Go, em `apps/api/openapi.yaml`. O resultado entra no commit |
@@ -389,7 +390,7 @@ Os comandos, executados na raiz do repositório:
 | `task web:imports` | Falha quando um import do app quebra a sua regra de dependências, com o dependency-cruiser |
 | `task web:knip` | Falha com um arquivo, um export ou uma dependência do app que nada usa, com o Knip |
 | `task e2e` | Roda o teste de ponta a ponta da configuração inicial no Chromium, pelo Caddy, com o Playwright. Ele inicia os serviços, gera o binário da API, reinicia o Caddy para que o limite comece vazio, cria vazio o banco `software_factory_e2e` e aplica as migrations; o Playwright inicia a API e o Vite e os encerra no fim. O banco de desenvolvimento não é tocado. As portas 8080 e 5173 precisam estar livres: pare o `task dev` antes. Um teste que falha deixa o seu trace em `apps/web/test-results`, que o `vp exec playwright show-trace <arquivo>`, rodado em `apps/web`, abre |
-| `task check` | Roda todas as verificações de um pull request: as versões exatas, a verificação do cliente gerado, as de formato, lint e tipos de `apps/web`, a sua regra de dependências, o seu código sem uso, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, a verificação da especificação OpenAPI, a verificação das listas do app, o lint e o relatório de mudanças incompatíveis da especificação, o build e os testes da API, e o teste de ponta a ponta |
+| `task check` | Roda todas as verificações de um pull request: as versões exatas, a verificação dos arquivos de workflow, a verificação do cliente gerado, as de formato, lint e tipos de `apps/web`, a sua regra de dependências, o seu código sem uso, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, a verificação da especificação OpenAPI, a verificação das listas do app, o lint e o relatório de mudanças incompatíveis da especificação, o build e os testes da API, e o teste de ponta a ponta |
 | `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
 Os comandos do que ainda não foi construído (o worker e o seed) estão _A definir_, e cada um será escrito com o seu código.

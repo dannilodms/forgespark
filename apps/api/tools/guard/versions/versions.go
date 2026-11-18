@@ -2,7 +2,8 @@
 // no range, no `latest`, no floating tag. It reads each home of a version
 // that Versions in CODING_STANDARDS.md lists and that a file can be judged
 // for: the Go module files, the Compose files, the Dockerfiles, the
-// workflows, the pnpm catalog with its package manifest, and `.mcp.json`.
+// workflows, the Taskfile, the pnpm catalog with its package manifest, and
+// `.mcp.json`.
 //
 // A file is recognised by its name, wherever it is, so a new Dockerfile or a
 // new Compose file is judged with no change here.
@@ -51,6 +52,8 @@ func judgeOf(file string) judge {
 		return packageManifest
 	case name == ".mcp.json":
 		return mcpServers
+	case name == "Taskfile.yml" || name == "Taskfile.yaml":
+		return taskfile
 	}
 	return nil
 }
