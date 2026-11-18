@@ -9,7 +9,6 @@ import (
 	"context"
 	"crypto/rand"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -120,9 +119,10 @@ func New(t testing.TB) Database {
 	}
 }
 
+// variable is a variable of the process, which the configuration reads.
 func variable(t testing.TB, name string) string {
 	t.Helper()
-	value := os.Getenv(name)
+	value := config.Environment()[name]
 	if value == "" {
 		t.Fatalf("%s is not set. Run the tests with `task api:test`, which loads it from .env.example.", name)
 	}

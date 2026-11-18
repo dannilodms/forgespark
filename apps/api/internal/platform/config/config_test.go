@@ -245,3 +245,13 @@ func TestIssueSetupCodeNeedsNeitherTheListenAddressNorTheMigrationRole(t *testin
 
 	require.NoError(t, err)
 }
+
+// The configuration is the one package that reads the environment: the
+// command that starts and the support of the tests ask it.
+func TestTheEnvironmentIsTheVariablesOfTheProcess(t *testing.T) {
+	t.Setenv("CONFIG_TEST_VARIABLE", "a value=with an equals sign")
+
+	read := config.Environment()
+
+	assert.Equal(t, "a value=with an equals sign", read["CONFIG_TEST_VARIABLE"])
+}

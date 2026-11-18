@@ -16,7 +16,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -42,7 +41,7 @@ var errLogged = errors.New("the failure is in the logs")
 
 func main() {
 	shutdown := lifecycle.ShutdownNotice(lifecycle.Signals(), os.Exit)
-	os.Exit(run(shutdown, os.Args[1:], environment(), os.Stdout, os.Stderr))
+	os.Exit(run(shutdown, os.Args[1:], config.Environment(), os.Stdout, os.Stderr))
 }
 
 // run executes one command and returns the exit status of the process: 0 when
@@ -113,15 +112,4 @@ func tracedDatabase(settings config.Config, logger *slog.Logger) (_ *telemetry.T
 		tracing.Stop()
 	}
 	return tracing, pool, stop, nil
-}
-
-// environment reads the variables of the process, once. Only the
-// configuration reads them after this.
-func environment() map[string]string {
-	variables := map[string]string{}
-	for _, entry := range os.Environ() {
-		name, value, _ := strings.Cut(entry, "=")
-		variables[name] = value
-	}
-	return variables
 }
