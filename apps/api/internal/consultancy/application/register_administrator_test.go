@@ -112,6 +112,25 @@ func TestRegisteringAnAdministratorBeforeTheSetupIsConcludedIsRefusedAndSavesNot
 	requireNothingSaved(t, installed)
 }
 
+// Nor does it reach the storage: the photo chosen is neither confirmed nor
+// removed.
+func TestRegisteringAnAdministratorBeforeTheSetupIsConcludedConfirmsNoPhoto(t *testing.T) {
+	installed := issued(t)
+	photo := sentImage(t, installed, firstCode, application.UserPhoto, aPNG(1024))
+	tooLarge := sentImage(t, installed, firstCode, application.UserPhoto, aPNG(3*1024*1024))
+	for _, chosen := range []domain.FileID{photo, tooLarge} {
+		input := typedAdministrator(firstCode)
+		input.Administrator.PhotoFileID = chosen
+
+		err := installed.registerAdministrator.Execute(context.Background(), input)
+
+		require.ErrorAs(t, err, &domain.SetupNotConcludedError{})
+	}
+	_, confirmed := installed.fileOf(t, photo).ConfirmedAt()
+	assert.False(t, confirmed, "the photo was confirmed")
+	assert.True(t, installed.holdsTheBytesOf(t, tooLarge), "the photo over the limit was removed")
+}
+
 // requireNoAdministratorRegistered checks that a registration that was
 // refused left the users and the audit log as the setup left them, and the
 // setup code working.

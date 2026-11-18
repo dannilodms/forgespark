@@ -60,8 +60,10 @@ type ConcludeSetupInput struct {
 
 // Execute validates everything that was typed first, and answers with a
 // kernel.InvalidFieldsError naming each field that breaks a rule. With a
-// setup code that works, it then confirms the images chosen, which may have
-// been sent under an earlier code, and names the one the files area refuses.
+// setup code that works and opens the first setup, it then confirms the
+// images chosen, which may have been sent under an earlier code, and names
+// the one the files area refuses: a code that opens nothing, or opens the
+// registration of a new administrator, reaches no image.
 // Then, in one transaction, it locks the setup code, checks that it still
 // works and that no consultancy exists, creates the administrator role and the
 // developer role, the consultancy and the administrator with the
@@ -78,6 +80,9 @@ func (u *ConcludeSetup) Execute(ctx context.Context, input ConcludeSetupInput) e
 	}
 	setupCode, err := findWorkingSetupCode(ctx, u.setupCodes, input.Code, u.clock.Now())
 	if err != nil {
+		return err
+	}
+	if err := opensAtThisMoment(ctx, u.consultancies, domain.OpensFirstSetup); err != nil {
 		return err
 	}
 	if err := u.confirmImages(ctx, consultancy, administrator); err != nil {
@@ -152,12 +157,8 @@ func (u *ConcludeSetup) workingSetupCode(ctx context.Context, hash domain.SetupC
 	if err != nil {
 		return nil, err
 	}
-	concluded, err := u.consultancies.Exists(ctx)
-	if err != nil {
+	if err := opensAtThisMoment(ctx, u.consultancies, domain.OpensFirstSetup); err != nil {
 		return nil, err
-	}
-	if concluded {
-		return nil, domain.SetupAlreadyConcludedError{}
 	}
 	return setupCode, nil
 }

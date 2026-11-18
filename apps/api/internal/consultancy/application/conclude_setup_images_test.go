@@ -171,6 +171,19 @@ func TestAWrongCodeConfirmsNoImage(t *testing.T) {
 	assert.True(t, installed.holdsTheBytesOf(t, tooLarge), "a wrong code removed an image")
 }
 
+// A setup code that opens the registration of a new administrator concludes
+// nothing, and reaches no image of the storage on the way.
+func TestACodeThatOpensTheRegistrationOfAnAdministratorConfirmsNoImageWhenItConcludes(t *testing.T) {
+	installed := backIn(t)
+	tooLarge := sentImage(t, installed, secondCode, application.UserPhoto, aPNG(3*1024*1024))
+
+	err := installed.concludeSetup.Execute(context.Background(), withImages(secondCode, 0, tooLarge))
+
+	var alreadyConcluded domain.SetupAlreadyConcludedError
+	require.ErrorAs(t, err, &alreadyConcluded)
+	assert.True(t, installed.holdsTheBytesOf(t, tooLarge), "an image was removed")
+}
+
 // The fields are checked first: a setup refused for one of them confirms no
 // image.
 func TestAFieldThatBreaksARuleIsAnsweredBeforeAnyImageIsConfirmed(t *testing.T) {

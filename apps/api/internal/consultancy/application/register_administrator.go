@@ -58,9 +58,9 @@ type RegisterAdministratorInput struct {
 
 // Execute registers the administrator. What was typed is checked first, and a
 // kernel.InvalidFieldsError names each field that breaks a rule as the input
-// is structured: `administrator.email`. With a setup code that works, the
-// photo chosen is confirmed, as in the first setup, and named on its field
-// when the files area refuses it. Then, in one transaction, it locks the
+// is structured: `administrator.email`. With a setup code that works on a
+// setup that is concluded, the photo chosen is confirmed, as in the first
+// setup, and named on its field when the files area refuses it. Then, in one transaction, it locks the
 // setup code, checks that it still works and that the setup is concluded,
 // refuses an e-mail that belongs to a user, creates the user with the
 // administrator role, ends the setup code and records the registration in
@@ -74,6 +74,9 @@ func (u *RegisterAdministrator) Execute(ctx context.Context, input RegisterAdmin
 	}
 	setupCode, err := findWorkingSetupCode(ctx, u.setupCodes, input.Code, u.clock.Now())
 	if err != nil {
+		return err
+	}
+	if err := opensAtThisMoment(ctx, u.consultancies, domain.OpensNewAdministrator); err != nil {
 		return err
 	}
 	if err := u.confirmPhoto(ctx, details); err != nil {
@@ -128,12 +131,8 @@ func (u *RegisterAdministrator) workingSetupCode(ctx context.Context, hash domai
 	if err != nil {
 		return nil, err
 	}
-	concluded, err := u.consultancies.Exists(ctx)
-	if err != nil {
+	if err := opensAtThisMoment(ctx, u.consultancies, domain.OpensNewAdministrator); err != nil {
 		return nil, err
-	}
-	if !concluded {
-		return nil, domain.SetupNotConcludedError{}
 	}
 	return setupCode, nil
 }

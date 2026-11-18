@@ -39,3 +39,21 @@ func lockWorkingSetupCode(ctx context.Context, setupCodes SetupCodeRepository, h
 	}
 	return setupCode, nil
 }
+
+// opensAtThisMoment checks that a setup code that works opens, at this
+// moment, what the operation is: the first setup while no consultancy
+// exists, the registration of a new administrator once one does. It answers
+// SetupAlreadyConcludedError or SetupNotConcludedError otherwise.
+func opensAtThisMoment(ctx context.Context, consultancies ConsultancyRepository, operation domain.SetupCodeOpens) error {
+	concluded, err := consultancies.Exists(ctx)
+	if err != nil {
+		return err
+	}
+	if domain.SetupCodeOpensWhen(concluded) == operation {
+		return nil
+	}
+	if concluded {
+		return domain.SetupAlreadyConcludedError{}
+	}
+	return domain.SetupNotConcludedError{}
+}
