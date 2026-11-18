@@ -208,9 +208,7 @@ describe("the step of the setup code", () => {
     await screen.getByRole("button", { name: "Continue" }).click()
 
     const alert = screen.getByRole("alert")
-    await expect
-      .element(alert)
-      .toMatchTextContent(/The server is out of reach/)
+    await expect.element(alert).toMatchTextContent(/The server is out of reach/)
     await expect.element(alert).toMatchTextContent(traceId)
   })
 
