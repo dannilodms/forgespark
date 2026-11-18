@@ -72,6 +72,14 @@ tasks:
     cmds:
       - go run ./cmd/api issue-setup-code
 
+  seed:
+    desc: Fill the development database with the fictitious consultancy and its administrator, through the use cases of the setup, so the app opens on the login screen. On a database whose setup is concluded it changes nothing
+    dir: apps/api
+    cmds:
+      # The Go package, on the machine, as `migrate` runs. The image of the
+      # seed, which staging runs, is the `seed` service of compose.yaml.
+      - go run ./cmd/seed
+
   api:
     desc: Start the API
     dir: apps/api

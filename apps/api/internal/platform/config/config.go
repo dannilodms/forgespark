@@ -24,6 +24,8 @@ const (
 	Migrate Command = "migrate"
 	// IssueSetupCode is the command that issues a setup code.
 	IssueSetupCode Command = "issue-setup-code"
+	// Seed is the seed, a binary of its own that fills an empty database.
+	Seed Command = "seed"
 )
 
 // Config holds every value the binary takes from the environment. Each
@@ -46,6 +48,7 @@ type Config struct {
 	FileStorageBucket                string        `env:"FILE_STORAGE_BUCKET"`
 	FileStorageAccessKeyID           string        `env:"FILE_STORAGE_ACCESS_KEY_ID"`
 	FileStorageSecretAccessKey       Secret        `env:"FILE_STORAGE_SECRET_ACCESS_KEY"`
+	SeedMailbox                      Mailbox       `env:"SEED_MAILBOX"`
 }
 
 // requiredBy lists the variables with no default that each command needs. The
@@ -59,6 +62,7 @@ var requiredBy = map[Command][]string{
 	},
 	Migrate:        {"MIGRATION_DATABASE_URL"},
 	IssueSetupCode: {"DATABASE_URL", "APP_ORIGIN"},
+	Seed:           {"DATABASE_URL", "SEED_MAILBOX"},
 }
 
 // Load reads the environment into a Config for one command. A variable that
@@ -167,6 +171,8 @@ func expectationOf(valueType reflect.Type) string {
 		return "a PostgreSQL connection URL"
 	case reflect.TypeFor[Origin]():
 		return "an origin such as https://example.com"
+	case reflect.TypeFor[Mailbox]():
+		return "a mailbox such as name@example.com"
 	case reflect.TypeFor[time.Duration]():
 		return "a duration such as 30s"
 	case reflect.TypeFor[int32]():

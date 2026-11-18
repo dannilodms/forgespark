@@ -100,6 +100,32 @@ services:
       FILE_STORAGE_ACCESS_KEY_ID: ${FILE_STORAGE_ACCESS_KEY_ID}
       FILE_STORAGE_SECRET_ACCESS_KEY: ${FILE_STORAGE_SECRET_ACCESS_KEY}
 
+  # The seed (ADR-0019): fills an empty database with a fictitious consultancy
+  # and its administrator, through the use cases of the setup. In development
+  # `task seed` runs the Go package on the machine, as `task migrate` does;
+  # this service is the image staging runs on every publish, declared here so
+  # that development builds and proves it, and in no other environment but
+  # staging. It runs once and exits, so it lives in a profile of its own and
+  # `task services` does not start it:
+  # `docker compose --profile seed run --rm --build seed`.
+  seed:
+    extends:
+      file: deploy/compose.base.yaml
+      service: seed
+    build:
+      context: apps/api
+      dockerfile: cmd/seed/Dockerfile
+    image: software-factory-manager-seed:development
+    profiles: [seed]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # The API role, on the network of Compose. The migrations were applied
+      # from the machine, by `task migrate`.
+      DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD:?Set POSTGRES_API_PASSWORD, as .env.example does}@postgres:5432/software_factory?sslmode=disable
+      SEED_MAILBOX: ${SEED_MAILBOX:?Set SEED_MAILBOX, as .env.example does}
+
 volumes:
   postgres-data:
   garage-data:

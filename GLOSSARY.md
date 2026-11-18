@@ -38,6 +38,10 @@ _Avoid_: Super admin, root user, initial password, bootstrap token
 Whoever installs the system and runs its commands on the server, acting as no user. The audit log names the installer as the one who issued a setup code.
 _Avoid_: Operator, system administrator, root, admin
 
+**Seed**:
+The command that fills an empty database with a fictitious consultancy and its users, through the use cases of the setup, the same on every run, so that development and staging open on the login screen. Production never runs it.
+_Avoid_: Fixtures, sample data, demo data, bootstrap
+
 **Tax ID**:
 The identifier a country's tax authority gives a company, such as the CNPJ in Brazil. It is read together with the country of the company.
 _Avoid_: CNPJ, VAT number, company number

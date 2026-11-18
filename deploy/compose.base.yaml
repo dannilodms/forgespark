@@ -53,6 +53,13 @@ services:
     # plugin. Development builds it; each environment names it in its file.
     logging: *logging
 
+  # The seed of development and staging (ADR-0019). The image is built in this
+  # repository from apps/api/cmd/seed/Dockerfile, which holds the versions of
+  # what it is built on. Development builds it; staging names the published
+  # image. Production declares no seed.
+  seed:
+    logging: *logging
+
   # The file storage of development and staging (ADR-0017). Production keeps
   # its files at a provider and declares no Garage.
   garage:

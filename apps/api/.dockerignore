@@ -1,0 +1,6 @@
+# What a build of an image of this module leaves out of its context: the
+# binaries built on the machine and the output of the tests.
+bin/
+*.exe
+*.test
+*.out

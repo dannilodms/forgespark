@@ -319,6 +319,7 @@ A command of the binary requires only the variables it uses. The ones the binary
 | `FILE_STORAGE_BUCKET` | The one private bucket of the files | None: the API requires it |
 | `FILE_STORAGE_ACCESS_KEY_ID` | The key the API signs with for the file storage | None: the API requires it |
 | `FILE_STORAGE_SECRET_ACCESS_KEY` | The secret of that key. It is a secret, and never printed | None: the API requires it |
+| `SEED_MAILBOX` | The mailbox the e-mail addresses of the seed are derived from: the administrator is its address tagged `+admin`, the developer `+developer`. Read by the seed binary, not by the API | None: `seed` requires it. `.env.example` holds a fictitious one |
 
 `.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, the port of Caddy, the port of Garage and the secret its nodes share, the interface Vite listens on, and the connection with which the Go tests create their temporary databases. Garage creates its bucket and its key from the `FILE_STORAGE_` variables.
 
@@ -354,6 +355,8 @@ Of the table above, PostgreSQL, Garage and Caddy are what run today, beside the 
 
 The app then leads to the login screen, which says the setup is concluded. The login itself comes with the next part of the work. `task e2e` runs the same path in a browser, on a database of its own.
 
+To skip the setup, run `task seed` in place of steps 6 and 7. It registers a fictitious consultancy, Fábrica Exemplo, and its administrator, Ana Exemplo, through the same use cases the setup runs, so the data obeys every rule, and the app opens on the login screen. Every run on an empty database creates the same data with the same identifiers, and a run on a database whose setup is concluded changes nothing. The administrator's e-mail is the mailbox of `SEED_MAILBOX` tagged `+admin`: `seed+admin@fabrica.example` with the value of `.env.example`. Nothing in the seed is real.
+
 The browser reaches everything through Caddy, at one address, `http://localhost`: the app, and the API under `/api`. The file storage has a host name of its own, `http://files.localhost`, where the browser sends an image to a URL the API signed; Garage accepts it from the origin of the app only. Nothing is configured by hand: the values of `.env.example` work as they are with Docker Desktop. With Docker Engine on Linux, Caddy reaches the API and Vite only when they listen on every interface: write `API_LISTEN_ADDRESS=0.0.0.0:8080` and `WEB_LISTEN_HOST=0.0.0.0` in a `.env`. When port 80 is taken, change `CADDY_PORT` there and add the port to `APP_ORIGIN` and to `FILE_STORAGE_PUBLIC_URL`.
 
 `http://localhost/up` answers with the status of the readiness of the API and no body: 503 until the migrations are applied, and 502 while the API is not running. The API itself answers liveness at `http://127.0.0.1:8080/livez` and readiness at `http://127.0.0.1:8080/readyz`, which Caddy does not forward.
@@ -369,6 +372,7 @@ The commands, run from the repository root:
 | `task services:stop` | Stops the services of development and keeps their data |
 | `task migrate` | Applies the pending migrations to the development database. A second run applies nothing |
 | `task issue-setup-code` | Issues a setup code in the development database and prints it, with when it stops working, what it opens and the address of the setup |
+| `task seed` | Fills the development database with the fictitious consultancy and its administrator, through the use cases of the setup, so the app opens on the login screen. On a database whose setup is concluded it changes nothing |
 | `task dev` | Starts the API and Vite together. The app opens at `http://localhost`, through Caddy |
 | `task api` | Starts the API alone, at `http://127.0.0.1:8080` |
 | `task web` | Starts Vite alone, at port 5173, behind Caddy |
@@ -396,7 +400,7 @@ The commands, run from the repository root:
 | `task check:quick` | Runs everything `task check` runs except the end-to-end test, for daily use. It needs no free port and does not restart Caddy, so it runs beside `task dev`. Before a pull request, run `task check` |
 | `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
 
-The commands of what is not built yet (the worker and the seed) are _TBD_, each written with its code.
+The commands of what is not built yet (the worker) are _TBD_, each written with its code.
 
 sqlc runs with `go tool`, from a module file of its own, `apps/api/sqlc.mod`. The first time on a machine, Go downloads and builds sqlc, which takes several minutes: one of its dependencies has more than a hundred thousand files, and extracting them on Windows can take half an hour. The command looks idle meanwhile. Do not interrupt it, because the extraction starts over. vacuum and oasdiff run the same way, from `apps/api/vacuum.mod` and `apps/api/oasdiff.mod`, and each is built in a few minutes the first time.
 
@@ -412,7 +416,7 @@ The REST contract is `apps/api/openapi.yaml`. It is generated from the operation
 - **Versions.** The build installs from `go.sum` and `pnpm-lock.yaml` and fails when they would change.
 - **Images.** GitHub Actions builds them, tags each with the hash of its commit and pushes it to the GitHub container registry. Production runs only an image built from `main`. The images of a release also carry its number.
 
-`task api:build` builds the API binary into `apps/api/bin`. The other commands are _TBD_, each written with what it builds.
+`task api:build` builds the API binary into `apps/api/bin`. The image of the seed is built from `apps/api/cmd/seed/Dockerfile` by the `seed` service of `compose.yaml`, which lives in a Compose profile of its own so that `task services` does not start it: `docker compose --profile seed run --rm --build seed` builds it and runs it on the development database. The other commands are _TBD_, each written with what it builds.
 
 ### Deploy
 

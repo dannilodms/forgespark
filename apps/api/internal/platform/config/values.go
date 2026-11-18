@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"net"
+	"net/mail"
 	"net/url"
 	"strconv"
 	"strings"
@@ -135,6 +136,37 @@ func (o *Origin) UnmarshalText(text []byte) error {
 
 func (o Origin) String() string {
 	return string(o)
+}
+
+// Mailbox is an e-mail address whose owner receives the e-mail of several
+// addresses derived from it, each with a tag after a plus sign in the local
+// part (`name+tag@example.com`), as the mailbox of the seed does.
+type Mailbox struct {
+	localPart string
+	domain    string
+}
+
+// UnmarshalText reads a mailbox from the text of a variable: one address and
+// nothing around it, no name and no angle brackets.
+func (m *Mailbox) UnmarshalText(text []byte) error {
+	address := string(text)
+	parsed, err := mail.ParseAddress(address)
+	if err != nil || parsed.Name != "" || parsed.Address != address {
+		return errNotValid
+	}
+	localPart, domain, _ := strings.Cut(address, "@")
+	m.localPart, m.domain = localPart, domain
+	return nil
+}
+
+// Subaddress returns the address that reaches the mailbox with this tag:
+// `name+tag@example.com`.
+func (m Mailbox) Subaddress(tag string) string {
+	return m.localPart + "+" + tag + "@" + m.domain
+}
+
+func (m Mailbox) String() string {
+	return m.localPart + "@" + m.domain
 }
 
 // Secret is a value that opens something, such as the key the API signs with
