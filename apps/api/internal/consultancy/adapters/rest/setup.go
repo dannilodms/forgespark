@@ -57,7 +57,8 @@ func registerSetup(api *restapi.API, useCases UseCases) {
 			"or of the photo of its administrator, and answers a URL of the file storage, signed for five minutes. " +
 			"The browser sends the image there itself, with a PUT whose Content-Type is the declared type and whose body has " +
 			"the declared size; the image never passes through the API. Concluding the setup takes the identifier of the file " +
-			"and confirms the image.",
+			"and confirms the image. The logo belongs to the first setup: a setup code issued after the setup was concluded " +
+			"starts the upload of the photo of the new administrator only.",
 		Tags: []string{setupTag},
 	}, restapi.Failures{
 		http.StatusUnprocessableEntity: {
@@ -66,6 +67,7 @@ func registerSetup(api *restapi.API, useCases UseCases) {
 			restapi.InField(application.FileTooLargeError{}),
 			restapi.InField(application.FileEmptyError{}),
 		},
+		http.StatusConflict:        {domain.SetupAlreadyConcludedError{}},
 		http.StatusTooManyRequests: {restapi.LimitedByCaddy},
 	}, startSetupUpload{useCase: useCases.StartSetupUpload}.handle)
 

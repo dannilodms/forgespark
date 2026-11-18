@@ -12,14 +12,20 @@ import (
 // of the consultancy or the photo of its administrator. The setup code allows
 // it, and the files area keeps the file. Concluding the setup confirms it.
 type StartSetupUpload struct {
-	setupCodes  SetupCodeRepository
-	startUpload *filesapplication.StartUpload
-	clock       Clock
+	setupCodes    SetupCodeRepository
+	consultancies ConsultancyRepository
+	startUpload   *filesapplication.StartUpload
+	clock         Clock
 }
 
 // NewStartSetupUpload builds the use case.
-func NewStartSetupUpload(setupCodes SetupCodeRepository, startUpload *filesapplication.StartUpload, clock Clock) *StartSetupUpload {
-	return &StartSetupUpload{setupCodes: setupCodes, startUpload: startUpload, clock: clock}
+func NewStartSetupUpload(
+	setupCodes SetupCodeRepository,
+	consultancies ConsultancyRepository,
+	startUpload *filesapplication.StartUpload,
+	clock Clock,
+) *StartSetupUpload {
+	return &StartSetupUpload{setupCodes: setupCodes, consultancies: consultancies, startUpload: startUpload, clock: clock}
 }
 
 // StartSetupUploadInput carries the setup code as it was typed, what the
@@ -41,10 +47,17 @@ type SetupUpload struct {
 }
 
 // Execute checks the setup code first, so that a code that opens nothing
-// starts no upload, then starts it. The declared type and size are answered
-// with a kernel.InvalidFieldsError that names `media_type` and `size`.
+// starts no upload, then starts it. The photo of an administrator is sent
+// in the first setup and in the way back in; the logo of the consultancy
+// only in the first setup, and a code that opens the registration of a new
+// administrator answers SetupAlreadyConcludedError to it. The declared type
+// and size are answered with a kernel.InvalidFieldsError that names
+// `media_type` and `size`.
 func (u *StartSetupUpload) Execute(ctx context.Context, input StartSetupUploadInput) (SetupUpload, error) {
 	if _, err := findWorkingSetupCode(ctx, u.setupCodes, input.Code, u.clock.Now()); err != nil {
+		return SetupUpload{}, err
+	}
+	if err := u.allows(ctx, input.Purpose); err != nil {
 		return SetupUpload{}, err
 	}
 
@@ -57,4 +70,13 @@ func (u *StartSetupUpload) Execute(ctx context.Context, input StartSetupUploadIn
 		return SetupUpload{}, err
 	}
 	return SetupUpload{FileID: domain.FileID(started.FileID), URL: started.URL, ExpiresAt: started.ExpiresAt}, nil
+}
+
+// allows checks that what the setup code opens takes an image for this
+// purpose: the logo belongs to the first setup alone.
+func (u *StartSetupUpload) allows(ctx context.Context, purpose FilePurpose) error {
+	if purpose != ConsultancyLogo {
+		return nil
+	}
+	return opensAtThisMoment(ctx, u.consultancies, domain.OpensFirstSetup)
 }

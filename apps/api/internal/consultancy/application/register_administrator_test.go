@@ -12,6 +12,7 @@ import (
 	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
 )
 
 // concluded is an installation whose setup was concluded with the first code,
@@ -266,7 +267,7 @@ func TestAPhotoThatBreaksARuleIsNamedOnItsFieldAndNothingIsSaved(t *testing.T) {
 		}},
 		"a file that does not exist": {"file_not_found", func(installation) domain.FileID { return 404 }},
 		"a logo taken for the photo": {"file_not_found", func(installed installation) domain.FileID {
-			return sentImage(t, installed, secondCode, application.ConsultancyLogo, aPNG(1024))
+			return sentLogoOfTheFirstSetup(t, installed)
 		}},
 		"a photo over the limit": {"file_too_large", func(installed installation) domain.FileID {
 			return sentImage(t, installed, secondCode, application.UserPhoto, aPNG(3*1024*1024))
@@ -299,6 +300,20 @@ func TestAPhotoThatNamesNoFileIsNamedWithTheOtherFieldsThatBreakARule(t *testing
 		"administrator.photo_file_id": "file_not_found",
 	}, brokenFields(t, err))
 	requireNoAdministratorRegistered(t, installed)
+}
+
+// sentLogoOfTheFirstSetup is a logo sent to the storage, as the first setup
+// sends one: no setup code that opens the registration of an administrator
+// starts the upload of a logo.
+func sentLogoOfTheFirstSetup(t *testing.T, installed installation) domain.FileID {
+	t.Helper()
+	started, err := installed.startUpload.Execute(context.Background(), filesapplication.StartUploadInput{
+		Purpose: application.ConsultancyLogo, MediaType: "image/png", Size: 1024,
+	})
+	require.NoError(t, err)
+	id := domain.FileID(started.FileID)
+	installed.sendTheBytesOf(t, id, aPNG(1024))
+	return id
 }
 
 func TestAFailureToRecordTheRegistrationLeavesNoUserAndTheSetupCodeWorking(t *testing.T) {

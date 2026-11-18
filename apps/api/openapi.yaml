@@ -465,7 +465,7 @@ paths:
         - Setup
   /api/setup/uploads:
     post:
-      description: Checks the setup code and the type and size declared, creates the file of the logo of the consultancy or of the photo of its administrator, and answers a URL of the file storage, signed for five minutes. The browser sends the image there itself, with a PUT whose Content-Type is the declared type and whose body has the declared size; the image never passes through the API. Concluding the setup takes the identifier of the file and confirms the image.
+      description: "Checks the setup code and the type and size declared, creates the file of the logo of the consultancy or of the photo of its administrator, and answers a URL of the file storage, signed for five minutes. The browser sends the image there itself, with a PUT whose Content-Type is the declared type and whose body has the declared size; the image never passes through the API. Concluding the setup takes the identifier of the file and confirms the image. The logo belongs to the first setup: a setup code issued after the setup was concluded starts the upload of the photo of the new administrator only."
       operationId: start_setup_upload
       requestBody:
         content:
@@ -480,6 +480,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/SetupUpload"
           description: Created
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Conflict. `setup_already_concluded`: the setup is already concluded."
         "422":
           content:
             application/problem+json:

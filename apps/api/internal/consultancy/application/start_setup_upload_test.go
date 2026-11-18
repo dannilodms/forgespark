@@ -44,6 +44,24 @@ func TestThePhotoOfTheAdministratorMayBeUploadedToo(t *testing.T) {
 	assert.Equal(t, application.UserPhoto, installed.files.All()[0].Purpose())
 }
 
+// The way back in registers an administrator and leaves the consultancy as it
+// is, so its setup code starts the upload of a photo and never of a logo.
+func TestACodeThatOpensTheRegistrationOfAnAdministratorStartsNoUploadOfTheLogo(t *testing.T) {
+	installed := backIn(t)
+
+	_, err := installed.startSetupUpload.Execute(context.Background(), aLogoOf(secondCode, 1024))
+
+	var alreadyConcluded domain.SetupAlreadyConcludedError
+	require.ErrorAs(t, err, &alreadyConcluded)
+	assert.Equal(t, "setup_already_concluded", alreadyConcluded.Code())
+	assert.Empty(t, installed.files.All(), "a file was saved")
+	assert.Empty(t, installed.objects.SignedKeys(), "a URL was signed")
+	_, err = installed.startSetupUpload.Execute(context.Background(), application.StartSetupUploadInput{
+		Code: secondCode, Purpose: application.UserPhoto, MediaType: "image/png", Size: 1024,
+	})
+	require.NoError(t, err, "the photo of the new administrator")
+}
+
 func TestTheCodeMayBeTypedInAnyFormItIsAcceptedIn(t *testing.T) {
 	installed := issued(t)
 

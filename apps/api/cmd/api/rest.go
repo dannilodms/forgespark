@@ -52,6 +52,7 @@ func mountREST(mux *http.ServeMux, pool *pgxpool.Pool, storage *filess3.Storage)
 		OpenSetup:      consultancyapplication.NewOpenSetup(setupCodes, consultancies, clock.System{}),
 		StartSetupUpload: consultancyapplication.NewStartSetupUpload(
 			setupCodes,
+			consultancies,
 			filesapplication.NewStartUpload(transactions, files, storage, clock.System{}, rand.Reader),
 			clock.System{},
 		),

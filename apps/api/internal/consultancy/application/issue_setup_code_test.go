@@ -58,6 +58,7 @@ type installation struct {
 	files                 *filesapplicationtest.FileRepository
 	objects               *filesapplicationtest.Storage
 	transactions          *applicationtest.Transactions
+	startUpload           *filesapplication.StartUpload
 	issueSetupCode        *application.IssueSetupCode
 	openSetup             *application.OpenSetup
 	startSetupUpload      *application.StartSetupUpload
@@ -98,9 +99,10 @@ func newInstallation() installation {
 		files:                 files,
 		objects:               objects,
 		transactions:          transactions,
+		startUpload:           startUpload,
 		issueSetupCode:        application.NewIssueSetupCode(transactions, setupCodes, consultancies, recordEntry, clock, &countingBytes{}),
 		openSetup:             application.NewOpenSetup(setupCodes, consultancies, clock),
-		startSetupUpload:      application.NewStartSetupUpload(setupCodes, startUpload, clock),
+		startSetupUpload:      application.NewStartSetupUpload(setupCodes, consultancies, startUpload, clock),
 		concludeSetup:         application.NewConcludeSetup(setup),
 		registerAdministrator: application.NewRegisterAdministrator(setup),
 		tellSetupState:        application.NewTellSetupState(applicationtest.NewSetupStateReader(consultancies, setupCodes), clock),

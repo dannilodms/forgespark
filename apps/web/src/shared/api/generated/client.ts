@@ -150,7 +150,7 @@ export const getStartSetupUploadUrl = () => {
 }
 
 /**
- * Checks the setup code and the type and size declared, creates the file of the logo of the consultancy or of the photo of its administrator, and answers a URL of the file storage, signed for five minutes. The browser sends the image there itself, with a PUT whose Content-Type is the declared type and whose body has the declared size; the image never passes through the API. Concluding the setup takes the identifier of the file and confirms the image.
+ * Checks the setup code and the type and size declared, creates the file of the logo of the consultancy or of the photo of its administrator, and answers a URL of the file storage, signed for five minutes. The browser sends the image there itself, with a PUT whose Content-Type is the declared type and whose body has the declared size; the image never passes through the API. Concluding the setup takes the identifier of the file and confirms the image. The logo belongs to the first setup: a setup code issued after the setup was concluded starts the upload of the photo of the new administrator only.
  * @summary Start the upload of an image of the setup
  */
 export const startSetupUpload = async (startSetupUploadRequest: StartSetupUploadRequest, options?: Parameters<typeof request>[1]): Promise<SetupUpload> => {
