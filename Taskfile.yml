@@ -174,6 +174,23 @@ tasks:
       # Never from the cache: a test that reaches a service can fail with no file changed.
       - go test -count=1 {{.CLI_ARGS | default "./..."}}
 
+  db:clean:
+    desc: Drop the databases the Go tests left in the PostgreSQL of development, test_... and testdb_..., and no other. Run it when no test runs
+    cmds:
+      # A test that fails or is killed leaves its database, and pgtestdb a
+      # template for each state the migrations had. A template is unmarked
+      # before it is dropped. A database still in use is not dropped: the
+      # command stops on it, so a test that runs is never cut.
+      - |
+        docker compose exec --no-TTY postgres psql --username postgres --no-psqlrc --quiet --set ON_ERROR_STOP=1 <<'SQL'
+        SELECT datname AS "dropping" FROM pg_database
+          WHERE datname LIKE 'test\_%' OR datname LIKE 'testdb\_%' ORDER BY datname;
+        SELECT format('ALTER DATABASE %I IS_TEMPLATE false', datname) FROM pg_database
+          WHERE datistemplate AND (datname LIKE 'test\_%' OR datname LIKE 'testdb\_%') \gexec
+        SELECT format('DROP DATABASE %I', datname) FROM pg_database
+          WHERE datname LIKE 'test\_%' OR datname LIKE 'testdb\_%' \gexec
+        SQL
+
   web:generate:
     desc: Generate the API client, its Zod schemas and its simulated responses from apps/api/openapi.yaml, with orval
     dir: apps/web
