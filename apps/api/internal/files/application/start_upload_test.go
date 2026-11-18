@@ -39,6 +39,7 @@ type storage struct {
 	clock         *applicationtest.Clock
 	files         *applicationtest.FileRepository
 	objects       *applicationtest.Storage
+	transactions  *applicationtest.Transactions
 	startUpload   *application.StartUpload
 	confirmUpload *application.ConfirmUpload
 }
@@ -52,6 +53,7 @@ func newStorage() storage {
 		clock:         clock,
 		files:         files,
 		objects:       objects,
+		transactions:  transactions,
 		startUpload:   application.NewStartUpload(transactions, files, objects, clock, &countingBytes{}),
 		confirmUpload: application.NewConfirmUpload(transactions, files, objects, clock),
 	}

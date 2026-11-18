@@ -35,6 +35,10 @@ type ConfirmUploadInput struct {
 // the storage, and FileTooLargeError or FileTypeUnsupportedError when the
 // object breaks a rule of an image, after removing it. A file already
 // confirmed is checked again, and stays confirmed.
+//
+// The file is checked in a transaction, which locks it. Removing the object
+// of a refused file is an effect on the storage, so it runs once that
+// transaction is committed (Writes in CODING_STANDARDS.md).
 func (u *ConfirmUpload) Execute(ctx context.Context, input ConfirmUploadInput) error {
 	id, err := domain.NewFileID(int64(input.FileID))
 	if err != nil {
@@ -42,7 +46,10 @@ func (u *ConfirmUpload) Execute(ctx context.Context, input ConfirmUploadInput) e
 	}
 	now := u.clock.Now()
 
-	return u.transactions.Run(ctx, func(ctx context.Context) error {
+	// The object of a refused file, and the rule it broke.
+	var refused domain.ObjectKey
+	var broken error
+	err = u.transactions.Run(ctx, func(ctx context.Context) error {
 		file, found, err := u.files.Load(ctx, id)
 		if err != nil {
 			return err
@@ -50,30 +57,46 @@ func (u *ConfirmUpload) Execute(ctx context.Context, input ConfirmUploadInput) e
 		if !found || !file.IsFor(input.Purpose) {
 			return domain.FileNotFoundError{}
 		}
-		if err := u.confirm(ctx, file, now); err != nil {
+		broken, err = u.confirm(ctx, file, now)
+		if err != nil {
 			return err
+		}
+		if broken != nil {
+			// Nothing of the file changed: it stays unconfirmed.
+			refused = file.ObjectKey()
+			return nil
 		}
 		return u.files.Save(ctx, file)
 	})
-}
-
-// confirm reads the object of the file and tells the file what it holds. An
-// object the file refuses is removed: nothing else will ever use it.
-func (u *ConfirmUpload) confirm(ctx context.Context, file *domain.File, now time.Time) error {
-	object, found, err := u.storage.Inspect(ctx, file.ObjectKey())
 	if err != nil {
 		return err
 	}
-	if !found {
-		return domain.FileNotUploadedError{}
-	}
-	refused := file.Confirm(object, now)
-	if refused == nil {
+	if broken == nil {
 		return nil
 	}
-	if err := u.storage.Remove(ctx, file.ObjectKey()); err != nil {
-		// A failure of the system, not a rule: the object is still there.
-		return fmt.Errorf("remove the object of a file that was refused (%v): %w", refused, err)
+	return u.remove(ctx, refused, broken)
+}
+
+// confirm reads the object of the file and tells the file what it holds. It
+// returns the rule the object breaks, when it breaks one, apart from a failure
+// of the system.
+func (u *ConfirmUpload) confirm(ctx context.Context, file *domain.File, now time.Time) (broken, failed error) {
+	object, found, err := u.storage.Inspect(ctx, file.ObjectKey())
+	if err != nil {
+		return nil, err
 	}
-	return refused
+	if !found {
+		return nil, domain.FileNotUploadedError{}
+	}
+	return file.Confirm(object, now), nil
+}
+
+// remove removes the object of a file that was refused, which nothing will
+// ever use, and answers the rule it broke.
+func (u *ConfirmUpload) remove(ctx context.Context, key domain.ObjectKey, broken error) error {
+	if err := u.storage.Remove(ctx, key); err != nil {
+		// A failure of the system, not a rule: the object is still there.
+		return fmt.Errorf("remove the object of a file that was refused (%v): %w", broken, err)
+	}
+	return broken
 }

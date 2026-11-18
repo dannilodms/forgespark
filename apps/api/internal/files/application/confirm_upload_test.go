@@ -106,6 +106,24 @@ func TestAnObjectThatIsNotAPNGAJPEGOrAWebPIsRefusedAndRemovedFromTheStorage(t *t
 	}
 }
 
+// Removing the object is an effect on the storage, so it waits for the commit
+// of the transaction that checked the file (Writes in CODING_STANDARDS.md): a
+// transaction that does not commit leaves the object where it was.
+func TestARefusedObjectIsRemovedOnlyOnceTheTransactionThatCheckedItIsCommitted(t *testing.T) {
+	stored := newStorage()
+	id := uploaded(t, stored, anImage(pngStart, twoMegabytes+1))
+	lost := errors.New("the connection was lost at the commit")
+	stored.transactions.FailCommitWith(lost)
+
+	err := confirmLogo(stored, id)
+
+	require.ErrorIs(t, err, lost)
+	assert.True(t, stored.objects.Holds(stored.files.All()[0].ObjectKey()), "the object was removed before the commit")
+	stored.transactions.FailCommitWith(nil)
+	require.ErrorAs(t, confirmLogo(stored, id), &application.FileTooLargeError{})
+	assert.False(t, stored.objects.Holds(stored.files.All()[0].ObjectKey()), "the object over the limit is still stored")
+}
+
 func TestAFileWhoseBytesWereNeverSentIsNotUploaded(t *testing.T) {
 	stored := newStorage()
 	started, err := stored.startUpload.Execute(context.Background(), aLogo("image/png", 10))

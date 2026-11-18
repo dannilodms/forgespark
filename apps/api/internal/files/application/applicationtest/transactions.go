@@ -12,7 +12,8 @@ type Store interface {
 // that fails leaves every store as it was before the operation started, as a
 // rollback does.
 type Transactions struct {
-	stores []Store
+	stores        []Store
+	commitFailure error
 }
 
 // NewTransactions returns transactions over these stores: every in-memory
@@ -21,7 +22,15 @@ func NewTransactions(stores ...Store) *Transactions {
 	return &Transactions{stores: stores}
 }
 
-// Run calls the operation and, when it fails, undoes what it wrote.
+// FailCommitWith makes every later commit fail with this error, after the
+// operation succeeded, as a database that loses its connection at the end:
+// what the operation wrote is undone.
+func (t *Transactions) FailCommitWith(failure error) {
+	t.commitFailure = failure
+}
+
+// Run calls the operation and, when it fails or cannot be committed, undoes
+// what it wrote.
 func (t *Transactions) Run(ctx context.Context, operation func(ctx context.Context) error) error {
 	restores := make([]func(), 0, len(t.stores))
 	for _, store := range t.stores {
@@ -29,6 +38,9 @@ func (t *Transactions) Run(ctx context.Context, operation func(ctx context.Conte
 	}
 
 	err := operation(ctx)
+	if err == nil {
+		err = t.commitFailure
+	}
 	if err == nil {
 		return nil
 	}

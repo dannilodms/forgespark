@@ -21,8 +21,9 @@ type AuditLog interface {
 // RecordEntry records one sensitive operation in the audit log.
 //
 // The use case of the operation calls it inside its own transaction, so the
-// operation never succeeds without its record. It is the one effect on
-// another area that does not wait for the commit.
+// operation never succeeds without its record. It is one of the two effects
+// on another area that do not wait for the commit; the other is the
+// confirmation of the images of the setup (Writes in CODING_STANDARDS.md).
 type RecordEntry struct {
 	auditLog AuditLog
 }
