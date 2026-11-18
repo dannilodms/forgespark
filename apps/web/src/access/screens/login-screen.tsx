@@ -9,13 +9,15 @@ import { FramedPane } from "../../shared/components/framed-pane"
  * What the login screen may be told by the screen the person comes from:
  * the setup was concluded, by them, by someone before them, or by one of the
  * two after an attempt of theirs got no answer, or a new administrator was
- * registered, the way back in.
+ * registered, the way back in, or may have been, by an attempt of theirs
+ * that got no answer.
  */
 export const loginNotices = [
   "setup_concluded",
   "setup_already_concluded",
   "setup_concluded_without_answer",
   "administrator_registered",
+  "administrator_registered_without_answer",
 ] as const
 
 type LoginNotice = (typeof loginNotices)[number]
@@ -64,6 +66,17 @@ export function LoginScreen({ notice }: { notice?: LoginNotice }) {
           <AlertTitle>{t("login.administratorRegistered.title")}</AlertTitle>
           <AlertDescription>
             {t("login.administratorRegistered.todo")}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {notice === "administrator_registered_without_answer" ? (
+        <Alert>
+          <TriangleAlertIcon className="text-status-attention" />
+          <AlertTitle>
+            {t("login.administratorRegisteredWithoutAnswer.title")}
+          </AlertTitle>
+          <AlertDescription>
+            {t("login.administratorRegisteredWithoutAnswer.todo")}
           </AlertDescription>
         </Alert>
       ) : null}

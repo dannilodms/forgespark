@@ -55,6 +55,15 @@ const noticeOf = {
   concludedWithoutAnswer: "setup_concluded_without_answer",
 } as const
 
+/**
+ * What the login screen says after registering a new administrator, by how
+ * registering ended.
+ */
+const registrationNoticeOf = {
+  registered: "administrator_registered",
+  registeredWithoutAnswer: "administrator_registered_without_answer",
+} as const
+
 /** The name of the item of a list a field chose, or the code it holds. */
 function nameIn(items: ListItem[], code: string) {
   return items.find((item) => item.value === code)?.label ?? code
@@ -74,7 +83,10 @@ function nameIn(items: ListItem[], code: string) {
  * A field the API refuses is shown on its field, on the step that holds it,
  * and so is an e-mail that belongs to a user. A setup code that stopped
  * working leads back to the step of the code. A setup someone else concluded
- * leads to the login screen, which says so.
+ * leads to the login screen, which says so. After an attempt of this page
+ * that got no answer, a refusal that attempt may explain leads to the login
+ * screen too, which says the setup is concluded, or the administrator may be
+ * registered, and never that nothing was saved.
  */
 export function ReviewStep({
   form,
@@ -123,10 +135,10 @@ export function ReviewStep({
     const sent = { typed: form.state.values, code: opened.code, language }
     if (!mode.hasConsultancy) {
       registration.mutate(sent, {
-        onSuccess: () =>
+        onSuccess: (registered) =>
           void navigate({
             to: "/login",
-            search: { notice: "administrator_registered" },
+            search: { notice: registrationNoticeOf[registered] },
           }),
         onError: showRefusal,
       })

@@ -340,6 +340,137 @@ describe("a setup code that stops working on the way back in", () => {
   })
 })
 
+describe("a registration whose answer was lost", () => {
+  /** Registers, and the network fails before any answer arrives. */
+  async function registerWithoutAnswer(screen: Screen) {
+    api.use(
+      http.post("*/api/setup/administrators", () => HttpResponse.error(), {
+        once: true,
+      })
+    )
+    await screen
+      .getByRole("button", { name: "Register the administrator" })
+      .click()
+    await expect
+      .element(screen.getByRole("alert"))
+      .toMatchTextContent(/The server did not answer/)
+  }
+
+  /** What the login screen says, read whole. */
+  async function expectTheNoticeOfALostAnswer(screen: Screen) {
+    await expect
+      .element(screen.getByRole("heading", { name: "Log in" }))
+      .toBeVisible()
+    const notice = screen.getByRole("alert")
+    await expect
+      .element(notice)
+      .toMatchTextContent(/The administrator may be registered/)
+    await expect
+      .element(notice)
+      .toMatchTextContent(/try logging in here with that e-mail/)
+    await expect.element(notice).not.toMatchTextContent(/not saved|nothing/i)
+  }
+
+  it("leads to the login screen, which says the administrator may be registered, when a later attempt finds the setup code ended", async () => {
+    const { screen, address } = await openTheWayBackIn()
+    await fillTheAdministrator(screen)
+    await registerWithoutAnswer(screen)
+    // The first attempt may have registered the administrator, which ends
+    // the setup code.
+    api.use(
+      getRegisterAdministratorMockHandler422(problem(422, "setup_code_invalid"))
+    )
+
+    await screen
+      .getByRole("button", { name: "Register the administrator" })
+      .click()
+
+    await expectTheNoticeOfALostAnswer(screen)
+    expect(address()).toBe(
+      "/login?notice=administrator_registered_without_answer"
+    )
+  })
+
+  it("leads there too when a later attempt finds the e-mail typed then in use, in any case", async () => {
+    const { screen, address } = await openTheWayBackIn()
+    await fillTheAdministrator(screen)
+    // Caddy answers for an API that did not answer in time.
+    api.use(
+      http.post(
+        "*/api/setup/administrators",
+        () =>
+          HttpResponse.json(problem(504, "gateway_timeout"), { status: 504 }),
+        { once: true }
+      )
+    )
+    await screen
+      .getByRole("button", { name: "Register the administrator" })
+      .click()
+    await expect
+      .element(screen.getByRole("alert"))
+      .toMatchTextContent(/The server took too long to answer/)
+    await screen.getByRole("button", { name: "Back" }).click()
+    await textField(screen, "E-mail").fill("bruno@acme.example")
+    await screen.getByRole("button", { name: "Continue" }).click()
+    api.use(
+      getRegisterAdministratorMockHandler409(problem(409, "email_in_use"))
+    )
+
+    await screen
+      .getByRole("button", { name: "Register the administrator" })
+      .click()
+
+    await expectTheNoticeOfALostAnswer(screen)
+    expect(address()).toBe(
+      "/login?notice=administrator_registered_without_answer"
+    )
+  })
+
+  it("still shows an e-mail in use on its field when it is not the one of the attempt that got no answer", async () => {
+    const { screen, address } = await openTheWayBackIn()
+    await fillTheAdministrator(screen)
+    await registerWithoutAnswer(screen)
+    await screen.getByRole("button", { name: "Back" }).click()
+    await textField(screen, "E-mail").fill("bruno.lima@acme.example")
+    await screen.getByRole("button", { name: "Continue" }).click()
+    api.use(
+      getRegisterAdministratorMockHandler409(problem(409, "email_in_use"))
+    )
+
+    await screen
+      .getByRole("button", { name: "Register the administrator" })
+      .click()
+
+    const email = textField(screen, "E-mail")
+    await expect
+      .element(email)
+      .toHaveAccessibleDescription(/This e-mail belongs to a user/)
+    await expect.element(email).toHaveValue("bruno.lima@acme.example")
+    expect(address()).toBe("/setup")
+  })
+
+  it("is told in the language of the screen", async () => {
+    const { screen } = await openTheWayBackIn(["pt-BR"])
+    await screen.getByRole("combobox", { name: "Idioma" }).click()
+    await screen.getByRole("option", { name: "English" }).click()
+    await fillTheAdministrator(screen)
+    await registerWithoutAnswer(screen)
+    await screen.getByRole("combobox", { name: "Language" }).click()
+    await screen.getByRole("option", { name: "Português (Brasil)" }).click()
+    api.use(
+      getRegisterAdministratorMockHandler422(problem(422, "setup_code_invalid"))
+    )
+
+    await screen
+      .getByRole("button", { name: "Cadastrar o administrador" })
+      .click()
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toMatchTextContent(/O administrador pode ter sido cadastrado/)
+  })
+})
+
 describe("the address of the setup once the administrator is registered", () => {
   it("leads to the login screen: the setup code is used", async () => {
     const { screen, address, goTo } = await openTheWayBackIn()

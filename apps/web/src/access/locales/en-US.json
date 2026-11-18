@@ -17,6 +17,10 @@
     "administratorRegistered": {
       "title": "The administrator is registered",
       "todo": "The new administrator logs in here once the login exists. The users that existed were not changed."
+    },
+    "administratorRegisteredWithoutAnswer": {
+      "title": "The administrator may be registered",
+      "todo": "An earlier attempt to register the administrator got no answer, so it may have registered them with the e-mail typed then. Once the login exists, try logging in here with that e-mail. The users that existed were not changed."
     }
   }
 }

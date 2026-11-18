@@ -17,6 +17,10 @@
     "administratorRegistered": {
       "title": "O administrador foi cadastrado",
       "todo": "O novo administrador entra por aqui quando o login existir. Os usuários que já existiam não foram alterados."
+    },
+    "administratorRegisteredWithoutAnswer": {
+      "title": "O administrador pode ter sido cadastrado",
+      "todo": "Uma tentativa anterior de cadastrar o administrador ficou sem resposta: ela pode tê-lo cadastrado com o e-mail digitado então. Quando o login existir, tente entrar por aqui com esse e-mail. Os usuários que já existiam não foram alterados."
     }
   }
 }

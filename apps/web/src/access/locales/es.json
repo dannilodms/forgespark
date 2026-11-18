@@ -17,6 +17,10 @@
     "administratorRegistered": {
       "title": "El administrador está registrado",
       "todo": "El nuevo administrador inicia sesión aquí cuando exista el inicio de sesión. Los usuarios que ya existían no se modificaron."
+    },
+    "administratorRegisteredWithoutAnswer": {
+      "title": "Puede que el administrador esté registrado",
+      "todo": "Un intento anterior de registrar al administrador quedó sin respuesta: puede haberlo registrado con el correo electrónico escrito entonces. Cuando exista el inicio de sesión, intenta iniciar sesión aquí con ese correo electrónico. Los usuarios que ya existían no se modificaron."
     }
   }
 }

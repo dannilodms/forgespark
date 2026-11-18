@@ -294,8 +294,9 @@ const concludingKey = ["setup", "conclude"]
 
 /**
  * Whether an attempt ended without an answer of the API, so that it may have
- * concluded the setup all the same: the network failed, or Caddy answered for
- * an API it did not reach, or that did not answer in time.
+ * concluded the setup, or registered an administrator, all the same: the
+ * network failed, the answer was out of the format of the API, or Caddy
+ * answered for an API it did not reach, or that did not answer in time.
  */
 function endedWithoutAnswer(error: unknown) {
   if (!(error instanceof ApiError)) {
@@ -378,30 +379,101 @@ export function useConcludeSetup() {
 }
 
 /**
+ * How registering a new administrator ended: registered by this request, or
+ * refused in a way that an earlier attempt of this page that got no answer
+ * explains, so that attempt may have registered the administrator. Any other
+ * answer rejects.
+ */
+type Registered = "registered" | "registeredWithoutAnswer"
+
+/** The attempts to register an administrator, kept as those of concluding. */
+const registeringKey = ["setup", "register"]
+
+/** Whether two e-mails are one, as the API compares them: in lower case. */
+function sameEmail(one: string, other: string) {
+  return one.trim().toLowerCase() === other.trim().toLowerCase()
+}
+
+/**
  * Registers a new administrator, the way back in: a user with the
  * administrator role, from the administrator typed, and the setup code stops
  * working. No user that exists is changed. The state the gate reads is
  * updated, so the address of the setup leads to the login screen again.
+ *
+ * An earlier attempt of this page that got no answer may have registered the
+ * administrator, which ends the setup code and puts the e-mail in use. So a
+ * later attempt refused for a setup code that stopped working, or for the
+ * e-mail of such an attempt in use, ends as `registeredWithoutAnswer`, and
+ * the screen never says that nothing was saved.
  *
  * The consultancy typed in the form, if any, is not sent.
  */
 export function useRegisterAdministrator() {
   const queryClient = useQueryClient()
 
+  /**
+   * The e-mails of the earlier attempts of this page that got no answer:
+   * each may have registered an administrator.
+   */
+  function emailsWithoutAnswer() {
+    return (
+      queryClient
+        .getMutationCache()
+        .findAll({ mutationKey: registeringKey, status: "error" })
+        .filter((attempt) => endedWithoutAnswer(attempt.state.error))
+        // The key holds the attempts of this mutation only, each sent with
+        // a Conclusion.
+        .map(
+          (attempt) =>
+            (attempt.state.variables as Conclusion).typed.administrator.email
+        )
+    )
+  }
+
+  /** Whether an attempt that got no answer may explain this refusal. */
+  function explainedByALostAnswer(error: unknown, email: string) {
+    const lost = emailsWithoutAnswer()
+    switch (answerCodeOf(error)) {
+      case "setup_code_invalid":
+        return lost.length > 0
+      case "email_in_use":
+        return lost.some((sent) => sameEmail(sent, email))
+      default:
+        return false
+    }
+  }
+
   return useMutation({
-    mutationFn: async ({ typed, code, language }: Conclusion) => {
-      await registerAdministrator({
-        code,
-        administrator: {
-          ...administratorOf(typed.administrator),
-          preferred_language: language,
-        },
-      })
+    mutationKey: registeringKey,
+    // Kept while the page lives, whichever step is on the screen.
+    gcTime: Number.POSITIVE_INFINITY,
+    mutationFn: async ({
+      typed,
+      code,
+      language,
+    }: Conclusion): Promise<Registered> => {
+      try {
+        await registerAdministrator({
+          code,
+          administrator: {
+            ...administratorOf(typed.administrator),
+            preferred_language: language,
+          },
+        })
+      } catch (error) {
+        if (!explainedByALostAnswer(error, typed.administrator.email)) {
+          throw error
+        }
+        // Whether a setup code is still waiting is read again for the gate.
+        await queryClient.fetchQuery({ ...setupStateQuery, staleTime: 0 })
+        return "registeredWithoutAnswer"
+      }
       // The setup code that registered the administrator stopped working.
       queryClient.setQueryData(setupStateQuery.queryKey, {
         concluded: true,
         setup_code_waiting: false,
       })
+      return "registered"
     },
   })
 }
