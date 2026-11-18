@@ -1,6 +1,8 @@
-# Design references: Zed, FigCraft, Herdr
+# Design references
 
-Research date: 2026-11-15. Sources fetched over plain HTTP (HTML + linked stylesheets) and through a remote headless browser (Firecrawl, 1920 px wide viewport) for screenshots and computed styles.
+Two rounds of research. Sections 1 to 3 (2026-11-15) analyse Zed, FigCraft and Herdr, and led to the Zed style of ADR-0006. Sections 4 to 6 (2026-11-18) hold the evidence for monday.com, the style in use since ADR-0027, the eleven other styles it was compared with, and the patterns of other products that the prototype of the CRM screens borrowed.
+
+Research date of sections 1 to 3: 2026-11-15. Sources fetched over plain HTTP (HTML + linked stylesheets) and through a remote headless browser (Firecrawl, 1920 px wide viewport) for screenshots and computed styles.
 
 ## How to read the evidence tags
 
@@ -460,3 +462,97 @@ Decisions the references leave open (a human choice, not derivable): flush panes
 - **Motion** for all three is described from CSS declarations and class names; nothing was watched animating. Hover, focus and active states are from CSS, not seen.
 - **Command palettes** were not visible on any page (Zed shows only the shortcut hint; Herdr shows a floating prompt in the mock). **Tables** appear only as a mono terminal listing (Herdr) and inside FigCraft's sample dashboard design, which is user content, not product UI.
 - oklch figures are my conversions from hex, not values published by the sites.
+
+---
+
+## 4. monday.com (Vibe), the style in use
+
+Research date: 2026-11-18. Values read from the token packages monday.com publishes on npm, `@vibe/style` 4.1.0 and `@vibe/core` 4.5.39 (`dist/index.css` and the CSS modules of the button, label, chips, table, text inputs and modal), and from [github.com/mondaycom/vibe](https://github.com/mondaycom/vibe). The tags are those of the top of this file. The values in use, where they differ, are in `DESIGN.md`.
+
+### Typography
+
+- Interface: Figtree; headings: Poppins at weights 500 to 700. Vibe defines no mono typeface. [CSS]
+- Base text 14px with a 20px line; large text 16px with a 22px line. [CSS]
+
+### Density and shape
+
+- Table rows 32, 40 or 48px, 40px by default; on boards a row is about 36px. [CSS] [INF]
+- Buttons 32, 40 or 48px, 40px by default; inputs 32 or 40px. [CSS]
+- Radius: 4px for buttons, inputs, labels and chips; 8px for popovers and cards; 16px for modals. Labels are rectangles, not pills. [CSS]
+- Shadows: small `0 4px 8px rgba(0,0,0,.2)`, medium `0 6px 20px rgba(0,0,0,.2)`, large (modal) `0 15px 50px rgba(0,0,0,.3)`. Inside a board, lines; shadows only for what floats. [CSS]
+
+### Light theme
+
+- Page `#ffffff`; the surface of the app shell `#eceff8` [CSS], placed behind the header and the sidebar [INF, seen in the product]; grey background `#f6f7fb`. [CSS]
+- Lines: layout `#d0d4e4`, controls `#c3c6d4`. Text `#323338`, secondary and placeholder `#676879`. [CSS]
+- Primary `#0073ea`, under the pointer `#0060b9`; link `#1f76c2`. Hover `rgba(103,104,121,.1)`; selected `#cce5ff`. Focus `0 0 0 3px hsla(209,100%,50%,.5)` with a 1px inset of `#0060b9`. [CSS]
+- Feedback, strong and subtle: positive `#00854d` / `#bbdbc9`, warning `#ffcb00` / `#fceba1`, negative `#d83a52` / `#f4c3cb`, info `#0073ea` / `#cce5ff`. [CSS]
+
+### Dark theme
+
+- Page `#181b34`; cards and popovers `#30324e`; interface background `#434660`. Text `#d5d8df`, secondary `#9699a6`. Lines `#4b4e69` and `#797e93`. Link `#69a7ef`; selected `#133774`; hover `rgba(103,104,121,.3)`. The feedback colours do not change. A black theme (`#111111`) also exists. [CSS]
+
+### Labels and boards
+
+- The signature status cells: Done `#00c875`, Working on it `#fdab3d`, Stuck `#df2f4a`, empty `#c4c4c4`, with the text centred on the fill. [CSS] [INF for the colour of the text]
+- More label colours: bright blue `#579bfc`, purple `#9d50dd`, grass green `#037f4c`, dark orange `#ff6d3b`, pink `#e50073`, indigo `#5559df`, egg yolk `#ffcb00`, sky `#a1e3f6`. [CSS]
+- Boards: groups with a coloured title and a strip of the same colour on the left of each row, round avatars, a row that adds an item, and a bar of statuses in the foot of each group. [INF, seen in the product]
+- Buttons: primary filled; secondary transparent with a 1px `#c3c6d4` border; tertiary text only. Inputs white with a 1px `#c3c6d4` border. [CSS]
+
+### Not verified
+
+- Where the frame colour sits in the product was seen, not read from documentation.
+- The colour of the text on each label was not read; `DESIGN.md` chooses ink or white by contrast.
+
+---
+
+## 5. The twelve styles compared on 2026-11-18
+
+The same screen of requests, with a list and a detail pane, a board and a set of components, was drawn in each style from the values each product publishes, in both themes, so the maintainer could choose. A dark theme a product does not have was derived and marked as such.
+
+| Style | What it is | Main sources |
+| --- | --- | --- |
+| Zed (the previous style) | Code editor | Sections 1 to 3 of this file |
+| Linear | Project tracking for software teams | The CSS of linear.app and the app mock on its home page |
+| Attio | CRM | The CSS and tokens of app.attio.com |
+| Twenty | Open-source CRM | `twenty-ui` 2.61.0 themes in github.com/twentyhq/twenty |
+| HubSpot | Marketing and sales CRM, Trellis theme | `hubspot-theme.stable.css` of `trellis-theming-assets` |
+| Pipedrive | Sales CRM | The `--pd-*` tokens of its shipped CSS, and official screenshots |
+| Salesforce | Corporate CRM, SLDS 2 with the Cosmos theme | `@salesforce-ux/design-system-2` 2.264.2 |
+| Dynamics 365 | Microsoft's CRM, Fluent 2 | `@fluentui/tokens` and the Microsoft Learn pages on the modern look |
+| IBM Carbon | IBM's corporate design system | `@carbon/themes` 11.86.0 and `@carbon/styles` 1.120.0 |
+| monday.com | Work management, Vibe | Section 4 |
+| Vercel Geist | Platform for developers | vercel.com/geist and the CSS of its dashboard |
+| Stripe | Financial dashboard | The dashboard bundle and the Stripe Apps style pages |
+
+Findings worth keeping: HubSpot's current theme replaced its orange with a dark teal and has no usable dark theme; Dynamics 365 has no dark theme in model-driven apps; Salesforce's Cosmos theme uses pill buttons, 20px cards with no border, and teal and magenta for success and error; Carbon's tags are pills while everything else is square.
+
+---
+
+## 6. Patterns for the screens of the CRM
+
+Research date: 2026-11-18, from the help pages of each product, read as text. The prototype of the CRM screens borrowed these patterns; the spec of each feature decides which stay.
+
+### Knowledge base of a client: systems, credentials, loose information
+
+- **A credential belongs to a system, or is loose, and shows it.** IT Glue separates general passwords from those embedded in a configuration; Hudu gives a password an optional parent asset; Devolutions links a session to a credential entry or types one in place. [DOC] ([IT Glue: general or embedded](https://help.itglue.kaseya.com/help/Content/2-using/security/choosing-between-general-and-embedded-passwords.html), [Hudu: relationships](https://support.hudu.com/hc/en-us/articles/8251478937751-Relationships), [Devolutions: credentials](https://docs.devolutions.net/rdm/getting-started/managing-credentials/))
+- **The same sidebar for every client**: overview, systems by type, credentials, loose information, articles. [DOC] (Hudu, IT Glue)
+- **Typed credentials with their own fields**: login, VPN with a one-time code and a certificate, SSH key with its fingerprint, API key, database, certificate, Wi-Fi, secure note. [DOC] ([1Password: item categories](https://support.1password.com/item-categories/), [Keeper: record types](https://docs.keeper.io/en/user-guides/record-types))
+- **A secret is hidden by default, and revealing and copying are separate actions**; a one-time code counts down; the date of the last change and the expiry show on the credential. [DOC] ([IT Glue: password drawer](https://help.itglue.kaseya.com/help/Content/2-using/documentation-guide/password-drawer.html), [Hudu: passwords](https://www.hudu.com/product/features/passwords))
+- **Every reveal and copy is logged and shown on the item**, and a permission can let a person use a secret without seeing it. [DOC] ([Bitwarden: event logs](https://bitwarden.com/help/event-logs/), [Bitwarden: collection permissions](https://bitwarden.com/help/collection-permissions/))
+- **An article has an owner and a date until which it is verified.** [DOC] ([Notion: verified pages](https://www.notion.com/help/wikis-and-verified-pages))
+
+### Projects, tasks and hours
+
+- **One bar of consumed hours** for a task and a project, neutral below 80%, amber up to 100%, red past it. [DOC] ([Harvest: projects](https://support.getharvest.com/hc/en-us/articles/360048181432))
+- **Hours beside elapsed time**, such as "67% of the hours, 68% of the time". [DOC] ([Accelo: view a project](https://help.accelo.com/guides/user/modules/projects/view-a-project/))
+- **Estimates add up** from task to group to project, with sums at the foot of each group. [DOC] ([Teamwork: estimated time](https://support.teamwork.com/projects/time/estimated-time-on-tasks), [ClickUp: rollup](https://help.clickup.com/hc/en-us/articles/7253583724695-Time-Estimates-Rollup))
+- **Three ways to log hours**: a timer on the row, for today only, an entry by hand, and a grid of the week. [DOC] ([Harvest: week view](https://support.getharvest.com/hc/en-us/articles/360048687531), Productive)
+- **A projection of when the hours run out**, and two views of a budget: the client sees what is used, the team also sees what is not billable. [DOC] ([Productive: budget](https://help.productive.io/en/articles/3167633-the-budget-overview-tab), [Productive: forecast](https://help.productive.io/en/articles/4611165-forecasting-profitability-charts-on-budgets))
+- **The health of a project is chosen by a person** with an update, apart from the signals the system computes. [DOC] ([Teamwork: project health](https://support.teamwork.com/projects/project-options/setting-project-health), [Odoo: project dashboard](https://www.odoo.com/documentation/18.0/applications/services/project/project_management/project_dashboard.html))
+
+### Requests of clients, home and the network of clients
+
+- **A request inbox with a list and its detail**, and the actions claim, reply, convert into tasks, a quote or a project, and close. [DOC] ([Accelo: request inbox](https://help.accelo.com/guides/user/inbox-and-requests/request-inbox/navigating-the-requests-inbox/))
+- **My tasks in buckets**: late, today, this week, later. [DOC] ([monday.com: My work](https://support.monday.com/hc/en-us/articles/9516773224466-My-work-new-layout))
+- **Related companies on the record of a company**, and a view of the whole hierarchy. [DOC] ([HubSpot: parent and child companies](https://knowledge.hubspot.com/records/add-a-parent-or-child-company)) A consultancy and its end clients are kept apart from a parent and its subsidiaries. [INF]

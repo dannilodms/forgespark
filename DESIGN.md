@@ -2,9 +2,9 @@
 
 How the product looks, and the rules every screen follows. This file is the source: the code in `apps/web/src/ui` implements it. When the code disagrees with this file, this file is right and the code is fixed.
 
-The style follows Zed, its site and its application. The evidence behind every value is in section 1 of [`docs/design/references.md`](docs/design/references.md). Why Zed, and what else was considered, is in ADR-0006. Why the design system lives in the app, with no prototype and no gallery, is in ADR-0025.
+The style follows monday.com and its design system, Vibe, adjusted to WCAG AA. The evidence behind every value is in section 4 of [`docs/design/references.md`](docs/design/references.md), and the other styles that were compared are in its section 5. Why monday.com is in ADR-0027. Why the design system lives in the app, with no prototype in the repository and no gallery, is in ADR-0025.
 
-The size of the text does not follow Zed. Zed sets its interface in 12 to 13px; here it is 16px, and every control is taller to hold it. The maintainer found 13px too small to read, and chose 16px over 14 and 15px from sample pages of the setup and of the app shell.
+The size of the text does not follow Vibe. Vibe sets its interface in 14px; here it is 16px, and every control is taller to hold it. The maintainer found smaller text hard to read, and chose 16px from sample pages (PR #7).
 
 A change to a style variable, a component or a recipe updates this file in the same change.
 
@@ -16,29 +16,43 @@ A CSS custom property that holds one style value: a colour, a radius, a font, a 
 **Theme**:
 Light or dark. Every style variable that changes with the theme has a value in each.
 
+**Frame**:
+The blue-grey ground of the app, on `background`. The header and the sidebar sit on it.
+
+**Work surface**:
+The white panel on `card` that holds a screen, inset in the frame with rounded corners. It scrolls inside itself.
+
+**Label**:
+A filled block of colour with a word in it, that shows the value of a status or a category: "Done", "Stuck", "Consultancy". In a table it fills its cell from edge to edge.
+
+**Group**:
+A set of rows of a table under one title, such as the tasks of a sprint. The group has a colour, which its title and a strip on the left edge of its rows take.
+
 **Recipe**:
 A named composition of components that several screens reuse, such as the app shell.
 
 ## Rules
 
-1. **Borders carry the structure.** Surfaces are separated by 1px lines. A shadow appears only on a floating surface: popover, dialog, command palette, toast.
-2. **One accent, and colour means status.** The one accent colour is blue. Any other colour is a status colour with a fixed meaning: blue is working, amber needs attention, green is done, red is an error. A status colour is never decoration.
-3. **Mono is for metadata.** Shortcuts, counts, paths and identifiers are set in the mono typeface. Running text is set in the interface typeface.
-4. **Decoration frames the page.** The grid texture and the diamond nodes belong to the page framing. The inside of a component is plain.
-5. **Motion is short and plain.** A colour change takes 100 to 150ms. A control moves at most 1 to 2px. An overlay opens in 200 to 250ms.
-6. **Every value is a style variable.** A component takes each colour, radius, font, spacing step and shadow from a style variable, and hardcodes none.
-7. **One primary action per group.** In a group of actions, one button is primary. The others are secondary or ghost.
-8. **Status is colour plus a sign.** A status always shows an icon or a word together with its colour.
+1. **The work surface sits on the frame.** The header and the sidebar are on the frame; a screen is on the work surface. Inside the work surface, 1px lines separate rows, columns and sections. A shadow appears only on a floating surface: popover, menu, dialog, side panel, command palette, toast.
+2. **One colour for action.** Blue, `primary`, marks the primary action, a link, the focus and the selected item. No other colour is used for an action.
+3. **Colour labels a value.** A status or a category shows as a label, whose colour comes from the label palette. Each screen decides which value takes which colour, and the same value keeps its colour on every screen. Feedback (an alert, a toast, a problem in a field) uses the four feedback colours instead.
+4. **Groups carry a colour.** The title of a group and the strip on the left edge of its rows share one group colour. Colour never decorates anything else.
+5. **Headings in Poppins, everything else in Figtree.** A page title, the title of a card, of a dialog and of a group are set in Poppins. Running text, controls, tables and labels are set in Figtree. Mono is only for what is copied or compared character by character: codes, identifiers, secrets, addresses.
+6. **Motion is short and plain.** A colour change takes 100 to 150ms. An overlay opens in 200 to 250ms. Nothing bounces.
+7. **Every value is a style variable.** A component takes each colour, radius, font, spacing step and shadow from a style variable, and hardcodes none.
+8. **One primary action per group.** In a group of actions, one button is primary. The others are outline or ghost.
+9. **Status is colour plus a word.** A label always holds its word; a feedback colour always comes with an icon or a word.
 
-One exception to rule 2: the mark of a login provider keeps the colours its owner requires. Google forbids a single-colour "G" and asks for it on white, and Microsoft asks that its logo is not altered. GitHub's mark takes the colour of the text.
+One exception to rules 2 and 3: the mark of a login provider keeps the colours its owner requires. Google forbids a single-colour "G" and asks for it on white, and Microsoft asks that its logo is not altered. GitHub's mark takes the colour of the text.
 
 ## Accessibility and layout
 
 - The style meets WCAG AA: 4.5:1 for text, 3:1 for large text, for the boundary of a control and for the focus indicator.
-- A value taken from Zed that fails is changed by the smallest step that passes. The colour table then gives both the value of Zed and the value in use. Nothing measures the pairs automatically: a value is measured when it is added or changed.
-- Every interactive component is operable by keyboard and shows a visible focus state: a 3px outline with a 2px offset. A box of InputOTP has no offset, because its neighbours touch it. A row of a list pane and a control in a 32px bar draw the outline inside themselves, because the pane or the bar would cut it.
+- A value taken from Vibe that fails is changed by the smallest step that passes. The colour tables then give both the value of Vibe and the value in use. Nothing measures the pairs automatically: a value is measured when it is added or changed.
+- A label takes the ink, `#323338`, or white, whichever reaches 4.5:1 on its fill. The label palette lists the one each colour takes.
+- Every interactive component is operable by keyboard and shows a visible focus state: a 3px outline with a 2px offset, in `ring`. A box of InputOTP has no offset, because its neighbours touch it. A row of a table and a control in a bar draw the outline inside themselves, because the table or the bar would cut it.
 - Motion respects `prefers-reduced-motion`.
-- Layouts are designed for desktop first and adapt down to a 375px-wide viewport with no overflow.
+- Layouts are designed for desktop first and adapt down to a 375px-wide viewport with no overflow. A wide table scrolls sideways inside its own container.
 - Text runs longer in Portuguese and Spanish than in English. Every component that carries text holds a long label without overflowing.
 
 ## Style variables
@@ -49,89 +63,119 @@ The names and roles below are the contract. The colour names are those of shadcn
 
 | Style variable | Role |
 | --- | --- |
-| `background` / `foreground` | The page, behind and between panes. Default text. |
-| `card` / `card-foreground` | A pane or a card. |
-| `sidebar` / `sidebar-foreground` | The sidebar. |
-| `chrome` (added) | The title bar and the status bar, one step stronger than `sidebar`. |
+| `background` / `foreground` | The frame. Default text. |
+| `card` / `card-foreground` | The work surface, a card or a pane inside it. |
+| `sidebar` / `sidebar-foreground` | The sidebar, on the frame. |
 | `popover` / `popover-foreground` | A floating surface. |
 | `primary` / `primary-foreground` | The primary button. |
-| `secondary` / `secondary-foreground` | A raised control: secondary button, active tab, chip. |
-| `muted` / `muted-foreground` | A sunken or quiet fill. Secondary text. |
-| `accent` / `accent-foreground` | The hover wash. This is shadcn/ui's name; it is not the accent colour of rule 2. |
-| `selected` (added) | The fill of a selected row or item, one step stronger than `accent`. |
-| `faint-foreground` (added) | Tertiary text: placeholder, disabled text, an index. |
-| `border` | The line between surfaces, and the edge of a floating surface. |
-| `input` | The border of a field. It reaches 3:1 against the surface, which `border` does not have to. |
-| `border-subtle` (added) | A lighter line inside a surface, between rows or groups. |
+| `primary-hover` (added) | The primary button under the pointer. |
+| `secondary` / `secondary-foreground` | A quiet filled control: a secondary button, the active tab of a default tab list, a chip. |
+| `muted` / `muted-foreground` | A sunken or quiet fill, such as the footer of a group. Secondary text. |
+| `accent` / `accent-foreground` | The hover wash. This is shadcn/ui's name; it is not the colour of rule 2. |
+| `selected` (added) | The fill of a selected row or item. |
+| `faint-foreground` (added) | Placeholder and disabled text. Vibe has no third step of text, so it is `muted-foreground`. |
+| `border` | The line between areas of the work surface, and the edge of a floating surface. |
+| `input` | The border of a field and of an outline button. It reaches 3:1 against the surface, which `border` does not have to. |
+| `border-subtle` (added) | A lighter line inside a card, between rows of a list. |
 | `ring` | The focus indicator. |
-| `brand` / `brand-foreground` (added) | The accent colour of rule 2 where it is not a button: a link, an icon, a highlighted word. |
+| `brand` / `brand-foreground` (added) | The colour of rule 2 where it is not a button: a link, an icon, the mark. |
 | `destructive` | A destructive action and a validation error. |
-| `status-working`, `status-attention`, `status-done`, `status-error` (added) | The four status colours of rule 2. |
-| `status-*-subtle` (added) | The background of a status badge. |
-| `button-edge`, `button-edge-primary` (added) | The inset bottom edge of a button, and that of the primary button. |
-| `page-grid` (added) | The lines of the grid texture of the page framing. |
-
-The four status colours are visual meanings. Which status of a record shows which meaning is decided with each screen.
+| `status-working`, `status-attention`, `status-done`, `status-error` (added) | The four feedback colours of rule 3: blue informs or is in progress, amber needs attention, green is done, red is an error. |
+| `status-*-subtle` (added) | The background of a feedback badge or alert. |
+| `group-blue`, `group-green`, `group-purple`, `group-orange`, `group-gray`, `group-red` (added) | The title of a group. Its strip takes the label colour of the same name. |
+| `label-*` and `label-*-foreground` (added) | The label palette: the fill of a label and the text on it. The same in both themes. |
+| `scrim` (added) | What covers the page behind a dialog or a side panel. |
 
 ### Colours
 
-The values in use. Where a value of Zed failed WCAG AA, the value in use is followed by the one it replaces.
+The values in use. Where a value of Vibe failed WCAG AA, the value in use is followed by the one it replaces.
 
 | Style variable | Light | Dark |
 | --- | --- | --- |
-| `background` | `#f5f4f3` | `#282c33` |
-| `card` | `#fafafa` | `#282c33` |
-| `popover` | `#ebebec` | `#2f343e` |
-| `sidebar` | `#ebebec` | `#2f343e` |
-| `chrome` | `#dcdcdd` | `#3b414d` |
-| `secondary` | `#ebebec` | `#2e343e` |
-| `muted` | `#ebebec` | `#2f343e` |
-| `accent` | `#dfdfe0` | `#363c46` |
-| `selected` | `#cacaca` | `#454a56` |
-| `foreground` | `#242529` | `#dce0e5` |
-| `muted-foreground` | `#555557` (Zed: `#58585a`) | `#b3b9c6` (Zed: `#a9afbc`) |
-| `faint-foreground` | `#696a70` (Zed: `#7e8086`) | `#989ba9` (Zed: `#878a98`) |
-| `border` | `#c9c9ca` | `#464b57` |
-| `input` | `#8d8d8e` (Zed: `#c9c9ca`) | `#6f7582` (Zed: `#464b57`) |
-| `border-subtle` | `#dfdfe0` | `#363c46` |
-| `primary` | `#1348dc` | `#1348dc` |
+| `background` | `#eceff8` | `#181b34` |
+| `card` | `#ffffff` | `#30324e` |
+| `popover` | `#ffffff` | `#30324e` |
+| `sidebar` | `#eceff8` | `#181b34` |
+| `secondary` | `#f6f7fb` | `#292b45` |
+| `muted` | `#f6f7fb` | `#292b45` |
+| `accent` | `#676879` at 10% | `#676879` at 20% (Vibe: at 30%) |
+| `selected` | `#e5f0ff` (Vibe: `#cce5ff`) | `#133774` |
+| `foreground` | `#323338` | `#d5d8df` |
+| `muted-foreground` | `#626370` (Vibe: `#676879`) | `#a6a9b6` (Vibe: `#9699a6`) |
+| `faint-foreground` | `#626370` (Vibe: `#676879`) | `#a6a9b6` (Vibe: `#9699a6`) |
+| `border` | `#d0d4e4` | `#4b4e69` |
+| `input` | `#7f8292` (Vibe: `#c3c6d4`) | `#8a8ea3` (Vibe: `#797e93`) |
+| `border-subtle` | `#e6e9ef` | `#3d405c` |
+| `primary` | `#0073ea` | `#0073ea` |
+| `primary-hover` | `#0060b9` | `#0060b9` |
 | `primary-foreground` | `#ffffff` | `#ffffff` |
-| `brand` | `#1348dc` | `#74ade8` |
-| `brand-foreground` | `#ffffff` | `#1b1e23` |
-| `ring` | `#094ece` at 65% (Zed: at 50%) | `#74ade8` (Zed: `#094ece` at 50%) |
-| `destructive` | `#b14234` (Zed: `#d36151`) | `#e48488` (Zed: `#d07277`) |
-| `button-edge` | `hsl(218 13% 50% / 0.1)` | the same |
-| `button-edge-primary` | `hsl(219 93% 30%)` | the same |
-| `page-grid` | `foreground` at 5% | `foreground` at 4.5% |
+| `brand` | `#0060b9` (Vibe: `#1f76c2`) | `#7db3f2` (Vibe: `#69a7ef`) |
+| `brand-foreground` | `#ffffff` | `#181b34` |
+| `ring` | `#0073ea` | `#69a7ef` |
+| `destructive` | `#c4213b` (Vibe: `#d83a52`) | `#ff8591` (Vibe: `#d83a52`) |
+| `scrim` | `#292f4c` at 45% | black at 55% |
 
 The text colours of a surface (`card-foreground`, `popover-foreground`, `secondary-foreground`, `accent-foreground`, `sidebar-foreground`) are `foreground`. The `sidebar-*` variables that shadcn/ui expects take the values of their plain counterparts.
 
 What each adjustment had to reach:
 
-- `muted-foreground`: 4.5:1 on a selected row, where it was 4.33:1 in light and 4.03:1 in dark.
-- `faint-foreground`: 4.5:1 on the page, a pane and the sidebar. It was 3.31:1 at the lowest.
-- `input`: 3:1 on the page and on a pane. The line of Zed is 1.5:1, which is enough between surfaces and not for the border of a field.
-- `ring`: 3:1 on the page, a pane and the sidebar. In dark the blue of Zed cannot reach it at any opacity, so the focus takes the accent colour as text.
-- `destructive` and the status colours: 4.5:1 as a word on the page, on a pane and on the subtle background of a badge, and 3:1 as a sign on a hovered row, on a selected row and on a bar.
+- `muted-foreground`: 4.5:1 on the frame under the hover wash, where the sidebar shows counts. It was 4.23:1 in light. In dark, 4.5:1 on the work surface, where it was 4.38:1.
+- `accent` in dark: at 30% the wash took `muted-foreground`, `brand` and the red below 4.5:1. At 20% they pass.
+- `selected` in light: `#cce5ff` takes `muted-foreground` to 4.23:1. `#e5f0ff` keeps it at 4.76:1.
+- `input`: 3:1 on the work surface and on the frame. The line of Vibe is 1.7:1, which is enough between areas and not for the border of a field.
+- `brand`: 4.5:1 as a link on every fill of the work surface, including the hover wash and a selected row.
+- `destructive` and the feedback colours: 4.5:1 as a word on the work surface, on the frame and on their subtle background.
 
-`popover`, `muted` and `page-grid` have no value in the reference. `popover` and `muted` take Zed's panel surface, and `page-grid` is derived.
+`selected` is Vibe's `primary-selected`; `accent` is its hover colour; `muted` is its grey background.
 
-### Status colours
+### Feedback colours
 
 | Style variable | Light | Dark |
 | --- | --- | --- |
-| `status-working` | `#455dc5` (Zed: `#5c78e2`) | `#74ade8` |
-| `status-attention` | `#886c00` (Zed: `#a48819`) | `#dec184` |
-| `status-done` | `#3d7430` (Zed: `#669f59`) | `#a1c181` |
-| `status-error` | `#b14234` (Zed: `#d36151`) | `#e48488` (Zed: `#d07277`) |
-| `status-working-subtle` | `#e2e2fa` | the status colour at 10% opacity |
-| `status-attention-subtle` | `#faf2e6` | the status colour at 10% opacity |
-| `status-done-subtle` | `#dfeadb` | the status colour at 10% opacity |
-| `status-error-subtle` | `#fbdfd9` | the status colour at 10% opacity |
+| `status-working` | `#0060b9` (Vibe: `#0073ea`) | `#7db3f2` (Vibe: `#0073ea`) |
+| `status-attention` | `#965500` (Vibe: `#ffcb00`) | `#fdab3d` (Vibe: `#ffcb00`) |
+| `status-done` | `#007038` (Vibe: `#00854d`) | `#33d391` (Vibe: `#00854d`) |
+| `status-error` | `#c4213b` (Vibe: `#d83a52`) | `#ff8591` (Vibe: `#d83a52`) |
+| `status-working-subtle` | `#e5f0ff` | `#1d3566` |
+| `status-attention-subtle` | `#fff4d6` | `#4a3a1a` |
+| `status-done-subtle` | `#e3f7ec` | `#173d33` |
+| `status-error-subtle` | `#fde8eb` | `#4a2030` |
 
-`destructive` and `status-error` are the same red.
+`destructive` and `status-error` are the same red. Vibe's yellow `#ffcb00` reaches 1.5:1 as a word on white, so the word of attention is a dark amber; the yellow stays in the label palette, behind ink.
 
-A status colour is a word only where it reaches 4.5:1: on the page, on a pane and in a badge. On a hovered or a selected row it does not: the lowest is amber on `selected` in light, at 3.06:1. The colours were not darkened a second time, which would take them further from Zed. In a row and in a bar the sign carries the colour, where a sign needs 3:1 and has it on every fill, and the word beside it is set in `foreground`, at the weight of text. Zed shows a status in a list the same way: a coloured sign beside plain text.
+### Label palette
+
+The same in both themes. A screen picks a colour for each value it labels. Monday's own meanings are a good default: green is done, orange is in progress, red is stuck, grey is not started.
+
+| Colour | Fill | Text | Contrast |
+| --- | --- | --- | --- |
+| `label-green` | `#00c875` | ink | 5.71:1 |
+| `label-orange` | `#fdab3d` | ink | 6.64:1 |
+| `label-yellow` | `#ffcb00` | ink | 8.28:1 |
+| `label-red` | `#df2f4a` | white | 4.52:1 |
+| `label-purple` | `#9d50dd` | white | 4.54:1 |
+| `label-blue` | `#5c9ffc` (Vibe: `#579bfc`) | ink | 4.69:1 |
+| `label-gray` | `#c4c4c4` | ink | 7.23:1 |
+| `label-royal` | `#784bd1` | white | 5.64:1 |
+| `label-indigo` | `#5559df` | white | 5.41:1 |
+| `label-dark-purple` | `#401694` | white | 11.93:1 |
+| `label-navy` | `#225091` | white | 8.00:1 |
+| `label-grass` | `#037f4c` | white | 5.07:1 |
+
+The ink is `#323338`, the `foreground` of the light theme. `label-blue` was moved one step, because Vibe's blue reaches 4.50:1 with the ink only after rounding.
+
+### Group colours
+
+The strip takes the label colour; the title takes the shade below, which reaches 4.5:1 on the work surface.
+
+| Group | Strip | Title, light | Title, dark |
+| --- | --- | --- | --- |
+| Blue | `label-blue` | `#0060b9` | `#7db3f2` |
+| Green | `label-green` | `#007038` | `#33d391` |
+| Purple | `label-purple` | `#7a3bb8` | `#c78ef5` |
+| Orange | `label-orange` | `#965500` | `#fdab3d` |
+| Grey | `label-gray` | `#626370` | `#a6a9b6` |
+| Red | `label-red` | `#c4213b` | `#ff8591` |
 
 ### Type roles
 
@@ -139,21 +183,21 @@ Each role is a `type-*` utility that sets family, size, line height, weight and 
 
 | Token | Use | Typeface | Size / line height / weight |
 | --- | --- | --- | --- |
-| `type-display` | A page title, the headline of an empty state. Used sparingly. | display | 28 to 36px / 1.15 / 300 italic, tracking -0.01em |
-| `type-title` | The title of a section, a card or a dialog. | interface | 18px / 26px / 600 |
+| `type-display` | A page title, the name on a record page, the headline of an empty state. | heading | 28 to 32px / 1.2 / 500, tracking -0.01em |
+| `type-title` | The title of a section, a card, a group or a dialog. | heading | 18px / 26px / 500 |
 | `type-body` | Running text and descriptions. | interface | 16px / 24px / 400 |
 | `type-ui` | Controls, rows, menus, tabs. | interface | 16px / 20px / 400 |
 | `type-label` | A small label, in sentence case: table header, field group, section index. | interface | 14px / 20px / 500 |
 | `type-caption` | Secondary information under or beside something. | interface | 14px / 20px / 400 |
-| `type-code` | Shortcuts, counts, paths, identifiers, code. | mono | 14px / 20px / 400 |
+| `type-code` | Codes, identifiers, secrets, addresses. | mono | 14px / 20px / 400 |
 
 The display size grows with the width of the viewport, between its two ends.
 
 | Typeface | Style variable | Family | Notes |
 | --- | --- | --- | --- |
-| Display | `font-serif` | IBM Plex Serif | Light italic, weight 300 |
-| Interface | `font-sans` | IBM Plex Sans | 14 to 18px |
-| Mono | `font-mono` | Lilex | |
+| Heading | `font-heading` | Poppins | Weights 500 and 600 |
+| Interface | `font-sans` | Figtree | Variable, 14 to 18px |
+| Mono | `font-mono` | JetBrains Mono | Variable. Vibe defines no mono |
 
 The three families are under the SIL Open Font License 1.1 and are installed from npm packages. A shadcn/ui component sets its text in `text-sm`, which is pinned to the interface size, 16px with a 24px line, and its smaller text in `text-xs`, which is pinned to the size of a label, 14px with a 20px line.
 
@@ -163,13 +207,14 @@ The base unit is 4px. Spacing steps are multiples of it.
 
 | Size | Use |
 | --- | --- |
-| 24px | Shortcut chip, inside a button |
+| 24px | Small label, shortcut chip |
 | 28px | Badge, extra-small button, a control inside a bar |
-| 32px | Title bar, status bar, top bar, toolbar, small button, an item of a menu, the header of a table |
-| 36px | Row of a list pane, of the sidebar or of the command palette |
-| 40px | Default control |
-| 44px | Prominent control |
-| 14 to 16px | Icon: 16px, and 14px inside a chip, a badge or a small control |
+| 32px | Small button, an item of a menu |
+| 36px | Search field of the header, a tool of a toolbar |
+| 40px | Default control, item of the sidebar, header of a table |
+| 44px | Row of a table, prominent control |
+| 56px | The header of the app |
+| 16 to 20px | Icon: 20px in the header and the sidebar, 16px in a control, 14px inside a chip or a badge |
 
 Button, input, select and tab heights move together, so a form stays aligned.
 
@@ -177,34 +222,34 @@ Button, input, select and tab heights move together, so a form stays aligned.
 
 | Role | Value | Used by |
 | --- | --- | --- |
-| `radius-chip` | 2px | Badge, shortcut chip, checkbox |
-| `radius-tab` | 4px | Tab, menu item |
+| `radius-chip` | 4px | Label, badge, shortcut chip, checkbox |
+| `radius-tab` | 4px | Tab, menu item, item of the sidebar |
 | `radius-control` | 4px | Button, input, select |
-| `radius-pane` | 4px | Pane, card |
-| `radius-floating` | 6px | Dialog, popover, menu, tooltip, command palette, toast |
+| `radius-pane` | 8px | Card, a pane inside the work surface |
+| `radius-floating` | 8px | Popover, menu, tooltip, command palette, toast |
+| `radius-modal` | 16px | Dialog |
+| `radius-surface` | 12px | The work surface, the pane of the framed pane |
 
 ### Elevation
 
 | Level | Surfaces | Treatment |
 | --- | --- | --- |
-| Flat | Page, chrome | None |
-| Hairline | Pane, card, control | 1px border |
-| Floating | Popover, dialog, menu, tooltip, command palette, toast, sheet | A 1px edge and the one shadow recipe, both in `shadow-floating` |
+| Frame | Header, sidebar | None |
+| Surface | The work surface | Its own colour against the frame, and a 1px `border` where it meets the frame |
+| Hairline | Card, pane, control, table | 1px line |
+| Floating | Popover, menu, tooltip, command palette, toast, side panel | `shadow-floating` |
+| Modal | Dialog | `shadow-modal` |
 
-`shadow-floating` is `0 0 0 1px var(--border), 0 8px 24px -8px rgb(0 0 0 / 0.28)`. It is derived: the reference shows no floating surface. `shadow-xs`, which shadcn/ui puts on fields, is set to none.
+`shadow-floating` is `0 0 0 1px var(--border), 0 6px 20px rgb(0 0 0 / 0.2)`, Vibe's medium shadow with an edge. `shadow-modal` is `0 0 0 1px var(--border), 0 15px 50px rgb(0 0 0 / 0.3)`, its large one. The edge is a line in `border`, so a floating surface on `card` shows in dark, where both are `#30324e`. `shadow-xs`, which shadcn/ui puts on fields, is set to none.
 
-The edge of a floating surface is a line in `border`, as rule 1 asks, so it shows in both themes: an edge of black at 6% did not show in dark. The utility draws it, and a floating surface adds no border of its own. Like every line between surfaces, the edge has no contrast level to reach.
-
-A button has no shadow. Its depth is a 2px inset bottom edge, drawn by the `button-edge` and `button-edge-primary` utilities.
-
-Behind a dialog or a sheet, the page is covered by `background` at 70% opacity. A tooltip has no arrow.
+A button has no shadow. Behind a dialog or a side panel, the page is covered by `scrim`. A tooltip has no arrow.
 
 ### Motion and icons
 
 - Colour and opacity: 100 to 150ms, `cubic-bezier(.4, 0, .2, 1)`.
-- Overlays: 200 to 250ms, opening from scale .96 to .98 along `ease-overlay`, which is `cubic-bezier(.2, .8, .2, 1)`.
+- Overlays: 200 to 250ms, opening from scale .96 to .98 along `ease-overlay`, which is `cubic-bezier(.2, .8, .2, 1)`. A side panel slides in from its edge.
 - With `prefers-reduced-motion`, no animation and no transition runs: every state is reached at once.
-- Icons are Lucide, at 14 to 16px.
+- Icons are Lucide, at 14 to 20px.
 
 ## Traits
 
@@ -212,19 +257,19 @@ What makes the style recognisable, beyond the values above.
 
 | Trait | How it shows |
 | --- | --- |
-| Primary button | Blue fill, inset darker bottom edge, and a shortcut chip inside when the action has a shortcut |
-| Panes | Flush, split by 1px lines. No gap and no card between them |
-| Depth | No shadow inside the work surface |
-| Page framing | A 10px grid texture and diamond nodes where lines meet. A page opts in with the `page-framing` utility, and places each node with `frame-node` |
-| Density | Flush panes and 1px lines, with 32px bars, 36px rows, 40px controls and 16px interface text: denser in layout than a web page, larger in text than Zed |
-| Display type | A light italic serif, used sparingly against the sans of the interface |
+| Frame and work surface | A blue-grey frame holds the header and the sidebar; the screen is a white panel inset in it, with 12px corners |
+| Labels | A status fills its cell from edge to edge, in a vivid colour, with its word centred |
+| Groups | Rows grouped under a coloured title, with a strip of the same colour on their left edge, and sums and a bar of statuses at the foot of each group |
+| Primary button | Blue fill that darkens under the pointer; a split button, "New item" plus a chevron, opens the creation of a screen |
+| Headings | Poppins at weight 500 over Figtree |
+| People | Coloured circles with initials |
 
 ## Brand mark
 
 The mark is a software factory in one solid shape: a building with a sawtooth roof and two chimneys, the code symbol `</>` cut out of its wall, standing on a conveyor belt with three rollers. It is drawn on a 64-unit square.
 
 - The mark has one colour: `brand` on a surface, or `primary-foreground` on a `primary` tile. It follows rule 2.
-- The logo is the mark and the product name. The name is set in IBM Plex Sans at weight 600, in `foreground`, and converted to outlines, so the file needs no font.
+- The logo is the mark and the product name. In the app the name is set in Poppins at weight 600, in `foreground`, beside the mark (`BrandMark` in `apps/web/src/shared/components`, a copy of `mark.svg`).
 - The smallest size of the mark is 16px. The space around it is at least a quarter of its width.
 - The mark is never stretched, rotated, outlined or given a shadow.
 
@@ -257,46 +302,47 @@ The shape of the mark and the background of the preview came from image models. 
 | Feedback | Alert, Toast, Skeleton, Empty, Status indicator |
 | Overlays | Dialog, DropdownMenu, Popover, Tooltip, Command, Sheet |
 
-The status indicator is this project's own component: a sign in one of the four status colours, and a word. The sign belongs to the meaning: a dashed circle for working, a triangle for needs attention, a check for done, a cross for error. It is plain in a row, where the sign carries the colour and the word is set in `foreground`, at the weight of text. It is a badge where it stands alone, with the sign and the word in the colour, on its subtle background. A badge is not put on a row that can be hovered or selected.
+The status indicator is this project's own component, for feedback: a sign in one of the four feedback colours, and a word. The sign belongs to the meaning: a dashed circle for working, a triangle for needs attention, a check for done, a cross for error. It is plain beside text, where the sign carries the colour and the word is set in `foreground`. It is a badge where it stands alone, with the sign and the word in the colour, on its subtle background. The label of a record's status is not a status indicator: it comes with the first table that shows one (see Board table).
 
 InputGroup and Sheet are in the list because Command and Sidebar are built on them. Command is built on the `cmdk` library, which brings its own primitives.
 
 Combobox is a field whose value is chosen from a long list filtered by typing, such as a country: Select is for a short list read whole. Its list floats like a menu. The input is its one stop of the keyboard, and the arrow keys open the list from it; the button beside it is for the pointer and is out of the order of the Tab key. That button, the one that clears the field and the one that removes a chip are icons alone, so each requires its name as a prop, as the close button of a dialog does: `triggerLabel` and `clearLabel` on `ComboboxInput`, `removeLabel` on `ComboboxChip`. `ListField` names the button after its field ("Country: show the list").
 
-A component is restyled through style variables and through its variants.
+A component is restyled through style variables and through its variants. The Button variants are `default` (primary), `outline` (a border in `input`, the secondary action), `secondary` (a quiet fill), `ghost`, `destructive` and `link`.
 
 A component holds no text of its own. Every word comes from the screen, in the language of the person, and so does a name that only assistive technology reads: the label of the close button of a dialog, a sheet or a toast, of the buttons of a combobox, the name of the sidebar when it is a sheet and of the button that toggles it, the title and the description of the command palette, the label of a breadcrumb. A component that needs such a name requires it as a prop.
 
 ## Recipes
 
-Five compositions are described here. The framed pane has code, `FramedPane` in `apps/web/src/shared/components`. The others have none yet: the first screen that needs one writes it in `apps/web`.
+Seven compositions are described here. The framed pane has code, `FramedPane` in `apps/web/src/shared/components`. The others have none yet: the first screen that needs one writes it in `apps/web`, following the clickable prototype the maintainer approved on 2026-11-18 (ADR-0027).
 
 | Recipe | What it is |
 | --- | --- |
-| App shell | A title bar with the user menu, sidebar navigation, a top bar with breadcrumb and a command palette trigger, a main area of flush panes, and a status bar. |
-| List pane | A filter, a list of rows that each carry a status indicator, and an empty state. Selecting a row drives the detail pane. |
-| Detail pane | A header with the title and the actions of the selected item, and tabs that switch its content. |
+| App shell | The header and the sidebar on the frame, and the work surface beside the sidebar. |
+| Board table | A table of rows in coloured groups, with labels in its status columns and sums at the foot of each group. |
+| Record page | The page of one record, such as a client or a project: a header, a row of figures, and view tabs. |
+| Side panel | The detail of an item opened from a table, sliding in from the right, over the screen. |
+| Form page | A long form on its own page, in sections. |
 | Form dialog | A dialog with fields, one primary action and a cancel action. It reports a validation error on the field. |
-| Framed pane | A title bar with the product name, the framed page with one bordered pane in its centre, and a status bar that holds the language selector and nothing else. The screens seen before a login: the setup and the login screen. |
+| Framed pane | The header with the mark and the product name, the frame with one pane in its centre, and a footer that holds the language selector and nothing else. The screens seen before a login: the setup and the login screen. |
 
 A recipe is added when a second screen needs the same composition.
 
-**App shell.** The title bar and the status bar are 32px high, on `chrome`. The top bar is 32px high, on `card`, and its controls are 28px high. The shell takes the height it is given and never scrolls: each pane scrolls inside itself.
+**App shell.** The header is 56px high, on the frame: the mark and the product name at its start, then the search field (Ctrl K opens the command palette), the notifications, help and the user menu at its end. The sidebar is 256px wide, on the frame: the consultancy at its top, then the items of the menu, 40px high with a 20px icon, then favourites, and the settings, with a gear, at its foot. An item with a submenu opens it in place. The selected item takes `selected`. The work surface fills the rest, less 12px at its right and bottom edges, with 12px corners. The shell takes the height it is given and never scrolls: the work surface scrolls inside itself.
 
-- The user menu sits at the end of the title bar. Its button shows the name of the person who is logged in. The menu shows the name and the e-mail, then the actions on the session. Logging out is the last of them, and it leads to the login screen.
-- The button at the start of the top bar, or Ctrl B, collapses the sidebar to its icons. Under 768px the sidebar is a sheet that the same button opens.
-- The command palette opens from its trigger in the top bar, or with Ctrl K. It lists the places to go, the actions of the screen and the items to open.
-- The status bar holds counts: a status there is its sign and a number, with the word for whoever does not see the sign.
+- The user menu shows the name and the e-mail, then the actions on the session. Logging out is the last of them, and it leads to the login screen.
+- Under 960px the sidebar is a sheet that a button at the start of the header opens, and the search field gives way to its icon.
+- The command palette lists the places to go, the actions of the screen and the items to open.
 
-**List pane.** A row is 36px high: an identifier in mono, the title, and a plain status indicator at the end. A hovered row takes `accent` and the selected one takes `selected`.
+**Board table.** Each group starts with its title in `type-title`, in the group colour, with a chevron that folds it and its count. Its table has a header of 40px, with the titles of the columns in `type-label`, centred but for the first. Each row is 44px high; the first cell holds the name and starts with a 6px strip in the group colour. A status column is a label that fills its cell. A person is a coloured circle with initials. Numbers align to the right. The last row of a group adds an item. The foot of a group sums its numbers and shows a bar of its labels, each colour as wide as its share. A hovered row takes `muted`, the selected one takes `selected`. Under the toolbar of the screen (the split button that creates an item, the search field, and the tools Person, Filter, Sort and Group), the table scrolls sideways inside its own container when it is wider than the work surface.
 
-- The filter keeps the rows that hold every word typed, whatever the case and the accents. The one action of the pane, creating an item, sits beside it.
-- The arrow keys, Home and End move between the rows, and Enter selects one.
-- When the filter leaves nothing, the empty state says what was typed and offers to clear it.
+**Record page.** A breadcrumb; a header with the logo or the initials of the record, its name in display type, its labels and the chain it belongs to, such as consultancy and client, and its actions at the end; a row of figures, each a small card; then view tabs in the `line` variant, whose content fills the rest of the page.
 
-**Detail pane.** The header holds the identifier in mono, the status as a badge, the actions at its end, and the title under them, which wraps. The tabs are the `line` variant, across the pane. Under 1024px the list and the detail do not fit side by side: the screen shows the list, then the detail of the item picked, with a button that leads back.
+**Side panel.** Up to 640px wide, over the screen, with `scrim` behind it and `shadow-floating`. A header with the context in caption type, the title and its labels, and the close button; a body that scrolls; a footer with the actions. Escape and the scrim close it.
 
-**Framed pane.** The title bar and the status bar are 32px high, on `chrome`: the title bar shows the product name in caption type, and the status bar holds the language selector at its end. The page between them carries the page framing, with a diamond node on each corner of the pane. The pane is on `card`, with a 1px border and 24px of padding, in the centre of the page; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. The screen has no theme toggle, no version number and no link to the source code.
+**Form page.** Sections one under the other, each on two columns: its title and a sentence on the left, its fields on the right, in a grid of six columns where a field takes two, three, four or six. A line of `border` ends each section. A choice between few options with a sentence each is a set of option cards rather than a select. The cancel and the primary action stay at the bottom of the work surface while it scrolls. Under 900px a section is one column.
+
+**Framed pane.** The header and the footer are 56px high, on the frame: the header shows the mark in `brand` and the product name in Poppins at weight 600, and the footer holds the language selector at its end. Between them, the pane is on `card`, with a 1px border, 12px corners and 24px of padding, 32px from 640px up, in the centre of the frame; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. The screen has no theme toggle, no version number and no link to the source code.
 
 - The pane has two widths. A screen of few controls, such as the login screen, takes the narrow pane, at most 384px wide. A form, such as the setup, takes the wide pane, at most 720px wide, so that its fields go side by side and the form stays short.
 - In the wide pane the fields go in pairs, or in threes when they are short, such as city, region and postal code. A field with a long value, such as a website, takes the whole line. Where the group of fields is narrower than 512px, they go one under the other.
@@ -306,8 +352,8 @@ A recipe is added when a second screen needs the same composition.
 
 ## Known gaps
 
-- The display type of the reference has a weight between 320 and 390. IBM Plex Serif on npm has no weight between 300 and 400, so display type is set at 300.
-- The hover of the primary button is its fill at 90%. The reference does not show one.
-- The reference shows no command palette and no product table. Those components follow the rules above, with nothing to match.
-- Hover, focus and active states come from the reference's CSS. None was seen in motion.
-- The reference's light theme was read from its site and from an HTML mock of the application, never from the real application.
+- The files of the brand in `docs/design/brand/` still carry the blue of the previous style, `#1348dc`, and `logo.svg` sets the name in IBM Plex Sans. They are redrawn in a change of their own; the app draws the mark from `BrandMark`, in `brand`.
+- The frame colour comes from Vibe's tokens, but where monday.com puts it, behind the header and the sidebar, was read from its product, not from documentation.
+- Vibe documents no mono typeface; JetBrains Mono is this project's choice.
+- Hover, focus and active states come from Vibe's CSS. None was seen in motion.
+- Vibe's focus ring is a 3px glow at half opacity, which does not reach 3:1; the focus keeps the solid outline of the previous style.

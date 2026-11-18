@@ -4,7 +4,7 @@ status: superseded by ADR-0025
 
 # Design system in a shared package, proven in a disposable clickable prototype
 
-ADR-0025 replaces this decision: the prototype, the shared package and the gallery were removed, and the design system lives in `apps/web`. What stays from here is shadcn/ui on Tailwind CSS, the Zed style and `DESIGN.md`. The text below is kept as it was decided.
+ADR-0025 replaces this decision: the prototype, the shared package and the gallery were removed, and the design system lives in `apps/web`. What stays from here is shadcn/ui on Tailwind CSS, the Zed style and `DESIGN.md`; ADR-0027 later replaced the Zed style with that of monday.com. The text below is kept as it was decided.
 
 How the product looks matters a great deal to the maintainer, who wants to click through screens and change them before any feature is built. The design system lives in `packages/ui` (shadcn/ui components on Tailwind CSS, light and dark themes, designed for desktop first and adapting down to phones) and is used by two apps: `apps/web`, the real product, and `apps/prototype`, a clickable app with fake in-memory data and no backend.
 

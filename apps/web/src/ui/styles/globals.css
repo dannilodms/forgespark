@@ -2,16 +2,18 @@
  * The style variables of the design system. Their names, roles and values are
  * the contract in DESIGN.md: a change here changes that file too.
  *
- * A value marked "adjusted" replaces the one Zed uses, which fails WCAG AA.
- * DESIGN.md gives both.
+ * The values come from monday.com's design system, Vibe. A value marked
+ * "adjusted" replaces the one Vibe uses, which fails WCAG AA here. DESIGN.md
+ * gives both.
  */
 
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/ibm-plex-sans/wght.css";
-@import "@fontsource/ibm-plex-serif/300-italic.css";
-@import "@fontsource-variable/lilex/wght.css";
+@import "@fontsource-variable/figtree/wght.css";
+@import "@fontsource/poppins/500.css";
+@import "@fontsource/poppins/600.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -47,7 +49,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* Added by DESIGN.md. */
-  --color-chrome: var(--chrome);
+  --color-primary-hover: var(--primary-hover);
   --color-selected: var(--selected);
   --color-faint-foreground: var(--faint-foreground);
   --color-border-subtle: var(--border-subtle);
@@ -61,6 +63,13 @@
   --color-status-attention-subtle: var(--status-attention-subtle);
   --color-status-done-subtle: var(--status-done-subtle);
   --color-status-error-subtle: var(--status-error-subtle);
+  --color-group-blue: var(--group-blue);
+  --color-group-green: var(--group-green);
+  --color-group-purple: var(--group-purple);
+  --color-group-orange: var(--group-orange);
+  --color-group-gray: var(--group-gray);
+  --color-group-red: var(--group-red);
+  --color-scrim: var(--scrim);
 
   /* The scale shadcn/ui components use, mapped onto the radius roles. */
   --radius-sm: var(--radius-chip);
@@ -68,34 +77,37 @@
   --radius-lg: var(--radius-control);
   --radius-xl: var(--radius-pane);
   --radius-2xl: var(--radius-floating);
-  --radius-3xl: var(--radius-floating);
+  --radius-3xl: var(--radius-modal);
   --radius-4xl: var(--radius-chip);
-
-  --font-heading: var(--font-sans);
 }
 
 /* The same in both themes. `static` keeps a variable that nothing uses yet. */
 @theme static {
-  --radius-chip: 2px;
+  --radius-chip: 4px;
   --radius-tab: 4px;
   --radius-control: 4px;
-  --radius-pane: 4px;
-  --radius-floating: 6px;
+  --radius-pane: 8px;
+  --radius-floating: 8px;
+  --radius-modal: 16px;
+  --radius-surface: 12px;
 
   /*
-   * Borders carry the structure: only a floating surface has a shadow, and
-   * its edge is a 1px line in `border`, which shows in both themes.
+   * Lines carry the structure inside the work surface. A floating surface
+   * has a shadow, and its edge is a 1px line in `border`, which shows in
+   * both themes.
    */
   --shadow-xs: 0 0 #0000;
-  --shadow-floating: 0 0 0 1px var(--border), 0 8px 24px -8px rgb(0 0 0 / 0.28);
+  --shadow-floating: 0 0 0 1px var(--border), 0 6px 20px rgb(0 0 0 / 0.2);
+  --shadow-modal: 0 0 0 1px var(--border), 0 15px 50px rgb(0 0 0 / 0.3);
 
   /* An overlay opens along this curve. A colour change keeps the default. */
   --ease-overlay: cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "IBM Plex Serif", ui-serif, Georgia, serif;
+  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Poppins", "Figtree Variable", ui-sans-serif, sans-serif;
   --font-mono:
-    "Lilex Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", Consolas,
+    monospace;
 
   /*
    * shadcn/ui components set their text in `text-sm`, the interface size,
@@ -105,125 +117,162 @@
   --text-sm--line-height: 1.5rem;
   --text-xs: 0.875rem;
   --text-xs--line-height: 1.25rem;
+
+  /*
+   * The label palette: the fill of a status or a category, and the ink that
+   * reaches 4.5:1 on it. The same in both themes.
+   */
+  --color-label-green: #00c875;
+  --color-label-green-foreground: #323338;
+  --color-label-orange: #fdab3d;
+  --color-label-orange-foreground: #323338;
+  --color-label-yellow: #ffcb00;
+  --color-label-yellow-foreground: #323338;
+  --color-label-red: #df2f4a;
+  --color-label-red-foreground: #ffffff;
+  --color-label-purple: #9d50dd;
+  --color-label-purple-foreground: #ffffff;
+  --color-label-blue: #5c9ffc; /* adjusted */
+  --color-label-blue-foreground: #323338;
+  --color-label-gray: #c4c4c4;
+  --color-label-gray-foreground: #323338;
+  --color-label-royal: #784bd1;
+  --color-label-royal-foreground: #ffffff;
+  --color-label-indigo: #5559df;
+  --color-label-indigo-foreground: #ffffff;
+  --color-label-dark-purple: #401694;
+  --color-label-dark-purple-foreground: #ffffff;
+  --color-label-navy: #225091;
+  --color-label-navy-foreground: #ffffff;
+  --color-label-grass: #037f4c;
+  --color-label-grass-foreground: #ffffff;
 }
 
 :root {
   /* Scrollbars and other native controls follow the theme. */
   color-scheme: light;
 
-  --background: #f5f4f3;
-  --foreground: #242529;
-  --card: #fafafa;
-  --card-foreground: #242529;
-  --popover: #ebebec;
-  --popover-foreground: #242529;
-  --primary: #1348dc;
+  --background: #eceff8;
+  --foreground: #323338;
+  --card: #ffffff;
+  --card-foreground: #323338;
+  --popover: #ffffff;
+  --popover-foreground: #323338;
+  --primary: #0073ea;
   --primary-foreground: #ffffff;
-  --secondary: #ebebec;
-  --secondary-foreground: #242529;
-  --muted: #ebebec;
-  --muted-foreground: #555557; /* adjusted */
-  --accent: #dfdfe0;
-  --accent-foreground: #242529;
-  --destructive: #b14234; /* adjusted */
-  --border: #c9c9ca;
-  --input: #8d8d8e; /* adjusted */
-  --ring: rgb(9 78 206 / 0.65); /* adjusted */
+  --secondary: #f6f7fb;
+  --secondary-foreground: #323338;
+  --muted: #f6f7fb;
+  --muted-foreground: #626370; /* adjusted */
+  --accent: rgb(103 104 121 / 0.1);
+  --accent-foreground: #323338;
+  --destructive: #c4213b; /* adjusted */
+  --border: #d0d4e4;
+  --input: #7f8292; /* adjusted */
+  --ring: #0073ea;
   --radius: 4px;
-  --sidebar: #ebebec;
-  --sidebar-foreground: #242529;
-  --sidebar-primary: #1348dc;
+  --sidebar: #eceff8;
+  --sidebar-foreground: #323338;
+  --sidebar-primary: #0073ea;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #dfdfe0;
-  --sidebar-accent-foreground: #242529;
-  --sidebar-border: #c9c9ca;
-  --sidebar-ring: rgb(9 78 206 / 0.65);
+  --sidebar-accent: rgb(103 104 121 / 0.1);
+  --sidebar-accent-foreground: #323338;
+  --sidebar-border: #d0d4e4;
+  --sidebar-ring: #0073ea;
 
   /* Added by DESIGN.md. */
-  --chrome: #dcdcdd;
-  --selected: #cacaca;
-  --faint-foreground: #696a70; /* adjusted */
-  --border-subtle: #dfdfe0;
-  --brand: #1348dc;
+  --primary-hover: #0060b9;
+  --selected: #e5f0ff; /* adjusted */
+  --faint-foreground: #626370; /* adjusted */
+  --border-subtle: #e6e9ef;
+  --brand: #0060b9; /* adjusted */
   --brand-foreground: #ffffff;
-  --status-working: #455dc5; /* adjusted */
-  --status-attention: #886c00; /* adjusted */
-  --status-done: #3d7430; /* adjusted */
-  --status-error: #b14234; /* adjusted */
-  --status-working-subtle: #e2e2fa;
-  --status-attention-subtle: #faf2e6;
-  --status-done-subtle: #dfeadb;
-  --status-error-subtle: #fbdfd9;
-  --button-edge: hsl(218 13% 50% / 0.1);
-  --button-edge-primary: hsl(219 93% 30%);
-  --page-grid: rgb(36 37 41 / 0.05);
+  --status-working: #0060b9; /* adjusted */
+  --status-attention: #965500; /* adjusted */
+  --status-done: #007038; /* adjusted */
+  --status-error: #c4213b; /* adjusted */
+  --status-working-subtle: #e5f0ff;
+  --status-attention-subtle: #fff4d6;
+  --status-done-subtle: #e3f7ec;
+  --status-error-subtle: #fde8eb;
+  --group-blue: #0060b9;
+  --group-green: #007038;
+  --group-purple: #7a3bb8;
+  --group-orange: #965500;
+  --group-gray: #626370;
+  --group-red: #c4213b;
+  --scrim: rgb(41 47 76 / 0.45);
 }
 
 .dark {
   color-scheme: dark;
 
-  --background: #282c33;
-  --foreground: #dce0e5;
-  --card: #282c33;
-  --card-foreground: #dce0e5;
-  --popover: #2f343e;
-  --popover-foreground: #dce0e5;
-  --primary: #1348dc;
+  --background: #181b34;
+  --foreground: #d5d8df;
+  --card: #30324e;
+  --card-foreground: #d5d8df;
+  --popover: #30324e;
+  --popover-foreground: #d5d8df;
+  --primary: #0073ea;
   --primary-foreground: #ffffff;
-  --secondary: #2e343e;
-  --secondary-foreground: #dce0e5;
-  --muted: #2f343e;
-  --muted-foreground: #b3b9c6; /* adjusted */
-  --accent: #363c46;
-  --accent-foreground: #dce0e5;
-  --destructive: #e48488; /* adjusted */
-  --border: #464b57;
-  --input: #6f7582; /* adjusted */
-  --ring: #74ade8; /* adjusted */
-  --sidebar: #2f343e;
-  --sidebar-foreground: #dce0e5;
-  --sidebar-primary: #1348dc;
+  --secondary: #292b45;
+  --secondary-foreground: #d5d8df;
+  --muted: #292b45;
+  --muted-foreground: #a6a9b6; /* adjusted */
+  --accent: rgb(103 104 121 / 0.2); /* adjusted */
+  --accent-foreground: #d5d8df;
+  --destructive: #ff8591; /* adjusted */
+  --border: #4b4e69;
+  --input: #8a8ea3; /* adjusted */
+  --ring: #69a7ef;
+  --sidebar: #181b34;
+  --sidebar-foreground: #d5d8df;
+  --sidebar-primary: #0073ea;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #363c46;
-  --sidebar-accent-foreground: #dce0e5;
-  --sidebar-border: #464b57;
-  --sidebar-ring: #74ade8;
+  --sidebar-accent: rgb(103 104 121 / 0.2); /* adjusted */
+  --sidebar-accent-foreground: #d5d8df;
+  --sidebar-border: #4b4e69;
+  --sidebar-ring: #69a7ef;
 
   /* Added by DESIGN.md. */
-  --chrome: #3b414d;
-  --selected: #454a56;
-  --faint-foreground: #989ba9; /* adjusted */
-  --border-subtle: #363c46;
-  --brand: #74ade8;
-  --brand-foreground: #1b1e23;
-  --status-working: #74ade8;
-  --status-attention: #dec184;
-  --status-done: #a1c181;
-  --status-error: #e48488; /* adjusted */
-  --status-working-subtle: rgb(116 173 232 / 0.1);
-  --status-attention-subtle: rgb(222 193 132 / 0.1);
-  --status-done-subtle: rgb(161 193 129 / 0.1);
-  --status-error-subtle: rgb(228 132 136 / 0.1);
-  --button-edge: hsl(218 13% 50% / 0.1);
-  --button-edge-primary: hsl(219 93% 30%);
-  --page-grid: rgb(220 224 229 / 0.045);
+  --primary-hover: #0060b9;
+  --selected: #133774;
+  --faint-foreground: #a6a9b6; /* adjusted */
+  --border-subtle: #3d405c;
+  --brand: #7db3f2; /* adjusted */
+  --brand-foreground: #181b34;
+  --status-working: #7db3f2; /* adjusted */
+  --status-attention: #fdab3d;
+  --status-done: #33d391;
+  --status-error: #ff8591; /* adjusted */
+  --status-working-subtle: #1d3566;
+  --status-attention-subtle: #4a3a1a;
+  --status-done-subtle: #173d33;
+  --status-error-subtle: #4a2030;
+  --group-blue: #7db3f2;
+  --group-green: #33d391;
+  --group-purple: #c78ef5;
+  --group-orange: #fdab3d;
+  --group-gray: #a6a9b6;
+  --group-red: #ff8591;
+  --scrim: rgb(0 0 0 / 0.55);
 }
 
 /* The type roles. Each sets family, size, line height, weight and tracking. */
 @utility type-display {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-weight: 300;
-  font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.25rem);
-  line-height: 1.15;
+  font-family: var(--font-heading);
+  font-style: normal;
+  font-weight: 500;
+  font-size: clamp(1.75rem, 1.45rem + 0.9vw, 2rem);
+  line-height: 1.2;
   letter-spacing: -0.01em;
 }
 
 @utility type-title {
-  font-family: var(--font-sans);
+  font-family: var(--font-heading);
   font-size: 1.125rem;
   line-height: 1.625rem;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0;
 }
 
@@ -265,31 +314,6 @@
   line-height: 1.25rem;
   font-weight: 400;
   letter-spacing: 0;
-}
-
-/* The inset bottom edge of a button. */
-@utility button-edge {
-  box-shadow: inset 0 -2px 0 var(--button-edge);
-}
-
-@utility button-edge-primary {
-  box-shadow: inset 0 -2px 0 var(--button-edge-primary);
-}
-
-/* The page framing. A page opts in; a component never does. */
-@utility page-framing {
-  background-image:
-    linear-gradient(to right, var(--page-grid) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--page-grid) 1px, transparent 1px);
-  background-size: 10px 10px;
-}
-
-@utility frame-node {
-  width: 7px;
-  height: 7px;
-  rotate: 45deg;
-  border: 1px solid var(--border);
-  background-color: var(--background);
 }
 
 @layer base {
