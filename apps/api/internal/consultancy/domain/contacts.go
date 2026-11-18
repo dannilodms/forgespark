@@ -1,10 +1,12 @@
-package kernel
+package domain
 
 import (
 	"net/mail"
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // EmailMaxLength is the longest e-mail address there is (RFC 5321).
@@ -64,7 +66,7 @@ type Telephone struct {
 func NewTelephone(typed string) (Telephone, error) {
 	number := strings.TrimSpace(typed)
 	if number == "" {
-		return Telephone{}, RequiredError{}
+		return Telephone{}, kernel.RequiredError{}
 	}
 	if !telephoneForm.MatchString(number) {
 		return Telephone{}, TelephoneInvalidError{}

@@ -1,4 +1,4 @@
-package kernel
+package domain
 
 // currencies are the codes of ISO 4217 of the currencies in circulation, in
 // alphabetical order: 155 codes.

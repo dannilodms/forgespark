@@ -1,21 +1,11 @@
-package kernel
+package domain
 
 import (
 	"strings"
 	"unicode/utf8"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
-
-// RequiredError is a field that is required and was left empty.
-type RequiredError struct{}
-
-func (RequiredError) Error() string {
-	return "the field is required"
-}
-
-// Code returns the stable code an inbound adapter answers with.
-func (RequiredError) Code() string {
-	return "required"
-}
 
 // TooLongError is a text longer than its field allows.
 type TooLongError struct {
@@ -38,11 +28,12 @@ func (e TooLongError) Params() map[string]any {
 
 // RequiredText reads a text that must be there, such as a name or a tax ID.
 // The spaces around it are dropped and nothing else is changed: it is stored
-// as typed. Its length is counted in characters.
+// as typed. Its length is counted in characters. One left empty breaks
+// kernel.RequiredError.
 func RequiredText(typed string, maxLength int) (string, error) {
 	text := strings.TrimSpace(typed)
 	if text == "" {
-		return "", RequiredError{}
+		return "", kernel.RequiredError{}
 	}
 	return limited(text, maxLength)
 }

@@ -1,4 +1,4 @@
-package kernel
+package domain
 
 // timeZones are the names of the IANA time zone database, in the order Go
 // sorts strings: every zone and every link to one, so that the older name a

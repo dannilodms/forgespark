@@ -115,6 +115,17 @@ func (thingLabelRude) Error() string { return "the label is rude" }
 
 func (thingLabelRude) Code() string { return "thing_label_rude" }
 
+// thingTextTooLong is a rule about one field that has parameters.
+type thingTextTooLong struct {
+	maxLength int
+}
+
+func (thingTextTooLong) Error() string { return "the text is longer than the field allows" }
+
+func (thingTextTooLong) Code() string { return "too_long" }
+
+func (e thingTextTooLong) Params() map[string]any { return map[string]any{"max_length": e.maxLength} }
+
 type createThingInput struct {
 	Body CreateThingRequest
 }
@@ -138,7 +149,7 @@ func createThing(_ context.Context, input *createThingInput) (*createThingOutput
 	case "reserved":
 		return nil, fmt.Errorf("create the thing: %w", kernel.InvalidFieldsError{Fields: []kernel.FieldError{
 			{Field: "label", Rule: thingLabelReserved{}},
-			{Field: "owner.email", Rule: kernel.TooLongError{MaxLength: 5}},
+			{Field: "owner.email", Rule: thingTextTooLong{maxLength: 5}},
 		}})
 	case "rude":
 		return nil, kernel.InvalidFieldsError{Fields: []kernel.FieldError{{Field: "label", Rule: thingLabelRude{}}}}
@@ -179,7 +190,7 @@ func serve(t *testing.T) served {
 		Path:        "/api/things",
 		Summary:     "Create a thing",
 	}, restapi.Failures{
-		http.StatusUnprocessableEntity: {restapi.InField(thingLabelReserved{}), restapi.InField(kernel.TooLongError{})},
+		http.StatusUnprocessableEntity: {restapi.InField(thingLabelReserved{}), restapi.InField(thingTextTooLong{})},
 	}, createThing)
 
 	server := httptest.NewServer(telemetry.Requests(mux, logger, tracing.Provider))

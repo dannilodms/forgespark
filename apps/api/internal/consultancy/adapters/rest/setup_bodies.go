@@ -43,9 +43,9 @@ func (SetupConsultancy) TransformSchema(_ huma.Registry, schema *huma.Schema) *h
 	limit(schema, "name", domain.NameMaxLength)
 	limit(schema, "legal_name", domain.LegalNameMaxLength)
 	limit(schema, "tax_id", domain.TaxIDMaxLength)
-	limit(schema, "email", kernel.EmailMaxLength)
-	limit(schema, "website", kernel.WebsiteMaxLength)
-	shape(schema, "telephone", kernel.TelephonePattern)
+	limit(schema, "email", domain.EmailMaxLength)
+	limit(schema, "website", domain.WebsiteMaxLength)
+	shape(schema, "telephone", domain.TelephonePattern)
 	shape(schema, "website", websitePattern)
 	shape(schema, "logo_file_id", identifier.File.Pattern())
 	return schema
@@ -132,9 +132,9 @@ type SetupAdministrator struct {
 // TransformSchema sets the limits and the forms of the domain.
 func (SetupAdministrator) TransformSchema(_ huma.Registry, schema *huma.Schema) *huma.Schema {
 	limit(schema, "name", domain.NameMaxLength)
-	limit(schema, "email", kernel.EmailMaxLength)
+	limit(schema, "email", domain.EmailMaxLength)
 	limit(schema, "national_id", domain.NationalIDMaxLength)
-	shape(schema, "telephone", kernel.TelephonePattern)
+	shape(schema, "telephone", domain.TelephonePattern)
 	shape(schema, "photo_file_id", identifier.File.Pattern())
 	return schema
 }

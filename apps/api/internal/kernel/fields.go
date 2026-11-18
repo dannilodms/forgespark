@@ -1,7 +1,8 @@
-// Package kernel holds the value objects more than one domain area uses: the
-// supported language, the country, the currency, the time zone, the e-mail,
-// the telephone and the website, and the rules a field of an input breaks.
-// It imports the standard library only.
+// Package kernel holds what more than one domain area uses: the supported
+// language and the country, the rule of a required field left empty, and the
+// error that lists the fields of an input that break a rule. A value object
+// that one area alone uses lives in that area. It imports the standard
+// library only.
 package kernel
 
 import (
@@ -90,4 +91,16 @@ type unnamedRule struct {
 
 func (unnamedRule) Code() string {
 	return "unnamed_rule"
+}
+
+// RequiredError is a field that is required and was left empty.
+type RequiredError struct{}
+
+func (RequiredError) Error() string {
+	return "the field is required"
+}
+
+// Code returns the stable code an inbound adapter answers with.
+func (RequiredError) Code() string {
+	return "required"
 }

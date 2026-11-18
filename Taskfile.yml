@@ -105,15 +105,16 @@ tasks:
     desc: Write the countries, the currencies and the time zones the API accepts into the app, at apps/web/src/shared/places/lists.gen.ts
     dir: apps/api
     cmds:
-      # The lists are the kernel's, unexported, so a test of the package is
-      # what writes them, as the spec is written.
-      - go test -count=1 -run '^TestTheAppOffersTheListsTheBackendAccepts$' ./internal/kernel -args -write-lists
+      # The currencies and the time zones are unexported, so a test of the
+      # consultancy domain, which holds them, writes the file, as the spec is
+      # written. The countries come from the kernel.
+      - go test -count=1 -run '^TestTheAppOffersTheListsTheBackendAccepts$' ./internal/consultancy/domain -args -write-lists
 
   api:lists:check:
     desc: Fail when the lists of the app are not the ones the API accepts
     dir: apps/api
     cmds:
-      - go test -count=1 -run '^TestTheAppOffersTheListsTheBackendAccepts$' ./internal/kernel
+      - go test -count=1 -run '^TestTheAppOffersTheListsTheBackendAccepts$' ./internal/consultancy/domain
 
   api:spec:lint:
     desc: Lint the committed OpenAPI spec, for snake_case names and plural paths

@@ -12,8 +12,6 @@ import (
 func TestEachListIsSortedWithEachValueOnce(t *testing.T) {
 	lists := map[string][]string{
 		"countries":           countries,
-		"currencies":          currencies,
-		"time zones":          timeZones,
 		"supported languages": supportedLanguages,
 	}
 	for name, list := range lists {
@@ -23,21 +21,12 @@ func TestEachListIsSortedWithEachValueOnce(t *testing.T) {
 		})
 	}
 	assert.Len(t, countries, 249)
-	assert.Len(t, currencies, 155)
-	assert.Len(t, timeZones, 597)
 }
 
 func TestTheListsAcceptWhatTheirSourcesListAndNothingElse(t *testing.T) {
 	accepted := map[string]error{
 		"Brazil":                  errorOf(NewCountry("BR")),
 		"Antarctica":              errorOf(NewCountry("AQ")),
-		"the Brazilian real":      errorOf(NewCurrency("BRL")),
-		"the CFA franc":           errorOf(NewCurrency("XOF")),
-		"the Caribbean guilder":   errorOf(NewCurrency("XCG")),
-		"a zone":                  errorOf(NewTimeZone("America/Sao_Paulo")),
-		"a link to a zone":        errorOf(NewTimeZone("Asia/Calcutta")),
-		"the zone it links to":    errorOf(NewTimeZone("Asia/Kolkata")),
-		"UTC":                     errorOf(NewTimeZone("UTC")),
 		"Brazilian Portuguese":    errorOf(NewLanguage("pt-BR")),
 		"English of the US":       errorOf(NewLanguage("en-US")),
 		"Spanish with no country": errorOf(NewLanguage("es")),
@@ -47,14 +36,9 @@ func TestTheListsAcceptWhatTheirSourcesListAndNothingElse(t *testing.T) {
 	}
 
 	refused := map[string]error{
-		"Kosovo, which ISO 3166-1 does not assign":     errorOf(NewCountry("XK")),
-		"the United Kingdom by its common name":        errorOf(NewCountry("UK")),
-		"gold":                                         errorOf(NewCurrency("XAU")),
-		"a unit of account of Chile":                   errorOf(NewCurrency("CLF")),
-		"the Netherlands Antillean guilder, withdrawn": errorOf(NewCurrency("ANG")),
-		"the file of the database that is no place":    errorOf(NewTimeZone("Factory")),
-		"a zone in lower case":                         errorOf(NewTimeZone("america/sao_paulo")),
-		"Portuguese with no country":                   errorOf(NewLanguage("pt")),
+		"Kosovo, which ISO 3166-1 does not assign": errorOf(NewCountry("XK")),
+		"the United Kingdom by its common name":    errorOf(NewCountry("UK")),
+		"Portuguese with no country":               errorOf(NewLanguage("pt")),
 	}
 	for name, err := range refused {
 		assert.Error(t, err, name)

@@ -77,11 +77,11 @@ type ConsultancyDetails struct {
 	legalName string
 	country   kernel.Country
 	taxID     string
-	timeZone  kernel.TimeZone
-	currency  kernel.Currency
-	email     optional[kernel.Email]
-	telephone optional[kernel.Telephone]
-	website   optional[kernel.Website]
+	timeZone  TimeZone
+	currency  Currency
+	email     optional[Email]
+	telephone optional[Telephone]
+	website   optional[Website]
 	address   optional[Address]
 	logo      optional[FileID]
 }
@@ -95,23 +95,23 @@ func NewConsultancyDetails(typed TypedConsultancy) (ConsultancyDetails, error) {
 	var details ConsultancyDetails
 	var err error
 
-	details.name, err = kernel.RequiredText(typed.Name, NameMaxLength)
+	details.name, err = RequiredText(typed.Name, NameMaxLength)
 	invalid.Check("name", err)
-	details.legalName, err = kernel.RequiredText(typed.LegalName, LegalNameMaxLength)
+	details.legalName, err = RequiredText(typed.LegalName, LegalNameMaxLength)
 	invalid.Check("legal_name", err)
 	details.country, err = kernel.NewCountry(typed.Country)
 	invalid.Check("country", err)
-	details.taxID, err = kernel.RequiredText(typed.TaxID, TaxIDMaxLength)
+	details.taxID, err = RequiredText(typed.TaxID, TaxIDMaxLength)
 	invalid.Check("tax_id", err)
-	details.timeZone, err = kernel.NewTimeZone(typed.TimeZone)
+	details.timeZone, err = NewTimeZone(typed.TimeZone)
 	invalid.Check("time_zone", err)
-	details.currency, err = kernel.NewCurrency(typed.Currency)
+	details.currency, err = NewCurrency(typed.Currency)
 	invalid.Check("currency", err)
-	details.email, err = readOptional(typed.Email, kernel.NewEmail)
+	details.email, err = readOptional(typed.Email, NewEmail)
 	invalid.Check("email", err)
-	details.telephone, err = readOptional(typed.Telephone, kernel.NewTelephone)
+	details.telephone, err = readOptional(typed.Telephone, NewTelephone)
 	invalid.Check("telephone", err)
-	details.website, err = readOptional(typed.Website, kernel.NewWebsite)
+	details.website, err = readOptional(typed.Website, NewWebsite)
 	invalid.Check("website", err)
 	details.address, err = readAddress(typed.Address)
 	invalid.Include("address", err)
@@ -141,20 +141,20 @@ func (d ConsultancyDetails) Country() kernel.Country { return d.country }
 func (d ConsultancyDetails) TaxID() string { return d.taxID }
 
 // TimeZone returns the time zone of the consultancy.
-func (d ConsultancyDetails) TimeZone() kernel.TimeZone { return d.timeZone }
+func (d ConsultancyDetails) TimeZone() TimeZone { return d.timeZone }
 
 // Currency returns the currency of the consultancy.
-func (d ConsultancyDetails) Currency() kernel.Currency { return d.currency }
+func (d ConsultancyDetails) Currency() Currency { return d.currency }
 
 // Email returns the e-mail of the consultancy, and false when it has none.
-func (d ConsultancyDetails) Email() (kernel.Email, bool) { return d.email.get() }
+func (d ConsultancyDetails) Email() (Email, bool) { return d.email.get() }
 
 // Telephone returns the telephone of the consultancy, and false when it has
 // none.
-func (d ConsultancyDetails) Telephone() (kernel.Telephone, bool) { return d.telephone.get() }
+func (d ConsultancyDetails) Telephone() (Telephone, bool) { return d.telephone.get() }
 
 // Website returns the website of the consultancy, and false when it has none.
-func (d ConsultancyDetails) Website() (kernel.Website, bool) { return d.website.get() }
+func (d ConsultancyDetails) Website() (Website, bool) { return d.website.get() }
 
 // Address returns the address of the consultancy, and false when it has
 // none.
@@ -181,15 +181,15 @@ func readAddress(typed TypedAddress) (optional[Address], error) {
 	var address Address
 	var err error
 
-	address.line1, err = kernel.OptionalText(typed.Line1, AddressLineMaxLength)
+	address.line1, err = OptionalText(typed.Line1, AddressLineMaxLength)
 	invalid.Check("line1", err)
-	address.line2, err = kernel.OptionalText(typed.Line2, AddressLineMaxLength)
+	address.line2, err = OptionalText(typed.Line2, AddressLineMaxLength)
 	invalid.Check("line2", err)
-	address.city, err = kernel.OptionalText(typed.City, CityMaxLength)
+	address.city, err = OptionalText(typed.City, CityMaxLength)
 	invalid.Check("city", err)
-	address.region, err = kernel.OptionalText(typed.Region, RegionMaxLength)
+	address.region, err = OptionalText(typed.Region, RegionMaxLength)
 	invalid.Check("region", err)
-	address.postalCode, err = kernel.OptionalText(typed.PostalCode, PostalCodeMaxLength)
+	address.postalCode, err = OptionalText(typed.PostalCode, PostalCodeMaxLength)
 	invalid.Check("postal_code", err)
 
 	if err := invalid.Err(); err != nil {

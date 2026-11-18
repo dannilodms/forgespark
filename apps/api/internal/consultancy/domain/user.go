@@ -35,10 +35,10 @@ type TypedUser struct {
 // NewUserDetails builds them.
 type UserDetails struct {
 	name              string
-	email             kernel.Email
+	email             Email
 	country           kernel.Country
 	nationalID        string
-	telephone         optional[kernel.Telephone]
+	telephone         optional[Telephone]
 	preferredLanguage kernel.Language
 	photo             optional[FileID]
 }
@@ -52,15 +52,15 @@ func NewUserDetails(typed TypedUser) (UserDetails, error) {
 	var details UserDetails
 	var err error
 
-	details.name, err = kernel.RequiredText(typed.Name, NameMaxLength)
+	details.name, err = RequiredText(typed.Name, NameMaxLength)
 	invalid.Check("name", err)
-	details.email, err = kernel.NewEmail(typed.Email)
+	details.email, err = NewEmail(typed.Email)
 	invalid.Check("email", err)
 	details.country, err = kernel.NewCountry(typed.Country)
 	invalid.Check("country", err)
-	details.nationalID, err = kernel.RequiredText(typed.NationalID, NationalIDMaxLength)
+	details.nationalID, err = RequiredText(typed.NationalID, NationalIDMaxLength)
 	invalid.Check("national_id", err)
-	details.telephone, err = readOptional(typed.Telephone, kernel.NewTelephone)
+	details.telephone, err = readOptional(typed.Telephone, NewTelephone)
 	invalid.Check("telephone", err)
 	details.preferredLanguage, err = kernel.NewLanguage(typed.PreferredLanguage)
 	invalid.Check("preferred_language", err)
@@ -76,7 +76,7 @@ func NewUserDetails(typed TypedUser) (UserDetails, error) {
 func (d UserDetails) Name() string { return d.name }
 
 // Email returns the e-mail the user logs in with, in lowercase.
-func (d UserDetails) Email() kernel.Email { return d.email }
+func (d UserDetails) Email() Email { return d.email }
 
 // Country returns the country of the user, which the national ID is read
 // with.
@@ -87,7 +87,7 @@ func (d UserDetails) NationalID() string { return d.nationalID }
 
 // Telephone returns the telephone of the user, and false when they have
 // none.
-func (d UserDetails) Telephone() (kernel.Telephone, bool) { return d.telephone.get() }
+func (d UserDetails) Telephone() (Telephone, bool) { return d.telephone.get() }
 
 // PreferredLanguage returns the language the user reads the system in.
 func (d UserDetails) PreferredLanguage() kernel.Language { return d.preferredLanguage }

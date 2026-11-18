@@ -49,7 +49,7 @@ No scope exists yet, so no table links a role to its scopes. The administrator r
 
 ### Decided while building
 
-- **Which value objects went to `kernel`**: the country, the currency, the time zone, the language, the e-mail, the telephone and the website. Each is a general form, and the clients, the e-mails and the login will use them. The tax ID and the national ID stay plain text in the domain of the area, as free text within a limit.
+- **Which value objects went to `kernel`**: the country, the currency, the time zone, the language, the e-mail, the telephone and the website. Each is a general form, and the clients, the e-mails and the login will use them. The tax ID and the national ID stay plain text in the domain of the area, as free text within a limit. After the review of the effort, the e-mail, the telephone, the website, the currency, the time zone and the limited texts moved to `consultancy/domain`, which alone uses them; `kernel` keeps the country, the language, `RequiredError` and the error that lists the fields.
 - **The length limits**: 200 characters for a name and a legal name, 50 for a tax ID and a national ID, 200 for a line of the address, 100 for the city and the region, 20 for the postal code, 254 for an e-mail (RFC 5321) and 2048 for a website. Counted in characters.
 - **Every text is trimmed** of the spaces around it, and otherwise stored as typed. A required text of spaces only is `required`.
 - **The telephone** accepts spaces only as separators: a hyphen or a parenthesis is refused, as "a plus sign and digits" reads. 7 to 15 digits, the shortest international numbers and the E.164 limit.

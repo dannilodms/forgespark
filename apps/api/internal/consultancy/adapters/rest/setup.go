@@ -121,25 +121,25 @@ var imageRules = []restapi.Failure{
 // the form of an e-mail, of a telephone and of a website.
 var fieldRules = []restapi.Failure{
 	restapi.InField(kernel.RequiredError{}),
-	restapi.InField(kernel.TooLongError{}),
+	restapi.InField(domain.TooLongError{}),
 	restapi.InField(kernel.CountryUnknownError{}),
-	restapi.InField(kernel.CurrencyUnknownError{}),
-	restapi.InField(kernel.TimeZoneUnknownError{}),
+	restapi.InField(domain.CurrencyUnknownError{}),
+	restapi.InField(domain.TimeZoneUnknownError{}),
 	restapi.InField(kernel.LanguageUnsupportedError{}),
-	restapi.InField(kernel.EmailInvalidError{}),
-	restapi.InField(kernel.TelephoneInvalidError{}),
-	restapi.InField(kernel.WebsiteInvalidError{}),
+	restapi.InField(domain.EmailInvalidError{}),
+	restapi.InField(domain.TelephoneInvalidError{}),
+	restapi.InField(domain.WebsiteInvalidError{}),
 }
 
 // administratorRules are the rules a field of an administrator may break, as
 // the domain checks them: the ones of fieldRules that a user has.
 var administratorRules = []restapi.Failure{
 	restapi.InField(kernel.RequiredError{}),
-	restapi.InField(kernel.TooLongError{}),
+	restapi.InField(domain.TooLongError{}),
 	restapi.InField(kernel.CountryUnknownError{}),
 	restapi.InField(kernel.LanguageUnsupportedError{}),
-	restapi.InField(kernel.EmailInvalidError{}),
-	restapi.InField(kernel.TelephoneInvalidError{}),
+	restapi.InField(domain.EmailInvalidError{}),
+	restapi.InField(domain.TelephoneInvalidError{}),
 }
 
 type tellSetupState struct {

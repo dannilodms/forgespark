@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // Transactions opens and closes the transaction of a use case that writes.
@@ -66,7 +65,7 @@ type UserRepository interface {
 	// EmailInUse tells whether a user, deactivated or not, has this e-mail.
 	// It locks nothing: the use cases that register a user run under the
 	// lock of the one setup code that works, so two of them do not overlap.
-	EmailInUse(ctx context.Context, email kernel.Email) (bool, error)
+	EmailInUse(ctx context.Context, email domain.Email) (bool, error)
 	// Save stores a user whole, with their roles, whether they are new or
 	// changed.
 	Save(ctx context.Context, user *domain.User) error
