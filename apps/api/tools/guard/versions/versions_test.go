@@ -165,6 +165,22 @@ var kinds = map[string]kind{
 		exact:    []string{"1.7.12", `"1.7.12"`},
 		inexact:  []string{"1.7", "1", "latest", `"^1.7.12"`},
 	},
+	"an image a Task target runs": {
+		file:     "Taskfile.yml",
+		template: "version: \"3\"\n\ntasks:\n  workflows:check:\n    vars:\n      ACTIONLINT_IMAGE: %s\n",
+		line:     6,
+		exact: []string{
+			"rhysd/actionlint:1.7.12@sha256:" + strings.Repeat("b", 64),
+			"ghcr.io/zizmorcore/zizmor:1.32.0@sha256:" + strings.Repeat("3", 64),
+			"rhysd/actionlint:1.7.12",
+		},
+		inexact: []string{
+			"rhysd/actionlint",
+			"rhysd/actionlint:latest",
+			"rhysd/actionlint:1.7",
+			"rhysd/actionlint@sha256:abc",
+		},
+	},
 	"a tool an action installs": {
 		file:     ".github/workflows/ci.yml",
 		template: "jobs:\n  app:\n    steps:\n      - uses: ./.github/actions/setup\n        with:\n          node-version: %s\n          go-version-file: apps/api/go.mod\n",

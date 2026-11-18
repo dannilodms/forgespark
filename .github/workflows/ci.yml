@@ -52,8 +52,8 @@ jobs:
           tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      # actionlint and zizmor run from their images, at the versions of the
-      # Task target. The token lets zizmor run its online audits.
+      # actionlint and zizmor run from their images, pinned by tag and digest
+      # in the Task target. The token lets zizmor run its online audits.
       - name: Check the workflow files with actionlint and zizmor
         env:
           GH_TOKEN: ${{ github.token }}

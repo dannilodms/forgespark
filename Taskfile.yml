@@ -236,15 +236,16 @@ tasks:
   workflows:check:
     desc: Check the workflow files with actionlint and zizmor, each from its image
     vars:
-      # The images of the two linters. A variable whose name ends in _VERSION
-      # is judged by `task versions:check`.
-      ACTIONLINT_VERSION: 1.7.12
-      ZIZMOR_VERSION: 1.32.0
+      # The images of the two linters, each by its tag and by the digest of
+      # that tag in its registry, so a tag pushed again is not run. A
+      # variable whose name ends in _IMAGE is judged by `task versions:check`.
+      ACTIONLINT_IMAGE: rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+      ZIZMOR_IMAGE: ghcr.io/zizmorcore/zizmor:1.32.0@sha256:3014cc8f68f663935f69b3c3e0e41f5ce102b268d97db13db0f62208747f860d
     cmds:
-      - docker run --rm --volume "{{.ROOT_DIR}}:/repository:ro" --workdir /repository rhysd/actionlint:{{.ACTIONLINT_VERSION}} -color
+      - docker run --rm --volume "{{.ROOT_DIR}}:/repository:ro" --workdir /repository {{.ACTIONLINT_IMAGE}} -color
       # With GH_TOKEN, which the pipeline gives it, zizmor runs its online
       # audits too; without it, the offline ones.
-      - docker run --rm --volume "{{.ROOT_DIR}}:/repository:ro" --workdir /repository --env GH_TOKEN ghcr.io/zizmorcore/zizmor:{{.ZIZMOR_VERSION}} --color=always .
+      - docker run --rm --volume "{{.ROOT_DIR}}:/repository:ro" --workdir /repository --env GH_TOKEN {{.ZIZMOR_IMAGE}} --color=always .
 
   versions:check:
     desc: Check that every version the repository pins is exact
