@@ -27,7 +27,7 @@ One test drives the real system the way whoever installs it does, and the pipeli
 - [ ] The job runs on a pull request, the `Checks` job needs it, and a failure leaves a trace to read.
 - [x] Every joint in "Joints this effort proves" is marked as proven in `../spec.md`, or its ADR says what changed.
 - [x] The READMEs take a new person from a clean machine to a concluded setup.
-- [ ] `task check` and the pipeline pass on `main` with everything of this effort.
+- [x] `task check` and the pipeline pass on `main` with everything of this effort.
 
 ## Comments
 
@@ -79,3 +79,5 @@ One test drives the real system the way whoever installs it does, and the pipeli
 ### Checked in the pipeline
 
 In run [44225480372](https://github.com/dannilodms/software-factory-manager/actions/runs/44225480372) of pull request #5, on `0c751a9`, the `end-to-end` job ran `task e2e` from an empty database on the GitHub runner and passed, and `Checks` ran after it. The first box is ticked on that run. Two stay open: a failure leaving its trace was not seen, since the job did not fail, and `task check` and the pipeline on `main` wait for the merge.
+
+On `main`, run [44228719482](https://github.com/dannilodms/software-factory-manager/actions/runs/44228719482) passed on `b7c76dc`, the squash commit of pull request #5, which holds everything of this effort: the jobs of the workflow files, of the backend, of the app and of the end-to-end test, and `Checks` after them, all on the push to `main`. `task check` passed on the branch that closes the spec, `chore/close-foundation-and-setup`, cut from `b7c76dc`. The last box is ticked on them.
