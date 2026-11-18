@@ -3,7 +3,7 @@
 // CODING_STANDARDS.md): Garage in development and staging, a provider in
 // production. The browser sends the bytes itself, to a URL this adapter signs
 // for the public host name of the storage; the API only reads the start of an
-// object and removes one.
+// object, copies one inside the storage and removes one.
 package s3
 
 import (
@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -140,6 +141,21 @@ func (s *Storage) firstBytes(ctx context.Context, key domain.ObjectKey) ([]byte,
 		return nil, false, fmt.Errorf("read the first bytes of an object: %w", err)
 	}
 	return first, true, nil
+}
+
+// Copy copies the object under one key to another with CopyObject, inside
+// the storage: the bytes never reach the API. A URL signed for the first key
+// reaches the first key only.
+func (s *Storage) Copy(ctx context.Context, from, to domain.ObjectKey) error {
+	_, err := s.client.CopyObject(ctx, &s3.CopyObjectInput{
+		Bucket:     aws.String(s.bucket),
+		Key:        aws.String(string(to)),
+		CopySource: aws.String(url.PathEscape(s.bucket) + "/" + url.PathEscape(string(from))),
+	})
+	if err != nil {
+		return fmt.Errorf("copy an object: %w", err)
+	}
+	return nil
 }
 
 // Remove removes the object under this key. The S3 API answers the removal

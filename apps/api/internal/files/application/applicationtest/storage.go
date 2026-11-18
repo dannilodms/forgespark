@@ -1,7 +1,9 @@
 package applicationtest
 
 import (
+	"cmp"
 	"context"
+	"fmt"
 	"maps"
 	"slices"
 	"time"
@@ -15,6 +17,9 @@ type Storage struct {
 	objects map[domain.ObjectKey][]byte
 	signed  map[domain.ObjectKey]SignedUpload
 	failure error
+	// Failures of one kind of call only.
+	copyFailure   error
+	removeFailure error
 }
 
 // SignedUpload is a URL the storage signed, and what it accepts.
@@ -33,6 +38,18 @@ func NewStorage() *Storage {
 // does not answer.
 func (s *Storage) FailWith(failure error) {
 	s.failure = failure
+}
+
+// FailCopyingWith makes every later copy fail with this error, and nothing
+// else.
+func (s *Storage) FailCopyingWith(failure error) {
+	s.copyFailure = failure
+}
+
+// FailRemovingWith makes every later removal fail with this error, and
+// nothing else.
+func (s *Storage) FailRemovingWith(failure error) {
+	s.removeFailure = failure
 }
 
 // SignUpload signs a URL for the object under this key.
@@ -64,10 +81,24 @@ func (s *Storage) Inspect(_ context.Context, key domain.ObjectKey) (domain.Store
 	return domain.StoredObject{Size: int64(len(content)), FirstBytes: slices.Clone(first)}, true, nil
 }
 
+// Copy stores a copy of the object under one key under the other. The URL
+// signed for the first key reaches the first key only.
+func (s *Storage) Copy(_ context.Context, from, to domain.ObjectKey) error {
+	if err := cmp.Or(s.failure, s.copyFailure); err != nil {
+		return err
+	}
+	content, found := s.objects[from]
+	if !found {
+		return fmt.Errorf("copy %s: no such object", from)
+	}
+	s.objects[to] = slices.Clone(content)
+	return nil
+}
+
 // Remove removes the object under the key.
 func (s *Storage) Remove(_ context.Context, key domain.ObjectKey) error {
-	if s.failure != nil {
-		return s.failure
+	if err := cmp.Or(s.failure, s.removeFailure); err != nil {
+		return err
 	}
 	delete(s.objects, key)
 	return nil
@@ -79,10 +110,22 @@ func (s *Storage) Holds(key domain.ObjectKey) bool {
 	return found
 }
 
+// Content returns the bytes stored under the key, and false when there are
+// none.
+func (s *Storage) Content(key domain.ObjectKey) ([]byte, bool) {
+	content, found := s.objects[key]
+	return slices.Clone(content), found
+}
+
 // SignedUpload returns the URL signed for the object under the key.
 func (s *Storage) SignedUpload(key domain.ObjectKey) (SignedUpload, bool) {
 	signed, found := s.signed[key]
 	return signed, found
+}
+
+// Keys lists the keys an object is stored under.
+func (s *Storage) Keys() []domain.ObjectKey {
+	return slices.Collect(maps.Keys(s.objects))
 }
 
 // SignedKeys lists the keys a URL was signed for.

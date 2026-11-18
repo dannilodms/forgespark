@@ -86,18 +86,28 @@ func RestoreFile(
 	}
 }
 
-// Confirm checks the object the sender stored and makes the file usable:
-// an object over MaxImageSize, or one that is not a PNG, a JPEG or a WebP,
-// is refused, and the file stays unconfirmed. A file confirmed again keeps
-// the time of its first confirmation.
-func (f *File) Confirm(object StoredObject, at time.Time) error {
+// Confirm checks the object the sender stored and makes the file usable,
+// with its bytes kept under a key of their own, which no signed URL reaches:
+// the caller copies the object there before the file is saved. An object
+// over MaxImageSize, or one that is not a PNG, a JPEG or a WebP, is refused,
+// and the file stays unconfirmed, under the key of its upload. A file
+// confirmed again keeps its first confirmation: its time and its key.
+func (f *File) Confirm(object StoredObject, kept ObjectKey, at time.Time) error {
 	if err := checkStoredImage(object); err != nil {
 		return err
 	}
-	if f.confirmedAt == nil {
-		f.confirmedAt = &at
+	if f.confirmedAt != nil {
+		return nil
 	}
+	f.objectKey = kept
+	f.confirmedAt = &at
 	return nil
+}
+
+// IsConfirmed tells whether its upload was confirmed. The object of a
+// confirmed file is under a key no signed URL reaches, so it cannot change.
+func (f *File) IsConfirmed() bool {
+	return f.confirmedAt != nil
 }
 
 // IsFor tells whether the file is for this purpose.
@@ -108,7 +118,8 @@ func (f *File) IsFor(purpose Purpose) bool {
 // ID returns the identifier of the file.
 func (f *File) ID() FileID { return f.id }
 
-// ObjectKey returns where its bytes are in the storage.
+// ObjectKey returns where its bytes are in the storage: the key its upload
+// was sent to until it is confirmed, and the key they are kept under after.
 func (f *File) ObjectKey() ObjectKey { return f.objectKey }
 
 // Purpose returns what the file is for.

@@ -43,7 +43,7 @@ func mountREST(mux *http.ServeMux, pool *pgxpool.Pool, storage *filess3.Storage)
 		Consultancies: consultancies,
 		Users:         consultancypostgres.NewUserRepository(pool),
 		Roles:         consultancypostgres.NewRoleRepository(pool),
-		ConfirmUpload: filesapplication.NewConfirmUpload(transactions, files, storage, clock.System{}),
+		ConfirmUpload: filesapplication.NewConfirmUpload(transactions, files, storage, clock.System{}, rand.Reader),
 		RecordEntry:   auditapplication.NewRecordEntry(auditpostgres.NewAuditLog(pool)),
 		Clock:         clock.System{},
 	}

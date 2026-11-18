@@ -3,6 +3,7 @@ package postgres_test
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"errors"
 	"testing"
 	"time"
@@ -98,18 +99,20 @@ func TestAFileIsLoadedAsItWasSaved(t *testing.T) {
 	assert.False(t, confirmed)
 }
 
-func TestAFileConfirmedIsLoadedWithTheTimeOfItsConfirmation(t *testing.T) {
+func TestAFileConfirmedIsLoadedWithTheTimeOfItsConfirmationAndTheKeyItIsKeptUnder(t *testing.T) {
 	t.Parallel()
 	temporary := newStored(t)
 	saved := temporary.start(t, domain.ConsultancyLogo, "image/png", 1024)
 	confirmedAt := noon.Add(3 * time.Minute)
+	kept, err := domain.NewObjectKey(rand.Reader)
+	require.NoError(t, err)
 
-	err := temporary.transactions.Run(context.Background(), func(ctx context.Context) error {
+	err = temporary.transactions.Run(context.Background(), func(ctx context.Context) error {
 		file, _, err := temporary.files.Load(ctx, saved.ID())
 		if err != nil {
 			return err
 		}
-		if err := file.Confirm(domain.StoredObject{Size: 1024, FirstBytes: []byte("\x89PNG\r\n\x1a\n")}, confirmedAt); err != nil {
+		if err := file.Confirm(domain.StoredObject{Size: 1024, FirstBytes: []byte("\x89PNG\r\n\x1a\n")}, kept, confirmedAt); err != nil {
 			return err
 		}
 		return temporary.files.Save(ctx, file)
@@ -120,6 +123,7 @@ func TestAFileConfirmedIsLoadedWithTheTimeOfItsConfirmation(t *testing.T) {
 	loadedAt, confirmed := loaded.ConfirmedAt()
 	assert.True(t, confirmed)
 	assert.Equal(t, confirmedAt, loadedAt)
+	assert.Equal(t, kept, loaded.ObjectKey())
 }
 
 func TestNoFileIsLoadedForAnIdentifierThatWasNeverSaved(t *testing.T) {

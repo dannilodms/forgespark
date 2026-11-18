@@ -49,6 +49,10 @@ type Storage interface {
 	// bytes, at most domain.FirstBytesRead of them, and false when there is no
 	// object.
 	Inspect(ctx context.Context, key domain.ObjectKey) (domain.StoredObject, bool, error)
+	// Copy copies the object under one key to another key, inside the
+	// storage: the bytes never pass through the API. No URL signed for the
+	// first key reaches the copy.
+	Copy(ctx context.Context, from, to domain.ObjectKey) error
 	// Remove removes the object under this key. Removing one that does not
 	// exist is no failure.
 	Remove(ctx context.Context, key domain.ObjectKey) error

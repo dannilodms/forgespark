@@ -49,13 +49,15 @@ func newStorage() storage {
 	files := applicationtest.NewFileRepository()
 	objects := applicationtest.NewStorage()
 	transactions := applicationtest.NewTransactions(files)
+	// One source for every key, as crypto/rand is, so no two keys are the same.
+	random := &countingBytes{}
 	return storage{
 		clock:         clock,
 		files:         files,
 		objects:       objects,
 		transactions:  transactions,
-		startUpload:   application.NewStartUpload(transactions, files, objects, clock, &countingBytes{}),
-		confirmUpload: application.NewConfirmUpload(transactions, files, objects, clock),
+		startUpload:   application.NewStartUpload(transactions, files, objects, clock, random),
+		confirmUpload: application.NewConfirmUpload(transactions, files, objects, clock, random),
 	}
 }
 

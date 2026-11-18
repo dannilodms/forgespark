@@ -75,7 +75,7 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 
 **Cost.** US$ 6.95 for each terabyte a month, with the first 10 GB free. About US$ 0.63 a month for 100 GB stored, 20 GB uploaded and 50 GB downloaded. Requests are free.
 
-**Not proven yet.** The AWS SDK for Go v2 with its default checksum, an upload in parts with signed URLs, and pgBackRest against it. The work that builds the deploy tries all three, before production uses it. If one fails, the storage moves to Scaleway or OVHcloud.
+**Not proven yet.** The AWS SDK for Go v2 with its default checksum, `CopyObject`, which confirming an upload uses (ADR-0017), an upload in parts with signed URLs, and pgBackRest against it. The work that builds the deploy tries all four, before production uses it. If one fails, the storage moves to Scaleway or OVHcloud.
 
 | Item | Value |
 | --- | --- |

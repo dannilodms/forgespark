@@ -78,14 +78,16 @@ func newInstallation() installation {
 	objects := filesapplicationtest.NewStorage()
 	transactions := applicationtest.NewTransactions(setupCodes, consultancies, users, roles, auditLog, files)
 	recordEntry := auditapplication.NewRecordEntry(auditLog)
-	startUpload := filesapplication.NewStartUpload(transactions, files, objects, clock, &countingBytes{})
+	// One source for the keys of the storage, so no two keys are the same.
+	objectKeys := &countingBytes{}
+	startUpload := filesapplication.NewStartUpload(transactions, files, objects, clock, objectKeys)
 	setup := application.SetupDependencies{
 		Transactions:  transactions,
 		SetupCodes:    setupCodes,
 		Consultancies: consultancies,
 		Users:         users,
 		Roles:         roles,
-		ConfirmUpload: filesapplication.NewConfirmUpload(transactions, files, objects, clock),
+		ConfirmUpload: filesapplication.NewConfirmUpload(transactions, files, objects, clock, objectKeys),
 		RecordEntry:   recordEntry,
 		Clock:         clock,
 	}

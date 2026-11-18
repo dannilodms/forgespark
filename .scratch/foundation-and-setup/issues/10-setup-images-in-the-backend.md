@@ -58,7 +58,7 @@ The area has no REST operation of its own and no download yet. The job that remo
 - **The URL is signed for five minutes**, and the declared `Content-Type` and `Content-Length` are signed with it.
 - **2 MB is 2 MiB**, 2097152 bytes, written in the contract as `maximum`.
 - **The setup code is checked, without a lock, before the images are confirmed.** Otherwise anyone could make the API read and remove objects with a wrong code. The transaction checks it again, locked.
-- **Confirming is checked again every time.** A conclusion that failed after its images were confirmed is tried again with the same images; the second confirmation reads the object again and keeps the first time.
+- **Confirming is checked again every time.** A conclusion that failed after its images were confirmed is tried again with the same images; the second confirmation keeps the first time. (Changed after the decisions on the effort: confirming copies the object to a key no signed URL reaches, so a file confirmed before is not read again; see ADR-0017.)
 - **An identifier with the right prefix that decodes to no number is `file_not_found`**, on its field, as a file that does not exist; the contract answers a wrong prefix with `invalid`. The adapter hands the use case an identifier no file has, and the use case names it with the other fields that break a rule (changed after the review of the effort; at first the adapter answered it alone, before the use case ran).
 - **The image rules belong to the files area**; the consultancy area re-exports them in `application/files.go`, because its REST adapter may reach another area only through its own `application`.
 - **The in-memory clock and transactions are copied** into the files area, as Tests in `CODING_STANDARDS.md` puts them in each area.
@@ -89,11 +89,11 @@ The area has no REST operation of its own and no download yet. The job that remo
 - **The pipeline.** Nothing was pushed: the backend job never started Garage on the runner. Garage was tried on Docker Desktop only; its configuration binds IPv4 so that a runner without IPv6 in its containers does not stop it, untried. This is why the last criterion is left open, though the spec, the code sqlc generates, the client of the app and the lint are up to date.
 - **A browser.** No browser sent a file: the preflights and the `PUT` were sent by Go with the headers a browser sends.
 - **A request without a browser from another origin** is not refused: Garage refuses the preflight, and a browser then sends nothing. A `PUT` sent by a script with any `Origin` and a valid URL is stored, as the signature allows.
-- **The removal when the storage fails to remove.** It answers 500, read from the code; no test makes `DeleteObject` fail.
+- **The removal of a refused object when the storage fails to remove.** It answers 500, read from the code; no test makes `DeleteObject` fail.
 
 ### Found, and left for a decision
 
 - **`Location` on the 201** of `start_setup_upload`, which API conventions ask of a creation, waits for an operation that reads a file.
-- **A confirmed image can be replaced** through its signed URL within its five minutes, after it was confirmed. Garage checks the signed size and type, so it stays an image of the same type and size; its bytes are not checked again until another confirmation.
+- **A confirmed image could be replaced** through its signed URL within its five minutes, after it was confirmed. Garage checks the signed size and type, so it stayed an image of the same type and size; its bytes were not checked again until another confirmation. Decided after the effort: confirming copies the object to a key no signed URL reaches and removes the uploaded one (ADR-0017).
 - **Images of an abandoned setup stay in the bucket**, the tests of the binary included, until the cleanup job of the second effort.
 - **The health of the storage** (an optional part, ADR-0012) is not built: the API requires the variables and does not probe Garage at the start.

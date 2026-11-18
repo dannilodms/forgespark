@@ -103,13 +103,7 @@ func put(t *testing.T, client *http.Client, signedURL, mediaType string, content
 // whatever reaches it.
 func storedPast(t *testing.T, settings s3.Settings, key domain.ObjectKey, content []byte) {
 	t.Helper()
-	client := awss3.New(awss3.Options{
-		BaseEndpoint: aws.String(settings.URL),
-		UsePathStyle: true,
-		Region:       settings.Region,
-		Credentials:  credentials.NewStaticCredentialsProvider(settings.AccessKeyID, settings.SecretAccessKey.Reveal(), ""),
-	})
-	_, err := client.PutObject(context.Background(), &awss3.PutObjectInput{
+	_, err := sdkClient(settings).PutObject(context.Background(), &awss3.PutObjectInput{
 		Bucket: aws.String(settings.Bucket),
 		Key:    aws.String(string(key)),
 		Body:   bytes.NewReader(content),
@@ -117,9 +111,39 @@ func storedPast(t *testing.T, settings s3.Settings, key domain.ObjectKey, conten
 	require.NoError(t, err)
 }
 
+// contentOf reads the whole object under the key with the key of the API.
+func contentOf(t *testing.T, settings s3.Settings, key domain.ObjectKey) []byte {
+	t.Helper()
+	object, err := sdkClient(settings).GetObject(context.Background(), &awss3.GetObjectInput{
+		Bucket: aws.String(settings.Bucket),
+		Key:    aws.String(string(key)),
+	})
+	require.NoError(t, err)
+	defer object.Body.Close()
+	content, err := io.ReadAll(object.Body)
+	require.NoError(t, err)
+	return content
+}
+
+// sdkClient reaches the storage with the key of the API, past the adapter.
+func sdkClient(settings s3.Settings) *awss3.Client {
+	return awss3.New(awss3.Options{
+		BaseEndpoint: aws.String(settings.URL),
+		UsePathStyle: true,
+		Region:       settings.Region,
+		Credentials:  credentials.NewStaticCredentialsProvider(settings.AccessKeyID, settings.SecretAccessKey.Reveal(), ""),
+	})
+}
+
 // aPNG is the content of a PNG of this size: its signature, then filler.
 func aPNG(size int) []byte {
-	content := bytes.Repeat([]byte{0x42}, size)
+	return aPNGFilledWith(size, 0x42)
+}
+
+// aPNGFilledWith is the content of a PNG of this size: its signature, then
+// the filler given.
+func aPNGFilledWith(size int, filler byte) []byte {
+	content := bytes.Repeat([]byte{filler}, size)
 	copy(content, "\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR")
 	return content
 }
@@ -303,6 +327,46 @@ func TestInspectingAKeyWithNoObjectFindsNothing(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.False(t, found)
+}
+
+func TestCopyingAnObjectKeepsItsBytesUnderTheOtherKeyToo(t *testing.T) {
+	t.Parallel()
+	settings := settingsOf(t)
+	storage := s3.NewStorage(settings)
+	from := aKey(t, storage)
+	to := aKey(t, storage)
+	storedPast(t, settings, from, aPNG(2048))
+
+	err := storage.Copy(context.Background(), from, to)
+
+	require.NoError(t, err)
+	assert.Equal(t, aPNG(2048), contentOf(t, settings, to))
+	assert.Equal(t, aPNG(2048), contentOf(t, settings, from))
+}
+
+// Confirming an upload copies its object to a key of its own and removes the
+// object the upload was sent to. The URL signed for the upload still works
+// until it expires, and a PUT to it then writes under the key of the upload
+// only: the copy keeps the bytes that were confirmed.
+func TestAPutToTheSignedURLAfterItsObjectWasCopiedAndRemovedLeavesTheCopyAsItWas(t *testing.T) {
+	t.Parallel()
+	settings := settingsOf(t)
+	storage := s3.NewStorage(settings)
+	uploadKey := aKey(t, storage)
+	kept := aKey(t, storage)
+	signed, err := storage.SignUpload(context.Background(), uploadKey, declared(t, "image/png", 1024), 5*time.Minute)
+	require.NoError(t, err)
+	client := browser(t, settings)
+	status, body := put(t, client, signed, "image/png", aPNG(1024))
+	require.Equal(t, http.StatusOK, status, body)
+	require.NoError(t, storage.Copy(context.Background(), uploadKey, kept))
+	require.NoError(t, storage.Remove(context.Background(), uploadKey))
+
+	status, body = put(t, client, signed, "image/png", aPNGFilledWith(1024, 0x43))
+
+	require.Equal(t, http.StatusOK, status, "the URL no longer works, so this test proves nothing: %s", body)
+	assert.Equal(t, aPNG(1024), contentOf(t, settings, kept), "a PUT to the signed URL changed the copy")
+	assert.Equal(t, aPNGFilledWith(1024, 0x43), contentOf(t, settings, uploadKey))
 }
 
 func TestRemovingAnObjectLeavesNothingUnderItsKey(t *testing.T) {

@@ -62,6 +62,101 @@ func TestConfirmingAnImageThatWasSentMakesTheFileConfirmed(t *testing.T) {
 	}
 }
 
+// The bytes of a confirmed file are kept under a key of their own, from the
+// random source, which no URL was signed for, and the object the upload was
+// sent to is removed.
+func TestAConfirmedImageIsKeptUnderANewKeyAndTheObjectOfTheUploadIsRemoved(t *testing.T) {
+	stored := newStorage()
+	id := uploaded(t, stored, anImage(pngStart, 64))
+	uploadKey := stored.files.All()[0].ObjectKey()
+
+	require.NoError(t, confirmLogo(stored, id))
+
+	kept := stored.files.All()[0].ObjectKey()
+	// The second key of the counting source: the first went to the upload.
+	assert.Equal(t, "101112131415161718191a1b1c1d1e1f", string(kept))
+	content, found := stored.objects.Content(kept)
+	require.True(t, found, "nothing is stored under the key of the confirmed file")
+	assert.Equal(t, anImage(pngStart, 64), content)
+	_, signed := stored.objects.SignedUpload(kept)
+	assert.False(t, signed, "a URL was signed for the key of the confirmed file")
+	assert.False(t, stored.objects.Holds(uploadKey), "the object the upload was sent to is still stored")
+}
+
+// Whoever holds the signed URL of the upload can send to it until it
+// expires. What they send after the confirmation changes nothing of the file.
+func TestSendingToTheSignedURLAfterTheConfirmationDoesNotChangeTheConfirmedImage(t *testing.T) {
+	stored := newStorage()
+	id := uploaded(t, stored, anImage(pngStart, 64))
+	uploadKey := stored.files.All()[0].ObjectKey()
+	require.NoError(t, confirmLogo(stored, id))
+
+	stored.objects.Put(uploadKey, anImage(jpegStart, 64))
+
+	content, found := stored.objects.Content(stored.files.All()[0].ObjectKey())
+	require.True(t, found, "the confirmed file has no object")
+	assert.Equal(t, anImage(pngStart, 64), content, "a PUT to the signed URL changed the confirmed image")
+}
+
+// The object the upload was sent to is removed after the commit. When that
+// fails, the file is confirmed all the same, under its new key: what is left
+// behind is an object no file names (ADR-0017).
+func TestAConfirmationStandsWhenTheObjectOfTheUploadCannotBeRemoved(t *testing.T) {
+	stored := newStorage()
+	id := uploaded(t, stored, anImage(pngStart, 64))
+	uploadKey := stored.files.All()[0].ObjectKey()
+	stored.objects.FailRemovingWith(errors.New("the storage did not answer the removal"))
+
+	err := confirmLogo(stored, id)
+
+	require.NoError(t, err)
+	_, confirmed := stored.files.All()[0].ConfirmedAt()
+	assert.True(t, confirmed)
+	kept := stored.files.All()[0].ObjectKey()
+	assert.NotEqual(t, uploadKey, kept)
+	content, _ := stored.objects.Content(kept)
+	assert.Equal(t, anImage(pngStart, 64), content)
+	assert.True(t, stored.objects.Holds(uploadKey), "the object of the upload is left behind")
+}
+
+// A copy that fails confirms nothing: the file stays under the key of its
+// upload, whose object is kept, and a later confirmation can try again.
+func TestAnObjectThatCannotBeCopiedConfirmsNothing(t *testing.T) {
+	stored := newStorage()
+	id := uploaded(t, stored, anImage(pngStart, 64))
+	uploadKey := stored.files.All()[0].ObjectKey()
+	failed := errors.New("the storage did not answer the copy")
+	stored.objects.FailCopyingWith(failed)
+
+	err := confirmLogo(stored, id)
+
+	require.ErrorIs(t, err, failed)
+	_, confirmed := stored.files.All()[0].ConfirmedAt()
+	assert.False(t, confirmed)
+	assert.Equal(t, uploadKey, stored.files.All()[0].ObjectKey())
+	assert.True(t, stored.objects.Holds(uploadKey), "the object of the upload was removed")
+	stored.objects.FailCopyingWith(nil)
+	require.NoError(t, confirmLogo(stored, id))
+}
+
+// A transaction that does not commit leaves the file as it was, under the key
+// of its upload, with its object: the copy it made is left behind.
+func TestAConfirmationThatIsNotCommittedLeavesTheFileUnderTheKeyOfItsUpload(t *testing.T) {
+	stored := newStorage()
+	id := uploaded(t, stored, anImage(pngStart, 64))
+	uploadKey := stored.files.All()[0].ObjectKey()
+	lost := errors.New("the connection was lost at the commit")
+	stored.transactions.FailCommitWith(lost)
+
+	err := confirmLogo(stored, id)
+
+	require.ErrorIs(t, err, lost)
+	_, confirmed := stored.files.All()[0].ConfirmedAt()
+	assert.False(t, confirmed)
+	assert.Equal(t, uploadKey, stored.files.All()[0].ObjectKey())
+	assert.True(t, stored.objects.Holds(uploadKey), "the object of the upload was removed before the commit")
+}
+
 func TestAnImageOfTwoMegabytesExactlyIsConfirmed(t *testing.T) {
 	stored := newStorage()
 	id := uploaded(t, stored, anImage(pngStart, twoMegabytes))
@@ -164,11 +259,13 @@ func TestAFileForSomethingElseIsNotFound(t *testing.T) {
 }
 
 // Concluding the setup can fail after its files were confirmed, and be tried
-// again: the files are confirmed again, and keep the time of the first time.
-func TestAFileConfirmedTwiceKeepsTheTimeOfTheFirstConfirmation(t *testing.T) {
+// again: the files are confirmed again, and keep their first confirmation,
+// its time and its key. Nothing is copied again.
+func TestAFileConfirmedTwiceKeepsItsFirstConfirmation(t *testing.T) {
 	stored := newStorage()
 	id := uploaded(t, stored, anImage(pngStart, 10))
 	require.NoError(t, confirmLogo(stored, id))
+	kept := stored.files.All()[0].ObjectKey()
 	stored.clock.Advance(time.Hour)
 
 	err := confirmLogo(stored, id)
@@ -176,6 +273,24 @@ func TestAFileConfirmedTwiceKeepsTheTimeOfTheFirstConfirmation(t *testing.T) {
 	require.NoError(t, err)
 	confirmedAt, _ := stored.files.All()[0].ConfirmedAt()
 	assert.Equal(t, noon.Add(time.Minute), confirmedAt)
+	assert.Equal(t, kept, stored.files.All()[0].ObjectKey())
+	content, found := stored.objects.Content(kept)
+	require.True(t, found, "the object of the confirmed file was removed")
+	assert.Equal(t, anImage(pngStart, 10), content)
+	assert.Len(t, stored.objects.Keys(), 1, "the object was copied again")
+}
+
+// No signed URL reaches the object of a confirmed file, so it cannot change:
+// confirming the file again does not read the storage.
+func TestAFileConfirmedBeforeIsConfirmedAgainWhileTheStorageDoesNotAnswer(t *testing.T) {
+	stored := newStorage()
+	id := uploaded(t, stored, anImage(pngStart, 10))
+	require.NoError(t, confirmLogo(stored, id))
+	stored.objects.FailWith(errors.New("the storage does not answer"))
+
+	err := confirmLogo(stored, id)
+
+	require.NoError(t, err)
 }
 
 func TestAStorageThatDoesNotAnswerConfirmsNothing(t *testing.T) {
