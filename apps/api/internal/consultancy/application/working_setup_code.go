@@ -40,6 +40,36 @@ func lockWorkingSetupCode(ctx context.Context, setupCodes SetupCodeRepository, h
 	return setupCode, nil
 }
 
+// opensWithWorkingSetupCode checks, without a lock, that the setup code found
+// working still opens the operation. Finding the code and asking whether the
+// setup is concluded are two reads, and an operation with the same code may
+// commit between them: it ends the code and changes the setup. So when the
+// setup no longer opens the operation, the code is read again, and a code
+// that stopped working answers SetupCodeInvalidError, as it would have a
+// moment later, instead of SetupAlreadyConcludedError or
+// SetupNotConcludedError.
+func opensWithWorkingSetupCode(
+	ctx context.Context,
+	setupCodes SetupCodeRepository,
+	consultancies ConsultancyRepository,
+	setupCode *domain.SetupCode,
+	operation domain.SetupCodeOpens,
+	now time.Time,
+) error {
+	refused := opensAtThisMoment(ctx, consultancies, operation)
+	if refused == nil {
+		return nil
+	}
+	again, found, err := setupCodes.FindByHash(ctx, setupCode.Hash())
+	if err != nil {
+		return err
+	}
+	if !found || !again.Works(now) {
+		return domain.SetupCodeInvalidError{}
+	}
+	return refused
+}
+
 // opensAtThisMoment checks that a setup code that works opens, at this
 // moment, what the operation is: the first setup while no consultancy
 // exists, the registration of a new administrator once one does. It answers

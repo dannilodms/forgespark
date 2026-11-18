@@ -14,6 +14,13 @@ type ConsultancyRepository struct {
 	lastIdentifier int64
 	consultancies  []domain.Consultancy
 	failure        error
+	beforeExists   func()
+}
+
+// BeforeNextExists runs hook once, the next time Exists is asked, before it
+// answers: another operation that commits between two reads of a use case.
+func (r *ConsultancyRepository) BeforeNextExists(hook func()) {
+	r.beforeExists = hook
 }
 
 // NewConsultancyRepository returns a repository with no consultancy.
@@ -35,6 +42,11 @@ func (r *ConsultancyRepository) NextIdentifier(context.Context) (domain.Consulta
 
 // Exists tells whether a consultancy was saved.
 func (r *ConsultancyRepository) Exists(context.Context) (bool, error) {
+	hook := r.beforeExists
+	r.beforeExists = nil
+	if hook != nil {
+		hook()
+	}
 	return len(r.consultancies) > 0, nil
 }
 

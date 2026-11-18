@@ -57,11 +57,12 @@ func (s savingWithSetupCode) save(
 	images []chosenImage,
 	register func(ctx context.Context) (*domain.User, error),
 ) error {
-	setupCode, err := findWorkingSetupCode(ctx, s.SetupCodes, typed, s.Clock.Now())
+	now := s.Clock.Now()
+	setupCode, err := findWorkingSetupCode(ctx, s.SetupCodes, typed, now)
 	if err != nil {
 		return err
 	}
-	if err := opensAtThisMoment(ctx, s.Consultancies, s.opens); err != nil {
+	if err := opensWithWorkingSetupCode(ctx, s.SetupCodes, s.Consultancies, setupCode, s.opens, now); err != nil {
 		return err
 	}
 	if err := s.confirmImages(ctx, images); err != nil {

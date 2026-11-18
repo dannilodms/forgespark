@@ -54,10 +54,12 @@ type SetupUpload struct {
 // and size are answered with a kernel.InvalidFieldsError that names
 // `media_type` and `size`.
 func (u *StartSetupUpload) Execute(ctx context.Context, input StartSetupUploadInput) (SetupUpload, error) {
-	if _, err := findWorkingSetupCode(ctx, u.setupCodes, input.Code, u.clock.Now()); err != nil {
+	now := u.clock.Now()
+	setupCode, err := findWorkingSetupCode(ctx, u.setupCodes, input.Code, now)
+	if err != nil {
 		return SetupUpload{}, err
 	}
-	if err := u.allows(ctx, input.Purpose); err != nil {
+	if err := u.allows(ctx, setupCode, input.Purpose, now); err != nil {
 		return SetupUpload{}, err
 	}
 
@@ -74,9 +76,9 @@ func (u *StartSetupUpload) Execute(ctx context.Context, input StartSetupUploadIn
 
 // allows checks that what the setup code opens takes an image for this
 // purpose: the logo belongs to the first setup alone.
-func (u *StartSetupUpload) allows(ctx context.Context, purpose FilePurpose) error {
+func (u *StartSetupUpload) allows(ctx context.Context, setupCode *domain.SetupCode, purpose FilePurpose, now time.Time) error {
 	if purpose != ConsultancyLogo {
 		return nil
 	}
-	return opensAtThisMoment(ctx, u.consultancies, domain.OpensFirstSetup)
+	return opensWithWorkingSetupCode(ctx, u.setupCodes, u.consultancies, setupCode, domain.OpensFirstSetup, now)
 }

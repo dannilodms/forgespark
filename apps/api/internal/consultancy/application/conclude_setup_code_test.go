@@ -46,6 +46,43 @@ func TestASetupCodeThatIsWrongExpiredOrEndedConcludesNothing(t *testing.T) {
 	}
 }
 
+// Two people conclude with the same code at the same moment. The other
+// conclusion commits after this one found the code working and before it
+// asked whether the setup is concluded. This one is told the code is invalid,
+// as it would have been a moment later, and not that the setup is concluded.
+func TestAConclusionThatCommitsBetweenTheChecksBeforeTheTransactionLeavesTheCodeInvalid(t *testing.T) {
+	installed := issued(t)
+	other := typedSetup(firstCode)
+	other.Administrator.Email = "bruno.lima@fabrica.example"
+	installed.consultancies.BeforeNextExists(func() {
+		require.NoError(t, installed.concludeSetup.Execute(context.Background(), other))
+	})
+
+	err := installed.concludeSetup.Execute(context.Background(), typedSetup(firstCode))
+
+	requireSetupCodeInvalid(t, err)
+	assert.Len(t, installed.consultancies.All(), 1)
+	assert.Len(t, installed.users.All(), 1)
+}
+
+// The same moment, for the logo: the conclusion commits after the code was
+// found working and before the upload asked whether the setup is concluded.
+func TestALogoStartedAsTheSetupIsConcludedWithItsCodeIsToldTheCodeIsInvalid(t *testing.T) {
+	installed := issued(t)
+	installed.consultancies.BeforeNextExists(func() {
+		require.NoError(t, installed.concludeSetup.Execute(context.Background(), typedSetup(firstCode)))
+	})
+
+	_, err := installed.startSetupUpload.Execute(context.Background(), application.StartSetupUploadInput{
+		Code:      firstCode,
+		Purpose:   application.ConsultancyLogo,
+		MediaType: "image/png",
+		Size:      1024,
+	})
+
+	requireSetupCodeInvalid(t, err)
+}
+
 func TestConcludingTwiceWithTheSameCodeSavesOnceAndTheSecondAttemptIsToldTheCodeIsInvalid(t *testing.T) {
 	installed := issued(t)
 	require.NoError(t, installed.concludeSetup.Execute(context.Background(), typedSetup(firstCode)))
