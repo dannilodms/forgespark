@@ -254,7 +254,13 @@ tasks:
       - go run ./tools/guard versions ../..
 
   check:
-    desc: Every check a pull request runs, on the app and on the API
+    desc: Every check a pull request runs, on the app and on the API, the end-to-end test last. Restarts Caddy, and needs ports 8080 and 5173 free
+    cmds:
+      - task: check:quick
+      - task: e2e
+
+  check:quick:
+    desc: Every check of task check but the end-to-end test, for daily use. It needs no free port and does not restart Caddy, so it runs beside task dev
     cmds:
       - task: versions:check
       - task: workflows:check
@@ -267,7 +273,6 @@ tasks:
       - task: api:spec:breaking
       - task: api:build
       - task: api:test
-      - task: e2e
 
   check:fix:
     desc: Format, lint and type checks of the app, fixing what can be fixed
