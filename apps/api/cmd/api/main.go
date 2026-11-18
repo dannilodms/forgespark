@@ -14,10 +14,16 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/lifecycle"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 )
 
 const usage = `Usage: api [command]
@@ -79,6 +85,34 @@ var commands = map[string]func(ctx context.Context, environment map[string]strin
 	"":                 serveAPI,
 	"migrate":          migrate,
 	"issue-setup-code": issueSetupCode,
+}
+
+// tracedDatabase starts the tracing of a command, under the service "api",
+// which every command of this binary uses, and the pool of the database of
+// the API role, whose queries it traces. The pool opens no connection yet.
+// stop closes the pool and then sends the last spans, in that order: call it
+// once the command is done.
+func tracedDatabase(settings config.Config, logger *slog.Logger) (_ *telemetry.Tracing, _ *pgxpool.Pool, stop func(), _ error) {
+	tracing, err := telemetry.StartTracing("api", settings.TelemetryExportURL.String(), logger)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	pool, err := database.NewPool(database.PoolSettings{
+		ConnectionURL:            settings.DatabaseURL,
+		MaxSize:                  settings.DatabasePoolMaxSize,
+		StatementTimeout:         settings.DatabaseStatementTimeout,
+		IdleInTransactionTimeout: settings.DatabaseIdleInTransactionTimeout,
+		TracerProvider:           tracing.Provider,
+	})
+	if err != nil {
+		tracing.Stop()
+		return nil, nil, nil, err
+	}
+	stop = func() {
+		pool.Close()
+		tracing.Stop()
+	}
+	return tracing, pool, stop, nil
 }
 
 // environment reads the variables of the process, once. Only the

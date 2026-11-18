@@ -47,23 +47,11 @@ func serveAPI(shutdown context.Context, environment map[string]string, _, stderr
 // When it returns, the pool is closed and then the last spans are sent, in
 // that order.
 func serve(shutdown context.Context, settings config.Config, logger *slog.Logger) error {
-	tracing, err := telemetry.StartTracing("api", settings.TelemetryExportURL.String(), logger)
+	tracing, pool, stop, err := tracedDatabase(settings, logger)
 	if err != nil {
 		return err
 	}
-	defer tracing.Stop()
-
-	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            settings.DatabaseURL,
-		MaxSize:                  settings.DatabasePoolMaxSize,
-		StatementTimeout:         settings.DatabaseStatementTimeout,
-		IdleInTransactionTimeout: settings.DatabaseIdleInTransactionTimeout,
-		TracerProvider:           tracing.Provider,
-	})
-	if err != nil {
-		return err
-	}
-	defer pool.Close()
+	defer stop()
 
 	mux := http.NewServeMux()
 	ready := func(ctx context.Context) error {

@@ -45,23 +45,11 @@ func issueSetupCode(ctx context.Context, environment map[string]string, stdout, 
 	}
 
 	logger := telemetry.NewLogger(stderr, settings.LogLevel)
-	tracing, err := telemetry.StartTracing("api", settings.TelemetryExportURL.String(), logger)
+	tracing, pool, stop, err := tracedDatabase(settings, logger)
 	if err != nil {
 		return err
 	}
-	defer tracing.Stop()
-
-	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            settings.DatabaseURL,
-		MaxSize:                  settings.DatabasePoolMaxSize,
-		StatementTimeout:         settings.DatabaseStatementTimeout,
-		IdleInTransactionTimeout: settings.DatabaseIdleInTransactionTimeout,
-		TracerProvider:           tracing.Provider,
-	})
-	if err != nil {
-		return err
-	}
-	defer pool.Close()
+	defer stop()
 
 	// One span around the work, so the queries of the command are one trace.
 	ctx, span := tracing.Provider.Tracer(commandTracer).Start(ctx, "issue-setup-code")
