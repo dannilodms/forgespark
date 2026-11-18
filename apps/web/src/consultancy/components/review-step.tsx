@@ -59,6 +59,13 @@ function imagesHolding(images: SetupImages) {
   return undefined
 }
 
+/** What the login screen says after concluding, by how concluding ended. */
+const noticeOf = {
+  concluded: "setup_concluded",
+  concludedBefore: "setup_already_concluded",
+  concludedWithoutAnswer: "setup_concluded_without_answer",
+} as const
+
 /** The name of the item of a list a field chose, or the code it holds. */
 function nameIn(items: ListItem[], code: string) {
   return items.find((item) => item.value === code)?.label ?? code
@@ -140,12 +147,7 @@ export function ReviewStep({
       onSuccess: (concluded) =>
         void navigate({
           to: "/login",
-          search: {
-            notice:
-              concluded === "concluded"
-                ? "setup_concluded"
-                : "setup_already_concluded",
-          },
+          search: { notice: noticeOf[concluded] },
         }),
       onError: showRefusal,
     })

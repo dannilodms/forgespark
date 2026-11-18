@@ -10,6 +10,10 @@
       "title": "The setup was already concluded",
       "todo": "Someone concluded it before you did, so nothing of what you typed was saved. The administrator registered then logs in here once the login exists."
     },
+    "setupConcludedWithoutAnswer": {
+      "title": "The setup is concluded",
+      "todo": "An earlier attempt to conclude it got no answer, so it may have concluded the setup with what you typed, or someone may have concluded it before you. The administrator registered then logs in here once the login exists."
+    },
     "administratorRegistered": {
       "title": "The administrator is registered",
       "todo": "The new administrator logs in here once the login exists. The users that existed were not changed."

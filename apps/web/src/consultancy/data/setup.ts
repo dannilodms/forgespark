@@ -24,6 +24,7 @@ import {
   OpenSetupBody,
   startSetupUploadBodySizeMax,
 } from "../../shared/api/generated/schemas"
+import { ApiError } from "../../shared/api/request"
 import { sendToTheStorage } from "../../shared/api/storage"
 import { type FieldProblem, answerCodeOf } from "../../shared/errors/problems"
 import type { Language } from "../../shared/locales/languages"
@@ -277,10 +278,31 @@ type Conclusion = {
 }
 
 /**
- * How concluding ended: the setup is concluded by this request, or someone
- * concluded it before. Any other answer rejects.
+ * How concluding ended: the setup is concluded by this request, someone
+ * concluded it before, or it is concluded and an earlier attempt of this page
+ * got no answer, so which of the two it was cannot be told. Any other answer
+ * rejects.
  */
-type Concluded = "concluded" | "concludedBefore"
+type Concluded = "concluded" | "concludedBefore" | "concludedWithoutAnswer"
+
+/**
+ * The attempts to conclude the setup, which the cache of mutations keeps for
+ * the life of the page, so that a later attempt knows how the earlier ones
+ * ended.
+ */
+const concludingKey = ["setup", "conclude"]
+
+/**
+ * Whether an attempt ended without an answer of the API, so that it may have
+ * concluded the setup all the same: the network failed, or Caddy answered for
+ * an API it did not reach, or that did not answer in time.
+ */
+function endedWithoutAnswer(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return true
+  }
+  return [502, 503, 504].includes(error.problem.status)
+}
 
 /**
  * Concludes the setup: the consultancy, its first administrator and the
@@ -288,10 +310,20 @@ type Concluded = "concluded" | "concludedBefore"
  * state the gate reads is updated, so the login screen opens.
  *
  * A setup code that no longer works may have been used by someone who
- * concluded first, which ends it: the state of the setup tells.
+ * concluded first, which ends it: the state of the setup tells. When an
+ * earlier attempt of this page got no answer, that attempt may be the one
+ * that concluded, and the result says so.
  */
 export function useConcludeSetup() {
   const queryClient = useQueryClient()
+
+  /** Whether an earlier attempt of this page got no answer. */
+  function anEarlierAttemptGotNoAnswer() {
+    return queryClient
+      .getMutationCache()
+      .findAll({ mutationKey: concludingKey, status: "error" })
+      .some((attempt) => endedWithoutAnswer(attempt.state.error))
+  }
 
   /** Whether the setup was concluded by someone else, read again. */
   async function concludedBefore(error: unknown) {
@@ -307,6 +339,9 @@ export function useConcludeSetup() {
   }
 
   return useMutation({
+    mutationKey: concludingKey,
+    // Kept while the page lives, whichever step is on the screen.
+    gcTime: Number.POSITIVE_INFINITY,
     mutationFn: async ({
       typed,
       code,
@@ -324,7 +359,11 @@ export function useConcludeSetup() {
         await concludeSetup(body)
       } catch (error) {
         if (await concludedBefore(error)) {
-          return "concludedBefore"
+          // Perhaps by the attempt whose answer was lost: what was typed
+          // may be saved, and the screen must not say it was not.
+          return anEarlierAttemptGotNoAnswer()
+            ? "concludedWithoutAnswer"
+            : "concludedBefore"
         }
         throw error
       }

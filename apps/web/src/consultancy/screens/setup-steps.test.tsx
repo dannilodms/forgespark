@@ -1,3 +1,4 @@
+import { HttpResponse, http } from "msw"
 import { describe, expect, it, onTestFinished, vi } from "vite-plus/test"
 import { userEvent } from "vite-plus/test/browser"
 
@@ -651,6 +652,36 @@ describe("a setup concluded by someone else first", () => {
       .element(screen.getByRole("alert"))
       .toMatchTextContent(/The setup was already concluded/)
     expect(address()).toBe("/login?notice=setup_already_concluded")
+  })
+
+  it("does not tell a person that nothing was saved when their own earlier attempt got no answer", async () => {
+    const { screen, address } = await reachTheReview()
+    // The second attempt finds the setup code ended and the setup concluded,
+    // perhaps by the first one, whose answer was lost on the way.
+    api.use(getConcludeSetupMockHandler422(problem(422, "setup_code_invalid")))
+    setupStateBecomes(true, false)
+    api.use(
+      http.post("*/api/setup/conclude", () => HttpResponse.error(), {
+        once: true,
+      })
+    )
+    const conclude = screen.getByRole("button", { name: "Conclude the setup" })
+    await conclude.click()
+    await expect
+      .element(screen.getByRole("alert"))
+      .toMatchTextContent(/The server did not answer/)
+
+    await conclude.click()
+
+    const notice = screen.getByRole("alert")
+    await expect.element(notice).toMatchTextContent(/The setup is concluded/)
+    await expect
+      .element(notice)
+      .toMatchTextContent(/An earlier attempt to conclude it got no answer/)
+    await expect
+      .element(notice)
+      .not.toMatchTextContent(/nothing of what you typed was saved/)
+    expect(address()).toBe("/login?notice=setup_concluded_without_answer")
   })
 
   it("tells a person whose setup code was issued after the setup was concluded", async () => {

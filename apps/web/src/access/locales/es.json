@@ -10,6 +10,10 @@
       "title": "La configuración inicial ya estaba concluida",
       "todo": "Alguien la concluyó antes que tú, así que no se guardó nada de lo que escribiste. El administrador registrado entonces inicia sesión aquí cuando exista el inicio de sesión."
     },
+    "setupConcludedWithoutAnswer": {
+      "title": "La configuración inicial está concluida",
+      "todo": "Un intento anterior de concluirla quedó sin respuesta: puede haber concluido la configuración con lo que escribiste, o alguien puede haberla concluido antes que tú. El administrador registrado entonces inicia sesión aquí cuando exista el inicio de sesión."
+    },
     "administratorRegistered": {
       "title": "El administrador está registrado",
       "todo": "El nuevo administrador inicia sesión aquí cuando exista el inicio de sesión. Los usuarios que ya existían no se modificaron."
