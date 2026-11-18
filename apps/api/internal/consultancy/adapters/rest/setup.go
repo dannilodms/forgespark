@@ -115,24 +115,10 @@ var imageRules = []kernel.BrokenRule{
 	restapi.InField(application.FileTypeUnsupportedError{}),
 }
 
-// fieldRules are the rules a field of the consultancy or of an administrator
-// may break, as the domain checks them. The contract declares what it can of
-// them, for a client to check before it sends: a required text, its length,
-// the form of an e-mail, of a telephone and of a website.
-var fieldRules = []kernel.BrokenRule{
-	restapi.InField(kernel.RequiredError{}),
-	restapi.InField(domain.TooLongError{}),
-	restapi.InField(kernel.CountryUnknownError{}),
-	restapi.InField(domain.CurrencyUnknownError{}),
-	restapi.InField(domain.TimeZoneUnknownError{}),
-	restapi.InField(kernel.LanguageUnsupportedError{}),
-	restapi.InField(domain.EmailInvalidError{}),
-	restapi.InField(domain.TelephoneInvalidError{}),
-	restapi.InField(domain.WebsiteInvalidError{}),
-}
-
 // administratorRules are the rules a field of an administrator may break, as
-// the domain checks them: the ones of fieldRules that a user has.
+// the domain checks them. The contract declares what it can of them, for a
+// client to check before it sends: a required text, its length, the form of
+// an e-mail and of a telephone.
 var administratorRules = []kernel.BrokenRule{
 	restapi.InField(kernel.RequiredError{}),
 	restapi.InField(domain.TooLongError{}),
@@ -141,6 +127,15 @@ var administratorRules = []kernel.BrokenRule{
 	restapi.InField(domain.EmailInvalidError{}),
 	restapi.InField(domain.TelephoneInvalidError{}),
 }
+
+// fieldRules are the rules a field of the first setup may break: those of an
+// administrator, and those only the consultancy has, its currency, its time
+// zone and the form of its website.
+var fieldRules = slices.Concat(administratorRules, []kernel.BrokenRule{
+	restapi.InField(domain.CurrencyUnknownError{}),
+	restapi.InField(domain.TimeZoneUnknownError{}),
+	restapi.InField(domain.WebsiteInvalidError{}),
+})
 
 type tellSetupState struct {
 	useCase *application.TellSetupState
