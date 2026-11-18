@@ -157,14 +157,15 @@ tasks:
         openapi.yaml
 
   api:spec:breaking:
-    desc: Show the breaking changes of the OpenAPI spec against the main branch. It never fails
+    desc: Show the breaking changes of the OpenAPI spec against the main branch. A breaking change does not fail it; a failure of oasdiff itself, such as a revision it cannot read, does
     dir: apps/api
     cmds:
       # oasdiff has its own module file too. The report is shown and blocks
       # nothing (ADR-0009): a breaking change is allowed when every consumer
-      # changes in the same commit. SPEC_BASE names another revision.
-      - cmd: go tool -modfile=oasdiff.mod oasdiff breaking {{.SPEC_BASE | default "origin/main"}}:apps/api/openapi.yaml openapi.yaml
-        ignore_error: true
+      # changes in the same commit. Without --fail-on, oasdiff exits 0 when it
+      # finds one, and fails only when it cannot do its work. SPEC_BASE names
+      # another revision.
+      - go tool -modfile=oasdiff.mod oasdiff breaking {{.SPEC_BASE | default "origin/main"}}:apps/api/openapi.yaml openapi.yaml
 
   api:test:
     desc: Run the Go tests, against the PostgreSQL of development. Arguments after -- replace the package list

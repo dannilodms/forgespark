@@ -152,11 +152,11 @@ jobs:
         run: task api:spec:lint
 
       # The report compares the spec with the one of the branch the pull
-      # request merges into, which the checkout does not bring. It is shown
-      # and blocks nothing (ADR-0009), so neither step fails the job.
+      # request merges into, which the checkout does not bring. A breaking
+      # change blocks nothing (ADR-0009). A step that cannot do its work, a
+      # fetch that fails or oasdiff that cannot read a spec, fails the job.
       - name: Fetch the branch the pull request merges into
         if: ${{ github.event_name == 'pull_request' }}
-        continue-on-error: true
         env:
           BASE_REF: ${{ github.base_ref }}
         run: git fetch --no-tags --depth=1 origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"

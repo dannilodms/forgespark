@@ -385,7 +385,7 @@ The commands, run from the repository root:
 | `task api:lists` | Writes the countries, the currencies and the time zones the API accepts into the app, at `apps/web/src/shared/places/lists.gen.ts`. What it writes is committed |
 | `task api:lists:check` | Fails when the committed lists of the app are not the ones the API accepts |
 | `task api:spec:lint` | Lints the committed OpenAPI spec with vacuum: names in `snake_case` and resources in the plural |
-| `task api:spec:breaking` | Shows, with oasdiff, the breaking changes of the OpenAPI spec against `origin/main`. It never fails. `SPEC_BASE=<revision>` compares with another revision |
+| `task api:spec:breaking` | Shows, with oasdiff, the breaking changes of the OpenAPI spec against `origin/main`. A breaking change does not fail it; a failure of oasdiff itself, such as a revision it cannot read, does. `SPEC_BASE=<revision>` compares with another revision |
 | `task web:generate` | Generates, with orval, the API client of the app, its Zod schemas and its simulated responses from `apps/api/openapi.yaml`, into `apps/web/src/shared/api/generated`. What it writes is committed |
 | `task web:generate:check` | Fails when the committed client that orval generated is stale |
 | `task web:imports` | Fails when an import of the app breaks its dependency rule, with dependency-cruiser |

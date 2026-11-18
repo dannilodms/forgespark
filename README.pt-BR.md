@@ -385,7 +385,7 @@ Os comandos, executados na raiz do repositório:
 | `task api:lists` | Escreve no app os países, as moedas e os fusos horários que a API aceita, em `apps/web/src/shared/places/lists.gen.ts`. O resultado entra no commit |
 | `task api:lists:check` | Falha quando as listas do app que estão no repositório não são as que a API aceita |
 | `task api:spec:lint` | Roda o lint da especificação OpenAPI do repositório com o vacuum: nomes em `snake_case` e recursos no plural |
-| `task api:spec:breaking` | Mostra, com o oasdiff, as mudanças incompatíveis da especificação OpenAPI em relação à `origin/main`. Nunca falha. `SPEC_BASE=<revisão>` compara com outra revisão |
+| `task api:spec:breaking` | Mostra, com o oasdiff, as mudanças incompatíveis da especificação OpenAPI em relação à `origin/main`. Uma mudança incompatível não o faz falhar; uma falha do próprio oasdiff, como uma revisão que ele não consegue ler, faz. `SPEC_BASE=<revisão>` compara com outra revisão |
 | `task web:generate` | Gera, com o orval, o cliente da API do app, os seus schemas Zod e as suas respostas simuladas a partir de `apps/api/openapi.yaml`, em `apps/web/src/shared/api/generated`. O resultado entra no commit |
 | `task web:generate:check` | Falha quando o cliente gerado pelo orval que está no repositório ficou desatualizado |
 | `task web:imports` | Falha quando um import do app quebra a sua regra de dependências, com o dependency-cruiser |
