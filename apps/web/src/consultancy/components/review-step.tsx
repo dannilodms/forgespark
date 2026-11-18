@@ -7,9 +7,9 @@ import { Button } from "#ui/components/button"
 
 import { ErrorAlert } from "../../shared/errors/error-alert"
 import {
-  type FieldProblem,
   type FieldProblems,
   answerCodeOf,
+  answerOnAField,
   refusedFields,
 } from "../../shared/errors/problems"
 import { useLanguage } from "../../shared/locales/i18n"
@@ -31,14 +31,13 @@ import type { SetupImage, SetupImages } from "./setup-image"
 import { StepHeading } from "./step-heading"
 
 /**
- * An e-mail that belongs to a user: the API answers it as a conflict, about
- * the e-mail of the administrator, which is where it shows.
+ * The fields a refusal of the API is about, by their names in the form. An
+ * e-mail that belongs to a user is answered as a conflict, about the e-mail
+ * of the administrator, which is where it shows.
  */
-const emailInUse: FieldProblem = { code: "email_in_use", params: {} }
-
-/** The fields a refusal of the API is about, by their names in the form. */
 function fieldsRefusedBy(error: unknown): FieldProblems | undefined {
-  if (answerCodeOf(error) === "email_in_use") {
+  const emailInUse = answerOnAField(error, "email_in_use")
+  if (emailInUse) {
     return { "administrator.email": emailInUse }
   }
   return refusedFields(error)

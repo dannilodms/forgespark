@@ -5,8 +5,14 @@ import { ApiError } from "../api/request"
 /**
  * What is wrong with one field: a code the app translates and the values its
  * text is filled with, as the API names them (`too_long`, `{max_length: 50}`).
+ * A problem the API answered carries the trace identifier of its answer,
+ * which the field shows to be passed on; one the screen found has none.
  */
-export type FieldProblem = { code: string; params: Record<string, unknown> }
+export type FieldProblem = {
+  code: string
+  params: Record<string, unknown>
+  traceId?: string
+}
 
 /**
  * The problem of each field, by the name of the field in the form, which is
@@ -17,6 +23,21 @@ export type FieldProblems = Record<string, FieldProblem>
 /** The code of a failure the API answered, such as `setup_code_invalid`. */
 export function answerCodeOf(error: unknown): string | undefined {
   return error instanceof ApiError ? error.problem.code : undefined
+}
+
+/**
+ * A failure the API answered with this code, which is about one field though
+ * it names none, as that field shows it, with its trace identifier:
+ * `setup_code_invalid` on the setup code. Any other failure gives nothing.
+ */
+export function answerOnAField(
+  error: unknown,
+  code: string
+): FieldProblem | undefined {
+  if (!(error instanceof ApiError) || error.problem.code !== code) {
+    return undefined
+  }
+  return { code, params: error.problem.params, traceId: error.problem.trace_id }
 }
 
 /**
@@ -34,7 +55,11 @@ export function refusedFields(error: unknown): FieldProblems | undefined {
   const problems: FieldProblems = {}
   for (const { location, code, params } of error.problem.errors ?? []) {
     if (location.startsWith("body.")) {
-      problems[location.slice("body.".length)] = { code, params }
+      problems[location.slice("body.".length)] = {
+        code,
+        params,
+        traceId: error.problem.trace_id,
+      }
     }
   }
   return Object.keys(problems).length > 0 ? problems : undefined

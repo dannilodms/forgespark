@@ -541,6 +541,11 @@ describe("concluding the setup", () => {
     await expect.element(email).toHaveAttribute("aria-invalid", "true")
     await expect.element(email).toHaveFocus()
     await expect.element(email).toHaveValue(administrator["E-mail"])
+    await expect
+      .element(email)
+      .toHaveAccessibleDescription(
+        new RegExp(`Identifier to pass on: ?${traceId}`)
+      )
   })
 
   it("leads to the first of the steps that hold a refused field, then to the next", async () => {
@@ -570,7 +575,7 @@ describe("concluding the setup", () => {
 
     await expect
       .element(textField(screen, "City (optional)"))
-      .toHaveAccessibleDescription("Type at most 100 characters.")
+      .toHaveAccessibleDescription(/^Type at most 100 characters\./)
     await screen.getByRole("button", { name: "Continue" }).click()
     await expect
       .element(listField(screen, "Country"))

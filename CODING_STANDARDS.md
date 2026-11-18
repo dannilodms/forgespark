@@ -452,7 +452,7 @@ A set of values the API checks against a list it carries, and that the contract 
 
 ### Forms and validation
 
-Forms use TanStack Form with the generated Zod schemas. A form validates only what the contract declares: required, format, length. Business rules are not repeated in the frontend. A 422 from the API is shown on the field it names. `shared/errors/problems.ts` does both in the codes the API answers with: `checkTheContract` checks a schema, and `refusedFields` reads the fields an answer refused.
+Forms use TanStack Form with the generated Zod schemas. A form validates only what the contract declares: required, format, length. Business rules are not repeated in the frontend. A 422 from the API is shown on the field it names, with the `trace_id` of the answer, and so is a refusal the API answers about one field without naming it, such as an e-mail in use. `shared/errors/problems.ts` does both in the codes the API answers with: `checkTheContract` checks a schema, and `refusedFields` reads the fields an answer refused.
 
 - **Names.** A field is named by its place in the body (`consultancy.address.city`), so the problem the API names at `body.consultancy.address.city` lands on it with no mapping.
 - **Optional texts.** A form holds an empty text for an optional field the person left empty, and the body leaves it out, because an empty e-mail breaks `format: email`. The data module turns the typed values into the body, and `checkTheContract(schema, toBody)` checks what will be sent.

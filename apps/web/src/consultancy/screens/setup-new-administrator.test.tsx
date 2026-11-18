@@ -177,6 +177,11 @@ describe("the e-mail of a user that exists", () => {
     await expect.element(email).toHaveAttribute("aria-invalid", "true")
     await expect.element(email).toHaveFocus()
     await expect.element(email).toHaveValue(administrator["E-mail"])
+    await expect
+      .element(email)
+      .toHaveAccessibleDescription(
+        new RegExp(`Identifier to pass on: ?${traceId}`)
+      )
   })
 
   it("is changed, and the administrator is registered with the new one", async () => {

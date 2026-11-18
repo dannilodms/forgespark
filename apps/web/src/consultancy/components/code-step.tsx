@@ -12,7 +12,7 @@ import { ErrorAlert } from "../../shared/errors/error-alert"
 import { FieldProblemMessage } from "../../shared/errors/field-problem"
 import {
   type FieldProblem,
-  answerCodeOf,
+  answerOnAField,
   checkTheContract,
   refusedFields,
 } from "../../shared/errors/problems"
@@ -21,9 +21,6 @@ import {
   setupCodeContract,
   useOpenSetup,
 } from "../data/setup"
-
-/** Wrong, expired or ended: the API gives one answer for the three. */
-const codeInvalid: FieldProblem = { code: "setup_code_invalid", params: {} }
 
 /**
  * The step of the setup code: one field and one primary button. A code that
@@ -66,7 +63,9 @@ export function CodeStep({
           onOpened(await openSetup.mutateAsync(value.code))
           return undefined
         } catch (error) {
-          if (answerCodeOf(error) === "setup_code_invalid") {
+          // Wrong, expired or ended: the API gives one answer for the three.
+          const codeInvalid = answerOnAField(error, "setup_code_invalid")
+          if (codeInvalid) {
             return { fields: { code: codeInvalid } }
           }
           const fields = refusedFields(error)

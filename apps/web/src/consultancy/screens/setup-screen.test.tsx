@@ -151,6 +151,11 @@ describe("the step of the setup code", () => {
     await expect.element(field).toHaveAttribute("aria-invalid", "true")
     await expect.element(field).toHaveValue("ABCDE-FGHJK-MNPQR-STVWZ")
     await expect.element(field).toHaveFocus()
+    await expect
+      .element(field)
+      .toHaveAccessibleDescription(
+        new RegExp(`Identifier to pass on: ?${traceId}`)
+      )
   })
 
   it("says to wait when the limit of attempts is reached", async () => {
