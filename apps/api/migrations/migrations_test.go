@@ -48,6 +48,17 @@ func TestTheAPIRoleCannotChangeTheSchema(t *testing.T) {
 	}
 }
 
+func TestTheAPIRoleCannotCreateATemporaryTable(t *testing.T) {
+	t.Parallel()
+	// A database the migrations were applied to, as the development
+	// database and the one of a server are.
+	temporary := databasetest.New(t)
+	_, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), migrations.Files)
+	require.NoError(t, err)
+
+	assert.Equal(t, insufficientPrivilege, refusal(t, temporary, "CREATE TEMPORARY TABLE intruder (id bigint)"))
+}
+
 func TestTheAPIRoleCannotRewriteWhichMigrationsWereApplied(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.Migrated(t)

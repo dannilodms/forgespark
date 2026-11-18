@@ -55,7 +55,9 @@ func connection(t testing.TB, url string) config.PostgresURL {
 // Migrated creates a database with every migration applied, which lives until
 // the test ends. pgtestdb clones it from a template that the migrations built
 // once: the template is built again only when a migration file changes, so a
-// test pays for a copy and never for the migrations.
+// test pays for a copy and never for the migrations. The copy also gets the
+// rights on the database that the migrations set on the template, which
+// PostgreSQL does not copy.
 //
 // The connections come from the variables `task api:test` loads: the
 // superuser creates and removes the databases, and the other two give the
@@ -86,10 +88,44 @@ func Migrated(t testing.TB) Database {
 		},
 		ForceTerminateConnections: true,
 	}, migrator{})
+	keepTheRightsOfTheTemplate(t, admin.String(), instance.Database)
 
 	return Database{
 		MigrationURL: onDatabase(migrationURL, instance.Database),
 		APIURL:       onDatabase(apiURL, instance.Database),
+	}
+}
+
+// keepTheRightsOfTheTemplate gives a copy the rights on the database that the
+// migrations set on its template, such as the one the API role lost to
+// create temporary tables. PostgreSQL copies everything in a template but
+// those: a new database, a copy included, starts with the rights PostgreSQL
+// gives by default. Only the superuser writes them this way, as pgtestdb
+// marks a template.
+func keepTheRightsOfTheTemplate(t testing.TB, adminURL, copied string) {
+	t.Helper()
+	// pgtestdb names a copy after its template: `<template>_inst_<random>`.
+	template, _, isACopy := strings.Cut(copied, "_inst_")
+	if !isACopy {
+		t.Fatalf("pgtestdb no longer names a copy %q after its template; databasetest has to find the template another way.", copied)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	connection, err := pgx.Connect(ctx, adminURL)
+	if err != nil {
+		t.Fatalf("PostgreSQL does not answer. Start it with `task services`. %v", err)
+	}
+	defer connection.Close(ctx)
+	copiedRights, err := connection.Exec(ctx, `
+		UPDATE pg_database SET datacl = template.datacl
+		FROM pg_database AS template
+		WHERE pg_database.datname = $1 AND template.datname = $2`, copied, template)
+	if err != nil {
+		t.Fatalf("give %s the rights of its template: %v", copied, err)
+	}
+	if copiedRights.RowsAffected() != 1 {
+		t.Fatalf("the template of %s, %s, does not exist.", copied, template)
 	}
 }
 

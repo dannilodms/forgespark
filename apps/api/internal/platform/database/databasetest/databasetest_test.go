@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -43,6 +44,19 @@ func TestAMigratedDatabaseIsReachedByTheTwoRoles(t *testing.T) {
 
 	assert.Equal(t, "migration", migrationRole)
 	assert.Equal(t, "api", apiRole)
+}
+
+func TestAMigratedDatabaseKeepsTheRightsOnTheDatabaseThatTheMigrationsSet(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+
+	// PostgreSQL gives everyone this right on a new database, a copy of a
+	// template included, and the migrations take it from the API role.
+	_, err := connect(t, temporary.APIURL).Exec(context.Background(), "CREATE TEMPORARY TABLE intruder (id bigint)")
+
+	var refused *pgconn.PgError
+	require.ErrorAs(t, err, &refused, "the API role created a temporary table")
+	assert.Equal(t, "42501", refused.Code, "insufficient privilege")
 }
 
 func TestEachMigratedDatabaseIsItsOwn(t *testing.T) {
