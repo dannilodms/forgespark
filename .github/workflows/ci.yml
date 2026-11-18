@@ -214,8 +214,32 @@ jobs:
       - name: Install the JavaScript dependencies and the Chromium of the screen tests
         run: task install
 
+      # The packages apt downloads for the system libraries of Chromium are
+      # kept in the cache of GitHub Actions, for each system image of the
+      # runner, so a run does not download them again from the mirror of
+      # Ubuntu. They are saved right after the install, so a check that
+      # fails later still keeps them.
+      - name: Name the system image of the runner
+        id: image
+        run: echo "version=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the packages of the system libraries of Chromium
+        id: apt-packages
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/apt-archives
+          key: chromium-apt-${{ steps.image.outputs.version }}
+          restore-keys: chromium-apt-
+
       - name: Install the system libraries Chromium needs on Linux
-        run: task install:linux
+        run: task install:linux APT_ARCHIVES="$RUNNER_TEMP/apt-archives"
+
+      - name: Keep the packages of the system libraries of Chromium
+        if: ${{ steps.apt-packages.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/apt-archives
+          key: chromium-apt-${{ steps.image.outputs.version }}
 
       - name: Check the generated client, format, lint, types, imports, unused code and translations, and run the screen tests
         run: task web:check
@@ -267,8 +291,28 @@ jobs:
       - name: Install the JavaScript dependencies and the Chromium of the tests
         run: task install
 
+      # The packages of the system libraries of Chromium, as in the job App.
+      - name: Name the system image of the runner
+        id: image
+        run: echo "version=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the packages of the system libraries of Chromium
+        id: apt-packages
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/apt-archives
+          key: chromium-apt-${{ steps.image.outputs.version }}
+          restore-keys: chromium-apt-
+
       - name: Install the system libraries Chromium needs on Linux
-        run: task install:linux
+        run: task install:linux APT_ARCHIVES="$RUNNER_TEMP/apt-archives"
+
+      - name: Keep the packages of the system libraries of Chromium
+        if: ${{ steps.apt-packages.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/apt-archives
+          key: chromium-apt-${{ steps.image.outputs.version }}
 
       - name: Run the end-to-end test of the setup
         run: task e2e

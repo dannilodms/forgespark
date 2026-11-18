@@ -16,10 +16,32 @@ tasks:
       - vp exec playwright install chromium
 
   install:linux:
-    desc: Install the system libraries the Chromium of the tests needs on Linux, as the pipeline does. It uses sudo
+    desc: Install the system libraries the Chromium of the tests needs on Linux, as the pipeline does. It uses sudo. APT_ARCHIVES names a folder that keeps the packages apt downloads, for the next run
     dir: apps/web
     cmds:
+      # The pipeline keeps APT_ARCHIVES in its cache. apt downloads into a
+      # folder of root, which the cache cannot write, so the packages are
+      # copied in before the install and out after it. A package already in
+      # the folder of apt is not downloaded again.
+      - |
+        archives="{{.APT_ARCHIVES | default ""}}"
+        if [ -n "$archives" ] && ls "$archives"/*.deb > /dev/null 2>&1; then
+          sudo cp "$archives"/*.deb /var/cache/apt/archives/
+        fi
       - vp exec playwright install-deps chromium
+      - |
+        archives="{{.APT_ARCHIVES | default ""}}"
+        if [ -n "$archives" ]; then
+          # Drops the packages of versions the mirror no longer offers, so
+          # the folder does not grow with each new version.
+          sudo apt-get autoclean
+          mkdir -p "$archives"
+          rm -f "$archives"/*.deb
+          if ls /var/cache/apt/archives/*.deb > /dev/null 2>&1; then
+            cp /var/cache/apt/archives/*.deb "$archives"/
+          fi
+          echo "Kept $(ls "$archives" | wc -l) packages in $archives"
+        fi
 
   services:
     desc: Build the Caddy image, start the services of development and wait until they are healthy
