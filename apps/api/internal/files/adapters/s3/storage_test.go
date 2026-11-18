@@ -333,8 +333,8 @@ func TestRemovingAKeyWithNoObjectIsNoFailure(t *testing.T) {
 // so settings printed by mistake show no key.
 func TestTheSettingsOfTheStoragePrintNoSecretKey(t *testing.T) {
 	settings := s3.Settings{
-		URL: "http://localhost:3900", Region: "garage", Bucket: "files", AccessKeyID: "GK0123",
-		SecretAccessKey: config.NewSecret("a-secret-key-to-hide"),
+		URL: "http://localhost:3900", PublicURL: "http://files.localhost", Region: "garage", Bucket: "files",
+		AccessKeyID: "GK0123", SecretAccessKey: config.NewSecret("a-secret-key-to-hide"), TracerProvider: nil,
 	}
 
 	for _, printed := range []string{fmt.Sprint(settings), fmt.Sprintf("%+v", settings), fmt.Sprintf("%#v", settings)} {
