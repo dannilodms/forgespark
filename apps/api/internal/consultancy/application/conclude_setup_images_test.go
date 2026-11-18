@@ -171,6 +171,25 @@ func TestAWrongCodeConfirmsNoImage(t *testing.T) {
 	assert.True(t, installed.holdsTheBytesOf(t, tooLarge), "a wrong code removed an image")
 }
 
+// An identifier that names no file, such as one an inbound adapter could not
+// decode, is answered with the other fields that break a rule, all at once.
+func TestAnIdentifierThatNamesNoFileIsNamedWithTheOtherFieldsThatBreakARule(t *testing.T) {
+	installed := issued(t)
+	input := withImages(firstCode, domain.NoSuchFile, domain.NoSuchFile)
+	input.Consultancy.Country = "ZZ"
+	input.Administrator.Name = ""
+
+	err := installed.concludeSetup.Execute(context.Background(), input)
+
+	assert.Equal(t, map[string]string{
+		"consultancy.country":         "country_unknown",
+		"consultancy.logo_file_id":    "file_not_found",
+		"administrator.name":          "required",
+		"administrator.photo_file_id": "file_not_found",
+	}, brokenFields(t, err))
+	requireNothingSaved(t, installed)
+}
+
 // A setup code that opens the registration of a new administrator concludes
 // nothing, and reaches no image of the storage on the way.
 func TestACodeThatOpensTheRegistrationOfAnAdministratorConfirmsNoImageWhenItConcludes(t *testing.T) {

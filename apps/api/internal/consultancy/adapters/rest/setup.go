@@ -219,19 +219,10 @@ type ConcludeSetupRequest struct {
 type concludeSetupOutput struct{}
 
 func (o concludeSetup) handle(ctx context.Context, input *concludeSetupInput) (*concludeSetupOutput, error) {
-	logo, logoKnown := fileID(input.Body.Consultancy.LogoFileID)
-	photo, photoKnown := fileID(input.Body.Administrator.PhotoFileID)
-	var unknown kernel.InvalidFieldsError
-	unknown.Check("consultancy.logo_file_id", unknownUnless(logoKnown))
-	unknown.Check("administrator.photo_file_id", unknownUnless(photoKnown))
-	if err := unknown.Err(); err != nil {
-		return nil, err
-	}
-
 	err := o.useCase.Execute(ctx, application.ConcludeSetupInput{
 		Code:          input.Body.Code,
-		Consultancy:   input.Body.Consultancy.typed(logo),
-		Administrator: input.Body.Administrator.typed(photo),
+		Consultancy:   input.Body.Consultancy.typed(),
+		Administrator: input.Body.Administrator.typed(),
 	})
 	if err != nil {
 		return nil, err
@@ -258,43 +249,14 @@ type RegisterAdministratorRequest struct {
 type registerAdministratorOutput struct{}
 
 func (o registerAdministrator) handle(ctx context.Context, input *registerAdministratorInput) (*registerAdministratorOutput, error) {
-	photo, photoKnown := fileID(input.Body.Administrator.PhotoFileID)
-	var unknown kernel.InvalidFieldsError
-	unknown.Check("administrator.photo_file_id", unknownUnless(photoKnown))
-	if err := unknown.Err(); err != nil {
-		return nil, err
-	}
-
 	err := o.useCase.Execute(ctx, application.RegisterAdministratorInput{
 		Code:          input.Body.Code,
-		Administrator: input.Body.Administrator.typed(photo),
+		Administrator: input.Body.Administrator.typed(),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &registerAdministratorOutput{}, nil
-}
-
-// fileID reads the identifier of a file on the way in. The contract already
-// refused one with another prefix. One that decodes to no number names no
-// file, as one of a file that does not exist: it is not known. No identifier
-// is no file chosen.
-func fileID(encoded string) (domain.FileID, bool) {
-	if encoded == "" {
-		return 0, true
-	}
-	decoded, err := identifier.File.Decode(encoded)
-	if err != nil {
-		return 0, false
-	}
-	return domain.FileID(decoded), true
-}
-
-func unknownUnless(known bool) error {
-	if known {
-		return nil
-	}
-	return application.FileNotFoundError{}
 }
 
 type startSetupUpload struct {

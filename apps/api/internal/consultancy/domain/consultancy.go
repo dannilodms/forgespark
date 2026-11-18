@@ -38,6 +38,11 @@ func NewConsultancyID(value int64) (ConsultancyID, error) {
 // area checks the file; this area only keeps which one it is.
 type FileID int64
 
+// NoSuchFile stands for an identifier that names no file, such as one an
+// inbound adapter could not decode: no file has it, so the setup answers it
+// as a file that does not exist, together with the other fields it checks.
+const NoSuchFile FileID = -1
+
 // TypedConsultancy is the consultancy as a person typed it in the setup. An
 // optional field left out is empty, and no logo is the file 0.
 type TypedConsultancy struct {

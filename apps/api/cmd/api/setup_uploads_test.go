@@ -280,6 +280,25 @@ func TestTheIdentifierOfAFileIsReadOnTheWayIn(t *testing.T) {
 	}
 }
 
+// Every field that breaks a rule is named at once: an identifier that names
+// no file too, beside the others.
+func TestAnIdentifierOfAFileThatNamesNoFileIsNamedWithTheOtherRefusedFields(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+	_, code := issueSetupCodeIn(t, temporary)
+	api := startAPI(t, environmentOf(temporary))
+	body := setupBody(code)
+	object(body, "consultancy")["logo_file_id"] = "fil_" + strings.Repeat("A", 10)
+	object(body, "consultancy")["country"] = "ZZ"
+
+	answer := concludeSetup(t, api, body)
+
+	assert.Equal(t, map[string]any{
+		"body.consultancy.country":      "country_unknown",
+		"body.consultancy.logo_file_id": "file_not_found",
+	}, fieldsRefused(t, answer))
+}
+
 // storedPastTheURL stores bytes for the file with the key of the API, past
 // its signed URL, as a sender who sends what no URL allowed.
 func storedPastTheURL(t *testing.T, temporary databasetest.Database, fileID string, content []byte) string {

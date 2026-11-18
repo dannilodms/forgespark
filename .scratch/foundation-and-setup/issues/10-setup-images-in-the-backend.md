@@ -59,7 +59,7 @@ The area has no REST operation of its own and no download yet. The job that remo
 - **2 MB is 2 MiB**, 2097152 bytes, written in the contract as `maximum`.
 - **The setup code is checked, without a lock, before the images are confirmed.** Otherwise anyone could make the API read and remove objects with a wrong code. The transaction checks it again, locked.
 - **Confirming is checked again every time.** A conclusion that failed after its images were confirmed is tried again with the same images; the second confirmation reads the object again and keeps the first time.
-- **An identifier with the right prefix that decodes to no number is `file_not_found`**, on its field, as a file that does not exist; the contract answers a wrong prefix with `invalid`. The adapter answers it before the use case runs, so other fields are not named in the same answer.
+- **An identifier with the right prefix that decodes to no number is `file_not_found`**, on its field, as a file that does not exist; the contract answers a wrong prefix with `invalid`. The adapter hands the use case an identifier no file has, and the use case names it with the other fields that break a rule (changed after the review of the effort; at first the adapter answered it alone, before the use case ran).
 - **The image rules belong to the files area**; the consultancy area re-exports them in `application/files.go`, because its REST adapter may reach another area only through its own `application`.
 - **The in-memory clock and transactions are copied** into the files area, as Tests in `CODING_STANDARDS.md` puts them in each area.
 - **The storage variables are required by the API**, like `DATABASE_URL`, rather than optional with a `not_configured` part: the API serves the setup, which uploads.

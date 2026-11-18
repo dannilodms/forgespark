@@ -51,9 +51,9 @@ func (SetupConsultancy) TransformSchema(_ huma.Registry, schema *huma.Schema) *h
 	return schema
 }
 
-// typed gives the consultancy as typed, with the file of the logo already
-// read from its identifier.
-func (c SetupConsultancy) typed(logo domain.FileID) domain.TypedConsultancy {
+// typed gives the consultancy as typed, with the file of the logo read from
+// its identifier.
+func (c SetupConsultancy) typed() domain.TypedConsultancy {
 	return domain.TypedConsultancy{
 		Name:       c.Name,
 		LegalName:  c.LegalName,
@@ -65,8 +65,23 @@ func (c SetupConsultancy) typed(logo domain.FileID) domain.TypedConsultancy {
 		Telephone:  c.Telephone,
 		Website:    c.Website,
 		Address:    c.Address.typed(),
-		LogoFileID: logo,
+		LogoFileID: fileID(c.LogoFileID),
 	}
+}
+
+// fileID reads the identifier of a file on the way in. The contract already
+// refused one with another prefix. One that decodes to no number names no
+// file: the use case answers it as a file that does not exist, with the other
+// fields it refuses. No identifier is no file chosen.
+func fileID(encoded string) domain.FileID {
+	if encoded == "" {
+		return 0
+	}
+	decoded, err := identifier.File.Decode(encoded)
+	if err != nil {
+		return domain.NoSuchFile
+	}
+	return domain.FileID(decoded)
 }
 
 // SetupAddress is an address as typed in the setup: two lines, the city, the
@@ -124,9 +139,9 @@ func (SetupAdministrator) TransformSchema(_ huma.Registry, schema *huma.Schema) 
 	return schema
 }
 
-// typed gives the administrator as typed, with the file of the photo already
-// read from its identifier.
-func (a SetupAdministrator) typed(photo domain.FileID) domain.TypedUser {
+// typed gives the administrator as typed, with the file of the photo read
+// from its identifier.
+func (a SetupAdministrator) typed() domain.TypedUser {
 	return domain.TypedUser{
 		Name:              a.Name,
 		Email:             a.Email,
@@ -134,7 +149,7 @@ func (a SetupAdministrator) typed(photo domain.FileID) domain.TypedUser {
 		NationalID:        a.NationalID,
 		Telephone:         a.Telephone,
 		PreferredLanguage: string(a.PreferredLanguage),
-		PhotoFileID:       photo,
+		PhotoFileID:       fileID(a.PhotoFileID),
 	}
 }
 

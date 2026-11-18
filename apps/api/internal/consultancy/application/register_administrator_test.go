@@ -286,6 +286,21 @@ func TestAPhotoThatBreaksARuleIsNamedOnItsFieldAndNothingIsSaved(t *testing.T) {
 	}
 }
 
+func TestAPhotoThatNamesNoFileIsNamedWithTheOtherFieldsThatBreakARule(t *testing.T) {
+	installed := backIn(t)
+	input := typedAdministrator(secondCode)
+	input.Administrator.PhotoFileID = domain.NoSuchFile
+	input.Administrator.Country = "ZZ"
+
+	err := installed.registerAdministrator.Execute(context.Background(), input)
+
+	assert.Equal(t, map[string]string{
+		"administrator.country":       "country_unknown",
+		"administrator.photo_file_id": "file_not_found",
+	}, brokenFields(t, err))
+	requireNoAdministratorRegistered(t, installed)
+}
+
 func TestAFailureToRecordTheRegistrationLeavesNoUserAndTheSetupCodeWorking(t *testing.T) {
 	installed := backIn(t)
 	auditLogIsDown := errors.New("the audit log is down")

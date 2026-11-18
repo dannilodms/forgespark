@@ -49,8 +49,10 @@ func (u *ConcludeSetup) Execute(ctx context.Context, input ConcludeSetupInput) e
 	var invalid kernel.InvalidFieldsError
 	consultancy, err := domain.NewConsultancyDetails(input.Consultancy)
 	invalid.Include("consultancy", err)
+	invalid.Check("consultancy.logo_file_id", namesAFile(input.Consultancy.LogoFileID))
 	administrator, err := domain.NewUserDetails(input.Administrator)
 	invalid.Include("administrator", err)
+	invalid.Check("administrator.photo_file_id", namesAFile(input.Administrator.PhotoFileID))
 	if err := invalid.Err(); err != nil {
 		return err
 	}
