@@ -105,11 +105,12 @@ jobs:
         uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: apps/api/go.mod
-          # The linter, vacuum and oasdiff are each built from a module file
-          # of their own.
+          # The linter, sqlc, vacuum and oasdiff are each built from a module
+          # file of their own.
           cache-dependency-path: |
             apps/api/go.sum
             apps/api/golangci-lint.sum
+            apps/api/sqlc.sum
             apps/api/vacuum.sum
             apps/api/oasdiff.sum
 
@@ -151,11 +152,11 @@ jobs:
         run: task api:spec:lint
 
       # The report compares the spec with the one of the branch the pull
-      # request merges into, which the checkout does not bring. It is shown
-      # and blocks nothing (ADR-0009), so neither step fails the job.
+      # request merges into, which the checkout does not bring. A breaking
+      # change blocks nothing (ADR-0009). A step that cannot do its work, a
+      # fetch that fails or oasdiff that cannot read a spec, fails the job.
       - name: Fetch the branch the pull request merges into
         if: ${{ github.event_name == 'pull_request' }}
-        continue-on-error: true
         env:
           BASE_REF: ${{ github.base_ref }}
         run: git fetch --no-tags --depth=1 origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"

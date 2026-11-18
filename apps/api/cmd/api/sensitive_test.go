@@ -96,17 +96,21 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	var migrateOutput, migrateLogs output
 	require.Equal(t, 1, run(context.Background(), []string{"migrate"}, environment, &migrateOutput, &migrateLogs))
 
-	// A request fails, with a sensitive value in each place a request has one.
+	// Two requests carry a sensitive value in each place a request has one:
+	// readiness, which fails and writes its line but opens no span, and an
+	// operation under /api, which opens its span and refuses the unknown
+	// query parameter.
 	api := launchAPI(t, environment)
-	failed := newCaller().send(http.MethodGet,
-		api.url+"/readyz?code="+guarded.add("a value in a query string", "guarded-value-in-a-query-string"),
-		[]string{
-			"Cookie", "session=" + guarded.add("a session cookie", "guarded-session-cookie"),
-			"Authorization", "Bearer " + guarded.add("an access token", "guarded-access-token"),
-		},
-		guarded.add("a value in a body", "guarded-value-in-a-body"),
-	)
+	query := "?code=" + guarded.add("a value in a query string", "guarded-value-in-a-query-string")
+	headers := []string{
+		"Cookie", "session=" + guarded.add("a session cookie", "guarded-session-cookie"),
+		"Authorization", "Bearer " + guarded.add("an access token", "guarded-access-token"),
+	}
+	body := guarded.add("a value in a body", "guarded-value-in-a-body")
+	failed := newCaller().send(http.MethodGet, api.url+"/readyz"+query, headers, body)
 	require.Equal(t, http.StatusServiceUnavailable, failed.status)
+	refused := newCaller().send(http.MethodGet, api.url+"/api/setup"+query, headers, body)
+	require.Equal(t, http.StatusUnprocessableEntity, refused.status)
 	// Concluding the setup carries the data of a person in its body, which
 	// the use case checks before it fails to reach PostgreSQL.
 	setup := setupBody("ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ")
@@ -122,7 +126,7 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	require.Contains(t, logs, "api: apply the migrations", "the scenario logged nothing about the migrations")
 	require.Contains(t, logs, "request failed", "the scenario logged no failed request")
 	require.Contains(t, logs, "/api/setup/conclude", "the scenario logged no failed conclusion of the setup")
-	require.Contains(t, collector.Text(), "GET /readyz", "the scenario exported no span")
+	require.Contains(t, collector.Text(), "GET /api/setup", "the scenario exported no span")
 	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
 }

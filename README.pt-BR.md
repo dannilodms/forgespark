@@ -373,6 +373,7 @@ Os comandos, executados na raiz do repositório:
 | `task web` | Inicia só o Vite, na porta 5173, atrás do Caddy |
 | `task api:build` | Gera o binário da API em `apps/api/bin` |
 | `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário; um teste do armazenamento de arquivos grava objetos próprios no bucket do Garage e os remove. Os argumentos depois de `--` substituem a lista de pacotes |
+| `task db:clean` | Apaga os bancos que os testes em Go deixam no PostgreSQL de desenvolvimento, os de nome `test_...` e `testdb_...`: o banco de um teste que falhou ou foi interrompido, e um template do pgtestdb para cada estado que as migrações tiveram. Nenhum outro banco é tocado, nem o `software_factory` nem o `software_factory_e2e`. Rode quando nenhum teste estiver rodando, de vez em quando ou quando a lista de bancos crescer: um banco ainda em uso não é apagado, e o comando para nele |
 | `task api:lint` | Roda o lint do código Go e verifica o formato, os imports entre camadas e entre áreas de domínio, o `else` e o nível de aninhamento |
 | `task api:format` | Reescreve os arquivos Go como o formatador pede |
 | `task versions:check` | Verifica se toda versão fixada no repositório é exata: sem intervalo, sem `latest`, sem tag flutuante |
@@ -384,7 +385,7 @@ Os comandos, executados na raiz do repositório:
 | `task api:lists` | Escreve no app os países, as moedas e os fusos horários que a API aceita, em `apps/web/src/shared/places/lists.gen.ts`. O resultado entra no commit |
 | `task api:lists:check` | Falha quando as listas do app que estão no repositório não são as que a API aceita |
 | `task api:spec:lint` | Roda o lint da especificação OpenAPI do repositório com o vacuum: nomes em `snake_case` e recursos no plural |
-| `task api:spec:breaking` | Mostra, com o oasdiff, as mudanças incompatíveis da especificação OpenAPI em relação à `origin/main`. Nunca falha. `SPEC_BASE=<revisão>` compara com outra revisão |
+| `task api:spec:breaking` | Mostra, com o oasdiff, as mudanças incompatíveis da especificação OpenAPI em relação à `origin/main`. Uma mudança incompatível não o faz falhar; uma falha do próprio oasdiff, como uma revisão que ele não consegue ler, faz. `SPEC_BASE=<revisão>` compara com outra revisão |
 | `task web:generate` | Gera, com o orval, o cliente da API do app, os seus schemas Zod e as suas respostas simuladas a partir de `apps/api/openapi.yaml`, em `apps/web/src/shared/api/generated`. O resultado entra no commit |
 | `task web:generate:check` | Falha quando o cliente gerado pelo orval que está no repositório ficou desatualizado |
 | `task web:imports` | Falha quando um import do app quebra a sua regra de dependências, com o dependency-cruiser |

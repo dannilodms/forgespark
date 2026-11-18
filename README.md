@@ -373,6 +373,7 @@ The commands, run from the repository root:
 | `task web` | Starts Vite alone, at port 5173, behind Caddy |
 | `task api:build` | Builds the API binary into `apps/api/bin` |
 | `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there; a test of the file storage writes objects of its own to the bucket of Garage and removes them. Arguments after `--` replace the list of packages |
+| `task db:clean` | Drops the databases the Go tests leave in the development PostgreSQL, the ones named `test_...` and `testdb_...`: the database of a test that failed or was killed, and a template of pgtestdb for each state the migrations had. No other database is touched, neither `software_factory` nor `software_factory_e2e`. Run it when no test runs, now and then or when the list of databases grows: a database still in use is not dropped, and the command stops on it |
 | `task api:lint` | Lints the Go code and checks its format, the imports between layers and between domain areas, `else` and the level of nesting |
 | `task api:format` | Rewrites the Go files as the formatter asks |
 | `task versions:check` | Checks that every version the repository pins is exact: no range, no `latest`, no floating tag |
@@ -384,7 +385,7 @@ The commands, run from the repository root:
 | `task api:lists` | Writes the countries, the currencies and the time zones the API accepts into the app, at `apps/web/src/shared/places/lists.gen.ts`. What it writes is committed |
 | `task api:lists:check` | Fails when the committed lists of the app are not the ones the API accepts |
 | `task api:spec:lint` | Lints the committed OpenAPI spec with vacuum: names in `snake_case` and resources in the plural |
-| `task api:spec:breaking` | Shows, with oasdiff, the breaking changes of the OpenAPI spec against `origin/main`. It never fails. `SPEC_BASE=<revision>` compares with another revision |
+| `task api:spec:breaking` | Shows, with oasdiff, the breaking changes of the OpenAPI spec against `origin/main`. A breaking change does not fail it; a failure of oasdiff itself, such as a revision it cannot read, does. `SPEC_BASE=<revision>` compares with another revision |
 | `task web:generate` | Generates, with orval, the API client of the app, its Zod schemas and its simulated responses from `apps/api/openapi.yaml`, into `apps/web/src/shared/api/generated`. What it writes is committed |
 | `task web:generate:check` | Fails when the committed client that orval generated is stale |
 | `task web:imports` | Fails when an import of the app breaks its dependency rule, with dependency-cruiser |

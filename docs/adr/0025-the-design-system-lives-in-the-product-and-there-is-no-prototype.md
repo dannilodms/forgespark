@@ -24,7 +24,7 @@ ADR-0006 put the design system in `packages/ui`, shared by `apps/web` and by `ap
 - The coverage check of the gallery, the prototype bar with its scenarios and `task prototype` are gone. `task dev` starts the app.
 - Nothing measures the contrast of the colour pairs any more. A value added to `DESIGN.md` is measured when it is added.
 - The four recipes of `DESIGN.md` have no code. The first screen that needs one writes it in `apps/web`.
-- The login screen and the sample work screen of the prototype remain only in the history of the repository.
+- The login screen and the sample work screen of the prototype remain only in the history of the repository. The login screen of the product is built from the flow, the scenarios and the texts of the one in the prototype, specified in `.scratch/login-screen-prototype/spec.md` at commit `cc48eb1` (`git show cc48eb1:.scratch/login-screen-prototype/spec.md`).
 - A mistake in the look or in the flow is found in the product. When fixing it changes the API, it costs more than it would have in the prototype.
 - ADR-0014 was edited: it no longer describes the prototype, and its dependency rule ends in `ui` instead of `packages/ui`.
 - A second app that needs the design system brings the shared package back, with a decision of its own.

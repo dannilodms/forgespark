@@ -14,14 +14,25 @@ import (
 // Check tells whether the essential parts answer. A nil error means ready.
 type Check func(ctx context.Context) error
 
+const (
+	livenessPath  = "/livez"
+	readinessPath = "/readyz"
+)
+
+// Paths gives the paths of liveness and readiness. A probe calls them every
+// few seconds, so the telemetry of a request records no span for them.
+func Paths() []string {
+	return []string{livenessPath, readinessPath}
+}
+
 // Mount adds GET /livez and GET /readyz to the mux. Liveness touches no part.
 // Readiness runs the check under the timeout and answers 503 when it fails or
 // does not end in time. The raw error of the check goes to the logs only.
 func Mount(mux *http.ServeMux, ready Check, timeout time.Duration) {
-	mux.HandleFunc("GET /livez", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET "+livenessPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET "+readinessPath, func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
 		if err := ready(ctx); err != nil {

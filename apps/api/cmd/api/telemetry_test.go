@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -101,22 +102,56 @@ func TestTheAPIExportsTheSpanOfARequestAndOfItsQueriesToTheAddressOfTheConfigura
 	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
 	api := launchAPI(t, environment)
 
-	ready := <-newCaller().get(api.url+"/readyz", "traceparent", traceparent)
+	setup := <-newCaller().get(api.url+"/api/setup", "traceparent", traceparent)
 	api.signal()
 
-	require.Equal(t, http.StatusOK, ready.status)
+	require.Equal(t, http.StatusOK, setup.status)
 	require.Equal(t, 0, <-api.status, "%s", api.logs)
 	spans := collector.Spans()
-	request := spanNamed(spans, "GET /readyz")
+	request := spanNamed(spans, "GET /api/setup")
 	require.NotNil(t, request, "%v", spans)
 	assert.Equal(t, "api", request.Service)
 	assert.Equal(t, traceID, request.TraceID, "the incoming traceparent is honoured")
 	assert.Equal(t, "00f067aa0ba902b7", request.ParentSpanID)
-	query := spanOfTheQuery(spans, "SELECT max(version_id) FROM goose_db_version")
+	query := spanOfTheQuery(spans, "-- name: ReadSetupState ")
 	require.NotNil(t, query, "%v", spans)
 	assert.Equal(t, request.SpanID, query.ParentSpanID, "the query is a span under the span of the request")
 	assert.Equal(t, traceID, query.TraceID)
 	assert.Equal(t, []string{"the API started", "the API stopped"}, api.messages(t))
+}
+
+func TestLivenessAndReadinessOpenNoSpanAndARequestUnderAPIStillDoes(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.New(t)
+	_, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), migrations.Files)
+	require.NoError(t, err)
+	collector := telemetrytest.NewCollector(t)
+	environment := environmentOf(temporary)
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	api := launchAPI(t, environment)
+	caller := newCaller()
+
+	alive := <-caller.get(api.url + "/livez")
+	ready := <-caller.get(api.url + "/readyz")
+	followed := <-caller.get(api.url+"/readyz", "traceparent", traceparent)
+	setup := <-caller.get(api.url + "/api/setup")
+	api.signal()
+
+	require.Equal(t, http.StatusOK, alive.status)
+	require.Equal(t, http.StatusOK, ready.status)
+	require.Equal(t, http.StatusOK, followed.status)
+	require.Equal(t, http.StatusOK, setup.status)
+	require.Equal(t, 0, <-api.status, "%s", api.logs)
+	spans := collector.Spans()
+	assert.Nil(t, spanNamed(spans, "GET /livez"), "liveness opened a span")
+	assert.Nil(t, spanNamed(spans, "GET /readyz"), "readiness opened a span")
+	assert.Nil(t, spanOfTheQuery(spans, "goose_db_version"), "the query of readiness opened a span of its own")
+	request := spanNamed(spans, "GET /api/setup")
+	require.NotNil(t, request, "%v", spans)
+	assert.NotNil(t, spanOfTheQuery(spans, "-- name: ReadSetupState "), "%v", spans)
+	for _, span := range spans {
+		assert.Equal(t, request.TraceID, span.TraceID, "a span outside the request under /api: %s", span.Name)
+	}
 }
 
 func TestWithNoExportAddressTheAPIStartsAndExportsNothing(t *testing.T) {
@@ -135,11 +170,12 @@ func TestWithNoExportAddressTheAPIStartsAndExportsNothing(t *testing.T) {
 	assert.Equal(t, []string{"the API started", "the API stopped"}, api.messages(t))
 }
 
-// spanOfTheQuery finds the span of the query with the SQL text. The span
-// that prepares its statement carries the same text and is left out.
-func spanOfTheQuery(spans []telemetrytest.Span, sql string) *telemetrytest.Span {
+// spanOfTheQuery finds the span of the query whose SQL text holds the
+// fragment, such as the name sqlc writes at its top. The span that prepares
+// its statement carries the same text and is left out.
+func spanOfTheQuery(spans []telemetrytest.Span, fragment string) *telemetrytest.Span {
 	index := slices.IndexFunc(spans, func(span telemetrytest.Span) bool {
-		return span.Attributes["db.query.text"] == sql && span.Attributes["pgx.prepare_stmt.name"] == ""
+		return strings.Contains(span.Attributes["db.query.text"], fragment) && span.Attributes["pgx.prepare_stmt.name"] == ""
 	})
 	if index < 0 {
 		return nil
