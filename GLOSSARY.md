@@ -64,6 +64,18 @@ _Avoid_: Token, OTP, PIN, verification code
 An outside service through which a user proves who they are in order to log in, such as Google, Microsoft or GitHub.
 _Avoid_: Identity provider, SSO, social login, external provider
 
+**Local login provider**:
+A login provider that exists only in development and tests, turned on by configuration and backed by an identity container with a fixed list of people. Production and staging never have one.
+_Avoid_: Dex, mock provider, dev login, fake login
+
+**Provider link**:
+The record that a user is the holder of one account at a login provider, kept from the first login through it. A user can have several, one per provider.
+_Avoid_: Linked account, identity, connection
+
+**Session**:
+A user's presence in the system from a login to a logout, kept by the system and known to the browser only by an opaque cookie. It ends after 7 days without use, 30 days after the login, or when the user is deactivated.
+_Avoid_: Token, auth state, logged-in state
+
 **Scope**:
 What a role or an access token allows: read or write in one area of the system. Reading the value of a credential is a scope of its own. An access token never allows more than the roles of its user do.
 _Avoid_: Permission
