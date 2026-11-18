@@ -431,16 +431,14 @@ func TestCaddyAnswersInTheErrorFormatWhenTheAPICannotBeReached(t *testing.T) {
 	api.signal()
 	require.Equal(t, 0, <-api.status, "the API stopped with: %s", api.logs)
 
-	for _, path := range []string{"/api/setup", "/api/setup/open"} {
-		method := http.MethodGet
-		body := ""
-		if path == "/api/setup/open" {
-			method, body = http.MethodPost, wrongSetupCode
-		}
+	requests := []struct{ method, path, body string }{
+		{http.MethodGet, "/api/setup", ""},
+		{http.MethodPost, "/api/setup/open", wrongSetupCode},
+	}
+	for _, request := range requests {
+		answer := caddy.send(t, request.method, request.path, request.body)
 
-		answer := caddy.send(t, method, path, body)
-
-		require.Equal(t, http.StatusBadGateway, answer.status, "%s %s: %s", method, path, answer.body)
+		require.Equal(t, http.StatusBadGateway, answer.status, "%s %s: %s", request.method, request.path, answer.body)
 		assert.Equal(t, "application/problem+json", answer.mediaType)
 		assert.Equal(t, "no-store", answer.header.Get("Cache-Control"))
 		traceID, _ := answer.fields["trace_id"].(string)
