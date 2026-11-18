@@ -1,5 +1,6 @@
 import type { FieldProblems } from "../../shared/errors/problems"
 import { type TypedStep, holds, problemsOf } from "../components/setup-form"
+import { modeOf } from "../components/setup-mode"
 import type { OpenedSetupCode } from "../data/setup"
 
 /** A step after the setup code, whose fields belong to the setup form. */
@@ -49,7 +50,7 @@ export const startOfTheSetup: SetupFlow = { step: "code" }
  * it opens. The way back in has no step of the consultancy.
  */
 function stepOpenedBy(opened: OpenedSetupCode, resumeAt?: FormStep): FormStep {
-  if (opened.opens === "new_administrator") {
+  if (!modeOf(opened).hasConsultancy) {
     return resumeAt === "review" ? "review" : "administrator"
   }
   return resumeAt ?? "consultancy"

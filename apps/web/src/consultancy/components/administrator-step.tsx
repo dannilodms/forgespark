@@ -15,7 +15,7 @@ import {
 } from "../../shared/errors/problems"
 import { useLanguage } from "../../shared/locales/i18n"
 import { countryItems } from "../../shared/places/places"
-import { type OpenedSetupCode, administratorContract } from "../data/setup"
+import { administratorContract } from "../data/setup"
 import { ImageField } from "./image-field"
 import {
   type SetupForm,
@@ -23,6 +23,7 @@ import {
   useStepOpening,
 } from "./setup-form"
 import type { SetupImageField } from "./setup-image"
+import type { SetupMode } from "./setup-mode"
 import { StepHeading } from "./step-heading"
 
 const checkTheAdministrator = checkTheContract(
@@ -45,7 +46,7 @@ const checkTheAdministrator = checkTheContract(
 export function AdministratorStep({
   form,
   photo,
-  opens,
+  mode,
   refused,
   onProblemsShown,
   onContinue,
@@ -54,8 +55,8 @@ export function AdministratorStep({
   form: SetupForm
   /** The photo, which the screen holds so that it outlives the step. */
   photo: SetupImageField
-  /** What the setup code opened. */
-  opens: OpenedSetupCode["opens"]
+  /** The mode of the setup, which the setup code opened. */
+  mode: SetupMode
   /** The fields the API refused, which the step shows when it opens. */
   refused: FieldProblems | undefined
   onProblemsShown: () => void
@@ -64,7 +65,6 @@ export function AdministratorStep({
   onBack?: () => void
 }) {
   const { t } = useTranslation("consultancy")
-  const newAdministrator = opens === "new_administrator"
   const { language } = useLanguage()
   const element = useRef<HTMLFormElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
@@ -99,16 +99,8 @@ export function AdministratorStep({
         >
           <StepHeading
             ref={heading}
-            title={
-              newAdministrator
-                ? t("setup.newAdministrator.title")
-                : t("setup.administrator.title")
-            }
-            intro={
-              newAdministrator
-                ? t("setup.newAdministrator.intro")
-                : t("setup.administrator.intro")
-            }
+            title={t(mode.texts.administratorTitle)}
+            intro={t(mode.texts.administratorIntro)}
           />
 
           <FieldGroup>

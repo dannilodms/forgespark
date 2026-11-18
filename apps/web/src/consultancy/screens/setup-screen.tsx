@@ -8,6 +8,7 @@ import { ConsultancyStep } from "../components/consultancy-step"
 import { ReviewStep } from "../components/review-step"
 import { type SetupForm, useSetupForm } from "../components/setup-form"
 import { type SetupImages, useSetupImage } from "../components/setup-image"
+import { modeOf } from "../components/setup-mode"
 import {
   type SetupAction,
   type SetupFlow,
@@ -99,7 +100,7 @@ function Step({
         <AdministratorStep
           form={form}
           photo={images.photo}
-          opens={flow.opened.opens}
+          mode={modeOf(flow.opened)}
           refused={flow.refused}
           onProblemsShown={() =>
             dispatch({ type: "problemsShown", step: "administrator" })
@@ -107,7 +108,7 @@ function Step({
           onContinue={() => dispatch({ type: "wentTo", step: "review" })}
           // The way back in has no step of the consultancy.
           onBack={
-            flow.opened.opens === "first_setup"
+            modeOf(flow.opened).hasConsultancy
               ? () => dispatch({ type: "wentTo", step: "consultancy" })
               : undefined
           }

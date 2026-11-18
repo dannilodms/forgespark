@@ -32,6 +32,7 @@ import {
   type SetupImages,
   whyTheImagesAreNotStored,
 } from "./setup-image"
+import { type SetupMode, modeOf } from "./setup-mode"
 import { StepHeading } from "./step-heading"
 
 /**
@@ -99,7 +100,7 @@ export function ReviewStep({
   const registration = useRegisterAdministrator()
   const heading = useRef<HTMLHeadingElement>(null)
   const waitingFor = whyTheImagesAreNotStored(images)
-  const newAdministrator = opened.opens === "new_administrator"
+  const mode = modeOf(opened)
   const sending = conclusion.isPending || registration.isPending
   const failure = conclusion.error ?? registration.error
 
@@ -120,7 +121,7 @@ export function ReviewStep({
 
   function send() {
     const sent = { typed: form.state.values, code: opened.code, language }
-    if (newAdministrator) {
+    if (!mode.hasConsultancy) {
       registration.mutate(sent, {
         onSuccess: () =>
           void navigate({
@@ -146,27 +147,23 @@ export function ReviewStep({
       <StepHeading
         ref={heading}
         title={t("setup.review.title")}
-        intro={
-          newAdministrator
-            ? t("setup.review.newAdministrator.intro")
-            : t("setup.review.intro")
-        }
+        intro={t(mode.texts.reviewIntro)}
       />
 
       <form.Subscribe selector={(state) => state.values}>
         {(typed) => (
           <>
-            {newAdministrator ? null : (
+            {mode.hasConsultancy ? (
               <ConsultancyReview
                 typed={typed.consultancy}
                 logo={images.logo.upload}
                 onChange={() => onGoTo("consultancy")}
               />
-            )}
+            ) : null}
             <AdministratorReview
               typed={typed.administrator}
               photo={images.photo.upload}
-              newAdministrator={newAdministrator}
+              mode={mode}
               onChange={() => onGoTo("administrator")}
             />
           </>
@@ -178,17 +175,13 @@ export function ReviewStep({
       {waitingFor === "sending" ? (
         <p className="flex items-start gap-1.5 text-muted-foreground">
           <CircleDashedIcon className="mt-0.5 size-3.5 shrink-0 stroke-status-working" />
-          {newAdministrator
-            ? t("setup.review.newAdministrator.photoSending")
-            : t("setup.review.imagesSending")}
+          {t(mode.texts.imagesSending)}
         </p>
       ) : null}
       {waitingFor === "notSent" ? (
         <p className="flex items-start gap-1.5">
           <CircleXIcon className="mt-0.5 size-3.5 shrink-0 stroke-status-error" />
-          {newAdministrator
-            ? t("setup.review.newAdministrator.photoNotSent")
-            : t("setup.review.imageNotSent")}
+          {t(mode.texts.imagesNotSent)}
         </p>
       ) : null}
 
@@ -212,9 +205,7 @@ export function ReviewStep({
               className="animate-spin"
             />
           ) : null}
-          {newAdministrator
-            ? t("setup.review.newAdministrator.register")
-            : t("setup.review.conclude")}
+          {t(mode.texts.send)}
         </Button>
       </div>
     </div>
@@ -372,13 +363,13 @@ function ConsultancyReview({
 function AdministratorReview({
   typed,
   photo,
-  newAdministrator,
+  mode,
   onChange,
 }: {
   typed: TypedSetup["administrator"]
   photo: SetupImage
-  /** Whether it is a new administrator, the way back in, or the first one. */
-  newAdministrator: boolean
+  /** The mode of the setup: the first administrator, or a new one. */
+  mode: SetupMode
   onChange: () => void
 }) {
   const { t } = useTranslation("consultancy")
@@ -387,24 +378,14 @@ function AdministratorReview({
   return (
     <ReviewSection
       id="review-administrator"
-      title={
-        newAdministrator
-          ? t("setup.newAdministrator.title")
-          : t("setup.administrator.title")
-      }
-      change={
-        newAdministrator
-          ? t("setup.review.newAdministrator.change")
-          : t("setup.review.changeAdministrator")
-      }
+      title={t(mode.texts.administratorTitle)}
+      change={t(mode.texts.changeAdministrator)}
       onChange={onChange}
       note={
         // Logging in sends a code to this e-mail: a typing mistake here
         // locks the administrator out.
         <p className="rounded-lg border border-border bg-muted px-3 py-2">
-          {newAdministrator
-            ? t("setup.review.newAdministrator.logsInWith")
-            : t("setup.review.logsInWith")}
+          {t(mode.texts.logsInWith)}
           <span className="block type-title break-all">{typed.email}</span>
         </p>
       }
