@@ -36,7 +36,7 @@ export function LanguageSelect() {
       <SelectTrigger
         size="sm"
         aria-label={t("language")}
-        className="border-transparent data-[size=sm]:h-6"
+        className="border-transparent data-[size=sm]:h-7"
       >
         <GlobeIcon />
         <SelectValue />

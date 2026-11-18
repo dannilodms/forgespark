@@ -42,7 +42,8 @@ const statusIndicatorVariants = cva(
       },
       variant: {
         plain: "text-foreground",
-        badge: "h-5 gap-1 rounded-sm px-1.5 text-xs font-medium [&>svg]:size-3",
+        badge:
+          "h-7 gap-1 rounded-sm px-1.5 text-xs font-medium [&>svg]:size-3.5",
       },
     },
     compoundVariants: [

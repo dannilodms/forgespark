@@ -5,6 +5,7 @@ import { Button } from "#ui/components/button"
 import { FieldGroup, FieldLegend, FieldSet } from "#ui/components/field"
 
 import {
+  FieldRow,
   ListField,
   TextField,
   focusTheFirstProblem,
@@ -28,6 +29,7 @@ import {
   useStepOpening,
 } from "./setup-form"
 import type { SetupImageField } from "./setup-image"
+import { StepActions } from "./step-actions"
 import { StepHeading } from "./step-heading"
 
 const checkTheConsultancy = checkTheContract(
@@ -96,94 +98,102 @@ export function ConsultancyStep({
           />
 
           <FieldGroup>
-            <form.Field name="consultancy.name">
-              {(field) => (
-                <TextField
-                  field={field}
-                  label={t("setup.consultancy.name")}
-                  description={t("setup.consultancy.nameDescription")}
-                  autoComplete="organization"
-                />
-              )}
-            </form.Field>
-            <form.Field name="consultancy.legal_name">
-              {(field) => (
-                <TextField
-                  field={field}
-                  label={t("setup.consultancy.legalName")}
-                  description={t("setup.consultancy.legalNameDescription")}
-                  autoComplete="off"
-                />
-              )}
-            </form.Field>
-            <form.Field
-              name="consultancy.country"
-              listeners={{
-                onChange: ({ value }) => suggestTheCurrency(form, value),
-              }}
-            >
-              {(field) => (
-                <ListField
-                  field={field}
-                  items={countryItems(language)}
-                  label={t("setup.consultancy.country")}
-                />
-              )}
-            </form.Field>
-            <form.Field name="consultancy.tax_id">
-              {(field) => (
-                <TextField
-                  field={field}
-                  label={t("setup.consultancy.taxId")}
-                  description={t("setup.consultancy.taxIdDescription")}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              )}
-            </form.Field>
-            <form.Field name="consultancy.time_zone">
-              {(field) => (
-                <ListField
-                  field={field}
-                  items={timeZoneItems(language)}
-                  label={t("setup.consultancy.timeZone")}
-                />
-              )}
-            </form.Field>
-            <form.Field name="consultancy.currency">
-              {(field) => (
-                <ListField
-                  field={field}
-                  items={currencyItems(language)}
-                  label={t("setup.consultancy.currency")}
-                  description={t("setup.consultancy.currencyDescription")}
-                />
-              )}
-            </form.Field>
-            <form.Field name="consultancy.email">
-              {(field) => (
-                <TextField
-                  field={field}
-                  optional
-                  label={t("setup.consultancy.email")}
-                  type="email"
-                  autoComplete="email"
-                  spellCheck={false}
-                />
-              )}
-            </form.Field>
-            <form.Field name="consultancy.telephone">
-              {(field) => (
-                <TextField
-                  field={field}
-                  optional
-                  label={t("setup.telephone")}
-                  description={t("setup.telephoneDescription")}
-                  type="tel"
-                  autoComplete="tel"
-                />
-              )}
-            </form.Field>
+            <FieldRow>
+              <form.Field name="consultancy.name">
+                {(field) => (
+                  <TextField
+                    field={field}
+                    label={t("setup.consultancy.name")}
+                    description={t("setup.consultancy.nameDescription")}
+                    autoComplete="organization"
+                  />
+                )}
+              </form.Field>
+              <form.Field name="consultancy.legal_name">
+                {(field) => (
+                  <TextField
+                    field={field}
+                    label={t("setup.consultancy.legalName")}
+                    description={t("setup.consultancy.legalNameDescription")}
+                    autoComplete="off"
+                  />
+                )}
+              </form.Field>
+            </FieldRow>
+            <FieldRow>
+              <form.Field
+                name="consultancy.country"
+                listeners={{
+                  onChange: ({ value }) => suggestTheCurrency(form, value),
+                }}
+              >
+                {(field) => (
+                  <ListField
+                    field={field}
+                    items={countryItems(language)}
+                    label={t("setup.consultancy.country")}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="consultancy.tax_id">
+                {(field) => (
+                  <TextField
+                    field={field}
+                    label={t("setup.consultancy.taxId")}
+                    description={t("setup.consultancy.taxIdDescription")}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                )}
+              </form.Field>
+            </FieldRow>
+            <FieldRow>
+              <form.Field name="consultancy.time_zone">
+                {(field) => (
+                  <ListField
+                    field={field}
+                    items={timeZoneItems(language)}
+                    label={t("setup.consultancy.timeZone")}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="consultancy.currency">
+                {(field) => (
+                  <ListField
+                    field={field}
+                    items={currencyItems(language)}
+                    label={t("setup.consultancy.currency")}
+                    description={t("setup.consultancy.currencyDescription")}
+                  />
+                )}
+              </form.Field>
+            </FieldRow>
+            <FieldRow>
+              <form.Field name="consultancy.email">
+                {(field) => (
+                  <TextField
+                    field={field}
+                    optional
+                    label={t("setup.consultancy.email")}
+                    type="email"
+                    autoComplete="email"
+                    spellCheck={false}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="consultancy.telephone">
+                {(field) => (
+                  <TextField
+                    field={field}
+                    optional
+                    label={t("setup.telephone")}
+                    description={t("setup.telephoneDescription")}
+                    type="tel"
+                    autoComplete="tel"
+                  />
+                )}
+              </form.Field>
+            </FieldRow>
             <form.Field name="consultancy.website">
               {(field) => (
                 <TextField
@@ -203,56 +213,60 @@ export function ConsultancyStep({
                 {t("setup.consultancy.address.legend")}
               </FieldLegend>
               <FieldGroup>
-                <form.Field name="consultancy.address.line1">
-                  {(field) => (
-                    <TextField
-                      field={field}
-                      optional
-                      label={t("setup.consultancy.address.line1")}
-                      autoComplete="address-line1"
-                    />
-                  )}
-                </form.Field>
-                <form.Field name="consultancy.address.line2">
-                  {(field) => (
-                    <TextField
-                      field={field}
-                      optional
-                      label={t("setup.consultancy.address.line2")}
-                      autoComplete="address-line2"
-                    />
-                  )}
-                </form.Field>
-                <form.Field name="consultancy.address.city">
-                  {(field) => (
-                    <TextField
-                      field={field}
-                      optional
-                      label={t("setup.consultancy.address.city")}
-                      autoComplete="address-level2"
-                    />
-                  )}
-                </form.Field>
-                <form.Field name="consultancy.address.region">
-                  {(field) => (
-                    <TextField
-                      field={field}
-                      optional
-                      label={t("setup.consultancy.address.region")}
-                      autoComplete="address-level1"
-                    />
-                  )}
-                </form.Field>
-                <form.Field name="consultancy.address.postal_code">
-                  {(field) => (
-                    <TextField
-                      field={field}
-                      optional
-                      label={t("setup.consultancy.address.postalCode")}
-                      autoComplete="postal-code"
-                    />
-                  )}
-                </form.Field>
+                <FieldRow>
+                  <form.Field name="consultancy.address.line1">
+                    {(field) => (
+                      <TextField
+                        field={field}
+                        optional
+                        label={t("setup.consultancy.address.line1")}
+                        autoComplete="address-line1"
+                      />
+                    )}
+                  </form.Field>
+                  <form.Field name="consultancy.address.line2">
+                    {(field) => (
+                      <TextField
+                        field={field}
+                        optional
+                        label={t("setup.consultancy.address.line2")}
+                        autoComplete="address-line2"
+                      />
+                    )}
+                  </form.Field>
+                </FieldRow>
+                <FieldRow columns={3}>
+                  <form.Field name="consultancy.address.city">
+                    {(field) => (
+                      <TextField
+                        field={field}
+                        optional
+                        label={t("setup.consultancy.address.city")}
+                        autoComplete="address-level2"
+                      />
+                    )}
+                  </form.Field>
+                  <form.Field name="consultancy.address.region">
+                    {(field) => (
+                      <TextField
+                        field={field}
+                        optional
+                        label={t("setup.consultancy.address.region")}
+                        autoComplete="address-level1"
+                      />
+                    )}
+                  </form.Field>
+                  <form.Field name="consultancy.address.postal_code">
+                    {(field) => (
+                      <TextField
+                        field={field}
+                        optional
+                        label={t("setup.consultancy.address.postalCode")}
+                        autoComplete="postal-code"
+                      />
+                    )}
+                  </form.Field>
+                </FieldRow>
               </FieldGroup>
             </FieldSet>
 
@@ -272,7 +286,9 @@ export function ConsultancyStep({
             </form.Field>
           </FieldGroup>
 
-          <Button type="submit">{t("setup.continue")}</Button>
+          <StepActions>
+            <Button type="submit">{t("setup.continue")}</Button>
+          </StepActions>
         </form>
       )}
     </form.FormGroup>
