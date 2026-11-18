@@ -3,16 +3,16 @@ import { useTranslation } from "react-i18next"
 
 import { cn } from "#ui/lib/utils"
 
+import { BrandMark } from "./brand-mark"
 import { LanguageSelect } from "./language-select"
 
 /**
- * A screen of one pane, seen before anyone is logged in: the title bar with
- * the product name, the framed page with the pane in its centre, and the
- * status bar with the language selector and nothing else. It is the Framed
- * pane recipe of DESIGN.md. The pane is narrow for a screen of few controls,
- * such as the login screen, and wide for a form, such as the setup, whose
- * fields go side by side. At a narrow width the pane takes the width of the
- * page.
+ * A screen of one pane, seen before anyone is logged in: the header with the
+ * mark and the product name, the frame with the pane in its centre, and the
+ * footer with the language selector and nothing else. It is the Framed pane
+ * recipe of DESIGN.md. The pane is narrow for a screen of few controls, such
+ * as the login screen, and wide for a form, such as the setup, whose fields
+ * go side by side. At a narrow width the pane takes the width of the page.
  */
 export function FramedPane({
   width = "narrow",
@@ -24,27 +24,26 @@ export function FramedPane({
   const { t } = useTranslation()
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <header className="flex h-8 shrink-0 items-center border-b bg-chrome px-3 type-caption text-muted-foreground">
-        {t("productName")}
+    <div className="flex min-h-svh flex-col bg-background">
+      <header className="flex h-14 shrink-0 items-center gap-2.5 px-4">
+        <BrandMark className="size-7 shrink-0 text-brand" />
+        <span className="font-heading text-lg font-semibold">
+          {t("productName")}
+        </span>
       </header>
 
-      <main className="flex flex-1 items-center justify-center page-framing p-4">
+      <main className="flex flex-1 items-center justify-center px-4 py-2">
         <div
           className={cn(
-            "relative w-full rounded-xl border bg-card p-6",
+            "w-full rounded-(--radius-surface) border bg-card p-6 sm:p-8",
             width === "wide" ? "max-w-180" : "max-w-sm"
           )}
         >
-          <span className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 frame-node" />
-          <span className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 frame-node" />
-          <span className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 frame-node" />
-          <span className="absolute right-0 bottom-0 translate-x-1/2 translate-y-1/2 frame-node" />
           <div className="flex flex-col gap-6">{children}</div>
         </div>
       </main>
 
-      <footer className="flex h-8 shrink-0 items-center justify-end border-t bg-chrome px-2">
+      <footer className="flex h-14 shrink-0 items-center justify-end px-4">
         <LanguageSelect />
       </footer>
     </div>

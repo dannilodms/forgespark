@@ -4,6 +4,8 @@ status: accepted
 
 # The design system lives in the product, and there is no prototype
 
+ADR-0027 replaces the Zed style this decision kept: the style now follows monday.com. The rest of this decision stands.
+
 ADR-0006 put the design system in `packages/ui`, shared by `apps/web` and by `apps/prototype`, a clickable app with fake data where every screen was designed and approved before `apps/web` rebuilt it. The design system, a gallery, a login screen and a sample work screen were made that way, while `apps/web` stayed empty. On 2026-11-16 the maintainer dropped the prototype: the step was taking a long time and brought no real gain.
 
 - **No prototype.** `apps/prototype` is removed, with its screens, its fake data and the gallery. A screen is built in `apps/web`, against the real API, in the work that delivers its feature. The maintainer sees it in the running app, and what has to change is changed there.
