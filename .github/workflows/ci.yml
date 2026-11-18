@@ -186,11 +186,13 @@ jobs:
           persist-credentials: false
 
       # Vite+ at the version of the catalog of apps/web, which brings the
-      # Node.js and the pnpm that apps/web/package.json names.
+      # Node.js and the pnpm that apps/web/package.json names. The version
+      # file is read from the working directory. A file the action cannot
+      # read only warns and installs the latest Vite+.
       - name: Install Vite+
         uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         with:
-          version-file: apps/web/package.json
+          version-file: package.json
           working-directory: apps/web
           run-install: false
           cache: true
@@ -243,7 +245,7 @@ jobs:
       - name: Install Vite+
         uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         with:
-          version-file: apps/web/package.json
+          version-file: package.json
           working-directory: apps/web
           run-install: false
           cache: true
