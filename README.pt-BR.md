@@ -2,11 +2,16 @@
 
 [English](README.md) | **Português**
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/design/brand/mark-on-dark.svg">
+  <img src="docs/design/brand/mark.svg" alt="" width="72" height="72">
+</picture>
+
 # My Software Factory Manager
 
 Gerenciador de clientes e projetos: uma plataforma centralizada para gestão de clientes, projetos e demandas de desenvolvimento de software.
 
-> **Status:** em fase de definição. Ainda não há código; as seções marcadas como _A definir_ serão preenchidas conforme o projeto avança.
+> **Status:** a fundação está construída. Uma instalação nova roda em desenvolvimento e passa pela configuração inicial, com a sua consultoria e o seu primeiro administrador (veja [Ambiente de desenvolvimento](#ambiente-de-desenvolvimento)). O login e tudo o que vem depois dele ainda não foram construídos; as seções marcadas como _A definir_ são preenchidas conforme o projeto avança.
 
 ## Sumário
 
@@ -149,16 +154,13 @@ A telemetria passa pelo coletor: traces e métricas da API, do worker e do Caddy
 
 O sistema roda em três ambientes: desenvolvimento na máquina do mantenedor, homologação (staging) em um servidor criado para um pull request e destruído depois, e produção em um servidor sempre ligado.
 
-Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm apenas um arquivo `.gitkeep`, e os arquivos de configuração da raiz entram junto com o primeiro código:
+Frontend e backend ficam neste único repositório:
 
 ```
 .
 ├── apps/
 │   ├── api/          # backend e API em Go
-│   ├── web/          # o app React real
-│   └── prototype/    # protótipo clicável com dados falsos, e a galeria
-├── packages/
-│   └── ui/           # design system: variáveis de estilo e componentes
+│   └── web/          # o app React, com o design system em src/ui
 ├── deploy/           # Caddyfile, arquivos Compose dos servidores, cloud-init
 ├── .github/          # workflows da pipeline
 ├── docs/
@@ -167,13 +169,12 @@ Frontend e backend ficam neste único repositório. As pastas ainda sem uso têm
 │   └── design/       # análise das referências visuais
 ├── .scratch/         # issues locais
 ├── compose.yaml      # desenvolvimento
-├── Taskfile.yml
-└── pnpm-workspace.yaml
+└── Taskfile.yml
 ```
 
-Os três pacotes JavaScript (`apps/web`, `apps/prototype`, `packages/ui`) formam um workspace pnpm executado pelo Vite+. Um Taskfile na raiz coordena as tarefas de Go e de frontend: desenvolvimento, build, testes e geração de código. Não é usado orquestrador de monorepo à parte.
+`apps/web` é o único pacote JavaScript, executado pelo Vite+. Ele tem o próprio `package.json`, catálogo e lockfile, e a raiz não tem nenhum. Um Taskfile na raiz coordena as tarefas de Go e de frontend: desenvolvimento, build, testes e geração de código. Não é usado orquestrador de monorepo à parte.
 
-As telas são desenhadas e aprovadas primeiro no protótipo e depois refeitas no app real, sobre o mesmo design system. O design system está escrito em [`DESIGN.md`](DESIGN.md) e é mostrado na galeria do protótipo, que fica como referência enquanto as telas do protótipo vêm e vão.
+As telas são construídas direto no app, sobre o design system, sem protótipo antes. O design system está escrito em [`DESIGN.md`](DESIGN.md), que é a referência para todas as telas, e os componentes ficam em `apps/web/src/ui`.
 
 O sistema é multilíngue: inglês é a língua padrão, com suporte também a português do Brasil e espanhol, e cada usuário escolhe a sua. Adicionar uma língua é uma mudança pequena de código, sem alterar a estrutura do banco de dados.
 
@@ -188,7 +189,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0003 - Contrato OpenAPI gerado do Go](docs/adr/0003-openapi-contract-generated-from-go.md): os tipos Go são a fonte da verdade da API REST, via Huma
 - [0004 - Provedores de LLM e agentes via HTTP](docs/adr/0004-llm-providers-and-agents-over-http.md): uma interface interna para os provedores; agentes são serviços separados que agem apenas pela API
 - [0005 - Multilíngue desde o início](docs/adr/0005-multilingual-from-the-start.md): inglês, português do Brasil e espanhol; o front traduz os códigos de erro da API; conteúdo de configuração tem uma versão por língua, texto livre é traduzido sob demanda
-- [0006 - Design system validado em um protótipo descartável](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui em `packages/ui`, compartilhado pelo produto e por um protótipo clicável cujas telas aprovadas são refeitas, não movidas
+- [0006 - Design system validado em um protótipo descartável](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui em `packages/ui`, compartilhado pelo produto e por um protótipo clicável; substituído pelo ADR-0025, que mantém o shadcn/ui e o estilo do Zed
 - [0007 - Backend organizado por área de domínio](docs/adr/0007-backend-organized-by-domain-area.md): uma árvore de pacotes por área de domínio com dependências apontando para dentro, um caso de uso para cada operação, DDD tático seletivo e parte do object calisthenics
 - [0008 - Casos de uso atendidos por vários adaptadores de entrada](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md): uma API REST completa e um servidor MCP com um conjunto escolhido de ferramentas, ambos no backend Go; tokens de acesso com escopos; GraphQL, gRPC e WebSocket adiados
 - [0009 - Convenções da API REST](docs/adr/0009-rest-api-conventions.md): snake_case, operações nomeadas sem PATCH, entrada estrita, erros em problem+json, paginação por cursor, sem versionamento enquanto todo consumidor sair junto com o backend
@@ -197,7 +198,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0012 - OpenTelemetry e um registro de auditoria separado](docs/adr/0012-opentelemetry-for-observability-and-a-separate-audit-log.md): traces e métricas enviados por um coletor a um container Grafana, logs lidos da saída dos containers, alertas por e-mail; operações sensíveis gravadas em um registro de auditoria somente de acréscimo
 - [0013 - Dados do frontend em coleções e consultas por cursor](docs/adr/0013-frontend-data-in-collections-and-cursor-queries.md): TanStack DB para conjuntos limitados, TanStack Query com o cursor da API para o resto, Zustand só para estado de interface, cliente e schemas Zod gerados pelo orval, TanStack Form
 - [0014 - Frontend organizado por área de domínio](docs/adr/0014-frontend-organized-by-domain-area-and-tested-through-screens.md): uma pasta por área de domínio com um módulo de dados que é o único a chamar a API; os testes renderizam telas inteiras em um navegador real com a API simulada
-- [0015 - SQL escrito à mão e verificado pelo sqlc, e migrations só para frente](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md): pgx e sqlc, migrations do goose sem caminho de volta aplicadas em um passo próprio, três usuários do banco, PostgreSQL como único serviço de dados, sem cache e sem pool de conexões externo
+- [0015 - SQL escrito à mão e verificado pelo sqlc, e migrations só para frente](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md): pgx e sqlc, migrations do goose sem caminho de volta aplicadas em um passo próprio, três usuários do banco, PostgreSQL como único banco de dados, sem cache e sem pool de conexões externo
 - [0016 - Trabalhos em segundo plano no PostgreSQL, executados por um comando worker](docs/adr/0016-background-jobs-in-postgresql-run-by-a-worker-command.md): River, o trabalho gravado na transação do seu caso de uso, um comando `worker` do mesmo binário, poucas tentativas e depois uma falha visível
 - [0017 - Arquivos no Garage, acessados direto pelo navegador](docs/adr/0017-files-in-garage-reached-directly-by-the-browser.md): Garage no lugar do MinIO, apenas a API S3 pelo AWS SDK para Go v2, uploads e downloads com URLs assinadas de curta duração
 - [0018 - Valores de credenciais cifrados pela API](docs/adr/0018-credential-values-encrypted-by-the-api.md): AES-256-GCM no binário Go com uma chave vinda da configuração do deploy, nunca no banco; uma credencial em arquivo é guardada do mesmo modo
@@ -206,6 +207,9 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 - [0021 - Um repositório público sob a AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): público no plano gratuito do GitHub, com as regras que isso impõe aos commits e à pipeline
 - [0022 - Um registro com ciclo de vida é uma máquina de estados no domínio](docs/adr/0022-a-record-with-a-lifecycle-is-a-state-machine-in-the-domain.md): um conjunto fixo de status e uma tabela de transições por agregado, em Go puro; as ações permitidas saem da mesma tabela, e só o nome de um status é conteúdo de configuração
 - [0023 - Uma release dá nome a um marco que já está em produção](docs/adr/0023-a-release-names-a-milestone-already-in-production.md): uma versão para o sistema inteiro em um arquivo `VERSION`; uma release é um pull request que muda esse arquivo e o `CHANGELOG.md`, e a pipeline cria a tag depois da publicação
+- [0024 - O primeiro administrador é criado em uma configuração inicial aberta por um código de configuração](docs/adr/0024-the-first-administrator-is-created-in-a-setup-opened-by-a-setup-code.md): uma instalação nova não tem usuário; um código de configuração emitido por um comando no servidor abre a configuração inicial, que registra a consultoria e o primeiro administrador de uma vez
+- [0025 - O design system fica no produto, e não há protótipo](docs/adr/0025-the-design-system-lives-in-the-product-and-there-is-no-prototype.md): o protótipo, o pacote compartilhado e a galeria são removidos; uma tela é construída direto em `apps/web`, que guarda os componentes e é o único pacote JavaScript
+- [0026 - Um papel é um registro que concede escopos fixos no código](docs/adr/0026-a-role-is-a-record-that-grants-scopes-fixed-in-the-code.md): a consultoria cria seus próprios papéis a partir de uma lista de escopos fixa no código; um usuário pode ter vários, uma sessão age com os escopos dos papéis do seu usuário, e o papel de administrador sempre concede todos os escopos
 
 ## Tecnologias
 
@@ -221,6 +225,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [sqlc](https://sqlc.dev/) | Gera código Go tipado a partir de SQL escrito à mão |
 | [goose](https://github.com/pressly/goose) | Aplica as migrations do banco, só para frente |
 | [pgtestdb](https://github.com/peterldowns/pgtestdb) | Dá a cada teste de banco o seu próprio banco temporário |
+| [testify](https://github.com/stretchr/testify) | Asserções dos testes em Go |
 | [River](https://riverqueue.com/) | Trabalhos em segundo plano guardados no PostgreSQL e executados pelo comando `worker`, com um painel web |
 | [AWS SDK para Go v2](https://github.com/aws/aws-sdk-go-v2) | Cliente do armazenamento S3; assina as URLs de upload e download |
 | [go-mail](https://github.com/wneessen/go-mail) | Envia e-mail por SMTP em desenvolvimento e nos testes |
@@ -230,6 +235,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) | Container que reúne traces, métricas e logs de todos os serviços e do servidor |
 | [Grafana otel-lgtm](https://grafana.com/docs/opentelemetry/docker-lgtm/) | Um container que guarda e mostra a telemetria e envia os alertas |
 | [vacuum](https://quobix.com/vacuum/) e [oasdiff](https://github.com/oasdiff/oasdiff) | Lint das convenções da API e relatório de mudanças incompatíveis na especificação OpenAPI |
+| [golangci-lint](https://golangci-lint.run/) e [gofumpt](https://github.com/mvdan/gofumpt) | Linter e formatador do código Go |
 | [React](https://react.dev/) | Frontend web (single-page app) |
 | [Vite+](https://viteplus.dev/) | Ferramentas do frontend em uma única CLI (`vp`): servidor de desenvolvimento e build (Vite, Rolldown), testes (Vitest), lint (Oxlint), formatação (Oxfmt), além do runtime Node.js e do gerenciador de pacotes |
 | [TanStack Router](https://tanstack.com/router) | Roteamento tipado no cliente; filtros e paginação ficam na URL |
@@ -240,11 +246,12 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [React Compiler](https://react.dev/learn/react-compiler) | Memoização automática dos componentes no build |
 | [Playwright](https://playwright.dev/) e [MSW](https://mswjs.io/) | Testes de tela em navegador real com a API simulada (pelo Vitest) e testes de ponta a ponta |
 | [Knip](https://knip.dev/) | Encontra arquivos, exports e dependências sem uso |
+| [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) | Verifica os imports do app contra a sua regra de dependências |
 | [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Permite aos agentes de código investigar a performance em um Chrome real |
 | [react-i18next](https://react.i18next.com/) | Traduções da interface (inglês, português do Brasil, espanhol) |
-| [shadcn/ui](https://ui.shadcn.com/) | Base do design system: o código dos componentes é copiado para `packages/ui`, sobre os primitivos do [Base UI](https://base-ui.com/) |
+| [shadcn/ui](https://ui.shadcn.com/) | Base do design system: o código dos componentes é copiado para `apps/web/src/ui`, sobre os primitivos do [Base UI](https://base-ui.com/) |
 | [Tailwind CSS](https://tailwindcss.com/) | Estilos e variáveis de estilo do design system (temas claro e escuro) |
-| [PostgreSQL](https://www.postgresql.org/) | Banco de dados relacional (versão 18) e único serviço de dados |
+| [PostgreSQL](https://www.postgresql.org/) | Banco de dados relacional (versão 18), o único do sistema |
 | [Garage](https://garagehq.deuxfleurs.fr/) | Armazenamento de objetos compatível com S3 (documentos e arquivos) em desenvolvimento e na homologação |
 | [Backblaze B2](https://www.backblaze.com/cloud-storage) | Armazenamento de objetos compatível com S3 em produção: os arquivos e os backups do banco |
 | [pgBackRest](https://pgbackrest.org/) | Backup contínuo e cifrado do PostgreSQL, com restauração para um ponto no tempo |
@@ -252,7 +259,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [Hetzner Cloud](https://www.hetzner.com/cloud) | O servidor de produção e o servidor de homologação criado sob demanda |
 | [GitHub Actions](https://docs.github.com/actions) | A pipeline: verificações em cada pull request, publicação e testes agendados |
 | [GitHub CLI](https://cli.github.com/) | Como os agentes acessam o GitHub: pull requests, execuções e segredos |
-| [Caddy](https://caddyserver.com/) | HTTPS, arquivos estáticos do frontend, proxy reverso para a API, cabeçalhos de segurança e o limite do código de login |
+| [Caddy](https://caddyserver.com/) | HTTPS, arquivos estáticos do frontend, proxy reverso para a API, cabeçalhos de segurança e o limite do código de login e do código de configuração |
 | [Docker](https://www.docker.com/) | Empacotamento e execução dos serviços em containers (Docker Compose) |
 | [Task](https://taskfile.dev/) | Executor de tarefas do repositório (desenvolvimento, build, testes, geração de código) |
 | [pnpm](https://pnpm.io/) | Gerenciador de pacotes do frontend, instalado e executado pelo Vite+ |
@@ -263,15 +270,17 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 
 ### Pré-requisitos
 
-| Ferramenta | Versão mínima |
-| --- | --- |
-| Docker | Engine 28.3.2 com Compose 2.38.2 (Docker Desktop 4.43.2) |
-| Go | 1.27.4 |
-| Vite+ (gerencia Node.js e pnpm) | 1.6.0 |
-| Task | 3.54.0 |
-| GitHub CLI | 2.104.0 |
+| Ferramenta | Versão mínima | Onde obter |
+| --- | --- | --- |
+| Docker | Engine 28.3.2 com Compose 2.38.2 (Docker Desktop 4.43.2) | [Docker Desktop](https://docs.docker.com/desktop/), ou o Docker Engine com o plugin do Compose no Linux |
+| Go | 1.27.4 | [go.dev/dl](https://go.dev/dl/) |
+| Vite+ (gerencia Node.js e pnpm) | 1.6.0 | [viteplus.dev](https://viteplus.dev/) |
+| Task | 3.54.0 | [taskfile.dev](https://taskfile.dev/installation/) |
+| GitHub CLI | 2.104.0 | [cli.github.com](https://cli.github.com/). Só para abrir pull requests e consultar a pipeline |
 
-Cada mínimo é a versão em uso na máquina do mantenedor, registrada em [`docs/machine-tools.yaml`](docs/machine-tools.yaml). Nenhuma versão anterior foi testada.
+Cada mínimo é a versão em uso na máquina do mantenedor, registrada em [`docs/machine-tools.yaml`](docs/machine-tools.yaml). Nenhuma versão anterior foi testada. O Git clona o repositório.
+
+O desenvolvimento ocupa cinco portas da máquina: 80 (Caddy), 5432 (PostgreSQL), 3900 (Garage), 8080 (a API) e 5173 (Vite). Um `.env` muda as três primeiras (veja abaixo); o Caddy encaminha para as duas últimas.
 
 O Go instalado só baixa o toolchain que o `go.mod` indica. Todas as outras versões usadas pelo build são fixadas no repositório (veja Versions em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
@@ -283,14 +292,36 @@ Toda variável está listada no `.env.example` versionado, sem segredos reais.
 
 | Ambiente | Onde ficam os valores |
 | --- | --- |
-| Desenvolvimento | Um arquivo `.env` copiado do `.env.example`, nunca versionado |
+| Desenvolvimento | O `.env.example`, cujos valores funcionam como estão. Um arquivo `.env`, nunca versionado, altera um valor: o Task o lê primeiro |
 | Homologação e produção | O Environment do GitHub de cada um: um segredo para o que é secreto, uma variável para o restante. A publicação os grava em um arquivo de variáveis no servidor, que só o usuário de deploy consegue ler |
 
 Uma variável nova precisa ter o valor definido nos dois Environments do GitHub antes do merge. A publicação compara os nomes do `.env.example` com os valores que tem e para, antes de reiniciar qualquer coisa, quando falta algum.
 
-A lista de variáveis está _A definir_ e será escrita com o `.env.example`.
+Cada comando do binário exige apenas as variáveis que usa. As que o binário lê hoje:
 
-<!-- Liste as variáveis de ambiente (conexão com o PostgreSQL, credenciais e bucket do armazenamento, servidor de e-mail etc.). -->
+| Variável | O que é | Padrão |
+| --- | --- | --- |
+| `API_LISTEN_ADDRESS` | Onde a API escuta, no formato `host:porta`. Um host vazio significa todas as interfaces | Nenhum: a API exige |
+| `SHUTDOWN_DRAIN_DEADLINE` | Quanto tempo as requisições em andamento têm para terminar depois que a API recebe a ordem de parar | `20s` |
+| `LOG_LEVEL` | O menor nível que o binário registra nos logs: `debug`, `info`, `warn` ou `error` | `info` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | URL base do receptor OTLP/HTTP para onde os traces são exportados, como `http://localhost:4318`. Vazia, nada é exportado | Vazio |
+| `DATABASE_URL` | URL de conexão do papel da API, que lê e grava linhas | Nenhum: a API e o `issue-setup-code` exigem |
+| `MIGRATION_DATABASE_URL` | URL de conexão do papel de migração, que é dono das tabelas | Nenhum: o `migrate` exige |
+| `DATABASE_POOL_MAX_SIZE` | O máximo de conexões que o pool da API abre | `10` |
+| `DATABASE_STATEMENT_TIMEOUT` | Por quanto tempo um comando SQL pode rodar | `30s` |
+| `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT` | Por quanto tempo uma transação pode ficar ociosa | `1m` |
+| `HEALTH_CHECK_TIMEOUT` | Quanto tempo a verificação de uma parte pode levar, incluída a de prontidão | `2s` |
+| `APP_ORIGIN` | O endereço em que as pessoas abrem o app: esquema, host e, se houver, porta, sem nada depois. O `issue-setup-code` monta com ele o endereço da configuração inicial | Nenhum: o `issue-setup-code` exige |
+| `FILE_STORAGE_URL` | A origem em que a API alcança a API S3 do armazenamento de arquivos | Nenhum: a API exige |
+| `FILE_STORAGE_PUBLIC_URL` | A origem em que o navegador alcança o armazenamento de arquivos. Uma URL assinada é assinada para o nome de host dela | Nenhum: a API exige |
+| `FILE_STORAGE_REGION` | A região com que o armazenamento de arquivos assina | Nenhum: a API exige |
+| `FILE_STORAGE_BUCKET` | O único bucket privado dos arquivos | Nenhum: a API exige |
+| `FILE_STORAGE_ACCESS_KEY_ID` | A chave com que a API assina para o armazenamento de arquivos | Nenhum: a API exige |
+| `FILE_STORAGE_SECRET_ACCESS_KEY` | O segredo dessa chave. É um segredo e nunca é impresso | Nenhum: a API exige |
+
+O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, a porta do Caddy, a porta do Garage e o segredo que os nós dele compartilham, a interface em que o Vite escuta e a conexão com que os testes em Go criam seus bancos temporários. O Garage cria o seu bucket e a sua chave a partir das variáveis `FILE_STORAGE_`.
+
+As variáveis do que ainda não foi construído (o servidor de e-mail e as demais) estão _A definir_, e cada uma entra com o código que a lê.
 
 ### Ambiente de desenvolvimento
 
@@ -310,9 +341,64 @@ O seed preenche o banco com dados fictícios, os mesmos a cada execução. Para 
 
 A pipeline chama os mesmos alvos do Task, então uma verificação que falha nela falha do mesmo jeito na máquina.
 
-Os outros comandos estão _A definir_ e serão escritos com o primeiro código.
+Da tabela acima, o PostgreSQL, o Garage e o Caddy são o que roda hoje, ao lado da API e do app. De uma máquina limpa até a configuração inicial concluída, com os pré-requisitos instalados e o Docker em execução:
 
-<!-- Comandos para subir o ambiente local do zero: clonar, configurar, iniciar os serviços e acessar a aplicação. -->
+1. Clone o repositório com o Git e abra um terminal na raiz dele. Todos os comandos abaixo rodam ali.
+2. `task install`. Na primeira vez, ele baixa o Node.js, o pnpm, as dependências JavaScript e o Chromium dos testes, cerca de 330 MB.
+3. `task services`. Na primeira vez, ele gera a imagem do Caddy, o que leva alguns minutos.
+4. `task migrate`. Na primeira vez, o Go baixa os módulos da API e a compila.
+5. `task dev`, que inicia a API e o app juntos. Deixe-o rodando.
+6. Em um segundo terminal, `task issue-setup-code`. Ele mostra o código de configuração e o endereço da configuração inicial, `http://localhost/setup`.
+7. Abra esse endereço. A primeira carga demora, porque o Vite empacota as dependências do app. Digite o código, preencha a consultoria e o seu primeiro administrador, um logotipo e uma foto se você os tiver, revise o que digitou e conclua.
+
+O app então leva à tela de login, que diz que a configuração inicial foi concluída. O login em si chega com a próxima parte do trabalho. `task e2e` percorre o mesmo caminho em um navegador, em um banco só dele.
+
+O navegador chega a tudo pelo Caddy, em um único endereço, `http://localhost`: o app, e a API em `/api`. O armazenamento de arquivos tem um nome de host próprio, `http://files.localhost`, onde o navegador envia uma imagem para uma URL que a API assinou; o Garage só a aceita vinda da origem do app. Nada é configurado à mão: os valores do `.env.example` funcionam como estão com o Docker Desktop. Com o Docker Engine no Linux, o Caddy só alcança a API e o Vite quando eles escutam em todas as interfaces: escreva `API_LISTEN_ADDRESS=0.0.0.0:8080` e `WEB_LISTEN_HOST=0.0.0.0` em um `.env`. Quando a porta 80 estiver ocupada, mude ali o `CADDY_PORT` e acrescente a porta ao `APP_ORIGIN` e ao `FILE_STORAGE_PUBLIC_URL`.
+
+`http://localhost/up` responde com o status da prontidão da API e sem corpo: 503 até as migrations serem aplicadas, e 502 enquanto a API não estiver rodando. A própria API responde à verificação de atividade em `http://127.0.0.1:8080/livez` e à de prontidão em `http://127.0.0.1:8080/readyz`, que o Caddy não encaminha.
+
+Uma instalação nova não tem usuário nem consultoria. `task issue-setup-code` emite o código de configuração que abre a configuração inicial e mostra, na saída do próprio comando, o código, quando ele deixa de funcionar, o que ele abre e o endereço da configuração inicial. O código vale por uma hora, e um novo encerra o anterior. Só o seu hash é guardado, então um código perdido não pode ser lido de volta: emita outro. Em um servidor, o mesmo comando do binário da API, `issue-setup-code`, roda dentro do container da API. O app recebe o código no endereço da configuração inicial, `/setup`: até a configuração inicial ser concluída, todo endereço do app leva até lá. Depois de concluída, o mesmo comando é o caminho de volta quando nenhum administrador consegue entrar: o código que ele emite abre `/setup` no passo do administrador e cadastra um novo, e nenhum usuário que existe é alterado.
+
+Os comandos, executados na raiz do repositório:
+
+| Comando | O que faz |
+| --- | --- |
+| `task install` | Instala as dependências JavaScript e o Chromium em que rodam os testes de tela. O Vite+ baixa as versões de Node.js e pnpm que o `apps/web/package.json` indica |
+| `task services` | Gera a imagem do Caddy, inicia os serviços de desenvolvimento no Docker (o PostgreSQL, o Garage com o seu bucket, a sua chave e a sua regra de origem cruzada, e o Caddy) e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
+| `task services:stop` | Para os serviços de desenvolvimento e mantém os dados |
+| `task migrate` | Aplica as migrations pendentes no banco de desenvolvimento. Uma segunda execução não aplica nada |
+| `task issue-setup-code` | Emite um código de configuração no banco de desenvolvimento e o mostra, com quando deixa de funcionar, o que abre e o endereço da configuração inicial |
+| `task dev` | Inicia a API e o Vite juntos. O app abre em `http://localhost`, pelo Caddy |
+| `task api` | Inicia só a API, em `http://127.0.0.1:8080` |
+| `task web` | Inicia só o Vite, na porta 5173, atrás do Caddy |
+| `task api:build` | Gera o binário da API em `apps/api/bin` |
+| `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário; um teste do armazenamento de arquivos grava objetos próprios no bucket do Garage e os remove. Os argumentos depois de `--` substituem a lista de pacotes |
+| `task api:lint` | Roda o lint do código Go e verifica o formato, os imports entre camadas e entre áreas de domínio, o `else` e o nível de aninhamento |
+| `task api:format` | Reescreve os arquivos Go como o formatador pede |
+| `task versions:check` | Verifica se toda versão fixada no repositório é exata: sem intervalo, sem `latest`, sem tag flutuante |
+| `task workflows:check` | Verifica os arquivos de workflow com o actionlint e o zizmor, cada um rodado a partir da sua imagem Docker |
+| `task api:generate` | Gera, com o sqlc, o código Go dos adaptadores `postgres` a partir dos arquivos SQL de cada um. O resultado entra no commit |
+| `task api:generate:check` | Falha quando o código gerado pelo sqlc que está no repositório ficou desatualizado |
+| `task api:spec` | Gera a especificação OpenAPI a partir do código Go, em `apps/api/openapi.yaml`. O resultado entra no commit |
+| `task api:spec:check` | Falha quando a especificação OpenAPI que está no repositório ficou desatualizada |
+| `task api:lists` | Escreve no app os países, as moedas e os fusos horários que a API aceita, em `apps/web/src/shared/places/lists.gen.ts`. O resultado entra no commit |
+| `task api:lists:check` | Falha quando as listas do app que estão no repositório não são as que a API aceita |
+| `task api:spec:lint` | Roda o lint da especificação OpenAPI do repositório com o vacuum: nomes em `snake_case` e recursos no plural |
+| `task api:spec:breaking` | Mostra, com o oasdiff, as mudanças incompatíveis da especificação OpenAPI em relação à `origin/main`. Nunca falha. `SPEC_BASE=<revisão>` compara com outra revisão |
+| `task web:generate` | Gera, com o orval, o cliente da API do app, os seus schemas Zod e as suas respostas simuladas a partir de `apps/api/openapi.yaml`, em `apps/web/src/shared/api/generated`. O resultado entra no commit |
+| `task web:generate:check` | Falha quando o cliente gerado pelo orval que está no repositório ficou desatualizado |
+| `task web:imports` | Falha quando um import do app quebra a sua regra de dependências, com o dependency-cruiser |
+| `task web:knip` | Falha com um arquivo, um export ou uma dependência do app que nada usa, com o Knip |
+| `task e2e` | Roda o teste de ponta a ponta da configuração inicial no Chromium, pelo Caddy, com o Playwright. Ele inicia os serviços, gera o binário da API, reinicia o Caddy para que o limite comece vazio, cria vazio o banco `software_factory_e2e` e aplica as migrations; o Playwright inicia a API e o Vite e os encerra no fim. O banco de desenvolvimento não é tocado. As portas 8080 e 5173 precisam estar livres: pare o `task dev` antes. Um teste que falha deixa o seu trace em `apps/web/test-results`, que o `vp exec playwright show-trace <arquivo>`, rodado em `apps/web`, abre |
+| `task check` | Roda todas as verificações de um pull request: as versões exatas, a verificação dos arquivos de workflow, a verificação do cliente gerado, as de formato, lint e tipos de `apps/web`, a sua regra de dependências, o seu código sem uso, as chaves de tradução ausentes e os testes do app e, em seguida, o lint da API, a verificação do código gerado, a verificação da especificação OpenAPI, a verificação das listas do app, o lint e o relatório de mudanças incompatíveis da especificação, o build e os testes da API, e o teste de ponta a ponta. Por causa do teste de ponta a ponta, precisa das portas 8080 e 5173 livres e reinicia o Caddy: pare o `task dev` antes |
+| `task check:quick` | Roda tudo o que o `task check` roda, menos o teste de ponta a ponta, para o uso do dia a dia. Não precisa de porta livre nem reinicia o Caddy, então roda ao lado do `task dev`. Antes de um pull request, rode o `task check` |
+| `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
+
+Os comandos do que ainda não foi construído (o worker e o seed) estão _A definir_, e cada um será escrito com o seu código.
+
+O sqlc roda com `go tool`, a partir de um arquivo de módulo só dele, `apps/api/sqlc.mod`. Na primeira vez em uma máquina, o Go baixa e compila o sqlc, o que leva vários minutos: uma das dependências dele tem mais de cem mil arquivos, e extraí-los no Windows chega a levar meia hora. O comando parece parado nesse tempo. Não o interrompa, porque a extração recomeça do zero. O vacuum e o oasdiff rodam do mesmo jeito, a partir de `apps/api/vacuum.mod` e `apps/api/oasdiff.mod`, e cada um é compilado em alguns minutos na primeira vez.
+
+O contrato REST é o arquivo `apps/api/openapi.yaml`. Ele é gerado a partir das operações que a API serve; por isso, depois de alterar uma delas, rode `task api:spec` e inclua o arquivo no commit junto com o código.
 
 ### Build
 
@@ -320,11 +406,11 @@ Os outros comandos estão _A definir_ e serão escritos com o primeiro código.
 - **Seed e substituto do provedor de LLM.** Cada um é um pacote `main` próprio no mesmo módulo Go, com a própria imagem. A produção não roda nenhum dos dois.
 - **Frontend.** O Vite+ gera os arquivos estáticos de `apps/web`, com uma cópia Brotli ao lado de cada arquivo de texto. O Caddy os serve.
 - **Caddy e PostgreSQL.** As duas imagens são construídas neste repositório: a do Caddy com um plugin de limite de requisições, a do PostgreSQL com o pgBackRest.
-- **Código gerado.** A pipeline verifica se ele está atualizado: o código Go que o sqlc gera a partir dos arquivos SQL e o cliente que o orval gera a partir da especificação OpenAPI.
+- **Código gerado.** A pipeline verifica se ele está atualizado: o código Go que o sqlc gera a partir dos arquivos SQL, a especificação OpenAPI gerada a partir do código Go e o cliente que o orval gera a partir dessa especificação.
 - **Versões.** O build instala a partir do `go.sum` e do `pnpm-lock.yaml` e falha quando eles mudariam.
 - **Imagens.** O GitHub Actions as constrói, marca cada uma com o hash do commit e envia para o registro de containers do GitHub. A produção só roda imagem construída a partir da `main`. As imagens de uma release levam também o número dela.
 
-Os comandos estão _A definir_ e serão escritos com o primeiro código.
+O `task api:build` gera o binário da API em `apps/api/bin`. Os outros comandos estão _A definir_, e cada um será escrito com o que ele constrói.
 
 ### Deploy
 

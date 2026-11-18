@@ -2,11 +2,16 @@
 
 **English** | [Português](README.pt-BR.md)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/design/brand/mark-on-dark.svg">
+  <img src="docs/design/brand/mark.svg" alt="" width="72" height="72">
+</picture>
+
 # My Software Factory Manager
 
 Client and project manager: a centralized platform for managing clients, projects and software development requests.
 
-> **Status:** early definition. There is no code yet; sections marked _TBD_ will be filled in as the project evolves.
+> **Status:** the foundation is built. A new install runs in development and can be set up, with its consultancy and its first administrator (see [Local development](#local-development)). The login and everything after it are not built yet; sections marked _TBD_ are filled in as the project evolves.
 
 ## Contents
 
@@ -149,16 +154,13 @@ Telemetry goes through the collector: traces and metrics from the API, the worke
 
 The system runs in three environments: development on the maintainer's machine, staging on a server created for one pull request and destroyed afterwards, and production on one server that is always on.
 
-Frontend and backend live in this single repository. Folders not yet in use hold only a `.gitkeep` placeholder, and the root configuration files are added when the first code arrives:
+Frontend and backend live in this single repository:
 
 ```
 .
 ├── apps/
 │   ├── api/          # Go backend and API
-│   ├── web/          # the real React app
-│   └── prototype/    # clickable prototype with fake data, and the gallery
-├── packages/
-│   └── ui/           # design system: style variables and components
+│   └── web/          # the React app, with the design system in src/ui
 ├── deploy/           # Caddyfile, Compose files of the servers, cloud-init
 ├── .github/          # pipeline workflows
 ├── docs/
@@ -167,13 +169,12 @@ Frontend and backend live in this single repository. Folders not yet in use hold
 │   └── design/       # analysis of the visual references
 ├── .scratch/         # local issues
 ├── compose.yaml      # development
-├── Taskfile.yml
-└── pnpm-workspace.yaml
+└── Taskfile.yml
 ```
 
-The three JavaScript packages (`apps/web`, `apps/prototype`, `packages/ui`) form a pnpm workspace run through Vite+. A root Taskfile coordinates Go and frontend tasks: dev, build, test and code generation. No separate monorepo orchestrator is used.
+`apps/web` is the only JavaScript package, run through Vite+. It holds its own `package.json`, catalog and lockfile, and the root has none. A root Taskfile coordinates Go and frontend tasks: dev, build, test and code generation. No separate monorepo orchestrator is used.
 
-Screens are designed and approved in the prototype first, then rebuilt in the real app on the same design system. The design system is written in [`DESIGN.md`](DESIGN.md) and shown in the prototype's gallery, which stays as the reference while the prototype's screens come and go.
+Screens are built directly in the app, on the design system, with no prototype first. The design system is written in [`DESIGN.md`](DESIGN.md), which is the reference for every screen, and its components live in `apps/web/src/ui`.
 
 The system is multilingual: English is the default, with Brazilian Portuguese and Spanish also supported, and each user chooses their language. Adding a language is a small code change with no database schema change.
 
@@ -188,7 +189,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0003 - OpenAPI contract generated from Go](docs/adr/0003-openapi-contract-generated-from-go.md): Go types are the source of truth for the REST API, via Huma
 - [0004 - LLM providers and agents over HTTP](docs/adr/0004-llm-providers-and-agents-over-http.md): one internal interface for providers; agents are separate services that act only through the API
 - [0005 - Multilingual from the start](docs/adr/0005-multilingual-from-the-start.md): English, Brazilian Portuguese and Spanish; the frontend translates API error codes; configuration content has a version per language, free text is translated on demand
-- [0006 - Design system proven in a disposable prototype](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui in `packages/ui`, shared by the product and a clickable prototype whose approved screens are rebuilt, not moved
+- [0006 - Design system proven in a disposable prototype](docs/adr/0006-design-system-proven-in-a-disposable-prototype.md): shadcn/ui in `packages/ui`, shared by the product and a clickable prototype; superseded by ADR-0025, which keeps shadcn/ui and the Zed style
 - [0007 - Backend organized by domain area](docs/adr/0007-backend-organized-by-domain-area.md): one package tree per domain area with dependencies pointing inward, a use case for every operation, selective tactical DDD and part of object calisthenics
 - [0008 - Use cases served by several inbound adapters](docs/adr/0008-use-cases-served-by-several-inbound-adapters.md): a complete REST API and an MCP server with a chosen set of tools, both in the Go backend; access tokens with scopes; GraphQL, gRPC and WebSocket deferred
 - [0009 - REST API conventions](docs/adr/0009-rest-api-conventions.md): snake_case, named operations with no PATCH, strict input, problem+json errors, cursor pagination, no versioning while every consumer ships with the backend
@@ -197,7 +198,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0012 - OpenTelemetry and a separate audit log](docs/adr/0012-opentelemetry-for-observability-and-a-separate-audit-log.md): traces and metrics sent through a collector to a Grafana container, logs read from the container output, alerts by e-mail; sensitive operations recorded in an append-only audit log
 - [0013 - Frontend data in collections and cursor queries](docs/adr/0013-frontend-data-in-collections-and-cursor-queries.md): TanStack DB for bounded sets, TanStack Query with the API's cursor for the rest, Zustand for interface state only, a client and Zod schemas generated by orval, TanStack Form
 - [0014 - Frontend organized by domain area](docs/adr/0014-frontend-organized-by-domain-area-and-tested-through-screens.md): one folder per domain area with a data module that alone calls the API; tests render whole screens in a real browser with a simulated API
-- [0015 - Hand-written SQL checked by sqlc, and forward-only migrations](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md): pgx and sqlc, goose migrations with no way back run as their own step, three database roles, PostgreSQL as the only data service with no cache and no connection pooler
+- [0015 - Hand-written SQL checked by sqlc, and forward-only migrations](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md): pgx and sqlc, goose migrations with no way back run as their own step, three database roles, PostgreSQL as the only database, with no cache and no connection pooler
 - [0016 - Background jobs in PostgreSQL, run by a worker command](docs/adr/0016-background-jobs-in-postgresql-run-by-a-worker-command.md): River, a job saved in the transaction of its use case, a `worker` command of the same binary, few attempts and then a visible failure
 - [0017 - Files in Garage, reached directly by the browser](docs/adr/0017-files-in-garage-reached-directly-by-the-browser.md): Garage in place of MinIO, only the S3 API through the AWS SDK for Go v2, uploads and downloads with short-lived signed URLs
 - [0018 - Credential values encrypted by the API](docs/adr/0018-credential-values-encrypted-by-the-api.md): AES-256-GCM in the Go binary with a key from the deploy configuration, never in the database; a credential file is stored the same way
@@ -206,6 +207,9 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 - [0021 - A public repository under AGPLv3](docs/adr/0021-a-public-repository-under-agplv3.md): public on GitHub's free plan, with the rules that being public sets for commits and for the pipeline
 - [0022 - A record with a lifecycle is a state machine in the domain](docs/adr/0022-a-record-with-a-lifecycle-is-a-state-machine-in-the-domain.md): a fixed set of statuses and one transition table per aggregate, in plain Go; the allowed actions come from the same table, and only the name of a status is configuration content
 - [0023 - A release names a milestone already in production](docs/adr/0023-a-release-names-a-milestone-already-in-production.md): one version for the whole system in a `VERSION` file; a release is a pull request that changes it and `CHANGELOG.md`, and the pipeline creates the tag after the publish
+- [0024 - The first administrator is created in a setup opened by a setup code](docs/adr/0024-the-first-administrator-is-created-in-a-setup-opened-by-a-setup-code.md): a new install has no user; a setup code issued by a command on the server opens a setup that registers the consultancy and its first administrator together
+- [0025 - The design system lives in the product, and there is no prototype](docs/adr/0025-the-design-system-lives-in-the-product-and-there-is-no-prototype.md): the prototype, the shared package and the gallery are removed; a screen is built directly in `apps/web`, which holds the components and is the only JavaScript package
+- [0026 - A role is a record that grants scopes fixed in the code](docs/adr/0026-a-role-is-a-record-that-grants-scopes-fixed-in-the-code.md): the consultancy makes its own roles from a list of scopes fixed in the code; a user can have several, a session acts with the scopes of its user's roles, and the administrator role always grants every scope
 
 ## Tech stack
 
@@ -221,6 +225,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [sqlc](https://sqlc.dev/) | Generates typed Go code from hand-written SQL |
 | [goose](https://github.com/pressly/goose) | Applies the database migrations, forward only |
 | [pgtestdb](https://github.com/peterldowns/pgtestdb) | Gives each database test its own temporary database |
+| [testify](https://github.com/stretchr/testify) | Assertions of the Go tests |
 | [River](https://riverqueue.com/) | Background jobs stored in PostgreSQL and run by the `worker` command, with a web panel |
 | [AWS SDK for Go v2](https://github.com/aws/aws-sdk-go-v2) | Client for the S3 storage; signs the upload and download URLs |
 | [go-mail](https://github.com/wneessen/go-mail) | Sends e-mail over SMTP in development and tests |
@@ -230,6 +235,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) | Container that gathers traces, metrics and logs from every service and from the server |
 | [Grafana otel-lgtm](https://grafana.com/docs/opentelemetry/docker-lgtm/) | One container that stores and shows the telemetry, and sends the alerts |
 | [vacuum](https://quobix.com/vacuum/) and [oasdiff](https://github.com/oasdiff/oasdiff) | Lint of the API conventions and report of breaking changes on the OpenAPI spec |
+| [golangci-lint](https://golangci-lint.run/) and [gofumpt](https://github.com/mvdan/gofumpt) | Linter and formatter of the Go code |
 | [React](https://react.dev/) | Web frontend (single-page app) |
 | [Vite+](https://viteplus.dev/) | Frontend toolchain behind one CLI (`vp`): dev server and build (Vite, Rolldown), tests (Vitest), lint (Oxlint), format (Oxfmt), plus the Node.js runtime and package manager |
 | [TanStack Router](https://tanstack.com/router) | Typed client-side routing; filters and pagination live in the URL |
@@ -240,11 +246,12 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [React Compiler](https://react.dev/learn/react-compiler) | Automatic memoization of components at build time |
 | [Playwright](https://playwright.dev/) and [MSW](https://mswjs.io/) | Screen tests in a real browser with a simulated API (through Vitest), and end-to-end tests |
 | [Knip](https://knip.dev/) | Finds unused files, exports and dependencies |
+| [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) | Checks the imports of the app against its dependency rule |
 | [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Lets coding agents investigate performance in a real Chrome |
 | [react-i18next](https://react.i18next.com/) | Interface translations (English, Brazilian Portuguese, Spanish) |
-| [shadcn/ui](https://ui.shadcn.com/) | Base of the design system: component code copied into `packages/ui`, on [Base UI](https://base-ui.com/) primitives |
+| [shadcn/ui](https://ui.shadcn.com/) | Base of the design system: component code copied into `apps/web/src/ui`, on [Base UI](https://base-ui.com/) primitives |
 | [Tailwind CSS](https://tailwindcss.com/) | Styling and the design system's style variables (light and dark themes) |
-| [PostgreSQL](https://www.postgresql.org/) | Relational database (version 18) and the only data service |
+| [PostgreSQL](https://www.postgresql.org/) | Relational database (version 18), the only one in the system |
 | [Garage](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage (documents and files) in development and staging |
 | [Backblaze B2](https://www.backblaze.com/cloud-storage) | S3-compatible object storage in production: the files and the database backups |
 | [pgBackRest](https://pgbackrest.org/) | Continuous, encrypted backup of PostgreSQL, restorable to a point in time |
@@ -252,7 +259,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [Hetzner Cloud](https://www.hetzner.com/cloud) | The production server, and the staging server created on demand |
 | [GitHub Actions](https://docs.github.com/actions) | The pipeline: checks on every pull request, publishing, scheduled tests |
 | [GitHub CLI](https://cli.github.com/) | How agents reach GitHub: pull requests, runs, secrets |
-| [Caddy](https://caddyserver.com/) | HTTPS, static frontend files, reverse proxy to the API, security headers and the limit on the login code |
+| [Caddy](https://caddyserver.com/) | HTTPS, static frontend files, reverse proxy to the API, security headers and the limit on the login code and the setup code |
 | [Docker](https://www.docker.com/) | Packaging and running the services in containers (Docker Compose) |
 | [Task](https://taskfile.dev/) | Task runner for the repository (dev, build, test, code generation) |
 | [pnpm](https://pnpm.io/) | Frontend package manager, installed and run through Vite+ |
@@ -263,15 +270,17 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 
 ### Prerequisites
 
-| Tool | Minimum version |
-| --- | --- |
-| Docker | Engine 28.3.2 with Compose 2.38.2 (Docker Desktop 4.43.2) |
-| Go | 1.27.4 |
-| Vite+ (manages Node.js and pnpm) | 1.6.0 |
-| Task | 3.54.0 |
-| GitHub CLI | 2.104.0 |
+| Tool | Minimum version | Where to get it |
+| --- | --- | --- |
+| Docker | Engine 28.3.2 with Compose 2.38.2 (Docker Desktop 4.43.2) | [Docker Desktop](https://docs.docker.com/desktop/), or Docker Engine with the Compose plugin on Linux |
+| Go | 1.27.4 | [go.dev/dl](https://go.dev/dl/) |
+| Vite+ (manages Node.js and pnpm) | 1.6.0 | [viteplus.dev](https://viteplus.dev/) |
+| Task | 3.54.0 | [taskfile.dev](https://taskfile.dev/installation/) |
+| GitHub CLI | 2.104.0 | [cli.github.com](https://cli.github.com/). Only to open pull requests and read the pipeline |
 
-Each minimum is the version in use on the maintainer's machine, recorded in [`docs/machine-tools.yaml`](docs/machine-tools.yaml). No earlier version has been tried.
+Each minimum is the version in use on the maintainer's machine, recorded in [`docs/machine-tools.yaml`](docs/machine-tools.yaml). No earlier version has been tried. Git clones the repository.
+
+Development takes five ports of the machine: 80 (Caddy), 5432 (PostgreSQL), 3900 (Garage), 8080 (the API) and 5173 (Vite). A `.env` moves the first three (see below); Caddy forwards to the last two.
 
 The installed Go only downloads the toolchain that `go.mod` names. Every other version the build uses is pinned in the repository (see Versions in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
@@ -283,14 +292,36 @@ Every variable is listed in the committed `.env.example`, with no real secret.
 
 | Environment | Where the values are |
 | --- | --- |
-| Development | A `.env` file copied from `.env.example`, never committed |
+| Development | `.env.example`, whose values work as they are. A `.env` file, never committed, changes one: Task reads it first |
 | Staging and production | The GitHub Environment of each one: a secret for what is secret, a variable for the rest. The publish writes them to a variables file on the server, readable by the deploy user alone |
 
 A new variable needs its value set in both GitHub Environments before the merge. The publish compares the names in `.env.example` with the values it has and stops, before restarting anything, when one is missing.
 
-The list of variables is _TBD_, written with `.env.example`.
+A command of the binary requires only the variables it uses. The ones the binary reads today:
 
-<!-- List the environment variables (PostgreSQL connection, storage credentials and bucket, e-mail server, etc.). -->
+| Variable | What it is | Default |
+| --- | --- | --- |
+| `API_LISTEN_ADDRESS` | Where the API listens, as `host:port`. An empty host is every interface | None: the API requires it |
+| `SHUTDOWN_DRAIN_DEADLINE` | How long the requests in flight have to finish once the API is told to stop | `20s` |
+| `LOG_LEVEL` | The lowest level the binary logs: `debug`, `info`, `warn` or `error` | `info` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Base URL of the OTLP/HTTP receiver the traces are exported to, such as `http://localhost:4318`. Empty exports nothing | Empty |
+| `DATABASE_URL` | Connection URL of the API role, which reads and writes rows | None: the API and `issue-setup-code` require it |
+| `MIGRATION_DATABASE_URL` | Connection URL of the migration role, which owns the tables | None: `migrate` requires it |
+| `DATABASE_POOL_MAX_SIZE` | The most connections the pool of the API opens | `10` |
+| `DATABASE_STATEMENT_TIMEOUT` | How long one statement may run | `30s` |
+| `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT` | How long a transaction may sit idle | `1m` |
+| `HEALTH_CHECK_TIMEOUT` | How long the check of a part may take, readiness included | `2s` |
+| `APP_ORIGIN` | The address people open the app at: a scheme, a host and maybe a port, with nothing after them. `issue-setup-code` builds the address of the setup from it | None: `issue-setup-code` requires it |
+| `FILE_STORAGE_URL` | The origin where the API reaches the S3 API of the file storage | None: the API requires it |
+| `FILE_STORAGE_PUBLIC_URL` | The origin where the browser reaches the file storage. A signed URL is signed for its host name | None: the API requires it |
+| `FILE_STORAGE_REGION` | The region the file storage signs with | None: the API requires it |
+| `FILE_STORAGE_BUCKET` | The one private bucket of the files | None: the API requires it |
+| `FILE_STORAGE_ACCESS_KEY_ID` | The key the API signs with for the file storage | None: the API requires it |
+| `FILE_STORAGE_SECRET_ACCESS_KEY` | The secret of that key. It is a secret, and never printed | None: the API requires it |
+
+`.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, the port of Caddy, the port of Garage and the secret its nodes share, the interface Vite listens on, and the connection with which the Go tests create their temporary databases. Garage creates its bucket and its key from the `FILE_STORAGE_` variables.
+
+The variables of what is not built yet (the e-mail server and the rest) are _TBD_, each added with the code that reads it.
 
 ### Local development
 
@@ -310,9 +341,64 @@ The seed fills the database with fictitious data, the same on every run. To work
 
 The pipeline calls the same Task targets, so a check that fails there fails the same way on the machine.
 
-The other commands are _TBD_, written with the first code.
+Of the table above, PostgreSQL, Garage and Caddy are what run today, beside the API and the app. From a clean machine to a concluded setup, with the prerequisites installed and Docker running:
 
-<!-- Commands to bring up the local environment from scratch: clone, configure, start the services and open the app. -->
+1. Clone the repository with Git and open a terminal at its root. Every command below runs there.
+2. `task install`. The first time, it downloads Node.js, pnpm, the JavaScript dependencies and the Chromium of the tests, about 330 MB.
+3. `task services`. The first time, it builds the Caddy image, which takes a few minutes.
+4. `task migrate`. The first time, Go downloads the modules of the API and builds it.
+5. `task dev`, which starts the API and the app together. Leave it running.
+6. In a second terminal, `task issue-setup-code`. It prints the setup code and the address of the setup, `http://localhost/setup`.
+7. Open that address. The first load takes a while, because Vite bundles the dependencies of the app. Type the code, fill in the consultancy and its first administrator, a logo and a photo if you have them, review what you typed and conclude.
+
+The app then leads to the login screen, which says the setup is concluded. The login itself comes with the next part of the work. `task e2e` runs the same path in a browser, on a database of its own.
+
+The browser reaches everything through Caddy, at one address, `http://localhost`: the app, and the API under `/api`. The file storage has a host name of its own, `http://files.localhost`, where the browser sends an image to a URL the API signed; Garage accepts it from the origin of the app only. Nothing is configured by hand: the values of `.env.example` work as they are with Docker Desktop. With Docker Engine on Linux, Caddy reaches the API and Vite only when they listen on every interface: write `API_LISTEN_ADDRESS=0.0.0.0:8080` and `WEB_LISTEN_HOST=0.0.0.0` in a `.env`. When port 80 is taken, change `CADDY_PORT` there and add the port to `APP_ORIGIN` and to `FILE_STORAGE_PUBLIC_URL`.
+
+`http://localhost/up` answers with the status of the readiness of the API and no body: 503 until the migrations are applied, and 502 while the API is not running. The API itself answers liveness at `http://127.0.0.1:8080/livez` and readiness at `http://127.0.0.1:8080/readyz`, which Caddy does not forward.
+
+A new install has no user and no consultancy. `task issue-setup-code` issues the setup code that opens the setup and prints, to the output of the command itself, the code, when it stops working, what it opens and the address of the setup. The code lasts one hour, and a new one ends the one before. Only its hash is stored, so a code that was lost cannot be read back: issue another. On a server, the same command of the API binary, `issue-setup-code`, runs inside the API container. The app takes the code at the address of the setup, `/setup`: until the setup is concluded, every address of the app leads there. Once it is concluded, the same command is the way back in when no administrator can log in: the code it issues opens `/setup` at the step of the administrator and registers a new one, and no user that exists is changed.
+
+The commands, run from the repository root:
+
+| Command | What it does |
+| --- | --- |
+| `task install` | Installs the JavaScript dependencies, and the Chromium the screen tests run in. Vite+ downloads the versions of Node.js and pnpm that `apps/web/package.json` names |
+| `task services` | Builds the Caddy image, starts the services of development in Docker (PostgreSQL, Garage with its bucket, its key and its cross-origin rule, and Caddy) and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
+| `task services:stop` | Stops the services of development and keeps their data |
+| `task migrate` | Applies the pending migrations to the development database. A second run applies nothing |
+| `task issue-setup-code` | Issues a setup code in the development database and prints it, with when it stops working, what it opens and the address of the setup |
+| `task dev` | Starts the API and Vite together. The app opens at `http://localhost`, through Caddy |
+| `task api` | Starts the API alone, at `http://127.0.0.1:8080` |
+| `task web` | Starts Vite alone, at port 5173, behind Caddy |
+| `task api:build` | Builds the API binary into `apps/api/bin` |
+| `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there; a test of the file storage writes objects of its own to the bucket of Garage and removes them. Arguments after `--` replace the list of packages |
+| `task api:lint` | Lints the Go code and checks its format, the imports between layers and between domain areas, `else` and the level of nesting |
+| `task api:format` | Rewrites the Go files as the formatter asks |
+| `task versions:check` | Checks that every version the repository pins is exact: no range, no `latest`, no floating tag |
+| `task workflows:check` | Checks the workflow files with actionlint and zizmor, each run from its Docker image |
+| `task api:generate` | Generates, with sqlc, the Go code of the `postgres` adapters from the SQL files of each one. What it writes is committed |
+| `task api:generate:check` | Fails when the committed code that sqlc generated is stale |
+| `task api:spec` | Generates the OpenAPI spec from the Go code, into `apps/api/openapi.yaml`. What it writes is committed |
+| `task api:spec:check` | Fails when the committed OpenAPI spec is stale |
+| `task api:lists` | Writes the countries, the currencies and the time zones the API accepts into the app, at `apps/web/src/shared/places/lists.gen.ts`. What it writes is committed |
+| `task api:lists:check` | Fails when the committed lists of the app are not the ones the API accepts |
+| `task api:spec:lint` | Lints the committed OpenAPI spec with vacuum: names in `snake_case` and resources in the plural |
+| `task api:spec:breaking` | Shows, with oasdiff, the breaking changes of the OpenAPI spec against `origin/main`. It never fails. `SPEC_BASE=<revision>` compares with another revision |
+| `task web:generate` | Generates, with orval, the API client of the app, its Zod schemas and its simulated responses from `apps/api/openapi.yaml`, into `apps/web/src/shared/api/generated`. What it writes is committed |
+| `task web:generate:check` | Fails when the committed client that orval generated is stale |
+| `task web:imports` | Fails when an import of the app breaks its dependency rule, with dependency-cruiser |
+| `task web:knip` | Fails on a file, an export or a dependency of the app that nothing uses, with Knip |
+| `task e2e` | Runs the end-to-end test of the setup in Chromium, through Caddy, with Playwright. It starts the services, builds the API, restarts Caddy so that its limit starts empty, creates the database `software_factory_e2e` empty and applies the migrations; Playwright starts the API and Vite, and stops them at the end. The development database is not touched. Ports 8080 and 5173 must be free: stop `task dev` first. A failed test leaves its trace in `apps/web/test-results`, which `vp exec playwright show-trace <file>`, run in `apps/web`, opens |
+| `task check` | Runs every check of a pull request: the exact versions, the check of the workflow files, the check of the generated client, the format, lint and type checks of `apps/web`, its dependency rule, its unused code, its missing translation keys and its tests, then the lint of the API, the check of the generated code, the check of the OpenAPI spec, the check of the lists of the app, the lint and the breaking-change report of the spec, the build and the tests of the API, and the end-to-end test. Because of the end-to-end test it needs ports 8080 and 5173 free and restarts Caddy: stop `task dev` first |
+| `task check:quick` | Runs everything `task check` runs except the end-to-end test, for daily use. It needs no free port and does not restart Caddy, so it runs beside `task dev`. Before a pull request, run `task check` |
+| `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
+
+The commands of what is not built yet (the worker and the seed) are _TBD_, each written with its code.
+
+sqlc runs with `go tool`, from a module file of its own, `apps/api/sqlc.mod`. The first time on a machine, Go downloads and builds sqlc, which takes several minutes: one of its dependencies has more than a hundred thousand files, and extracting them on Windows can take half an hour. The command looks idle meanwhile. Do not interrupt it, because the extraction starts over. vacuum and oasdiff run the same way, from `apps/api/vacuum.mod` and `apps/api/oasdiff.mod`, and each is built in a few minutes the first time.
+
+The REST contract is `apps/api/openapi.yaml`. It is generated from the operations the API serves, so after changing one, run `task api:spec` and commit the file with the code.
 
 ### Build
 
@@ -320,11 +406,11 @@ The other commands are _TBD_, written with the first code.
 - **Seed and LLM stand-in.** Each is a `main` package of its own in the same Go module, built into its own image. Production runs neither.
 - **Frontend.** Vite+ builds `apps/web` into static files, with a Brotli copy beside each text file. Caddy serves them.
 - **Caddy and PostgreSQL.** Both images are built in this repository: Caddy with a rate-limit plugin, PostgreSQL with pgBackRest.
-- **Generated code.** The pipeline checks that it is up to date: the Go code sqlc generates from the SQL files, and the client orval generates from the OpenAPI spec.
+- **Generated code.** The pipeline checks that it is up to date: the Go code sqlc generates from the SQL files, the OpenAPI spec generated from the Go code, and the client orval generates from that spec.
 - **Versions.** The build installs from `go.sum` and `pnpm-lock.yaml` and fails when they would change.
 - **Images.** GitHub Actions builds them, tags each with the hash of its commit and pushes it to the GitHub container registry. Production runs only an image built from `main`. The images of a release also carry its number.
 
-The commands are _TBD_, written with the first code.
+`task api:build` builds the API binary into `apps/api/bin`. The other commands are _TBD_, each written with what it builds.
 
 ### Deploy
 

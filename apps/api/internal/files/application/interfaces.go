@@ -1,0 +1,59 @@
+// Package application holds the use cases of the files area and the
+// interfaces they need. A use case is a type built once, with what it needs,
+// and run with Execute. The area has no REST operation of its own yet: the
+// use cases of the setup call these, after they checked the setup code.
+package application
+
+import (
+	"context"
+	"time"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
+)
+
+// Transactions opens and closes the transaction of a use case that writes.
+type Transactions interface {
+	// Run calls the operation inside one transaction, and passes it the
+	// context every repository must receive to take part. The transaction is
+	// committed when the operation returns nil and rolled back, with nothing
+	// saved, when it returns an error.
+	Run(ctx context.Context, operation func(ctx context.Context) error) error
+}
+
+// Clock tells the current time. A use case never reads the time of the
+// machine by itself, so a test decides what time it is.
+type Clock interface {
+	Now() time.Time
+}
+
+// FileRepository keeps the files.
+type FileRepository interface {
+	// NextIdentifier reserves the identifier of a file that does not exist
+	// yet.
+	NextIdentifier(ctx context.Context) (domain.FileID, error)
+	// Load loads the file with this identifier, and false when there is none.
+	// It locks the file until the transaction ends.
+	Load(ctx context.Context, id domain.FileID) (*domain.File, bool, error)
+	// Save stores a file whole, whether it is new or changed.
+	Save(ctx context.Context, file *domain.File) error
+}
+
+// Storage is the file storage, which holds the bytes of each file under its
+// object key, in one private bucket.
+type Storage interface {
+	// SignUpload signs a URL to which the browser sends the bytes of an
+	// object with a PUT, valid for this long. The URL accepts what was
+	// declared only: its type and its size.
+	SignUpload(ctx context.Context, key domain.ObjectKey, declared domain.DeclaredImage, validity time.Duration) (string, error)
+	// Inspect reads the size of the object under this key and its first
+	// bytes, at most domain.FirstBytesRead of them, and false when there is no
+	// object.
+	Inspect(ctx context.Context, key domain.ObjectKey) (domain.StoredObject, bool, error)
+	// Copy copies the object under one key to another key, inside the
+	// storage: the bytes never pass through the API. No URL signed for the
+	// first key reaches the copy.
+	Copy(ctx context.Context, from, to domain.ObjectKey) error
+	// Remove removes the object under this key. Removing one that does not
+	// exist is no failure.
+	Remove(ctx context.Context, key domain.ObjectKey) error
+}

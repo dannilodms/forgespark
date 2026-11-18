@@ -1,0 +1,101 @@
+{
+  "setup": {
+    "heading": "Configuración inicial",
+    "continue": "Continuar",
+    "back": "Volver",
+    "telephone": "Teléfono",
+    "telephoneDescription": "En formato internacional: un signo más, el código del país y el número, como +55 11 3333 4444.",
+    "image": {
+      "description": "Una imagen PNG, JPEG o WebP de hasta {{max_size, fileSize}}.",
+      "replace": "Reemplazar",
+      "remove": "Quitar",
+      "sending": "Enviando",
+      "sent": "Enviada",
+      "notSent": "No enviada",
+      "waiting": "Esperando un nuevo código de configuración",
+      "failed": "La imagen no se envió. {{reason}}.",
+      "tryAgain": "Intentar de nuevo"
+    },
+    "code": {
+      "intro": "Escribe el código de configuración que el comando <command>issue-setup-code</command> mostró en el servidor.",
+      "label": "Código de configuración",
+      "submit": "Continuar",
+      "stopped": {
+        "title": "El código de configuración dejó de funcionar",
+        "todo": "Emite uno nuevo en el servidor y escríbelo aquí. Lo que se escribió en la configuración se conserva, y el nuevo código vuelve al paso en el que estabas."
+      }
+    },
+    "consultancy": {
+      "title": "La consultora",
+      "intro": "Cómo se conoce a la consultora, dónde está y cómo contactarla. Los campos marcados como opcionales pueden quedar vacíos.",
+      "name": "Nombre",
+      "nameDescription": "El nombre por el que se conoce a la consultora.",
+      "legalName": "Razón social",
+      "legalNameDescription": "El nombre que llevan los documentos.",
+      "country": "País",
+      "taxId": "Identificación fiscal",
+      "taxIdDescription": "Como la escribe la autoridad tributaria del país.",
+      "timeZone": "Zona horaria",
+      "currency": "Moneda",
+      "currencyDescription": "El país la sugiere.",
+      "email": "Correo electrónico",
+      "website": "Sitio web",
+      "websiteDescription": "Una dirección que empieza con http:// o https://.",
+      "address": {
+        "legend": "Dirección",
+        "line1": "Línea 1",
+        "line2": "Línea 2",
+        "city": "Ciudad",
+        "region": "Estado o región",
+        "postalCode": "Código postal"
+      },
+      "logo": {
+        "label": "Logotipo",
+        "choose": "Elegir un logotipo",
+        "replace": "Reemplazar el logotipo",
+        "remove": "Quitar el logotipo"
+      }
+    },
+    "administrator": {
+      "title": "El primer administrador",
+      "intro": "La persona que inicia sesión primero, con el rol de administrador, y registra a las demás.",
+      "name": "Nombre",
+      "email": "Correo electrónico",
+      "emailDescription": "El administrador inicia sesión con este correo electrónico.",
+      "country": "País",
+      "countryDescription": "El país que emitió el documento de identidad.",
+      "nationalId": "Documento de identidad",
+      "nationalIdDescription": "Como lo escribe el país.",
+      "photo": {
+        "label": "Foto",
+        "choose": "Elegir una foto",
+        "replace": "Reemplazar la foto",
+        "remove": "Quitar la foto"
+      }
+    },
+    "newAdministrator": {
+      "title": "El nuevo administrador",
+      "intro": "La persona que recibe el rol de administrador y registra a las demás. Los usuarios que existen no se modifican."
+    },
+    "review": {
+      "title": "Revisión",
+      "intro": "Revisa lo que se escribió. Nada se guarda hasta que se concluya la configuración inicial.",
+      "change": "Cambiar",
+      "changeConsultancy": "Cambiar la consultora",
+      "changeAdministrator": "Cambiar el primer administrador",
+      "notGiven": "No indicado",
+      "logsInWith": "El primer administrador inicia sesión con este correo electrónico. Comprueba que sea correcto:",
+      "imagesSending": "La conclusión espera hasta que se envíen todas las imágenes elegidas.",
+      "imageNotSent": "Una imagen no se envió. Cambia su paso para enviarla de nuevo o para quitarla.",
+      "conclude": "Concluir la configuración",
+      "newAdministrator": {
+        "intro": "Revisa lo que se escribió. Se registrará un nuevo administrador, con el rol de administrador, y los usuarios que existen no se modifican. Nada se guarda hasta que se registre el administrador.",
+        "change": "Cambiar el nuevo administrador",
+        "logsInWith": "El nuevo administrador inicia sesión con este correo electrónico. Comprueba que sea correcto:",
+        "photoSending": "El registro espera hasta que se envíe la foto elegida.",
+        "photoNotSent": "La foto no se envió. Cambia el nuevo administrador para enviarla de nuevo o para quitarla.",
+        "register": "Registrar al administrador"
+      }
+    }
+  }
+}

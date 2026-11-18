@@ -1,0 +1,171 @@
+package config
+
+import (
+	"errors"
+	"net"
+	"net/url"
+	"strconv"
+	"strings"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+var errNotValid = errors.New("not valid")
+
+// ListenAddress is the host and port a server listens on, as host:port. The
+// host may be empty, which means every interface.
+type ListenAddress string
+
+// UnmarshalText reads a listen address from the text of a variable.
+func (a *ListenAddress) UnmarshalText(text []byte) error {
+	_, port, err := net.SplitHostPort(string(text))
+	if err != nil {
+		return errNotValid
+	}
+	if _, err := strconv.ParseUint(port, 10, 16); err != nil {
+		return errNotValid
+	}
+	*a = ListenAddress(text)
+	return nil
+}
+
+func (a ListenAddress) String() string {
+	return string(a)
+}
+
+// HTTPURL is the address of a service reached over HTTP, as an http or https
+// URL. The zero value is no address: the variable was left empty.
+type HTTPURL struct {
+	address string
+}
+
+// UnmarshalText reads an address from the text of a variable.
+func (u *HTTPURL) UnmarshalText(text []byte) error {
+	parsed, err := url.Parse(string(text))
+	if err != nil {
+		return errNotValid
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return errNotValid
+	}
+	if parsed.Host == "" {
+		return errNotValid
+	}
+	u.address = string(text)
+	return nil
+}
+
+// IsSet tells whether the variable held an address.
+func (u HTTPURL) IsSet() bool {
+	return u.address != ""
+}
+
+func (u HTTPURL) String() string {
+	return u.address
+}
+
+// PostgresURL is a connection URL of PostgreSQL. It carries a password, so it
+// prints as a placeholder: only ConnectionString gives the URL itself.
+type PostgresURL struct {
+	connectionString string
+}
+
+// UnmarshalText reads a connection URL from the text of a variable. It accepts
+// what the pool accepts, in the URL form only.
+func (u *PostgresURL) UnmarshalText(text []byte) error {
+	parsed, err := url.Parse(string(text))
+	if err != nil {
+		return errNotValid
+	}
+	if parsed.Scheme != "postgres" && parsed.Scheme != "postgresql" {
+		return errNotValid
+	}
+	if _, err := pgxpool.ParseConfig(string(text)); err != nil {
+		return errNotValid
+	}
+	u.connectionString = string(text)
+	return nil
+}
+
+// NewPostgresURL reads a connection URL that comes from somewhere other than
+// a variable, such as a temporary database of the tests, as a variable is
+// read.
+func NewPostgresURL(text string) (PostgresURL, error) {
+	var connection PostgresURL
+	err := connection.UnmarshalText([]byte(text))
+	return connection, err
+}
+
+// GoString keeps the URL out of a %#v as well.
+func (u PostgresURL) GoString() string {
+	return u.String()
+}
+
+// ConnectionString returns the URL, password included. It goes to the
+// database driver and nowhere else.
+func (u PostgresURL) ConnectionString() string {
+	return u.connectionString
+}
+
+func (u PostgresURL) String() string {
+	return "[PostgreSQL connection URL]"
+}
+
+// Origin is the address a browser reaches a site at: a scheme, a host and
+// maybe a port, with nothing after them.
+type Origin string
+
+// UnmarshalText reads an origin from the text of a variable. One slash at
+// the end is accepted and dropped.
+func (o *Origin) UnmarshalText(text []byte) error {
+	parsed, err := url.Parse(string(text))
+	if err != nil {
+		return errNotValid
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return errNotValid
+	}
+	bare := url.URL{Scheme: parsed.Scheme, Host: parsed.Host}
+	if parsed.Host == "" || strings.TrimSuffix(string(text), "/") != bare.String() {
+		return errNotValid
+	}
+	*o = Origin(bare.String())
+	return nil
+}
+
+func (o Origin) String() string {
+	return string(o)
+}
+
+// Secret is a value that opens something, such as the key the API signs with
+// for the file storage. It prints as a placeholder: only Reveal gives it.
+type Secret struct {
+	value string
+}
+
+// NewSecret holds a secret that comes from somewhere other than a variable,
+// such as the key the tests read.
+func NewSecret(value string) Secret {
+	return Secret{value: value}
+}
+
+// UnmarshalText reads a secret from the text of a variable.
+func (s *Secret) UnmarshalText(text []byte) error {
+	s.value = string(text)
+	return nil
+}
+
+// Reveal returns the secret. It goes to the library that uses it and
+// nowhere else.
+func (s Secret) Reveal() string {
+	return s.value
+}
+
+func (s Secret) String() string {
+	return "[secret]"
+}
+
+// GoString keeps the secret out of a %#v as well.
+func (s Secret) GoString() string {
+	return "[secret]"
+}

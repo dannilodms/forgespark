@@ -4,6 +4,44 @@ The operational hub of a software consultancy: one place to manage clients, thei
 
 ## Language
 
+### The consultancy
+
+**Consultancy**:
+The software company the system is run for. There is exactly one, and every client, project and user belongs to it.
+_Avoid_: Tenant, organization, company, account
+
+**User**:
+A person registered in the system, who logs in with their e-mail. An administrator registers a user and gives them at least one role. A deactivated user cannot log in and stays in the records; no user is removed.
+_Avoid_: Account, member, login
+
+**Role**:
+A named set of scopes given to users. A user can have several roles and may do what any of them allows.
+_Avoid_: Permission group, profile, group
+
+**Administrator**:
+A user who has the administrator role. That role always grants every scope, so an administrator may register other users, change the data of the consultancy and see how the system itself is running, starting with the health report. The role cannot be changed or removed. The first administrator is created in the setup.
+_Avoid_: Admin, super admin, owner, manager
+
+**Developer**:
+A user of the consultancy who works on its projects. The developer role is created in the setup and can be changed like any other role.
+_Avoid_: Dev, programmer, member
+
+**Setup**:
+The one-time registration of the consultancy and of its first administrator, done before anyone can log in. Both are created together when it is concluded.
+_Avoid_: Onboarding, installation, sign-up, first login
+
+**Setup code**:
+A code that opens the setup. Whoever installs the system issues it on the server, and it stops working when the setup is concluded. A new one, issued when no administrator can log in, opens the setup again to register an administrator. It is not a user.
+_Avoid_: Super admin, root user, initial password, bootstrap token
+
+**Tax ID**:
+The identifier a country's tax authority gives a company, such as the CNPJ in Brazil. It is read together with the country of the company.
+_Avoid_: CNPJ, VAT number, company number
+
+**National ID**:
+The identifier a country gives a person, such as the CPF in Brazil. It is read together with the country of the person.
+_Avoid_: CPF, SSN, document number, personal ID
+
 ### Credentials and access
 
 **Credential**:
@@ -23,11 +61,11 @@ An outside service through which a user proves who they are in order to log in, 
 _Avoid_: Identity provider, SSO, social login, external provider
 
 **Scope**:
-What an access token is allowed to do: read or write in one area of the system. Reading the value of a credential is a scope of its own.
-_Avoid_: Permission, role
+What a role or an access token allows: read or write in one area of the system. Reading the value of a credential is a scope of its own. An access token never allows more than the roles of its user do.
+_Avoid_: Permission
 
 **Audit log**:
-The permanent record of sensitive operations: reading the value of a credential, logging in, and creating or revoking an access token. Nothing in it is edited or deleted. It is not the history of work that screens show.
+The permanent record of sensitive operations: reading the value of a credential, logging in, creating or revoking an access token, issuing a setup code, concluding a setup, changing the roles of a user, and deactivating or reactivating a user. Nothing in it is edited or deleted. It is not the history of work that screens show.
 _Avoid_: Activity history, history, log
 
 ### System health

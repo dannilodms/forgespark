@@ -31,7 +31,7 @@ Two things in production cannot be lost: the database and the files. PostgreSQL 
 
 ## Consequences
 
-- Three things were read in documentation and not tried, and the walking skeleton tries them. The AWS SDK for Go v2 sends a checksum by default since 2025; Backblaze does not say it accepts it, and there are reports that it does not, with a documented setting that turns the checksum off. No provider documents a signed URL for each part of an upload in parts. pgBackRest names no S3-compatible provider in its documentation.
+- Three things were read in documentation and not tried. The work that builds the deploy tries them, before production holds a file or a backup. The AWS SDK for Go v2 sends a checksum by default since 2025; Backblaze does not say it accepts it, and there are reports that it does not, with a documented setting that turns the checksum off. No provider documents a signed URL for each part of an upload in parts. pgBackRest names no S3-compatible provider in its documentation.
 - If Backblaze B2 fails one of those tests, the storage moves to Scaleway or OVHcloud. For the backend that is a change of configuration (ADR-0017).
 - The log is archived in segments, when one fills or after a timeout. Losing the server loses what was written after the last segment archived.
 - A restore is the maintainer's work. Its steps are in the README, and the monthly test is what keeps them true.

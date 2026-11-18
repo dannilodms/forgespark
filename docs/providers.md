@@ -75,7 +75,7 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 
 **Cost.** US$ 6.95 for each terabyte a month, with the first 10 GB free. About US$ 0.63 a month for 100 GB stored, 20 GB uploaded and 50 GB downloaded. Requests are free.
 
-**Not proven yet.** The AWS SDK for Go v2 with its default checksum, an upload in parts with signed URLs, and pgBackRest against it. The walking skeleton tries all three. If one fails, the storage moves to Scaleway or OVHcloud.
+**Not proven yet.** The AWS SDK for Go v2 with its default checksum, `CopyObject`, which confirming an upload uses (ADR-0017), an upload in parts with signed URLs, and pgBackRest against it. The work that builds the deploy tries all four, before production uses it. If one fails, the storage moves to Scaleway or OVHcloud.
 
 | Item | Value |
 | --- | --- |
@@ -155,14 +155,14 @@ Each provider needs two registered applications, because staging and production 
 
 **Why.** The backend calls models through one interface in the Chat Completions format, so the provider is configuration: a base address, a key and a model (ADR-0004). Only production calls a real provider. Development, the pipeline and staging use the stand-in written in this repository.
 
-**Cost.** By use. The scheduled tests of the LLM adapter spend a little every day, with a key of their own.
+**Cost.** By use, in production only. Nothing automated calls a real provider anywhere else (ADR-0019).
 
 | Item | Value |
 | --- | --- |
 | Provider | _not chosen_ |
 | Base address | _not chosen_ |
 | Default model | _not chosen_ |
-| Keys | One for production and one for the scheduled tests (the values are secrets) |
+| Keys | One, for production (the value is a secret) |
 
 ## Hosted monitor
 

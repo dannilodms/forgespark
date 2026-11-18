@@ -1,0 +1,48 @@
+openapi: 3.1.0
+info:
+  title: A spec that breaks each convention once
+  version: unversioned
+paths:
+  /api/project:
+    get:
+      operationId: read_project
+      parameters:
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+  /api/projects/{projectId}/detail:
+    get:
+      operationId: read_project_detail
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+components:
+  schemas:
+    Project:
+      type: object
+      properties:
+        legalName:
+          type: string
+        address:
+          type: object
+          properties:
+            PostalCode:
+              type: string

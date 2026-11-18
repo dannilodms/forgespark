@@ -1,0 +1,303 @@
+version: "3"
+
+# Task loads the variables for every target and for Compose. A value in
+# `.env` wins over the one in `.env.example`, so development runs with no
+# `.env` at all, and a variable of the shell wins over both.
+dotenv: [".env", ".env.example"]
+
+tasks:
+  install:
+    desc: Install the JavaScript dependencies of the app, and the Chromium its screen tests run in
+    dir: apps/web
+    cmds:
+      - vp install
+      # The Chromium of the Playwright version in the catalog. Downloaded once
+      # for each version, into the cache of Playwright on the machine.
+      - vp exec playwright install chromium
+
+  install:linux:
+    desc: Install the system libraries the Chromium of the tests needs on Linux, as the pipeline does. It uses sudo. APT_ARCHIVES names a folder that keeps the packages apt downloads, for the next run
+    dir: apps/web
+    cmds:
+      # The pipeline keeps APT_ARCHIVES in its cache. apt downloads into a
+      # folder of root, which the cache cannot write, so the packages are
+      # copied in before the install and out after it. A package already in
+      # the folder of apt is not downloaded again.
+      - |
+        archives="{{.APT_ARCHIVES | default ""}}"
+        if [ -n "$archives" ] && ls "$archives"/*.deb > /dev/null 2>&1; then
+          sudo cp "$archives"/*.deb /var/cache/apt/archives/
+        fi
+      - vp exec playwright install-deps chromium
+      - |
+        archives="{{.APT_ARCHIVES | default ""}}"
+        if [ -n "$archives" ]; then
+          # Drops the packages of versions the mirror no longer offers, so
+          # the folder does not grow with each new version.
+          sudo apt-get autoclean
+          mkdir -p "$archives"
+          rm -f "$archives"/*.deb
+          if ls /var/cache/apt/archives/*.deb > /dev/null 2>&1; then
+            cp /var/cache/apt/archives/*.deb "$archives"/
+          fi
+          echo "Kept $(ls "$archives" | wc -l) packages in $archives"
+        fi
+
+  services:
+    desc: Build the Caddy image, start the services of development and wait until they are healthy
+    env:
+      # BuildKit adds a provenance record that carries the time of the build,
+      # so each build would be a new image and Compose would create Caddy
+      # again on every run.
+      BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
+    cmds:
+      # The build is quick when the Dockerfile has not changed, and keeps the
+      # image the same as it.
+      - docker compose up --detach --wait --build
+
+  services:stop:
+    desc: Stop the services of development and keep their data
+    cmds:
+      - docker compose stop
+
+  migrate:
+    desc: Apply the pending migrations to the development database
+    dir: apps/api
+    cmds:
+      - go run ./cmd/api migrate
+
+  issue-setup-code:
+    desc: Issue the setup code that opens the setup, in the development database, and print it
+    dir: apps/api
+    cmds:
+      - go run ./cmd/api issue-setup-code
+
+  api:
+    desc: Start the API
+    dir: apps/api
+    cmds:
+      - go run ./cmd/api
+
+  web:
+    desc: Start Vite, which serves the app. Open it through Caddy, at APP_ORIGIN
+    dir: apps/web
+    cmds:
+      # The port is the one the Caddyfile forwards to. A port already taken
+      # fails, instead of moving to one Caddy does not reach.
+      - vp dev --host "$WEB_LISTEN_HOST" --port 5173 --strictPort
+
+  dev:
+    desc: Start the API and Vite together. The app opens at APP_ORIGIN, through Caddy
+    deps: [api, web, dev:address]
+
+  dev:address:
+    internal: true
+    silent: true
+    cmds:
+      - echo "The app opens at $APP_ORIGIN, through Caddy, which task services starts."
+
+  api:build:
+    desc: Build the API binary into apps/api/bin
+    dir: apps/api
+    cmds:
+      - go build -o bin/ ./cmd/api
+
+  api:generate:
+    desc: Generate the Go code of the postgres adapters from their SQL files, with sqlc
+    dir: apps/api
+    cmds:
+      # sqlc has its own module file, so its dependencies stay out of go.mod.
+      - go tool -modfile=sqlc.mod sqlc generate
+
+  api:generate:check:
+    desc: Fail when the committed code that sqlc generated is stale
+    dir: apps/api
+    cmds:
+      - go tool -modfile=sqlc.mod sqlc diff
+
+  api:spec:
+    desc: Generate the OpenAPI spec from the Go code, into apps/api/openapi.yaml
+    dir: apps/api
+    cmds:
+      # The spec is what the command that serves registers, so the test that
+      # compares the committed file with it is also what writes the file.
+      - go test -count=1 -run '^TestTheCommittedSpecMatchesTheCode$' ./cmd/api -args -write-spec
+
+  api:spec:check:
+    desc: Fail when the committed OpenAPI spec is stale
+    dir: apps/api
+    cmds:
+      - go test -count=1 -run '^TestTheCommittedSpecMatchesTheCode$' ./cmd/api
+
+  api:lists:
+    desc: Write the countries, the currencies and the time zones the API accepts into the app, at apps/web/src/shared/places/lists.gen.ts
+    dir: apps/api
+    cmds:
+      # The currencies and the time zones are unexported, so a test of the
+      # consultancy domain, which holds them, writes the file, as the spec is
+      # written. The countries come from the kernel.
+      - go test -count=1 -run '^TestTheAppOffersTheListsTheBackendAccepts$' ./internal/consultancy/domain -args -write-lists
+
+  api:lists:check:
+    desc: Fail when the lists of the app are not the ones the API accepts
+    dir: apps/api
+    cmds:
+      - go test -count=1 -run '^TestTheAppOffersTheListsTheBackendAccepts$' ./internal/consultancy/domain
+
+  api:spec:lint:
+    desc: Lint the committed OpenAPI spec, for snake_case names and plural paths
+    dir: apps/api
+    cmds:
+      # vacuum has its own module file, so its dependencies stay out of go.mod.
+      - >-
+        go tool -modfile=vacuum.mod vacuum lint
+        --no-update-check --no-banner --no-style --details --all-results --no-clip
+        --ruleset tools/speclint/ruleset.yaml
+        --functions tools/speclint/functions
+        openapi.yaml
+
+  api:spec:breaking:
+    desc: Show the breaking changes of the OpenAPI spec against the main branch. It never fails
+    dir: apps/api
+    cmds:
+      # oasdiff has its own module file too. The report is shown and blocks
+      # nothing (ADR-0009): a breaking change is allowed when every consumer
+      # changes in the same commit. SPEC_BASE names another revision.
+      - cmd: go tool -modfile=oasdiff.mod oasdiff breaking {{.SPEC_BASE | default "origin/main"}}:apps/api/openapi.yaml openapi.yaml
+        ignore_error: true
+
+  api:test:
+    desc: Run the Go tests, against the PostgreSQL of development. Arguments after -- replace the package list
+    dir: apps/api
+    deps: [services]
+    cmds:
+      # Never from the cache: a test that reaches a service can fail with no file changed.
+      - go test -count=1 {{.CLI_ARGS | default "./..."}}
+
+  web:generate:
+    desc: Generate the API client, its Zod schemas and its simulated responses from apps/api/openapi.yaml, with orval
+    dir: apps/web
+    cmds:
+      - vp exec orval --config orval.config.ts
+
+  web:generate:check:
+    desc: Fail when the committed client that orval generated is stale
+    dir: apps/web
+    cmds:
+      # Compares with what it would write, and writes nothing.
+      - vp exec orval --config orval.config.ts --outdated
+
+  web:imports:
+    desc: Fail when an import of the app breaks the dependency rule
+    dir: apps/web
+    cmds:
+      - vp exec depcruise src --config .dependency-cruiser.mjs
+
+  web:knip:
+    desc: Fail on a file, an export or a dependency of the app that nothing uses
+    dir: apps/web
+    cmds:
+      - vp exec knip
+
+  web:check:
+    desc: Format, lint and type checks, the generated client, the dependency rule, unused code, the missing translation keys and the tests of the app
+    dir: apps/web
+    cmds:
+      - task: web:generate:check
+      - vp check
+      - task: web:imports
+      - task: web:knip
+      - vp node scripts/missing-keys.mjs
+      - vp test run
+
+  e2e:
+    desc: Run the end-to-end test of the setup through Caddy, on a database of its own that starts empty. Restarts Caddy, and needs ports 8080 and 5173 free
+    deps: [services, api:build]
+    vars:
+      # Created empty for each run, and kept after it so that a failure can
+      # be read in it; the next run drops it. The development database is
+      # never touched.
+      E2E_DATABASE: software_factory_e2e
+      E2E_DATABASE_ADDRESS: localhost:{{.POSTGRES_PORT}}/{{.E2E_DATABASE}}?sslmode=disable
+    cmds:
+      # The limit of Caddy counts every request of the machine together, and
+      # keeps them in its memory only. A restart empties it, so the test never
+      # meets what a run before it, or its own check of the limit, left there.
+      - docker compose restart caddy
+      - >-
+        docker compose exec --no-TTY postgres
+        psql --username postgres --no-psqlrc --quiet --set ON_ERROR_STOP=1
+        --command "DROP DATABASE IF EXISTS {{.E2E_DATABASE}} WITH (FORCE)"
+        --command "CREATE DATABASE {{.E2E_DATABASE}} OWNER migration"
+      # Each connection is named on its command, where no variable of the
+      # shell replaces it.
+      - >-
+        MIGRATION_DATABASE_URL="postgres://migration:{{.POSTGRES_MIGRATION_PASSWORD}}@{{.E2E_DATABASE_ADDRESS}}"
+        apps/api/bin/api migrate
+      # Playwright starts the API and Vite where Caddy reaches them, hands the
+      # API this connection as DATABASE_URL, and stops both at the end.
+      - >-
+        cd apps/web &&
+        E2E_DATABASE_URL="postgres://api:{{.POSTGRES_API_PASSWORD}}@{{.E2E_DATABASE_ADDRESS}}"
+        vp exec playwright test
+
+  api:lint:
+    desc: Lint the Go code and check its format, the dependency rule, else and the level of nesting
+    dir: apps/api
+    cmds:
+      # The linter has its own module file, so its dependencies stay out of go.mod.
+      - go tool -modfile=golangci-lint.mod golangci-lint run ./...
+      - go run ./tools/guard code
+
+  api:format:
+    desc: Rewrite the Go files as the formatter asks
+    dir: apps/api
+    cmds:
+      - go tool -modfile=golangci-lint.mod golangci-lint fmt ./...
+
+  workflows:check:
+    desc: Check the workflow files with actionlint and zizmor, each from its image
+    vars:
+      # The images of the two linters, each by its tag and by the digest of
+      # that tag in its registry, so a tag pushed again is not run. A
+      # variable whose name ends in _IMAGE is judged by `task versions:check`.
+      ACTIONLINT_IMAGE: rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+      ZIZMOR_IMAGE: ghcr.io/zizmorcore/zizmor:1.32.0@sha256:3014cc8f68f663935f69b3c3e0e41f5ce102b268d97db13db0f62208747f860d
+    cmds:
+      - docker run --rm --volume "{{.ROOT_DIR}}:/repository:ro" --workdir /repository {{.ACTIONLINT_IMAGE}} -color
+      # With GH_TOKEN, which the pipeline gives it, zizmor runs its online
+      # audits too; without it, the offline ones.
+      - docker run --rm --volume "{{.ROOT_DIR}}:/repository:ro" --workdir /repository --env GH_TOKEN {{.ZIZMOR_IMAGE}} --color=always .
+
+  versions:check:
+    desc: Check that every version the repository pins is exact
+    dir: apps/api
+    cmds:
+      - go run ./tools/guard versions ../..
+
+  check:
+    desc: Every check a pull request runs, on the app and on the API, the end-to-end test last. Restarts Caddy, and needs ports 8080 and 5173 free
+    cmds:
+      - task: check:quick
+      - task: e2e
+
+  check:quick:
+    desc: Every check of task check but the end-to-end test, for daily use. It needs no free port and does not restart Caddy, so it runs beside task dev
+    cmds:
+      - task: versions:check
+      - task: workflows:check
+      - task: web:check
+      - task: api:lint
+      - task: api:generate:check
+      - task: api:spec:check
+      - task: api:lists:check
+      - task: api:spec:lint
+      - task: api:spec:breaking
+      - task: api:build
+      - task: api:test
+
+  check:fix:
+    desc: Format, lint and type checks of the app, fixing what can be fixed
+    dir: apps/web
+    cmds:
+      - vp check --fix

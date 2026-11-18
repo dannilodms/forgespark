@@ -1,0 +1,26 @@
+{
+  "login": {
+    "heading": "Log in",
+    "notBuilt": "The login is not built yet. It comes with the next part of the work on the system.",
+    "setupConcluded": {
+      "title": "The setup is concluded",
+      "todo": "The consultancy and its first administrator are registered. The administrator logs in here once the login exists."
+    },
+    "setupAlreadyConcluded": {
+      "title": "The setup was already concluded",
+      "todo": "Someone concluded it before you did, so nothing of what you typed was saved. The administrator registered then logs in here once the login exists."
+    },
+    "setupConcludedWithoutAnswer": {
+      "title": "The setup is concluded",
+      "todo": "An earlier attempt to conclude it got no answer, so it may have concluded the setup with what you typed, or someone may have concluded it before you. The administrator registered then logs in here once the login exists."
+    },
+    "administratorRegistered": {
+      "title": "The administrator is registered",
+      "todo": "The new administrator logs in here once the login exists. The users that existed were not changed."
+    },
+    "administratorRegisteredWithoutAnswer": {
+      "title": "The administrator may be registered",
+      "todo": "An earlier attempt to register the administrator got no answer, so it may have registered them with the e-mail typed then. Once the login exists, try logging in here with that e-mail. The users that existed were not changed."
+    }
+  }
+}

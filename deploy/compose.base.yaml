@@ -1,0 +1,66 @@
+# The services the environments share, and the tag of every image. The
+# Compose file of each environment extends the services it runs from here, so
+# a version has one home. Rules: Compose files and Versions in
+# CODING_STANDARDS.md.
+#
+# `extends` copies a service and nothing else: the volumes and the configs a
+# service names are declared at the top level of the file that extends it.
+
+# The log files of every container rotate by size.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:18.7-trixie
+    command:
+      - postgres
+      # pg_stat_statements only loads when the server starts with it.
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      # The detail of an error can carry the values of a row.
+      - -c
+      - log_error_verbosity=terse
+    environment:
+      POSTGRES_DB: software_factory
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD, as .env.example does}
+      POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD, as .env.example does}
+      POSTGRES_API_PASSWORD: ${POSTGRES_API_PASSWORD:?Set POSTGRES_API_PASSWORD, as .env.example does}
+    configs:
+      # Runs once, when the data directory is created.
+      - source: postgres-roles
+        target: /docker-entrypoint-initdb.d/01-roles.sql
+    volumes:
+      # PostgreSQL 18 keeps its data one level above where earlier versions did.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      # Over TCP, because the server that runs the first-start scripts listens
+      # on the socket only: the check passes once the roles exist.
+      test: ["CMD-SHELL", "pg_isready --host 127.0.0.1 --username postgres --dbname software_factory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+      start_interval: 1s
+    logging: *logging
+
+  caddy:
+    # The image is built in this repository, with a rate-limit plugin, from
+    # deploy/caddy/Dockerfile, which holds the versions of Caddy and of the
+    # plugin. Development builds it; each environment names it in its file.
+    logging: *logging
+
+  # The file storage of development and staging (ADR-0017). Production keeps
+  # its files at a provider and declares no Garage.
+  garage:
+    image: dxflrs/garage:v2.5.0
+    logging: *logging
+
+  # The step that gives the bucket of Garage its cross-origin rule, through
+  # the S3 API, signed by curl. It runs once and exits.
+  garage-cors:
+    image: curlimages/curl:8.23.0
+    logging: *logging

@@ -1,0 +1,97 @@
+import i18n from "i18next"
+import { initReactI18next, useTranslation } from "react-i18next"
+
+import { type Language, defaultLanguage, supportedLanguages } from "./languages"
+
+/** The texts of one namespace in one language: a text, or a group of texts. */
+type Texts = Record<string, unknown>
+
+/**
+ * Every translation file of the app, by its path from `src`:
+ * `./<namespace>/locales/<language>.json`. The namespace is the domain area,
+ * or `shared`.
+ */
+type TranslationFiles = Record<string, Texts>
+
+/** The supported language closest to what the browser asks for, or English. */
+function closestLanguage(wanted: readonly string[]): Language {
+  for (const tag of wanted) {
+    const exact = supportedLanguages.find(({ code }) => code === tag)
+    if (exact) {
+      return exact.code
+    }
+    const primary = tag.split("-")[0]
+    const close = supportedLanguages.find(
+      ({ code }) => code.split("-")[0] === primary
+    )
+    if (close) {
+      return close.code
+    }
+  }
+  return defaultLanguage
+}
+
+/** The texts of every supported language, by namespace. */
+function resourcesOf(files: TranslationFiles) {
+  const resources: Record<string, Record<string, Texts>> = {}
+  for (const { code } of supportedLanguages) {
+    resources[code] = {}
+  }
+  for (const [path, texts] of Object.entries(files)) {
+    const [, namespace, , file] = path.split("/")
+    const language = file?.replace(/\.json$/, "") ?? ""
+    const byNamespace = resources[language]
+    if (namespace && byNamespace) {
+      byNamespace[namespace] = texts
+    }
+  }
+  return resources
+}
+
+/**
+ * Loads the texts and puts the screen in the supported language closest to
+ * `wanted`, the languages the browser asks for. Call before the first
+ * render. A later call only changes the language.
+ */
+export function startLanguage(
+  wanted: readonly string[],
+  files: TranslationFiles
+) {
+  const language = closestLanguage(wanted)
+  document.documentElement.lang = language
+  if (i18n.isInitialized) {
+    void i18n.changeLanguage(language)
+    return
+  }
+  i18n.on("languageChanged", (code) => {
+    document.documentElement.lang = code
+  })
+  const resources = resourcesOf(files)
+  void i18n.use(initReactI18next).init({
+    resources,
+    lng: language,
+    fallbackLng: defaultLanguage,
+    defaultNS: "shared",
+    ns: Object.keys(resources[defaultLanguage] ?? {}),
+    interpolation: { escapeValue: false },
+    initAsync: false,
+  })
+  // `{{max_size, fileSize}}`: a size in bytes, in megabytes, as the language
+  // writes them (Values in CODING_STANDARDS.md).
+  i18n.services.formatter?.add("fileSize", (bytes: number, code) =>
+    new Intl.NumberFormat(code, {
+      style: "unit",
+      unit: "megabyte",
+      maximumFractionDigits: 1,
+    }).format(bytes / 2 ** 20)
+  )
+}
+
+/** The language the screen is in, and a way to change it at once. */
+export function useLanguage() {
+  const { i18n: instance } = useTranslation()
+  return {
+    language: instance.language as Language,
+    choose: (language: Language) => void instance.changeLanguage(language),
+  }
+}

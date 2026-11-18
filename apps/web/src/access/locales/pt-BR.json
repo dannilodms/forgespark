@@ -1,0 +1,26 @@
+{
+  "login": {
+    "heading": "Entrar",
+    "notBuilt": "O login ainda não foi construído. Ele vem com a próxima parte do trabalho no sistema.",
+    "setupConcluded": {
+      "title": "A configuração inicial foi concluída",
+      "todo": "A consultoria e o primeiro administrador estão cadastrados. O administrador entra por aqui quando o login existir."
+    },
+    "setupAlreadyConcluded": {
+      "title": "A configuração inicial já tinha sido concluída",
+      "todo": "Alguém a concluiu antes de você, então nada do que você digitou foi salvo. O administrador cadastrado nela entra por aqui quando o login existir."
+    },
+    "setupConcludedWithoutAnswer": {
+      "title": "A configuração inicial foi concluída",
+      "todo": "Uma tentativa anterior de concluí-la ficou sem resposta: ela pode ter concluído a configuração com o que você digitou, ou alguém pode tê-la concluído antes de você. O administrador cadastrado nela entra por aqui quando o login existir."
+    },
+    "administratorRegistered": {
+      "title": "O administrador foi cadastrado",
+      "todo": "O novo administrador entra por aqui quando o login existir. Os usuários que já existiam não foram alterados."
+    },
+    "administratorRegisteredWithoutAnswer": {
+      "title": "O administrador pode ter sido cadastrado",
+      "todo": "Uma tentativa anterior de cadastrar o administrador ficou sem resposta: ela pode tê-lo cadastrado com o e-mail digitado então. Quando o login existir, tente entrar por aqui com esse e-mail. Os usuários que já existiam não foram alterados."
+    }
+  }
+}

@@ -1,0 +1,62 @@
+# sqlc generates the Go functions and the row structs of each `postgres`
+# adapter from the SQL files inside its package, checked against the schema
+# the migrations build. Rules: Database in CODING_STANDARDS.md.
+#
+# One entry for each domain area that has a `postgres` adapter. Generate with
+# `task api:generate`, and commit what it writes: `task api:generate:check`
+# fails when the committed code is stale.
+version: "2"
+
+overrides:
+  go:
+    overrides:
+      # An instant is a time.Time, and a pointer to one when the column may
+      # be empty, instead of the wrapper types of pgx.
+      - db_type: timestamptz
+        go_type: time.Time
+      - db_type: timestamptz
+        nullable: true
+        go_type:
+          import: time
+          type: Time
+          pointer: true
+
+sql:
+  - engine: postgresql
+    schema: migrations
+    queries: internal/audit/adapters/postgres
+    gen:
+      go:
+        package: postgres
+        out: internal/audit/adapters/postgres
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        omit_unused_structs: true
+        output_db_file_name: sqlc_db.go
+        output_models_file_name: sqlc_models.go
+
+  - engine: postgresql
+    schema: migrations
+    queries: internal/consultancy/adapters/postgres
+    gen:
+      go:
+        package: postgres
+        out: internal/consultancy/adapters/postgres
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        omit_unused_structs: true
+        output_db_file_name: sqlc_db.go
+        output_models_file_name: sqlc_models.go
+
+  - engine: postgresql
+    schema: migrations
+    queries: internal/files/adapters/postgres
+    gen:
+      go:
+        package: postgres
+        out: internal/files/adapters/postgres
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        omit_unused_structs: true
+        output_db_file_name: sqlc_db.go
+        output_models_file_name: sqlc_models.go

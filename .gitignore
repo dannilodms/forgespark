@@ -8,6 +8,10 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+# Screenshots of the screen tests that failed
+.vitest/
+# Traces of the end-to-end test that failed
+test-results/
 
 # Go build and test output
 *.exe
@@ -24,3 +28,6 @@ coverage/
 # Operating system
 .DS_Store
 Thumbs.db
+
+# Local binaries of the API
+apps/api/bin/

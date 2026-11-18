@@ -1,0 +1,101 @@
+{
+  "setup": {
+    "heading": "Setup",
+    "continue": "Continue",
+    "back": "Back",
+    "telephone": "Telephone",
+    "telephoneDescription": "In international form: a plus sign, the code of the country and the number, such as +55 11 3333 4444.",
+    "image": {
+      "description": "A PNG, a JPEG or a WebP image of at most {{max_size, fileSize}}.",
+      "replace": "Replace",
+      "remove": "Remove",
+      "sending": "Sending",
+      "sent": "Sent",
+      "notSent": "Not sent",
+      "waiting": "Waiting for a new setup code",
+      "failed": "The image was not sent. {{reason}}.",
+      "tryAgain": "Try again"
+    },
+    "code": {
+      "intro": "Type the setup code that the command <command>issue-setup-code</command> printed on the server.",
+      "label": "Setup code",
+      "submit": "Continue",
+      "stopped": {
+        "title": "The setup code stopped working",
+        "todo": "Issue a new one on the server and type it here. What was typed in the setup is kept, and the new code returns to the step you were on."
+      }
+    },
+    "consultancy": {
+      "title": "The consultancy",
+      "intro": "How the consultancy is known, where it is and how it is reached. The fields marked optional may be left empty.",
+      "name": "Name",
+      "nameDescription": "The name the consultancy is known by.",
+      "legalName": "Legal name",
+      "legalNameDescription": "The name documents carry.",
+      "country": "Country",
+      "taxId": "Tax ID",
+      "taxIdDescription": "As the tax authority of the country writes it.",
+      "timeZone": "Time zone",
+      "currency": "Currency",
+      "currencyDescription": "The country suggests it.",
+      "email": "E-mail",
+      "website": "Website",
+      "websiteDescription": "An address that starts with http:// or https://.",
+      "address": {
+        "legend": "Address",
+        "line1": "Line 1",
+        "line2": "Line 2",
+        "city": "City",
+        "region": "Region",
+        "postalCode": "Postal code"
+      },
+      "logo": {
+        "label": "Logo",
+        "choose": "Choose a logo",
+        "replace": "Replace the logo",
+        "remove": "Remove the logo"
+      }
+    },
+    "administrator": {
+      "title": "The first administrator",
+      "intro": "The person who logs in first, with the administrator role, and registers the others.",
+      "name": "Name",
+      "email": "E-mail",
+      "emailDescription": "The administrator logs in with this e-mail.",
+      "country": "Country",
+      "countryDescription": "The country that gave the national ID.",
+      "nationalId": "National ID",
+      "nationalIdDescription": "As the country writes it.",
+      "photo": {
+        "label": "Photo",
+        "choose": "Choose a photo",
+        "replace": "Replace the photo",
+        "remove": "Remove the photo"
+      }
+    },
+    "newAdministrator": {
+      "title": "The new administrator",
+      "intro": "The person who receives the administrator role and registers the others. The users that exist are not changed."
+    },
+    "review": {
+      "title": "Review",
+      "intro": "Check what was typed. Nothing is saved until the setup is concluded.",
+      "change": "Change",
+      "changeConsultancy": "Change the consultancy",
+      "changeAdministrator": "Change the first administrator",
+      "notGiven": "Not given",
+      "logsInWith": "The first administrator logs in with this e-mail. Check that it is right:",
+      "imagesSending": "Concluding waits until every image chosen is sent.",
+      "imageNotSent": "An image was not sent. Change its step to send it again or to remove it.",
+      "conclude": "Conclude the setup",
+      "newAdministrator": {
+        "intro": "Check what was typed. A new administrator will be registered, with the administrator role, and the users that exist are not changed. Nothing is saved until the administrator is registered.",
+        "change": "Change the new administrator",
+        "logsInWith": "The new administrator logs in with this e-mail. Check that it is right:",
+        "photoSending": "Registering waits until the photo chosen is sent.",
+        "photoNotSent": "The photo was not sent. Change the new administrator to send it again or to remove it.",
+        "register": "Register the administrator"
+      }
+    }
+  }
+}

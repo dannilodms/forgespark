@@ -16,9 +16,15 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  ACTIONLINT_VERSION: 1.7.12
-  ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
-  ZIZMOR_VERSION: 1.32.0
+  TASK_VERSION: 3.54.0
+  TASK_SHA256: 680859dbb4d881a9c72d4d9a8f510825450849af8567deacd7302c01124416fb
+  # Caddy, in a container, reaches what listens on the runner. Docker Engine
+  # on Linux reaches the runner at the address of its bridge, which a server
+  # on 127.0.0.1, the default of .env.example, does not hear. The tests of the
+  # API behind Caddy listen where the API does, and the end-to-end test starts
+  # the API and Vite there.
+  API_LISTEN_ADDRESS: 0.0.0.0:8080
+  WEB_LISTEN_HOST: 0.0.0.0
 
 jobs:
   workflows:
@@ -32,27 +38,296 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install actionlint
+      - name: Install Task
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          gh release download "v${ACTIONLINT_VERSION}" \
-            --repo rhysd/actionlint \
+          archive="task_linux_amd64.tar.gz"
+          gh release download "v${TASK_VERSION}" \
+            --repo go-task/task \
             --pattern "$archive" \
             --dir "$RUNNER_TEMP"
-          echo "${ACTIONLINT_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          echo "${TASK_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
           mkdir -p "$RUNNER_TEMP/bin"
-          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" actionlint
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - name: Run actionlint
-        run: actionlint -color
-
-      - name: Run zizmor
+      # actionlint and zizmor run from their images, pinned by tag and digest
+      # in the Task target. The token lets zizmor run its online audits.
+      - name: Check the workflow files with actionlint and zizmor
         env:
           GH_TOKEN: ${{ github.token }}
-        run: pipx run --spec "zizmor==${ZIZMOR_VERSION}" zizmor --color=always .
+        run: task workflows:check
+
+  # Tells the builds and the tests whether to run. A pull request that changes
+  # only documents skips them. `VERSION` is not a document.
+  changes:
+    name: Changed files
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      - name: Look for a changed file that is not a document
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PULL_REQUEST}/files" \
+            --paginate --jq '.[].filename')"
+          documents='(\.md$|^docs/|^\.scratch/|^LICENSE$)'
+          if echo "$files" | grep --quiet --invert-match --extended-regexp "$documents"; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  backend:
+    name: Backend
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the Go toolchain that go.mod names
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: apps/api/go.mod
+          # The linter, vacuum and oasdiff are each built from a module file
+          # of their own.
+          cache-dependency-path: |
+            apps/api/go.sum
+            apps/api/golangci-lint.sum
+            apps/api/vacuum.sum
+            apps/api/oasdiff.sum
+
+      - name: Install Task
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="task_linux_amd64.tar.gz"
+          gh release download "v${TASK_VERSION}" \
+            --repo go-task/task \
+            --pattern "$archive" \
+            --dir "$RUNNER_TEMP"
+          echo "${TASK_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Check that every version is exact
+        run: task versions:check
+
+      - name: Lint the Go code and check its format, its imports, else and nesting
+        run: task api:lint
+
+      # PostgreSQL, Garage with its bucket and Caddy: the adapter tests run
+      # against the first two.
+      - name: Start the services of development
+        run: task services
+
+      - name: Check that the code sqlc generated is up to date
+        run: task api:generate:check
+
+      - name: Check that the committed OpenAPI spec is up to date
+        run: task api:spec:check
+
+      - name: Check that the lists of the app are the ones the API accepts
+        run: task api:lists:check
+
+      - name: Lint the OpenAPI spec for snake_case names and plural paths
+        run: task api:spec:lint
+
+      # The report compares the spec with the one of the branch the pull
+      # request merges into, which the checkout does not bring. It is shown
+      # and blocks nothing (ADR-0009), so neither step fails the job.
+      - name: Fetch the branch the pull request merges into
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git fetch --no-tags --depth=1 origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+
+      - name: Show the breaking changes of the OpenAPI spec
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: task api:spec:breaking SPEC_BASE="origin/${BASE_REF}"
+
+      - name: Build the API binary
+        run: task api:build
+
+      - name: Run the Go tests against the PostgreSQL container
+        run: task api:test
+
+  app:
+    name: App
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Vite+ at the version of the catalog of apps/web, which brings the
+      # Node.js and the pnpm that apps/web/package.json names. The version
+      # file is read from the working directory. A file the action cannot
+      # read only warns and installs the latest Vite+.
+      - name: Install Vite+
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          version-file: package.json
+          working-directory: apps/web
+          run-install: false
+          cache: true
+
+      - name: Install Task
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="task_linux_amd64.tar.gz"
+          gh release download "v${TASK_VERSION}" \
+            --repo go-task/task \
+            --pattern "$archive" \
+            --dir "$RUNNER_TEMP"
+          echo "${TASK_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install the JavaScript dependencies and the Chromium of the screen tests
+        run: task install
+
+      # The packages apt downloads for the system libraries of Chromium are
+      # kept in the cache of GitHub Actions, for each system image of the
+      # runner, so a run does not download them again from the mirror of
+      # Ubuntu. They are saved right after the install, so a check that
+      # fails later still keeps them.
+      - name: Name the system image of the runner
+        id: image
+        run: echo "version=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the packages of the system libraries of Chromium
+        id: apt-packages
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/apt-archives
+          key: chromium-apt-${{ steps.image.outputs.version }}
+          restore-keys: chromium-apt-
+
+      - name: Install the system libraries Chromium needs on Linux
+        run: task install:linux APT_ARCHIVES="$RUNNER_TEMP/apt-archives"
+
+      - name: Keep the packages of the system libraries of Chromium
+        if: ${{ steps.apt-packages.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/apt-archives
+          key: chromium-apt-${{ steps.image.outputs.version }}
+
+      - name: Check the generated client, format, lint, types, imports, unused code and translations, and run the screen tests
+        run: task web:check
+
+  # The setup, end to end, in Chromium, through Caddy: the services of
+  # development, the API binary on a database that starts empty, and Vite.
+  end-to-end:
+    name: End-to-end
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the Go toolchain that go.mod names
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: apps/api/go.mod
+          # Only the API binary is built here.
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Install Vite+
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          version-file: package.json
+          working-directory: apps/web
+          run-install: false
+          cache: true
+
+      - name: Install Task
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="task_linux_amd64.tar.gz"
+          gh release download "v${TASK_VERSION}" \
+            --repo go-task/task \
+            --pattern "$archive" \
+            --dir "$RUNNER_TEMP"
+          echo "${TASK_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Install the JavaScript dependencies and the Chromium of the tests
+        run: task install
+
+      # The packages of the system libraries of Chromium, as in the job App.
+      - name: Name the system image of the runner
+        id: image
+        run: echo "version=${ImageOS}-${ImageVersion}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the packages of the system libraries of Chromium
+        id: apt-packages
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/apt-archives
+          key: chromium-apt-${{ steps.image.outputs.version }}
+          restore-keys: chromium-apt-
+
+      - name: Install the system libraries Chromium needs on Linux
+        run: task install:linux APT_ARCHIVES="$RUNNER_TEMP/apt-archives"
+
+      - name: Keep the packages of the system libraries of Chromium
+        if: ${{ steps.apt-packages.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/apt-archives
+          key: chromium-apt-${{ steps.image.outputs.version }}
+
+      - name: Run the end-to-end test of the setup
+        run: task e2e
+
+      # The trace shows each step of the failed test: the screen, the requests
+      # and the console. It holds the fictitious data of the test and setup
+      # codes of a database the runner throws away.
+      - name: Keep the trace of a failed test
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: end-to-end-traces
+          path: apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
 
   # The only check the ruleset of `main` requires. A new check is a job
   # added to `needs`, so the ruleset never changes.
@@ -61,6 +336,10 @@ jobs:
     if: ${{ always() }}
     needs:
       - workflows
+      - changes
+      - backend
+      - app
+      - end-to-end
     runs-on: ubuntu-24.04
     permissions: {}
     steps:

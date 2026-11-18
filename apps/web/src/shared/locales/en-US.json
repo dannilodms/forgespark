@@ -1,0 +1,101 @@
+{
+  "productName": "My Software Factory Manager",
+  "language": "Language",
+  "form": {
+    "optional": "{{label}} (optional)",
+    "nothingMatches": "Nothing matches what was typed.",
+    "showTheList": "{{label}}: show the list"
+  },
+  "errors": {
+    "traceId": "Identifier to pass on",
+    "unreachable": {
+      "title": "The server did not answer",
+      "todo": "Check the connection and try again."
+    },
+    "unexpected": {
+      "title": "Something went wrong",
+      "todo": "Try again. If it happens again, pass the identifier to whoever maintains the system."
+    },
+    "answers": {
+      "bad_request": {
+        "title": "The server did not understand the request",
+        "todo": "Load the page again and repeat what you did."
+      },
+      "not_found": {
+        "title": "The server did not find what was asked for",
+        "todo": "Load the page again and repeat what you did."
+      },
+      "method_not_allowed": {
+        "title": "The server does not do what was asked for",
+        "todo": "Load the page again and repeat what you did."
+      },
+      "request_timeout": {
+        "title": "The request took too long to arrive",
+        "todo": "Check the connection and try again."
+      },
+      "request_entity_too_large": {
+        "title": "What was sent is too large",
+        "todo": "Send less at a time."
+      },
+      "unsupported_media_type": {
+        "title": "The server does not accept what was sent",
+        "todo": "Load the page again and repeat what you did."
+      },
+      "validation_failed": {
+        "title": "Some fields need a correction",
+        "todo": "Correct the fields that show an error and try again."
+      },
+      "too_many_requests": {
+        "title": "Too many attempts from this address",
+        "todo": "Wait a minute and try again."
+      },
+      "setup_already_concluded": {
+        "title": "The setup is already concluded",
+        "todo": "Nothing of what was typed here was saved. Load the page again to reach the login screen."
+      },
+      "setup_not_concluded": {
+        "title": "The setup is not concluded",
+        "todo": "Nothing was saved. Load the page again and type the setup code: it opens the first setup."
+      },
+      "internal_server_error": {
+        "title": "The server failed",
+        "todo": "Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
+      },
+      "bad_gateway": {
+        "title": "The server is out of reach",
+        "todo": "It may be restarting. Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
+      },
+      "service_unavailable": {
+        "title": "The server is out of reach",
+        "todo": "It may be restarting. Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
+      },
+      "gateway_timeout": {
+        "title": "The server took too long to answer",
+        "todo": "Try again in a moment. If it happens again, pass the identifier to whoever maintains the system."
+      }
+    },
+    "fields": {
+      "required": "Fill in this field.",
+      "invalid": "This value is not accepted. Check what was typed.",
+      "too_long": "Type at most {{max_length}} characters.",
+      "country_unknown": "Choose a country from the list.",
+      "currency_unknown": "Choose a currency from the list.",
+      "time_zone_unknown": "Choose a time zone from the list.",
+      "language_unsupported": "Choose one of the languages of the system.",
+      "email_invalid": "Type an e-mail address, such as name@example.com.",
+      "telephone_invalid": "Type the telephone in international form: a plus sign and its digits, such as +55 11 3333 4444.",
+      "website_invalid": "Type an address that starts with http:// or https://.",
+      "file_type_unsupported": "This file is not a PNG, a JPEG or a WebP image. Choose one that is.",
+      "file_too_large": "This file is larger than {{max_size, fileSize}}. Choose a smaller image.",
+      "file_empty": "This file is empty. Choose another.",
+      "file_not_found": "This image was not found. Choose it again.",
+      "file_not_uploaded": "This image did not reach the storage. Choose it again.",
+      "email_in_use": "This e-mail belongs to a user of the system. Type another one.",
+      "setup_code_invalid": "This setup code does not work: it is wrong, it expired or it was already used. Issue a new one on the server and type it here."
+    }
+  },
+  "errorScreen": {
+    "heading": "This screen could not open",
+    "reload": "Reload the page"
+  }
+}

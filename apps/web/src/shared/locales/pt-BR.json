@@ -1,0 +1,101 @@
+{
+  "productName": "My Software Factory Manager",
+  "language": "Idioma",
+  "form": {
+    "optional": "{{label}} (opcional)",
+    "nothingMatches": "Nada corresponde ao que foi digitado.",
+    "showTheList": "{{label}}: mostrar a lista"
+  },
+  "errors": {
+    "traceId": "Identificador para repassar",
+    "unreachable": {
+      "title": "O servidor não respondeu",
+      "todo": "Confira a conexão e tente de novo."
+    },
+    "unexpected": {
+      "title": "Algo deu errado",
+      "todo": "Tente de novo. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
+    },
+    "answers": {
+      "bad_request": {
+        "title": "O servidor não entendeu o pedido",
+        "todo": "Carregue a página de novo e repita o que você fez."
+      },
+      "not_found": {
+        "title": "O servidor não encontrou o que foi pedido",
+        "todo": "Carregue a página de novo e repita o que você fez."
+      },
+      "method_not_allowed": {
+        "title": "O servidor não faz o que foi pedido",
+        "todo": "Carregue a página de novo e repita o que você fez."
+      },
+      "request_timeout": {
+        "title": "O pedido demorou demais para chegar",
+        "todo": "Confira a conexão e tente de novo."
+      },
+      "request_entity_too_large": {
+        "title": "O que foi enviado é grande demais",
+        "todo": "Envie menos de cada vez."
+      },
+      "unsupported_media_type": {
+        "title": "O servidor não aceita o que foi enviado",
+        "todo": "Carregue a página de novo e repita o que você fez."
+      },
+      "validation_failed": {
+        "title": "Alguns campos precisam de correção",
+        "todo": "Corrija os campos que mostram um erro e tente de novo."
+      },
+      "too_many_requests": {
+        "title": "Tentativas demais deste endereço",
+        "todo": "Espere um minuto e tente de novo."
+      },
+      "setup_already_concluded": {
+        "title": "A configuração inicial já foi concluída",
+        "todo": "Nada do que foi digitado aqui foi salvo. Carregue a página de novo para chegar à tela de entrada."
+      },
+      "setup_not_concluded": {
+        "title": "A configuração inicial não foi concluída",
+        "todo": "Nada foi salvo. Carregue a página de novo e digite o código de configuração: ele abre a configuração inicial."
+      },
+      "internal_server_error": {
+        "title": "O servidor falhou",
+        "todo": "Tente de novo em instantes. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
+      },
+      "bad_gateway": {
+        "title": "O servidor está fora de alcance",
+        "todo": "Ele pode estar reiniciando. Tente de novo em instantes. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
+      },
+      "service_unavailable": {
+        "title": "O servidor está fora de alcance",
+        "todo": "Ele pode estar reiniciando. Tente de novo em instantes. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
+      },
+      "gateway_timeout": {
+        "title": "O servidor demorou demais para responder",
+        "todo": "Tente de novo em instantes. Se acontecer outra vez, repasse o identificador a quem mantém o sistema."
+      }
+    },
+    "fields": {
+      "required": "Preencha este campo.",
+      "invalid": "Este valor não é aceito. Confira o que foi digitado.",
+      "too_long": "Digite no máximo {{max_length}} caracteres.",
+      "country_unknown": "Escolha um país da lista.",
+      "currency_unknown": "Escolha uma moeda da lista.",
+      "time_zone_unknown": "Escolha um fuso horário da lista.",
+      "language_unsupported": "Escolha um dos idiomas do sistema.",
+      "email_invalid": "Digite um endereço de e-mail, como nome@example.com.",
+      "telephone_invalid": "Digite o telefone no formato internacional: um sinal de mais e os dígitos, como +55 11 3333 4444.",
+      "website_invalid": "Digite um endereço que comece com http:// ou https://.",
+      "file_type_unsupported": "Este arquivo não é uma imagem PNG, JPEG ou WebP. Escolha uma que seja.",
+      "file_too_large": "Este arquivo tem mais de {{max_size, fileSize}}. Escolha uma imagem menor.",
+      "file_empty": "Este arquivo está vazio. Escolha outro.",
+      "file_not_found": "Esta imagem não foi encontrada. Escolha-a de novo.",
+      "file_not_uploaded": "Esta imagem não chegou ao armazenamento. Escolha-a de novo.",
+      "email_in_use": "Este e-mail pertence a um usuário do sistema. Digite outro.",
+      "setup_code_invalid": "Este código de configuração não funciona: está errado, expirou ou já foi usado. Emita um novo no servidor e digite-o aqui."
+    }
+  },
+  "errorScreen": {
+    "heading": "Esta tela não pôde abrir",
+    "reload": "Carregar a página de novo"
+  }
+}

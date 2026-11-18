@@ -25,6 +25,8 @@ apps/api/internal/
 
 A **domain area** is one part of the business with its own aggregates. It is the deep module of the backend: its public surface is its use cases, and everything else is internal to it.
 
+Beside `internal`, `apps/api/cmd/api` holds the commands of the binary (see Commands), `apps/api/migrations` the migrations (see Database), `apps/api/tools` the checks of the build that are written in this repository and `apps/api/openapi.yaml` the OpenAPI spec generated from the code (see Enforcement). `platform` is a set of packages, one per concern: `clock` (the clock of the machine), `config`, `database`, `health`, `identifier` (the identifier of a record as it leaves the backend, see API conventions), `lifecycle` (the signals, the shutdown notice and the server), `restapi` (what every REST operation stands on: Huma, the error format, strict input and the limits of a body) and `telemetry` (the logger, the tracer and the telemetry of a request).
+
 An **inbound adapter** calls use cases on behalf of an outside caller: REST for the React app and for the agents of ADR-0004, MCP for coding agents, a job worker for work that runs in the background. An **outbound adapter** implements an interface that `application` declares: Postgres, the S3 storage, an LLM provider. `adapters` has one package per technology, one level deep, and an area creates only the ones it uses.
 
 ### Precedence
@@ -49,25 +51,30 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 
 `application` reaches infrastructure only through an interface: one it declares itself, or one `platform` exports (the LLM provider interface of ADR-0004). The area that uses an interface declares it; an adapter implements it.
 
+`task api:lint` checks the table on every import under `internal` (see Enforcement). It reads the place of a package from its path, so a new area needs no change to the check. A package under `internal` that is outside the Layout fails it too.
+
 ### Between domain areas
 
 - One area uses another by calling its use cases, and holds the other area's aggregates by ID.
-- A domain type moves to `kernel` when a second area needs it. `kernel` holds value objects only, with no rule that belongs to a single area.
+- A domain type moves to `kernel` when a second area needs it, and stays in its area until then. `kernel` holds value objects only, with no rule that belongs to a single area: the supported language and the country, which the setup put there for the areas that come next, the rule of a required field left empty, and the error that lists the fields of an input that break a rule (see Errors). The e-mail, the telephone, the website, the currency, the time zone and the limited texts belong to `consultancy` alone, in its `domain`.
 
 ### Use cases
 
 - Every operation an inbound adapter exposes is one use case in `application`. A Huma handler or an MCP tool parses its input, calls one use case and maps the result.
 - A use case that only passes the call through is correct. So is the mapping between API types and domain types. Both are deliberate, not a middle man or duplication.
 - A use case's inputs and outputs carry no type from Huma, the MCP SDK or any other adapter library.
-- **Writes.** One use case is one transaction, opened and closed through an interface. It loads the aggregate from its repository, which locks the row, calls the aggregate, and saves it whole. It may save several aggregates of its own area. An effect on another area runs after the commit and before the response, inside the request; one that must not be lost is a job instead. An effect on an external service whose result the caller waits to see, such as a streamed LLM answer or an on-demand translation, also runs after the commit, inside the request. Any other effect on an external service is a job. A job is saved inside the transaction (see Jobs).
+- **Shape.** A use case is a type in `application`, named after what it does. The command that wires it builds it once, with the interfaces it needs, and an inbound adapter runs it with `Execute`. Those interfaces are declared in the same package.
+- **Clock.** A use case takes the current time from a clock it receives when it is built, never from the machine, so a test decides what time it is. The command passes the clock of the machine, `clock.System` in `platform`.
+- **Writes.** One use case is one transaction, opened and closed through an interface. It loads the aggregate from its repository, which locks the row, calls the aggregate, and saves it whole. It may save several aggregates of its own area. An effect on another area runs after the commit and before the response, inside the request; one that must not be lost is a job instead. Two exceptions are declared. The audit log: an entry is written in the transaction of the operation it records, so an operation never succeeds without its record. The confirmation of the images of the setup: concluding the setup and registering an administrator confirm the images they were given before their transaction, because the setup checks everything it was given before it saves anything, so a refused image saves nothing and the transaction that locks the setup code never waits on the storage. A confirmation left by a setup that fails afterwards does no harm: a file confirmed again keeps its first confirmation. Inside the files area, the transaction that checks an upload copies the object of a file it confirms to the file's new key before the file names it, and the object the upload was sent to, refused or copied, is removed after the commit of that transaction. An effect on an external service whose result the caller waits to see, such as a streamed LLM answer or an on-demand translation, also runs after the commit, inside the request. Any other effect on an external service is a job. A job is saved inside the transaction (see Jobs).
 - **Reads.** A query use case calls a read-only interface that returns data already shaped for the caller. It builds no aggregate.
 
 ### Inbound adapters
 
-- **REST is complete.** Every use case has a REST operation. Streaming to the browser is a Server-Sent Events operation in `adapters/rest`, added with the first use case that needs it.
+- **REST is complete for the screens.** Every use case that a person reaches from a screen has a REST operation. A use case that only a job or a command of the binary runs has none. Streaming to the browser is a Server-Sent Events operation in `adapters/rest`, added with the first use case that needs it.
+- **A REST operation.** The `adapters/rest` package of an area declares the types of its bodies and adds each operation with `restapi.Register`: the path, the handler, and the broken rules the operation answers with under the status of each. The command that serves registers every area in one function, `mountREST` in `apps/api/cmd/api`, where each use case is wired, and the spec is generated from that function. So an operation that is served is in the spec.
 - **MCP is a chosen subset.** A use case becomes an MCP tool only when an agent has a real use for it. MCP exposes tools only.
 - **One tool, one use case.** A tool is designed for what the agent is trying to do, not copied from a REST operation. When it needs a composed result or a different shape, that is a new use case.
-- **Authentication in the adapter, authorization in the use case.** The inbound adapter authenticates the caller (a session or an access token) and passes the actor to the use case: the user, the scopes, and the access token when there is one. The use case checks the scopes. The actor type lives in `kernel`.
+- **Authentication in the adapter, authorization in the use case.** The inbound adapter authenticates the caller (a session or an access token) and passes the actor to the use case: the user, the scopes, and the access token when there is one. The use case checks the scopes. A session carries the scopes of its user's roles, and an access token carries its own, never more than those roles grant (see Users and roles). The actor type lives in `kernel`.
 - **MCP language.** Tool names and descriptions are in English. Configuration content is returned in the preferred language of the access token's user.
 - **Credentials over MCP.** A tool that returns the value of a credential requires the scope for reading credential values, returns one credential per call, and its use case records the read. No listing returns a value.
 - **Nothing ahead of need.** No package, mount point or abstraction is written for an inbound adapter that does not exist.
@@ -77,18 +84,19 @@ Dependencies point inward: `adapters` → `application` → `domain`.
 These apply to REST. Names, identifiers, lists and error codes apply to MCP tools as well.
 
 - **Names.** `snake_case` in bodies, query parameters, error fields and tool arguments.
-- **Identifiers.** An identifier leaves the backend as a type prefix plus the Sqids encoding of the integer, at least 8 characters: `prj_Xk9fQ2mB`. An inbound adapter rejects a wrong prefix, decodes on the way in and encodes on the way out. `platform` holds the encoder and the prefix and alphabet of each aggregate type; neither ever changes. The integer appears in no response.
+- **Identifiers.** An identifier leaves the backend as a type prefix plus the Sqids encoding of the integer, at least 8 characters: `prj_Xk9fQ2mB`. An inbound adapter rejects a wrong prefix, decodes on the way in and encodes on the way out. `platform/identifier` holds the encoder and the prefix and alphabet of each aggregate type (the file is `fil_`); neither ever changes. A body declares the form of an identifier with the pattern of its type, so the contract refuses a wrong prefix; one that decodes to no number is answered as a record that does not exist. The integer appears in no response.
 - **Prefix.** Everything the binary serves to the outside is under `/api`: the REST operations, MCP at `/api/mcp`, the River panel at `/api/river`, the login operations and the bounce notice. Caddy forwards no other path, except `/up` (see Health).
-- **Documentation page.** Huma's documentation page is turned off, because it loads JavaScript from another origin. The committed spec is the reference.
-- **Paths.** Resources are plural nouns. A state change is a `POST` ending in the verb of its use case: `POST /projects/{id}/cancel`. The one singular path is the health report (see Health).
+- **Documentation page.** Huma's documentation page is turned off, because it loads JavaScript from another origin. The API serves no copy of the spec and no schema either. The committed spec, `apps/api/openapi.yaml`, is the reference.
+- **No `$schema`.** Huma's schema links are turned off: they add to every body a `$schema` property whose value repeats the host the caller named. No body carries a property the Go type does not declare.
+- **Paths.** Resources are plural nouns. A state change is a `POST` ending in the verb of its use case: `POST /projects/{id}/cancel`. A resource that exists once has a singular path: the health report, the setup, the session of whoever is logged in, the consultancy and the user's own profile. The plural-path lint lists them, in `apps/api/tools/speclint/ruleset.yaml`: a singular path joins the list with the operation that creates it.
 - **Editing details.** A `PUT` with every editable field required. No `PATCH`. A narrower edit that an agent needs is its own use case.
 - **Input.** Unknown body properties and unknown query parameters are rejected.
-- **Status.** 201 with `Location` for a creation, 202 for asynchronous work, 400 for malformed input, 422 for failed validation or a broken business rule, 409 for a conflict.
+- **Status.** 201 with `Location` for a creation, 202 for asynchronous work, 400 for malformed input, 422 for failed validation or a broken business rule, 409 for a conflict. A 201 leaves `Location` out while the resource it created has no address of its own, as the file of an upload and the user of the way back in have none yet; the header arrives with the `GET` of that resource.
 - **Lists.** An envelope with an opaque cursor. `limit` has a default and a ceiling, sorting accepts only listed fields, filters are query parameters, the total is computed only when asked for. No field selection.
 - **Single resource.** It is the root of the body. No `success` wrapper.
 - **Allowed actions.** When a screen or a tool needs to know what can be done now, the query use case returns `allowed_actions`. The client never derives it from the status.
-- **Values.** Timestamps in ISO 8601 UTC. Business dates without a time. Money as a decimal string beside its currency, never a float. Enums as lowercase strings.
-- **Limits.** A size limit and a read timeout on request bodies. A timeout on every outbound call, and a retry only when the call is idempotent.
+- **Values.** Timestamps in ISO 8601 UTC. Business dates without a time. Money as a decimal string beside its currency, never a float. Enums as lowercase strings. A country is its ISO 3166-1 two-letter code, a currency its ISO 4217 code and a time zone its IANA name; the browser writes their names in the user's language. The backend checks each against a list it carries beside the value object, whose file names its source: the countries in `kernel`, the currencies and the time zones in `consultancy/domain`.
+- **Limits.** A size limit and a read timeout on request bodies: one megabyte, sent within five seconds, set where the REST adapter is mounted. A timeout on every outbound call, and a retry only when the call is idempotent.
 - **Sessions.** A request authenticated by the session cookie that changes state must come from the app's own origin.
 - **Compression and caching.** The API compresses no response and sets no cache header. Caddy does both (see Delivery).
 - **Credential values.** A response that carries the value of a credential repeats nothing the caller sent in the request, because responses are compressed (see Delivery).
@@ -105,11 +113,45 @@ The term login code is defined in `GLOSSARY.md`. The reasons are in ADR-0011.
 - **Limits per address.** One code a minute and five an hour for each e-mail address, counted in PostgreSQL by the use case. A new code ends the previous one.
 - **Limit per IP address.** Set in Caddy, on the two operations of the login code only (see Delivery).
 - **Local provider.** A generic OIDC provider, turned on by configuration alone and pointed at an identity container (Dex), for development and tests. The production and staging Compose files do not declare it. When it is on, it shows on the login screen, in a log line at the start of the process and in the health report.
+- **Session.** It ends after 7 days without use and, in any case, 30 days after the login. Deactivating a user ends their sessions.
+
+### Setup
+
+The terms setup and setup code are defined in `GLOSSARY.md`. The reasons are in ADR-0024.
+
+- **Command.** `issue-setup-code`, a command of the API binary, prints a setup code and says what it opens: the first setup, or the registration of a new administrator when the setup is already concluded. It also prints when the code stops working and the address of the setup, which is the origin of the app, taken from configuration, followed by `/setup`.
+- **Setup code.** Twenty letters and digits in four groups, with no character that reads like another. It lasts one hour, and a new one ends the one before. Only its SHA-256 hash is stored. The code is in no table, log or span.
+- **In the body.** The screen keeps the code in memory and sends it in the body of each request of the setup, never in a path, a query parameter or a header.
+- **No limit of its own.** A wrong code does not end the setup code. Caddy limits the checking for each IP address (see Delivery).
+- **One operation.** Concluding saves the consultancy, the administrator and the two first roles in one transaction and ends the setup code. An image chosen in the setup is uploaded under the setup code and confirmed when the setup is concluded.
+- **Open or closed.** One operation with no session tells whether the setup is concluded and whether a setup code is waiting. Until the setup is concluded every address of the app leads to it. Afterwards its address leads to the login screen, except while a setup code is waiting.
+- **Way back in.** A setup code issued after the setup is concluded registers a new administrator and changes no existing user. An e-mail that belongs to a user is refused.
+
+### Users and roles
+
+The terms user, role, administrator, developer and scope are defined in `GLOSSARY.md`. The reasons are in ADR-0026.
+
+- **Where.** The `consultancy` area holds the consultancy, the users, the roles and the setup code, because the setup saves them together.
+- **Scopes in the code.** The list of scopes is fixed in the code: read or write in one area of the system. A scope arrives with the use case that checks it.
+- **Roles in the database.** A role is a record with a set of scopes. A user has at least one role, and their scopes are those of all their roles, read on every request.
+- **Administrator.** The administrator role grants every scope and cannot be changed or removed. A use case refuses to take it from the last administrator who can log in, and to deactivate that user.
+- **No scope.** Reading the name and the logo of the consultancy and editing one's own profile ask only for a logged-in user. A user changes their own name, telephone, photo and preferred language; the rest is changed by whoever holds the write scope of users.
+- **Deactivated, never removed.** A deactivated user cannot log in and keeps their record.
+- **E-mail.** It is stored in lowercase and is unique among users.
+- **Identifiers of people and companies.** A tax ID and a national ID are stored as typed, beside their country, with no rule for any country.
+
+### Commands
+
+- **One binary.** `apps/api/cmd/api` builds it. With no command it serves the API; `migrate` applies the pending migrations. Commands are parsed with the standard library, and each one is a file of that package.
+- **Wired by hand.** A command wires its own dependencies, in its file: it loads the configuration, builds the pool and the adapters, and passes each part to what uses it. No injection library is used, and no other package builds a dependency for another.
+- **Testable whole.** A command receives its arguments, the environment and its outputs, and returns the exit status: 0 when it succeeded, 1 when it failed, 2 when it was not understood. A test runs it as the process would.
 
 ### Configuration
 
-- **Environment variables only.** The binary reads its configuration from environment variables, once, when it starts, into one typed struct in `platform` (caarlos0/env). No other code reads the environment.
+- **Environment variables only.** The binary reads its configuration from environment variables, once, when it starts, into one typed struct in `platform` (caarlos0/env). No other code reads the environment: `config.Environment` reads the variables for the command that starts, and for the support of the tests (`databasetest`), which needs the connections of the databases it creates. The OpenTelemetry SDK is the one exception: it reads the `OTEL_` variables its specification defines, such as the headers and the timeout of an export. The address it exports to is read by the configuration and passed to it.
 - **Fails at the start.** A missing or invalid value stops the process before it serves anything, with a line that names the variable and never its value.
+- **By command.** A command requires only the variables it uses. The API never receives the connection of the migration role, and `migrate` never receives the one of the API role.
+- **Secrets do not print.** A value that carries a secret, such as a connection URL, is a type that prints as a placeholder. It keeps that type until the adapter hands it to the library that uses it, at the last moment: the settings of the pool and of the storage hold the type, not the text.
 - **No file.** The binary reads no `.env` and no configuration file. Compose and Task load the variables.
 - **Passed in.** A domain area receives the values it needs when it is built. `application` and `domain` never import the configuration struct.
 - **Example.** Every variable is listed in the committed `.env.example`, with no real secret.
@@ -120,47 +162,49 @@ How the telemetry is collected, kept and shown is in Observability.
 
 - **Nothing sensitive.** Logs, spans and metric labels never carry personal data, the value of a credential, a login code, an access token or a session cookie. A test proves it for logs.
 - **Where.** Spans, metrics and logs are created in `adapters` and `platform` only. `application` and `domain` create none: a use case returns a typed error, and the inbound adapter records it.
-- **Spans.** An inbound adapter opens the span: of a request, of an MCP tool call (in a middleware of the MCP adapter), of a job (see Jobs). Outbound adapters are instrumented: pgx (see Database) and the HTTP clients.
+- **Spans.** An inbound adapter opens the span: of a request, of an MCP tool call (in a middleware of the MCP adapter), of a job (see Jobs). Outbound adapters are instrumented: pgx (see Database), the AWS SDK through its OpenTelemetry adapter (see Files) and the HTTP clients. The span of a request is opened by `telemetry.Requests` and carries the method, the route and the status, never a path, a query string or a header. Liveness and readiness open one too.
 - **Actor.** A span and a log line carry the public identifiers of the user, the access token, the client and the project. A metric label carries none of them.
-- **Logs.** JSON lines on the container output, each with the trace identifier. Nothing is sent as OTLP logs. The level comes from configuration and is `info` by default.
+- **Logs.** JSON lines on the container output, each with the trace identifier of its request, as `trace_id`. A line written outside a request, such as the start of the process, has none. The logs go to the error output of the process, and the standard output is left to what a command prints. Nothing is sent as OTLP logs. The level comes from configuration (`LOG_LEVEL`) and is `info` by default. A command builds its logger with `telemetry.NewLogger` and writes with the context of the request.
 - **What is logged.** A 5xx or a panic with its raw error, a failed outbound call, the start and the stop of the process, the requests cut by a shutdown. A successful request and a 4xx write no line. No line carries a body, a query string or a header.
+- **The line of a request.** `telemetry.Requests`, which wraps the handler of the API, writes it when the request ends: the method, the route, the status and the raw error. Whatever answers a 5xx hands its raw error to `telemetry.RecordFailure` and writes no line of its own. A line names the route, never the path.
 - **Metrics.** HTTP requests, the Go runtime, the database pool and the use of LLM providers. No business metric until a case needs one.
 - **Traces.** Every trace is kept. Nothing is sampled.
 - **LLM calls.** A call records the provider, the model, the input and output tokens, the duration and the outcome, on its span and as metrics, under the `gen_ai` names of the OpenTelemetry semantic conventions. It never records the prompt or the answer.
 - **Trace identifier.** The `trace_id` in an error body is the trace identifier of the request. An incoming `traceparent` is honoured. An outbound call carries it only to the agents of ADR-0004, never to an LLM provider, a login provider or the e-mail service.
-- **Export.** Traces and metrics leave over OTLP, to an address taken from configuration. With no address, nothing is exported and the telemetry collector is `not_configured`. `platform` wraps the metric exporter and keeps the time and the error of the last export (see Health).
-- **Tests.** Tests run with no telemetry.
-- **Audit log.** A sensitive operation (reading the value of a credential, a login, creating or revoking an access token) writes to the audit log from its use case. The audit log is append-only and is not telemetry.
+- **Export.** Traces and metrics leave over OTLP/HTTP, to an address taken from configuration: `OTEL_EXPORTER_OTLP_ENDPOINT`, the base URL of the receiver. With no address, nothing is exported and the telemetry collector is `not_configured`. A span still gets its trace identifier, so the `trace_id` of a log line and of an error body is real. A failed export is logged and stops nothing. `platform` wraps the metric exporter and keeps the time and the error of the last export (see Health).
+- **Tests.** Tests run with no telemetry. A test that reads the spans a command exported gives it the address of the collector of `telemetrytest`.
+- **Test of sensitive values.** `sensitive_test.go` in `apps/api/cmd/api` runs the commands of the binary with a sensitive value in each place one goes by, then searches the logs and the exported spans for each value. Code that handles a new kind of sensitive value adds it there; the file says how.
+- **Audit log.** A sensitive operation (reading the value of a credential, a login, creating or revoking an access token, issuing a setup code, concluding a setup, changing the roles of a user, deactivating or reactivating a user) writes to the audit log from its use case. The audit log is append-only and is not telemetry.
 
 ### Health
 
 The terms system health, part and health report are defined in `GLOSSARY.md`.
 
 - **Liveness.** `GET /livez` answers 200 and touches no part.
-- **Readiness.** `GET /readyz` answers 200 when PostgreSQL answers and the database schema is the version the binary expects, and 503 otherwise. It feeds the Compose health check.
+- **Readiness.** `GET /readyz` answers 200 when PostgreSQL answers and the database schema is the version the binary expects, and 503 otherwise. The version the binary expects is the newest migration it carries. The check runs under the timeout of a check (see Checks). It feeds the Compose health check.
 - **Outside the contract.** Liveness and readiness live in `platform`, outside `/api` and outside the OpenAPI spec. They need no authentication and answer with the status code alone. Caddy forwards only `/api`, so they are reachable only inside the Compose network.
 - **One public path.** Caddy answers `/up` with the status code of readiness and no body, for the monitor outside the server (see Observability). It is the only way to readiness from outside.
-- **Parts.** PostgreSQL is the only essential part. The file storage, the LLM provider, the telemetry collector, the job worker and the e-mail server are optional: one of them down makes the system `degraded`, never unready. An optional part with no configuration is `not_configured` and does not degrade the system.
-- **Health report.** `GET /api/health` is a query use case in the system health area, which has no aggregate. It follows the API conventions, except that its path is singular, which the plural-path lint allows for this path only. It always answers 200, with the system health in the body: `operational`, `degraded` or `down`.
+- **Parts.** PostgreSQL is the only essential part. The file storage, the LLM provider, the telemetry collector, the job worker and the e-mail server are optional: one of them down makes the system `degraded`, never unready. The file storage is required, though: the API refuses to start without its configuration (the six `FILE_STORAGE_` variables), so it is never `not_configured`. Any other optional part with no configuration is `not_configured` and does not degrade the system.
+- **Health report.** `GET /api/health` is a query use case in the system health area, which has no aggregate. It follows the API conventions, with a singular path because there is one health report. It always answers 200, with the system health in the body: `operational`, `degraded` or `down`.
 - **Checks.** They run when the health report is asked for, in parallel, each under a timeout taken from configuration (2 seconds by default). Nothing is checked in the background and nothing is stored. The LLM provider is checked by a call that spends no tokens, such as listing its models. The telemetry collector is not probed: its state is the last export of metrics, and it is `down` when that export failed or is overdue. The job worker is checked in the database, through the leader record River keeps there. The e-mail server is checked by a call that sends nothing.
 - **Content.** For each part: its name, whether it is essential or optional, its state (`operational`, `down` or `not_configured`), the response time, the time of the check and, when it is down, a stable error code. The raw error goes to the logs only. The health report also carries the version, which is the number in `VERSION` (see Releases), the commit, the build date, the time the process started, the schema version applied and the one expected, and the login providers that are turned on.
-- **Access.** Only a user who administers the system reads the health report, through the session or through an access token that carries the read scope of the system health area.
-- **When.** Liveness and readiness are written with the first backend code. The health report waits for the modelling of users, which has to say who administers the system. Nothing provisional shows the state of the optional parts until then.
+- **Access.** The health report asks for the read scope of the system health area, from a session or from an access token. Only the administrator role grants it at first.
+- **When.** Liveness and readiness are written with the first backend code. The health report needs administrators, who exist once the setup is built (ADR-0024). Nothing provisional shows the state of the optional parts until then.
 - **Not built.** An MCP tool for the health report, a check of the login providers, an operation per part, and history, which would be a periodic job (see Jobs). Alerts come from Grafana (see Observability).
 
 ### Shutdown
 
 The API stops without cutting work short. It runs as one instance, so a deploy is a restart, and a few seconds without service are accepted.
 
-- **Signal.** `SIGTERM` or `SIGINT` starts the shutdown. A second signal exits at once.
-- **Ownership.** `platform` owns the process lifecycle and exports the shutdown notice. No domain area handles a signal.
-- **Health.** Readiness fails from the signal on. Liveness keeps answering.
-- **Requests.** New connections are refused. A request in flight, an MCP tool call included, has the drain deadline to finish: 20 seconds, taken from configuration. No timeout on a non-streaming outbound call exceeds the drain deadline.
+- **Signal.** `SIGTERM` or `SIGINT` starts the shutdown. A second signal exits at once, with status 1 and without waiting for anything.
+- **Ownership.** `platform` owns the process lifecycle and exports the shutdown notice. No domain area handles a signal. The notice is the context every command receives: it ends when the shutdown starts. A command that runs to its end passes it on, so that a signal stops it. The command that serves only watches it, and never derives the context of a request or of a query from it.
+- **Health.** Readiness fails from the signal on. Liveness keeps answering, on a connection that was already open.
+- **Requests.** New connections are refused. A connection that was already open is still answered while the drain lasts, and is closed when no request is in flight. A request in flight, an MCP tool call included, has the drain deadline to finish: 20 seconds, taken from configuration (`SHUTDOWN_DRAIN_DEADLINE`). No timeout on a non-streaming outbound call exceeds the drain deadline.
 - **Streams.** A stream closes when the shutdown starts: an LLM answer being streamed, a progress stream, the MCP listening stream. A streaming operation watches the shutdown notice. An SSE operation first sends a final error event with the code `service_restarting`, carrying the fields of the error format. The MCP listening stream closes with no event, because MCP defines its own reconnection.
 - **Deadline reached.** The context of each remaining request is cancelled, which rolls back its transaction, and the API logs how many requests were cut.
-- **Exit.** The API then closes its connections to PostgreSQL, flushes telemetry under a short deadline of its own and exits: with status zero when every request finished, non-zero when one was cut.
+- **Exit.** The API then closes its connections to PostgreSQL, flushes telemetry under a short deadline of its own and exits: with status zero when every request finished, non-zero when one was cut. Closing the connections waits for PostgreSQL, for 15 seconds at most when it does not answer. Whatever stops the container gives it longer than the drain deadline plus that.
 - **No goroutine outlives its request.** Work that must survive the request is a job (see Jobs). The shutdown of the API does not wait for it.
-- **Test.** A test in `platform` holds a slow request and a stream open, sends the signal and checks that the request finishes, the stream receives its final event, a new connection is refused, and a reached deadline cancels what is left. It is written with the first backend code.
+- **Test.** A test in `platform` holds a slow request and a stream open, sends the signal and checks that the request finishes, the stream receives its final event, a new connection is refused, and a reached deadline cancels what is left. It is in `platform/lifecycle`; its part about the stream is written with the first stream. The tests of the command check the same through the binary, with the exit status. They hand the signal to the code, so they run on every system; on Unix two more run the binary as a process and send it `SIGINT` and `SIGTERM`.
 
 ### Domain modelling
 
@@ -171,7 +215,7 @@ These rules apply inside `domain`. API types and database rows in `adapters` are
 - **Steps.** Work in progress is a status. A record processed in steps has one status for each step, and each step is a job that moves it to the next one (see Jobs).
 - **No status.** A record with two conditions keeps a field. A condition that follows from time and counters, such as an expired login code, is computed and never stored.
 - **Value object.** A primitive becomes a value object when it carries a rule (validation, format, invariant) or is an identifier. It is built through a constructor that returns an error, and it is immutable. A collection with a rule of its own gets its own type on the same test. Free text and plain counters stay primitives.
-- **Repository.** One per aggregate, declared in `application`. It reserves the next identifier from a database sequence, and the use case creates the aggregate with it, so an aggregate never exists without an identity. Loading an aggregate locks its row (`SELECT ... FOR UPDATE`) until the transaction ends, so two writes to the same aggregate run one after the other and the second sees what the first saved. A read for a screen goes through a query use case and locks nothing.
+- **Repository.** One per aggregate, declared in `application`. It reserves the next identifier from a database sequence, and the use case creates the aggregate with it, so an aggregate never exists without an identity. Loading an aggregate locks its row (`SELECT ... FOR UPDATE`) until the transaction ends, so two writes to the same aggregate run one after the other and the second sees what the first saved. A method of the repository that locks nothing serves two reads only: a use case that checks an aggregate and saves nothing of it, such as the ones that open the setup and start an upload of the setup, and a check before the transaction that the transaction repeats when it loads the aggregate with the lock, such as the setup code that concluding the setup checks before it confirms the images. A read for a screen goes through a query use case and locks nothing.
 - **One call per collaborator.** An expression talks to the object it holds, and that object does the rest.
 
 ### Errors
@@ -180,19 +224,29 @@ A broken rule is a typed error with a stable code and its parameters, declared b
 
 Every REST failure uses that format, including unknown routes, wrong methods and panics, which need their own handlers because they bypass Huma's error hook. No response carries a stack trace, SQL or an internal name.
 
+- **A broken rule.** Its error type has `Code() string`, which returns the stable code, and a text in English that is safe to answer with. One with parameters also has `Params() map[string]any`. `SetupCodeInvalidError` in `consultancy/domain` is the model.
+- **A rule about a field.** A rule one value of the input breaks, such as a country outside its list or a text over its limit, is a broken rule declared beside its value object. A use case checks every field before it saves anything and returns the ones that break a rule together, in a `kernel.InvalidFieldsError` that names each field as its input is structured: `consultancy.address.city`. `ConcludeSetup` in `consultancy/application` is the model.
+- **Status.** A REST operation lists the broken rules it answers with, under the status of each: 422 for a broken rule, 409 for a conflict. A rule about a field is listed under 422 with `restapi.InField`. A broken rule it does not list answers 500, so the spec names every code an operation answers with.
+- **Body.** `title`, `status`, `detail` (the text in English), `code`, `params` and `trace_id`. A failed validation adds `errors`, with one entry for each field: its `location` (`body.name`, `query.limit`, `path.id`), a `code` (`required`, `invalid`, or the code of the rule about the field), its `params` and a `message` in English. Fields that break a rule of the domain answer the same way, with `validation_failed`, so a screen shows each on its field. An empty text where the contract asks at least one character is `required`. No entry repeats the value that was refused. `type` is left out, which RFC 9457 reads as its default.
+- **The contract checks first.** A body declares what a client can check before it sends: a required text has at least one character, the limits of a text and the forms of an e-mail, a telephone and a website. The body type takes them from the domain, in its `TransformSchema`, so the two never drift. A list a value must be on is checked by the domain alone.
+- **Other failures.** A failure that is not a broken rule takes its code from the name of its status: `bad_request`, `not_found`, `method_not_allowed`, `request_entity_too_large`, `too_many_requests`, `internal_server_error`. The one exception is a request that does not follow the contract, which is `validation_failed`. Caddy names the failures it answers for the API the same way, in the same format (see Delivery): `too_many_requests`, and `bad_gateway`, `service_unavailable` and `gateway_timeout` when the API cannot be reached.
+- **5xx.** The answer carries the title, the status, the code and the `trace_id`, and nothing else. The raw error goes to the logs (see Telemetry).
+
 ### Database
 
-PostgreSQL 18 is the only data service: one database, one schema.
+PostgreSQL 18 is the only database, with one schema.
 
 - **Access.** A `postgres` adapter runs SQL through pgx, version 5.13.0 or later. Its queries are SQL files inside the adapter package, and sqlc generates the Go functions and the row structs from them. The generated code is committed and never edited.
+- **Generating.** `apps/api/sqlc.yaml` has one entry for each `postgres` adapter, and reads the schema from the migrations. `task api:generate` writes the code into the adapter package, in the files named `sqlc_*.go` and `*.sql.go`. `task api:generate:check` fails when the committed code is stale, and `task check`, `task check:quick` and the pipeline run it.
+- **Transactions.** `platform` opens the transaction of a use case and carries it in the context (`database.Transactions`). A `postgres` adapter keeps no connection: every method runs its SQL on what the context carries (`database.Within`), the transaction when there is one and the pool otherwise. So everything a use case writes, through the adapters of any area, is in its one transaction.
 - **Parameters.** A value reaches SQL as a parameter. No value is concatenated into SQL text.
 - **Lists.** A list is fixed SQL: an optional filter is `(parameter IS NULL OR column = parameter)`, and each allowed sort is its own query. A list that does not fit is written by hand on pgx, with a comment saying why.
 - **Pool.** One pgxpool in `platform`, shared by every domain area and by the session store. Its maximum size, the statement timeout and the idle-in-transaction timeout come from configuration. `platform` stops the session store's cleanup routine during the shutdown.
 - **Migrations.** Numbered SQL files in `apps/api/migrations`, with zero-padded numbers (`00001_create_projects.sql`), embedded in the binary and applied by goose with its lock turned on. A migration has no down part. A mistake is fixed by a new migration, and a migration that has run outside a development machine is never edited.
 - **Running them.** The `migrate` command of the API binary applies the pending migrations, as its own step before the API starts. The API never changes the schema.
-- **Roles.** The migration role owns the tables. The API role reads and writes rows; on the audit log table it can only insert and select. The migration that creates a table grants the API role its permissions in the same file. The monitoring role reads the statistics of the server (`pg_monitor`) and no table; only the telemetry collector uses it.
+- **Roles.** The migration role, `migration`, owns the database and its tables. The API role, `api`, reads and writes rows; on the audit log table it can only insert and select. The superuser creates both when the data directory is created. The system never logs in as the superuser; only the tests do, to create their temporary databases. The migration that creates a table grants the API role its permissions in the same file. The monitoring role reads the statistics of the server (`pg_monitor`) and no table; only the telemetry collector uses it.
 - **Tables.** Foreign keys cross domain areas. An identifier is a `bigint` from the sequence of its aggregate type. An instant is `timestamptz`, a business date is `date`, money is `numeric`, and a fixed set of values is `text` with a `CHECK` constraint listing the values the API uses.
-- **Extensions.** `pg_stat_statements` only. Another extension arrives in the migration of the first feature that needs it. One that the official PostgreSQL image does not ship starts with a new ADR.
+- **Extensions.** `pg_stat_statements` only. PostgreSQL does not mark it as trusted, so a migration cannot create it: the superuser does, beside the roles. Another extension arrives in the migration of the first feature that needs it, which works for the ones PostgreSQL marks as trusted. One that the official PostgreSQL image does not ship starts with a new ADR.
 - **Traces.** pgx is traced with otelpgx. The SQL text is recorded; query parameters never are.
 
 ### Jobs
@@ -206,22 +260,26 @@ Work that nobody waits for on a screen runs as a job. Jobs are stored in Postgre
 - **Attempts.** Five by default. A job kind that needs more attempts, or more time than River's default timeout, declares it. When the attempts run out, the domain record is marked as failed, and a person can ask for a new attempt.
 - **Queues.** Light work and heavy work run in separate queues, each with a limit of concurrent jobs taken from configuration.
 - **Periodic work.** A periodic job is declared in the worker and scheduled by River. It tolerates a missed run.
-- **Answer.** An operation that starts a job answers 202 with the resource, whose status says the work is in progress. The screen reads the resource again while it is.
+- **Answer.** An operation that starts a job answers 202 with the resource, whose status says the work is in progress.
+- **Progress.** The use case of a job announces each change of status inside its transaction, through an interface it declares. The adapter sends the announcement with PostgreSQL's `NOTIFY`, and the API, on a connection that only listens, passes it to the progress stream (see Shutdown). The announcement says which record changed and nothing else. The screen reads the resource when the stream opens and at each announcement; an agent reads the resource.
 - **Kept.** River deletes finished jobs. What must be kept is a domain record, never a job.
 - **Shutdown.** The worker handles the signal as the API does. It stops taking jobs, gives the running ones a deadline taken from configuration, then cancels them. A cancelled job returns an error, so River runs it again later.
 - **Tables.** River's tables come from SQL exported by the River CLI, one migration per River schema version. An update of River that changes its schema brings the new migration in the same commit. The worker uses the API role, which gets row permissions on these tables.
 - **Traces.** River is traced with its OpenTelemetry middleware.
-- **Panel.** The River panel is served by the API at `/api/river`, behind the session, only to a user who administers the system, and outside the OpenAPI spec. In production it waits for the modelling of users. Until then it runs in development only.
+- **Panel.** The River panel is served by the API at `/api/river`, behind the session, only to an administrator, and outside the OpenAPI spec. Until the API serves it that way, it runs in development only.
 
 ### Files
 
 Files live in S3 storage: Garage in development and staging, Backblaze B2 in production (see Environments).
 
-- **Access.** An `s3` adapter uses the AWS SDK for Go v2 and only what the S3 API defines: no bucket notification, nothing that one server alone offers.
-- **Bucket.** One private bucket. An object key is random and never contains the file's name or an identifier.
-- **Upload.** The use case checks the permission and returns a signed URL that expires in minutes. The browser sends the bytes to the storage. A large file goes in parts, each with its own signed URL.
-- **Confirmation.** The browser then tells the API that the upload ended. The use case checks the object in the storage, its size and its type, and only then is the file available. An object over the size limit is removed.
-- **Never confirmed.** A periodic job removes the uploads that were never confirmed.
+- **Access.** An `s3` adapter uses the AWS SDK for Go v2 and only what the S3 API defines: no bucket notification, nothing that one server alone offers. Addresses are path-style. The calls are traced and carry no signature or key. What the SDK needed against Garage is in ADR-0017.
+- **Bucket.** One private bucket. An object key is random (128 bits in hexadecimal) and never contains the file's name or an identifier.
+- **Upload.** The use case checks the permission and the type and size declared, saves the file, and returns a URL signed for five minutes. The declared type and size are signed with it, so the browser sends a `PUT` whose `Content-Type` and `Content-Length` are the declared ones. The browser sends the bytes to the storage. A large file goes in parts, each with its own signed URL.
+- **Confirmation.** The browser then tells the API that the upload ended. The use case checks the object in the storage, its size and its first bytes, and only then is the file available. An object over the size limit, or one whose type is not accepted, is removed. A file confirmed again keeps its first confirmation, and the storage is not read again.
+- **Out of reach of its upload URL.** Confirming copies the object inside the storage (`CopyObject`) to a new random key that no URL was signed for, in the transaction that checks the file, before the file names the key. The object the upload was sent to is removed after the commit, so a `PUT` to that URL until it expires changes nothing the system reads. When that removal fails, the confirmation stands and the object is left behind for the job below (ADR-0017). This holds for every file, not only the images of the setup.
+- **Images.** A PNG, a JPEG or a WebP of at most 2 MiB, told by the first bytes of the object. Nothing is resized or cropped. The rules are in `files/domain`, and the contract takes the types and the size from there.
+- **Between areas.** The `files` area has the use cases that start and confirm an upload and no REST operation of its own yet; the use case of another area that allows an upload calls them, after it checked the permission. Another area holds a file by its identifier.
+- **Never confirmed.** A periodic job removes the uploads that were never confirmed, and the objects no file names, which a failed removal or a confirmation that did not commit leaves behind: it lists the bucket.
 - **Download.** The use case checks the permission and returns a signed URL that expires in minutes. No file passes through the API, except the file of a credential (see Credentials).
 - **Address.** The browser reaches the storage at a public host name taken from configuration: a host name of its own in the `Caddyfile` in development and staging, the provider's host name in production. The bucket accepts cross-origin requests from the app's origin only.
 - **Processing.** A job reads a file from the storage and writes its result there. Nothing stays on the local disk after the job ends.
@@ -248,7 +306,7 @@ The system sends e-mail and receives none.
 
 ### Control flow
 
-Handle the exceptional case first and return, so the main path runs unindented to the end of the function. A function holds one level of nesting; a second level becomes a new function. Tooling rejects `else`.
+Handle the exceptional case first and return, so the main path runs unindented to the end of the function. `task api:lint` rejects an `else` and a second level of nesting (see Enforcement).
 
 ### Naming
 
@@ -258,41 +316,70 @@ A domain concept uses the exact term from `GLOSSARY.md`, spelled in full, in eve
 
 The default seam is the use case, exercised with in-memory implementations of its interfaces. Each real adapter (Postgres, the S3 storage, SMTP, LLM) has its own tests against the real service.
 
-A `postgres` adapter test runs against the development PostgreSQL container. Each test gets a temporary database, cloned by pgtestdb from a template that the migrations built, so tests run in parallel and never touch the development database.
+Assertions use testify: `require` for what the rest of the test depends on, `assert` for what it checks.
+
+What the REST adapter alone does is tested through HTTP: the error format on each kind of failure, strict input and the limits of a body. `platform/restapi` tests it on an operation of the test, and `apps/api/cmd/api` through the binary, on the operations it serves.
+
+What Caddy does in front of the API is tested through HTTP too, in `apps/api/cmd/api/caddy_test.go`: each test starts a container of the Caddy image with the `Caddyfile` of development, in front of the binary and of a stand-in for Vite, listening where `API_LISTEN_ADDRESS` says. `task services` builds the image.
+
+The in-memory implementations of an area live in its `application/applicationtest` package: its repositories, a clock that stands still until the test moves it, and transactions that undo what a failed operation wrote, as a rollback does. A test of another area that calls the use cases of this one builds them on the same implementations.
+
+A `postgres` adapter test runs against the development PostgreSQL container. Each test gets a temporary database, cloned by pgtestdb from a template that the migrations built, so tests run in parallel and never touch the development database. `databasetest.Migrated` in `platform` gives it. The template is built by the function the `migrate` command calls, and again only when a migration file changes.
+
+The `s3` adapter test runs against the Garage of development, in the one bucket every checkout shares: each test writes under keys of its own and removes them. A request of the browser is sent to Garage with the host name of the URL as its `Host`, as Caddy forwards it, and `caddy_test.go` sends one through Caddy too.
 
 A use case that saves a job is tested with an in-memory implementation of the interface that saves it. A job worker in `adapters/river` is tested with River's test helpers, in a temporary database. The `smtp` adapter is tested against Mailpit, and the `resend` adapter against Resend's test addresses, which deliver nothing.
 
-The tests of the `resend` adapter and of the LLM adapter call a service outside the repository. They run on a schedule and never on a pull request (see Pipeline). Every other test meets the LLM stand-in (see Environments).
+The tests of the `resend` adapter call a service outside the repository. They run on a schedule and never on a pull request (see Pipeline). No test calls a real LLM provider: every one meets the LLM stand-in (see Environments).
 
 ### Enforcement
 
-A rule that tooling can check fails the build: imports between layers and between areas, `else`, nesting depth, a mapping between API type, domain type and database row that leaves a field out. The tool is chosen with the first backend code.
+A rule that tooling can check fails the build. `task api:lint` runs the checks of the Go code, and `task check`, `task check:quick` and the pipeline run it.
 
-The generated OpenAPI spec and the code generated by sqlc are committed, and the build fails when either is stale. A lint on the spec (vacuum) fails the build on `snake_case` and plural-path violations. A breaking-change report (oasdiff) is shown and does not fail the build. Once a check exists, its rule here shrinks to a pointer at the check.
+- **Linter.** golangci-lint, configured in `apps/api/.golangci.yml`: its standard set of linters, and nolintlint, which makes a `//nolint` name the rule it silences and say why.
+- **Formatter.** gofumpt, run by golangci-lint, so a file that is not formatted fails the lint. `task api:format` rewrites the files.
+- **Imports.** `apps/api/tools/guard/imports` checks the table of the Dependency rule on every import under `internal`, and that every package there has a place in the Layout. A test file may also import a third-party library, in any layer.
+- **Control flow.** `apps/api/tools/guard/controlflow` rejects an `else`, an `else if` included, and a block that opens inside another block of the same function. The blocks are `if`, `for`, `switch` and `select`. A function literal starts again from zero.
+- **Mapping.** The exhaustruct linter of golangci-lint, limited to the types of the adapter packages: a struct literal of an API type or of a database row that leaves a field out fails the lint. The zero value returned beside an error is allowed.
+- **Generated code.** A file is generated when it carries the comment Go defines for it, `// Code generated ... DO NOT EDIT.`, before the package clause. Its format, its lint and its control flow are not judged. Its imports are.
+- **Fixtures.** No check reads a `testdata` directory.
+
+The checks written in this repository are the commands of `apps/api/tools/guard`, with their tests beside them. A finding is a line with the file, the line and what to do.
+
+The generated OpenAPI spec and the code generated by sqlc are committed, and the build fails when either is stale. For the code of sqlc the check is `task api:generate:check` (see Database). `task check`, `task check:quick` and the pipeline run the checks of the spec too:
+
+- **Spec up to date.** `task api:spec` writes `apps/api/openapi.yaml` from the operations the command that serves registers, and `task api:spec:check` fails when the committed file differs from them.
+- **Lint of the spec.** `task api:spec:lint` runs vacuum with the rules in `apps/api/tools/speclint`: `snake_case` in the properties of a body and in query and path parameters, and plural paths (see Paths in API conventions). Their tests, beside them, run vacuum on a spec that keeps the conventions and on one that breaks each.
+- **Breaking changes.** `task api:spec:breaking` shows the report of oasdiff against the main branch and never fails.
+- **Lists of the app.** `task api:lists` writes the countries of `internal/kernel` and the currencies and the time zones of `internal/consultancy/domain` into `apps/web/src/shared/places/lists.gen.ts`, and `task api:lists:check` fails when the committed file differs from them (see Contract in the frontend rules). A test of `consultancy/domain` does both, as the spec is written, because those two lists are unexported.
+
+Once a check exists, its rule here shrinks to a pointer at the check.
 
 ### Deferred
 
 Domain events, CQRS, event sourcing and a second bounded context each start with a new ADR, written when a concrete case needs one. So do WebSocket, GraphQL and gRPC as inbound adapters, live notifications (which need domain events), OAuth for agents, and MCP resources and prompts.
 
-Running more than one instance of the API, and Kubernetes, are intended and not built. They start with a new ADR. The known obstacles are listed in ADR-0016.
+The system runs as one instance of the API, on Docker Compose. More than one instance, and Kubernetes, are not planned, and each starts with a new ADR. The known obstacles are listed in ADR-0016.
 
-The steps of the document processing pipeline, and where files are converted, are decided when the processors are implemented. Recording who moved a record from one status to another waits for the history of work that screens show. How the system writes to a project's Git repository starts with its own decision. The domain area that owns e-mails is named with the first e-mail, and the language of a client's contact with the modelling of contacts. Progress pushed to the browser waits for a case that a periodic read does not serve.
+The steps of the document processing pipeline, and where files are converted, are decided when the processors are implemented. Recording who moved a record from one status to another waits for the history of work that screens show. How the system writes to a project's Git repository starts with its own decision. The language of a client's contact is decided with the modelling of contacts.
+
+The domain areas named so far are `consultancy`, `access` (login code, session, link to a login provider and, later, access tokens), `email`, `files`, `audit` (the audit log) and the system health area.
 
 Nothing is cached yet. A read measured as slow first gets an in-memory cache inside the API. A cache service (Redis, Valkey) and a connection pooler (PgBouncer) each start with a new ADR.
 
 A lint for migrations and the column type for case-insensitive text are decided with the first case that needs one.
 
-The first backend code is a walking skeleton: one thin slice through every joint that the ADRs list as not tried, before any feature. Its spec is `.scratch/walking-skeleton/spec.md`. Four conventions are fixed there and then recorded here: where a use case takes the current time from, where dependencies are wired, the assertion library of the tests, and whether a record is deleted or archived.
+The first backend code is the foundation and the setup: `.scratch/foundation-and-setup/spec.md`. Two efforts follow it, each specified when the one before ends: the login and the shell of the app, then the consultancy settings, the users and the system health. There is no walking skeleton. That spec lists the joints that the ADRs record as not tried and that these three efforts do not cross; the work that builds the deploy tries most of them. Three conventions were fixed with the first code: where dependencies are wired is in Commands, where a use case takes the current time from is in Use cases, and the assertion library of the tests is in Tests. Whether a record is deleted or archived is fixed with the first record that is removed; a user is deactivated and never removed.
 
-The Go linter and formatter, the Go type for money (`kernel` imports the standard library only), the client library for LLM providers, and the templates and translation files of e-mails are each chosen with the first code that needs one.
+The Go type for money (`kernel` imports the standard library only), the client library for LLM providers, and the templates and translation files of e-mails are each chosen with the first code that needs one.
 
-The rate-limit plugin of Caddy and its numbers are chosen in the walking skeleton. The routine that encrypts credential values again under a new key is written with the first change of key.
+The rate-limit plugin of Caddy and the number of the setup code were chosen with the setup (see Rate limit in Delivery); the numbers of the login code are chosen with the login. The routine that encrypts credential values again under a new key is written with the first change of key.
 
-`ETag` with `If-Match`, `Idempotency-Key` and rate limiting beyond the login code are added to the first case that needs one, without a new ADR. A version in the path waits for the first consumer that does not ship with the backend, and reopens ADR-0009.
+`ETag` with `If-Match`, `Idempotency-Key` and rate limiting beyond the login code and the setup code are added to the first case that needs one, without a new ADR. A version in the path waits for the first consumer that does not ship with the backend, and reopens ADR-0009.
 
-## Frontend (`apps/web`, `apps/prototype`, `packages/ui`)
+## Frontend (`apps/web`)
 
-These rules apply to `apps/web`. `apps/prototype` follows only "Naming", "Components" and "Prototype".
+`apps/web` is the only JavaScript package of the repository. It holds the app and the design system, and a screen is built in it directly, with no prototype first (ADR-0025).
 
 ### Layout
 
@@ -305,28 +392,39 @@ apps/web/src/
 │   ├── data/            # collections, queries and writes
 │   ├── locales/         # en-US.json, pt-BR.json, es.json
 │   └── index.ts         # what routes and other areas import
-└── shared/
-    ├── api/generated/   # orval output, never edited
-    ├── errors/          # translation of API error codes
-    ├── stores/          # Zustand stores used by more than one area
-    └── locales/         # texts used by more than one area
+├── shared/
+│   ├── api/             # the fetch the generated client calls
+│   ├── api/generated/   # orval output, never edited
+│   ├── components/      # pieces of screens of more than one area
+│   ├── errors/          # translation of API error codes
+│   ├── places/          # the countries, currencies and time zones the API accepts, named by the browser
+│   ├── stores/          # Zustand stores used by more than one area
+│   └── locales/         # texts used by more than one area
+├── testing/             # the support of the screen tests
+├── ui/                  # the design system: components, hooks, the stylesheet
+├── app.tsx              # the app put together: texts, router, query client
+└── main.tsx             # starts the app in the browser
 ```
 
 A domain area has the same name as in the backend and in `GLOSSARY.md`. A route file declares the path, the search parameters and the loader, and opens a screen from an area.
 
 ### Dependency rule
 
-Dependencies point one way: `routes` → a domain area → `shared` → `packages/ui`.
+Dependencies point one way: `routes` → a domain area → `shared` → `ui`.
 
 | Code | Imports |
 | --- | --- |
 | `routes` | the `index.ts` of areas, `shared` |
-| a domain area | its own files, the `index.ts` of other areas, `shared`, `packages/ui` |
+| a domain area | its own files, the `index.ts` of other areas, `shared`, `ui` |
 | `data` of an area | the same, plus `shared/api/generated` |
-| `shared` | `packages/ui`, third-party libraries; no area |
-| `packages/ui` | third-party libraries; no app |
+| `shared` | `ui`, third-party libraries; no area |
+| `ui` | third-party libraries; nothing else of the app |
+| `testing` and a test | anything, the generated simulated responses included; nothing but a test imports `testing` |
+| the files directly in `src` | anything: they put the app together |
 
-Only `data` imports the generated client. Screens and components never call it or build a URL.
+Only `data` imports the generated client. Screens and components never call it or build a URL. The one exception is `shared/locales/languages.ts`, which reads the supported languages from the generated client, because the single list of ADR-0005 is the backend's and reaches the app through the contract.
+
+`task web:imports` checks the table with dependency-cruiser, whose rules are in `apps/web/.dependency-cruiser.mjs`.
 
 ### State
 
@@ -349,11 +447,19 @@ Each kind of state has one home:
 
 ### Contract
 
-The API client, the Zod schemas and the simulated responses in `shared/api/generated` are generated by orval from the committed OpenAPI spec. They are committed and never edited by hand. A change to the API is made in the backend and regenerated.
+The API client, the Zod schemas and the simulated responses in `shared/api/generated` are generated by orval from the committed OpenAPI spec. They are committed and never edited by hand. A change to the API is made in the backend and regenerated: `task web:generate` writes them (`apps/web/orval.config.ts`), and `task web:generate:check` fails when they are stale. A generated function resolves with the body of a success and rejects with an `ApiError` (`shared/api/request.ts`) that carries the error body.
+
+A set of values the API checks against a list it carries, and that the contract does not declare as an `enum`, reaches the app the same way: generated, committed, never typed again in the app and never taken from what the browser happens to support. The countries, the currencies and the time zones the backend carries (`apps/api/internal/kernel` and `apps/api/internal/consultancy/domain`) are written by `task api:lists` into `shared/places/lists.gen.ts`, as constants whose values are literal types, and `task api:lists:check` fails when the file is stale. The list of supported languages comes through the contract instead (see Dependency rule). Data the backend does not carry, such as the currency of each country, lives in one file of `shared/places` that names its source and release, typed against those lists.
 
 ### Forms and validation
 
-Forms use TanStack Form with the generated Zod schemas. A form validates only what the contract declares: required, format, length. Business rules are not repeated in the frontend. A 422 from the API is shown on the field it names.
+Forms use TanStack Form with the generated Zod schemas. A form validates only what the contract declares: required, format, length. Business rules are not repeated in the frontend. A 422 from the API is shown on the field it names, with the `trace_id` of the answer, and so is a refusal the API answers about one field without naming it, such as an e-mail in use. `shared/errors/problems.ts` does both in the codes the API answers with: `checkTheContract` checks a schema, and `refusedFields` reads the fields an answer refused.
+
+- **Names.** A field is named by its place in the body (`consultancy.address.city`), so the problem the API names at `body.consultancy.address.city` lands on it with no mapping.
+- **Optional texts.** A form holds an empty text for an optional field the person left empty, and the body leaves it out, because an empty e-mail breaks `format: email`. The data module turns the typed values into the body, and `checkTheContract(schema, toBody)` checks what will be sent.
+- **Steps.** A form of several steps is one TanStack Form held by the screen beside the reducer of the flow, so it outlives every step. Each step is a `form.FormGroup` whose `onSubmit` validator checks its part of the schema (`ConcludeSetupBody.shape.consultancy`), and `group.handleSubmit()` moves on. A field forgets its problems when it unmounts, and React in development mounts a new component, unmounts it and mounts it again. So a 422 answered on a later step is held by the flow, which moves to the first step that holds one, and each step, when it opens, puts the problems of its own fields on the form with `form.setErrorMap({ onSubmit: { fields } })` from an effect, which runs again after that second mount (`useStepOpening` in `consultancy/components/setup-form.ts`).
+- **Fields.** `TextField` and `ListField` in `shared/components/form-fields.tsx` draw a field of TanStack Form with its label, its description and its problem. A field whose value is chosen from a long list is a `ListField`, on the Combobox of `ui`.
+- **Files.** A file the body refers to is a field that holds the identifier of the file, set once the file is stored, so concluding sends it and a 422 lands on it like any other. The file is checked when chosen for what the contract declares, its type and its size, and sent at once: the API signs a URL and the data module sends the bytes there (`shared/api/storage.ts`). Its upload is one reducer of named steps (State) held by the screen beside the form, so it goes on while the person moves between steps; a result for a file replaced or removed meanwhile is dropped. An image shows from the browser's own copy. The images of the setup are the first: `consultancy/components/setup-image.ts`.
 
 ### Errors
 
@@ -363,11 +469,14 @@ An API error is translated by its `code` and `params` through `shared/errors`, i
 
 The frontend formats values with the browser's `Intl`, in the user's language, and computes none: totals arrive ready from the API. No date or decimal library is added until a screen proves it needs one.
 
+The name of a country or a currency is `Intl.DisplayNames` in the language of the screen. A time zone, which `Intl.DisplayNames` does not name, is written as the IANA database writes it, followed by the name `Intl.DateTimeFormat` gives it (`timeZoneName: "longGeneric"`). `shared/places/places.ts` builds the lists once for each language. A code the browser cannot name shows as the code.
+
 ### Components
 
-- `packages/ui` holds the design system: shadcn/ui components on Base UI primitives, styled with Tailwind CSS. Every colour, radius, font, spacing step and shadow is a CSS custom property.
+- `apps/web/src/ui` holds the design system: shadcn/ui components on Base UI primitives, styled with Tailwind CSS. Every colour, radius, font, spacing step and shadow is a CSS custom property. The rest of the app imports it as `#ui/components/<name>`, `#ui/hooks/<name>` and `#ui/lib/<name>`.
+- `ui` has no translation of its own. A component takes each word as a prop and the screen supplies it, in its language. That includes a name read only by assistive technology, such as the label of a close button: the component requires it and writes no default.
 - [`DESIGN.md`](DESIGN.md) is the source of the design system: its rules, the style variables with their roles and values, the components and the recipes. Code that disagrees with it is fixed, and a change to any of these updates it in the same change.
-- A component enters `packages/ui` when a screen needs it, through the shadcn CLI, and is shown in the gallery in the same change.
+- A component enters `ui` when a screen needs it, through the shadcn CLI, and the component table of `DESIGN.md` gains it in the same change. The CLI is run in `apps/web`, with its exact version. It writes each dependency of the component as a range: change it to `catalog:` and add its exact version to the catalog.
 - A specialised library (charts, rich text, drag and drop, calendar) is added when the first screen needs it. The one shadcn/ui already wraps is the first candidate.
 - React Compiler memoizes components. Do not write `useMemo`, `useCallback` or `memo`.
 
@@ -377,26 +486,19 @@ A domain concept uses the exact term from `GLOSSARY.md` in component, route, fol
 
 ### Tests
 
-The default test renders a whole screen in Vitest's Browser Mode, with the API simulated by MSW from the generated responses, and acts as a user does: it clicks, types and reads what is on the screen. A few end-to-end tests in Playwright cover critical flows against the real backend. They log in through the local provider, or with a login code read from Mailpit (see Login in the backend rules).
+The default test renders a whole screen in Vitest's Browser Mode, with the API simulated by MSW from the generated responses, and acts as a user does: it clicks, types and reads what is on the screen. It opens the whole app at an address with `renderApp`, in the languages the browser asks for and in StrictMode, as `main.tsx` renders it, and hands the simulated API each answer it needs with a handler orval generated (`src/testing`); a request with no answer fails the test. The tests run in the Chromium of the Playwright in the catalog, which `task install` downloads. A few end-to-end tests in Playwright cover critical flows against the real backend. They log in through the local provider, or with a login code read from Mailpit (see Login in the backend rules).
 
-### Prototype
-
-`apps/prototype` uses React, TanStack Router, react-i18next and `packages/ui`, with fake data in plain modules and its own translation files. A Zustand store may hold the theme and the scenario. Nothing is imported from it into `apps/web` (ADR-0006).
-
-The prototype bar is a small floating bar shown over every route, outside the page it floats over. It holds the theme, the language and the scenarios of the current screen. A scenario is a named condition a screen can be put in, such as an expired login code: a screen declares its scenarios, in groups when two of them can hold at once, and its fake data answers according to the ones chosen. A screen carries no control that exists only because it is in the prototype.
-
-The gallery is the permanent part of the prototype: it shows every style variable and every component of `packages/ui`, as `DESIGN.md` describes. The screens around it are disposable. The stylesheet that pins hover, focus and active for the gallery stays in `apps/prototype`.
+The end-to-end tests are in `apps/web/e2e`, on the test runner of that same Playwright (`playwright/test`, with `apps/web/playwright.config.ts`), and `task e2e` runs them, at the end of `task check` and in the pipeline; `task check:quick` runs every other check and leaves them out, so it runs beside `task dev`. It starts the services and builds the API, creates an empty database of its own (`software_factory_e2e`, kept after the run so that a failure can be read in it), and applies the migrations. Playwright starts the API binary on that database and Vite, where Caddy reaches them, and the tests open the app at `APP_ORIGIN`, through Caddy, and drive the commands of the binary as a person does. A server already listening on port 8080 or 5173, such as one of `task dev`, fails the run instead of being used. The tests run one at a time, in the order they are written. In development every request of the machine reaches Caddy from the same address (see Rate limit), so `task e2e` restarts Caddy, which empties the limit, and a test that spends the limit is written last. A failed test keeps its trace in `apps/web/test-results`, which the pipeline keeps as an artifact. Its data is fictitious (ADR-0021), and so are its images, in `e2e/images`.
 
 ### Enforcement
 
 - `vp check` (format, lint, types) and the screen tests fail the build. `vp staged` runs format and lint on changed files at each commit.
-- Knip fails the build on unused files, exports and dependencies.
-- The build fails when an import breaks the dependency rule, when the generated client is stale, or when a language is missing a translation key (ADR-0005).
-- The build fails when a component of `packages/ui` is shown nowhere in the gallery.
-- The size of the JavaScript of `apps/web`, initial and per route, has a limit that fails the build. It is measured on the Brotli copies the build writes (see Delivery), which is what the browser downloads. The numbers are set with the first real screen.
+- Knip fails the build on unused files, exports and dependencies: `task web:knip`, configured in `apps/web/knip.ts`. The components of `ui` count as used, because the design system is kept whole.
+- The build fails when an import breaks the dependency rule (`task web:imports`), when the generated client is stale (`task web:generate:check`), when the lists of the API are stale (`task api:lists:check`, in the backend job, which has Go), or when a language is missing a translation key (ADR-0005).
+- The size of the JavaScript of `apps/web`, initial and per route, has a limit that fails the build. It is measured on the Brotli copies the build writes (see Delivery), which is what the browser downloads. The numbers are set when the deploy is built.
 - Load and response times of the main screens (LCP, CLS, INP) are reported against the "good" Core Web Vitals thresholds (2.5 s, 0.1, 200 ms) and do not fail the build.
 
-The tools for the import rule, the size limit and the time report are chosen with the first frontend code. Once a check exists, its rule here shrinks to a pointer at the check.
+The tools for the size limit and the time report are chosen when the deploy is built, which is when the app is first served as in production. Once a check exists, its rule here shrinks to a pointer at the check.
 
 For investigating performance in a real browser, agents have the Chrome DevTools MCP: see [`docs/agents/browser-tools.md`](docs/agents/browser-tools.md).
 
@@ -404,11 +506,11 @@ For investigating performance in a real browser, agents have the Chrome DevTools
 
 A client for Server-Sent Events is written with the first streaming operation. Telemetry from the browser waits for users other than the maintainer.
 
-The system health screen waits for the health report (see Health in the backend rules) and is designed in the prototype first. It reads the health report when it opens and on a refresh button, with no automatic refresh and no warning on other screens.
+The system health screen waits for the health report (see Health in the backend rules). It reads the health report when it opens and on a refresh button, with no automatic refresh and no warning on other screens.
 
 ## Delivery (`deploy`)
 
-How responses travel from the server to browsers and agents. Compression, cache headers, security headers and the limit on the login code are set in one place, the `Caddyfile` in `deploy/`.
+How responses travel from the server to browsers and agents. Compression, cache headers, security headers and the limit on the login code and the setup code are set in one place, the `Caddyfile` in `deploy/`.
 
 ### Compression
 
@@ -416,7 +518,7 @@ How responses travel from the server to browsers and agents. Compression, cache 
 - **Defaults kept.** The `match` block of `encode` is not written, because a custom block replaces the whole default list of content types. Error bodies (`application/problem+json`) are outside that list and stay uncompressed; they are small.
 - **Streams.** A Server-Sent Events response is compressed like any other, and Caddy sends each event as it is written. The first streaming operation comes with a test that goes through Caddy and checks that events arrive one by one.
 - **Brotli copies.** The build of `apps/web` writes a Brotli copy (`.br`) beside each text file it produces: JavaScript, CSS, HTML, SVG and JSON. Caddy serves the copy through `file_server` with `precompressed br`. Caddy does not compress Brotli on the fly, so a client that does not accept Brotli gets the file through `encode`.
-- **Plugin.** A Vite plugin writes the Brotli copies. It is chosen with the first frontend code; none has been tried with Vite+ (Rolldown).
+- **Plugin.** A Vite plugin writes the Brotli copies. It is chosen when the deploy is built; none has been tried with Vite+ (Rolldown).
 - **Risk accepted.** The size of a compressed response can reveal a secret when the same body carries text chosen by an attacker (the BREACH attack). No response is excluded from compression. The rule on credential values in the API conventions keeps the two apart.
 
 ### Caching
@@ -425,19 +527,25 @@ How responses travel from the server to browsers and agents. Compression, cache 
 - **Files without a hash.** `index.html`, and any other file of the SPA without a hash in its name, is served with `Cache-Control: no-cache`, so the browser revalidates it and a deploy shows on the next load.
 - **API.** Every response under `/api` carries `Cache-Control: no-store`, set by Caddy.
 
+### API out of reach
+
+- **Same format.** When Caddy cannot reach the API, it answers a 502, 503 or 504 under `/api` in the error format of the API, with the code of the status (`bad_gateway`, `service_unavailable`, `gateway_timeout`), `params` and the `trace_id` of the trace it started, as it answers the 429 (see Rate limit). The body is written in the `Caddyfile`, and `apps/api/cmd/api/caddy_test.go` checks it against the schema `Problem`. The app translates the three codes. `/up` keeps its status and no body.
+
 ### Security headers
 
 - **In Caddy only.** The `Caddyfile` sets them for the app's site. The API sets none.
 - **Content-Security-Policy.** Scripts, styles, fonts and connections come from the app's own origin only, plus the host name of the file storage for connections, images and media. That host name comes from configuration, because it differs by environment. No inline script, no `eval`, no other origin. The page cannot be shown inside a frame.
 - **Others.** `Strict-Transport-Security`, `X-Content-Type-Options: nosniff` and `Referrer-Policy`.
-- **Frontend.** Code in `apps/web` and `packages/ui` loads nothing from another origin and writes no inline script.
-- **Exact values.** The directives are closed with the first real screen, which shows what Base UI and the fonts need.
+- **Frontend.** Code in `apps/web` loads nothing from another origin and writes no inline script.
+- **Exact values.** The directives are closed when the deploy is built, with Caddy serving the built app, which shows what Base UI and the fonts need.
 
 ### Rate limit
 
-- **Login code only.** Caddy limits, for each IP address, the two operations of the login code: asking for one and checking one. No other path has a limit.
-- **Answer.** Over the limit, Caddy answers 429 in the error format of the API, with the code `too_many_requests`.
-- **Image.** Caddy has no rate limit of its own, so its image is built in this repository with a plugin.
+- **The two codes only.** Caddy limits, for each IP address, the two operations of the login code, asking for one and checking one, and the checking of a setup code. No other path has a limit.
+- **Setup code.** Every `POST` under `/api/setup` checks a setup code, so they share one limit: 10 requests a minute for each IP address, counted together. `GET /api/setup` has none. The numbers of the login code are chosen with the login.
+- **Answer.** Over the limit, Caddy answers 429 in the error format of the API, with the code `too_many_requests`, `Retry-After` and `Cache-Control: no-store`. Its `trace_id` is the trace Caddy started for the request, which never reached the API. The body is written in the `Caddyfile`, and `apps/api/cmd/api/caddy_test.go` checks it against the schema `Problem` of the committed spec. An operation under the limit lists `restapi.LimitedByCaddy` under 429, so the spec, and the client generated from it, declare the answer.
+- **Development.** Every request of the machine reaches Caddy from the gateway of Docker, so the browser, `curl` and the tests share one count of ten. The count lives in the memory of Caddy: `docker compose restart caddy` empties it, as `task e2e` does before it runs.
+- **Image.** Caddy has no rate limit of its own, so its image is built in this repository with a plugin: [`mholt/caddy-ratelimit`](https://github.com/mholt/caddy-ratelimit), the rate limiter of Caddy's author, in `deploy/caddy/Dockerfile`. Its `rate_limit` directive keeps a sliding window for each key in memory, and its 429 is an error that `handle_errors` writes. It logs each request it refuses with the address of the caller, which the default log of the `Caddyfile` cuts down to its network (see Privacy in Observability).
 
 ## Observability (`deploy`)
 
@@ -462,7 +570,7 @@ How telemetry is collected, kept and shown. The configuration of the collector a
 
 The rule that telemetry carries nothing sensitive covers every container.
 
-- **Caddy.** Tracing is on for the app's site, so the trace starts in Caddy and its identifier is in the access log. The access log carries the caller's IP address cut down to its network, and no query string.
+- **Caddy.** Tracing is on for the app's site, so the trace starts in Caddy and its identifier is in the access log. The access log carries the caller's IP address cut down to its network, and no query string. So does every other line Caddy writes, such as the one of the rate-limit plugin when it refuses a request and the one of a request that failed: the default log of the `Caddyfile` filters the fields that hold an address (`remote_ip`, `client_ip`, `request>remote_ip`, `request>client_ip`) and keeps 24 bits of an IPv4 address and 48 of an IPv6 one, which `apps/api/cmd/api/caddy_test.go` checks.
 - **Spans.** A span carries the caller's IP address cut down to its network, and no query string. The collector removes what a source cannot leave out.
 - **PostgreSQL.** It logs an error without its detail (`log_error_verbosity = terse`), because the detail can carry the values of a row.
 
@@ -480,7 +588,7 @@ The rule that telemetry carries nothing sensitive covers every container.
 
 ### Development
 
-The two telemetry containers are in a Compose profile that is off by default. Without them the API and the worker run as usual, and their logs are on the container output.
+The two telemetry containers are in a Compose profile that is off by default. Without them the API and the worker run as usual, and their logs are on the container output. Caddy traces every request and exports nothing (`OTEL_TRACES_EXPORTER=none` in `compose.yaml`).
 
 ### Deferred
 
@@ -503,14 +611,17 @@ Where the system runs and what each environment declares. The reasons, and the t
 ### Compose files
 
 - **Three files.** `compose.yaml` at the root is development. `deploy/compose.staging.yaml` and `deploy/compose.production.yaml` are the two servers.
-- **One base.** The three extend `deploy/compose.base.yaml`, which holds the services they share and the tag of every image, so a version keeps one home (see Versions).
+- **One base.** The three extend `deploy/compose.base.yaml`, which holds the services they share and the tag of every image, so a version keeps one home (see Versions). `extends` copies a service and nothing else: a volume or a config the service names is declared at the top level of the file that extends it.
 - **Declared or absent.** A service that an environment must not run is not declared in its file. No configuration value turns it on. Production declares no seed, no Dex, no Mailpit, no Garage and no LLM stand-in. Staging declares no Dex.
 
 ### Development
 
 - **Tools on the machine.** `task dev` runs the API, the worker and Vite on the machine. The Compose file runs the services they talk to.
-- **Variables.** A `.env` file copied from `.env.example`, never committed, loaded by Task and by Compose.
-- **A real LLM provider.** The stand-in is the default. Pointing at a real provider to work on a prompt is a change to the local `.env`.
+- **One origin.** The browser opens the app through Caddy, at `http://localhost`, which forwards `/api` and `/up` to the API on port 8080 of the machine and the rest to Vite on port 5173. The file storage is at `http://files.localhost`, which Caddy forwards to Garage; the API reaches Garage on the machine, at `GARAGE_PORT`. Caddy reaches the machine as `host.docker.internal`, which Compose maps to the host gateway. Docker Desktop reaches a server on 127.0.0.1 there, the default of `.env.example`; Docker Engine on Linux, the runner of the pipeline included, reaches only one on every interface, so there `API_LISTEN_ADDRESS` and `WEB_LISTEN_HOST` take `0.0.0.0`.
+- **Variables.** Task loads `.env`, falls back to `.env.example` for what it lacks, and passes the variables to Compose, so development runs with no `.env`. A `.env` file, never committed, changes a value. A Compose command is run through its Task target.
+- **One set of containers.** `compose.yaml` has a fixed project name, so every checkout of the repository, a Git worktree included, drives the same containers and volumes. Compose creates a container again when `up` runs from another directory and the container mounts a file of the checkout, because the path differs. PostgreSQL mounts none, so that the tests of one checkout keep their connections: the file it needs is a config written in the Compose file. Garage does the same, so that an upload in flight survives. Caddy mounts the `Caddyfile`, and being created again costs it nothing.
+- **File storage.** Garage runs on one node and creates the one bucket and its key, from the `FILE_STORAGE_` variables, when it starts. A step of the Compose file, `garage-cors`, gives the bucket its cross-origin rule, the origin of the app only, and Caddy waits for it, so `task services` returns once the rule is set.
+- **A real LLM provider.** The stand-in is the default. Pointing at a real provider to work on a prompt is a change to the local `.env`, made by the maintainer. Nothing automated calls a real provider outside production (ADR-0019).
 
 ### Seed
 
@@ -568,14 +679,14 @@ How a change reaches `main` and the servers. The repository is public, which set
 ### Checks on a pull request
 
 - **Nothing from outside.** A pull request runs every check that needs no outside service: format, lint, types, generated code up to date, the tests of use cases and of screens, the adapter tests against containers of PostgreSQL, Garage and Mailpit, and the end-to-end tests against the development Compose file.
-- **The same commands.** A workflow calls Task targets. A check that fails in the pipeline fails the same way on the machine.
-- **Workflows are checked too.** actionlint and zizmor run on every workflow file.
+- **The same commands.** A workflow calls Task targets. A check that fails in the pipeline fails the same way on the machine. `task check` runs every check of a pull request, the end-to-end test last, so it needs ports 8080 and 5173 free and restarts the shared Caddy; it is what runs before a pull request. `task check:quick` runs all of them but the end-to-end test, for daily use and beside `task dev`.
+- **Workflows are checked too.** actionlint and zizmor run on every workflow file, each from its image: `task workflows:check`, which `task check` and `task check:quick` run as well. The system libraries Chromium needs on the Linux runner are installed by `task install:linux`, and the packages apt downloads for them are kept in the cache of GitHub Actions, for each system image of the runner.
 - **Documents only.** A pull request that changes only documents skips the builds and the tests. `VERSION` is not a document (see Releases).
 - **One required check.** The ruleset of `main` requires a single check: the `Checks` job of `ci.yml`, which fails when a job it needs failed or was cancelled, and passes when one was skipped. A new check is a job added to its `needs`, never a change to the ruleset.
 
 ### Scheduled workflows
 
-- **Outside services.** The tests of the `resend` adapter and of the LLM adapter run every day and on a manual trigger, with a key of their own.
+- **Outside services.** The tests of the `resend` adapter run every day and on a manual trigger, with a key of their own. No scheduled test calls a real LLM provider (ADR-0019).
 - **Vulnerabilities.** govulncheck, `pnpm audit` and Trivy on the images run every week.
 - **New versions.** `task outdated` runs every week and its list is kept in one open issue on GitHub. The workflow rewrites the issue, adds a comment when the list changed and closes it when the list is empty. It opens no pull request. The issue is a notice: work is still tracked in `.scratch/` (see [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md)).
 - **Restore test.** Every month (see Backup).
@@ -628,14 +739,16 @@ Every tool, library and container image runs at a version written in a committed
 | The system itself | `VERSION` at the root (see Releases) |
 | Go toolchain | the `go` and `toolchain` lines of `go.mod` |
 | Go libraries | `go.mod` and `go.sum` |
-| Go command-line tools (sqlc, vacuum, oasdiff, the River CLI) | `tool` lines of `go.mod`, run with `go tool` |
-| Node.js | `.node-version` at the root |
-| pnpm | `packageManager` in the root `package.json` |
-| JavaScript libraries and tools, Vite+ included | the catalog in `pnpm-workspace.yaml`, and `pnpm-lock.yaml` |
+| Go command-line tools (sqlc, vacuum, oasdiff, the River CLI) | the `tool` line of a module file of its own beside `go.mod`, one for each tool (`apps/api/sqlc.mod`), run with `go tool -modfile=sqlc.mod` |
+| The Go linter and formatter (golangci-lint, with gofumpt inside it) | the `tool` line of `apps/api/golangci-lint.mod`, a module file of its own, run with `go tool -modfile=golangci-lint.mod` |
+| Node.js | `devEngines.runtime` in `apps/web/package.json`, written by `vp env pin` |
+| pnpm | `devEngines.packageManager` in `apps/web/package.json`, written by `vp env pin` |
+| JavaScript libraries and tools, Vite+ included | the catalog in `apps/web/pnpm-workspace.yaml`, and `apps/web/pnpm-lock.yaml` |
 | Container images (PostgreSQL, Garage, Mailpit, Dex, Caddy, OpenTelemetry Collector, Grafana otel-lgtm) | the image tag in `deploy/compose.base.yaml` and in each Dockerfile |
 | Caddy plugins | the Dockerfile that builds the Caddy image |
 | pgBackRest | the Dockerfile that builds the PostgreSQL image |
-| GitHub Actions and the tools a workflow installs (the provider's command-line tool, actionlint, zizmor, Trivy) | the workflow file: an action by its full commit hash, a tool by its exact version |
+| GitHub Actions and the tools a workflow installs (Task, the provider's command-line tool, Trivy) | the workflow file: an action by its full commit hash, a tool by its exact version |
+| The linters of the workflows (actionlint, zizmor), run from their images | a variable of `workflows:check` in `Taskfile.yml` whose name ends in `_IMAGE`: the image by its tag and by the digest of that tag in its registry, `name:1.2.3@sha256:...` |
 | The system image of the servers | `deploy/cloud-init.yaml` and the workflow that creates a server |
 | MCP servers for agents | `.mcp.json` |
 | Docker, Task, the global `vp`, the installed Go and the GitHub CLI | the prerequisites table of `README.md`, as a minimum version |
@@ -643,17 +756,17 @@ Every tool, library and container image runs at a version written in a committed
 
 ### Rules
 
-- **Exact.** A version is exact: no range (`^`, `~`), no `latest`, no floating tag such as `postgres:18`. Only the prerequisites table holds minimums.
-- **Catalog.** The three JavaScript packages take their versions from the pnpm catalog (`catalog:`), so a library has one version in the whole workspace.
+- **Exact.** A version is exact, and `task versions:check` rejects one that is not (see Enforcement). Only the prerequisites table holds minimums.
+- **Catalog.** `apps/web`, the only JavaScript package, takes its versions from the pnpm catalog (`catalog:`), so each version is written once, beside the settings of pnpm. The root of the repository has no `package.json`.
 - **Lockfiles.** `go.sum` and `pnpm-lock.yaml` are committed. The build installs from them and fails when they would change.
 - **Nothing global.** A tool the build uses runs from its home above (`go tool`, `vp`), never from a copy installed on the machine. Docker, Task, the global `vp`, the GitHub CLI and the installed Go, which only downloads the toolchain that `go.mod` names, are the only exceptions.
 - **One-off commands.** A command that downloads what it runs (`npx`, `pnpm dlx`, `go run` with a module path) carries an exact version.
-- **Copied code.** The shadcn/ui components in `packages/ui` have no version. Updating one means running the shadcn CLI again for that component and reviewing the diff.
+- **Copied code.** The shadcn/ui components in `apps/web/src/ui` have no version. Updating one means running the shadcn CLI again for that component and reviewing the diff.
 - **Prose.** A document names a version only when a rule depends on it, as a minimum (PostgreSQL 18, pgx 5.13.0 or later). The version in force is read from its home. A number that must appear in two files is listed in both as such, as in [`docs/agents/browser-tools.md`](docs/agents/browser-tools.md).
 
 ### Updating
 
-- **Listing.** `task outdated` lists what has a newer release among the versions the repository pins: the Go toolchain, Go modules and tools, Node.js, pnpm, JavaScript packages, container images, Caddy plugins, pgBackRest, GitHub Actions and the tools a workflow installs, the system image of the servers and MCP servers. It is written with the first code.
+- **Listing.** `task outdated` lists what has a newer release among the versions the repository pins: the Go toolchain, Go modules and tools, Node.js, pnpm, JavaScript packages, container images, Caddy plugins, pgBackRest, GitHub Actions and the tools a workflow installs, the system image of the servers and MCP servers. It is written when the deploy is built.
 - **Every week.** A scheduled workflow runs the listing and warns the maintainer through one issue (see Scheduled workflows). Updating stays a decision of the maintainer.
 - **The machine.** `task outdated:machine` is run by hand on the maintainer's machine, which no workflow can see. It reads `docs/machine-tools.yaml` and lists the tools that have a newer release and the ones whose installed version differs from the recorded one. After an update the file is corrected (see `AGENTS.md`).
 - **One at a time.** An update is its own commit: one dependency, or one family released together (TanStack, OpenTelemetry), with the build and the tests passing.
@@ -662,4 +775,13 @@ Every tool, library and container image runs at a version written in a committed
 
 ### Enforcement
 
-The check that rejects a range, `latest` or a floating tag is chosen with the first code. Once it exists, the rules here shrink to a pointer at the check.
+`task versions:check` rejects a range (`^`, `~`), `latest` and a floating tag such as `postgres:18`. It is `apps/api/tools/guard/versions`, and `task check`, `task check:quick` and the pipeline run it. It recognises a file by its name, wherever the file is, and reads:
+
+- **Go module files** (`go.mod`, and the module file of each tool: `golangci-lint.mod`, `sqlc.mod`, `vacuum.mod` and `oasdiff.mod`): the `go` line and the `toolchain` line with their three numbers, and each required module at one release. A tool takes its version from the line that requires its module.
+- **Compose files and Dockerfiles**: every `image`, every `FROM` and every `COPY --from`. A tag starts with the full version of the image, which has three numbers; the images whose version has two, such as PostgreSQL, are listed in the check. An image with another scheme is pinned by its digest. A service that is built from a Dockerfile is not judged. In a Dockerfile, `xcaddy build` too: the Caddy version, when one is named, and each plugin, as `--with module@v1.2.3`.
+- **Workflows**, and any other YAML file under `.github`: an action by its full commit hash, a tool by the three numbers of a variable whose name ends in `_VERSION` or of an input named `version` or ending in `-version`, an image as above, and a runner by the version of its system, never `-latest`.
+- **The pnpm catalog** in `pnpm-workspace.yaml`, with its overrides, and `package.json`: a dependency is `catalog:` or one version, and so are the runtime and the package manager.
+- **`.mcp.json`**: a server that `npx` or `pnpm dlx` downloads names its package as `name@1.2.3`.
+- **`Taskfile.yml`**: a variable under `vars` whose name ends in `_IMAGE`, as an image above, such as the image of a linter that `workflows:check` runs, and one whose name ends in `_VERSION`, by its three numbers. A tag followed by its digest passes, and so does a tag alone: the check asks no image for its digest, which the linters carry by the rule of their row above.
+
+What the check does not read stays a rule for the author: pgBackRest in its Dockerfile, the system image of the servers, and a one-off command in `Taskfile.yml` that names its version in its text. Each joins the check when its file is written.

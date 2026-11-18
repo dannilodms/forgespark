@@ -15,7 +15,7 @@ Every merge into `main` is published to production (ADR-0019), so a release publ
 - **Between releases.** A build shows the number of the last release it contains. Its commit, shown beside the number, tells one build from another.
 - **Notes.** `CHANGELOG.md` is in English. The agent writes each section from the pull requests merged since the last release: what changed for someone who uses the system and, apart from that, what someone who installs it has to do.
 - **Only forward.** A tag is never moved or deleted, and a ruleset on GitHub refuses both. A fix goes into `main` and becomes a new release. There are no release branches, no fixes to an older version and no pre-releases.
-- **The first release.** 0.1.0 is the walking skeleton running in production. `VERSION` starts at 0.0.0 with the first code, and nothing is tagged before that.
+- **The first release.** 0.1.0 is the first version running in production: the setup, the login, the consultancy settings, the users and the system health. `VERSION` starts at 0.0.0 with the first code, and nothing is tagged before that.
 
 ## Considered Options
 
@@ -42,4 +42,4 @@ Every merge into `main` is published to production (ADR-0019), so a release publ
 - The workflow that goes back to an earlier version takes a release as well as a commit.
 - "Release" is a term of the pipeline and stays out of `GLOSSARY.md`. The projects of clients may get versions and deliveries of their own, and the term is left free for them.
 - `CHANGELOG.md` starts at 0.1.0. What came before is in the ADRs and in the Git history.
-- Adding a tag to an image that is already in the registry, and the ruleset that protects the tags, were not tried. Both are proven with the walking skeleton, before 0.1.0.
+- Adding a tag to an image that is already in the registry, and the ruleset that protects the tags, were not tried. Both are proven in the work that builds the deploy, before 0.1.0.

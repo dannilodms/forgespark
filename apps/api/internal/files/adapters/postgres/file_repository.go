@@ -1,0 +1,91 @@
+// Package postgres keeps the records of the files in PostgreSQL. The bytes of
+// a file are in the file storage, never here.
+package postgres
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+)
+
+// FileRepository keeps the files in the files table.
+type FileRepository struct {
+	pool *pgxpool.Pool
+}
+
+// NewFileRepository returns the repository on this pool.
+func NewFileRepository(pool *pgxpool.Pool) *FileRepository {
+	return &FileRepository{pool: pool}
+}
+
+func (r *FileRepository) queries(ctx context.Context) *Queries {
+	return New(database.Within(ctx, r.pool))
+}
+
+// NextIdentifier takes the next value of the sequence of files.
+func (r *FileRepository) NextIdentifier(ctx context.Context) (domain.FileID, error) {
+	value, err := r.queries(ctx).NextFileID(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("reserve the identifier of a file: %w", err)
+	}
+	return domain.NewFileID(value)
+}
+
+// Load loads the file and locks its row until the transaction ends.
+func (r *FileRepository) Load(ctx context.Context, id domain.FileID) (*domain.File, bool, error) {
+	row, err := r.queries(ctx).LoadFile(ctx, int64(id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("load a file: %w", err)
+	}
+	return domain.RestoreFile(
+		domain.FileID(row.ID),
+		domain.ObjectKey(row.ObjectKey),
+		domain.Purpose(row.Purpose),
+		domain.MediaType(row.MediaType),
+		row.Size,
+		row.StartedAt.UTC(),
+		inUTC(row.ConfirmedAt),
+	), true, nil
+}
+
+// Save writes the file whole: a new row, or every column of the row it
+// already has.
+func (r *FileRepository) Save(ctx context.Context, file *domain.File) error {
+	var confirmedAt *time.Time
+	if at, confirmed := file.ConfirmedAt(); confirmed {
+		confirmedAt = &at
+	}
+	err := r.queries(ctx).SaveFile(ctx, SaveFileParams{
+		ID:          int64(file.ID()),
+		ObjectKey:   string(file.ObjectKey()),
+		Purpose:     string(file.Purpose()),
+		MediaType:   string(file.Declared().MediaType()),
+		Size:        file.Declared().Size(),
+		StartedAt:   file.StartedAt(),
+		ConfirmedAt: confirmedAt,
+	})
+	if err != nil {
+		return fmt.Errorf("save a file: %w", err)
+	}
+	return nil
+}
+
+// inUTC gives an instant PostgreSQL answered in the time zone of the session
+// in UTC, and nothing when there is none.
+func inUTC(at *time.Time) *time.Time {
+	if at == nil {
+		return nil
+	}
+	utc := at.UTC()
+	return &utc
+}

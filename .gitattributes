@@ -1,0 +1,2 @@
+# Text files are checked out with LF on every machine: the formatter expects it.
+* text=auto eol=lf

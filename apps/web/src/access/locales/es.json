@@ -1,0 +1,26 @@
+{
+  "login": {
+    "heading": "Iniciar sesión",
+    "notBuilt": "El inicio de sesión aún no está construido. Llega con la próxima parte del trabajo en el sistema.",
+    "setupConcluded": {
+      "title": "La configuración inicial está concluida",
+      "todo": "La consultora y su primer administrador están registrados. El administrador inicia sesión aquí cuando exista el inicio de sesión."
+    },
+    "setupAlreadyConcluded": {
+      "title": "La configuración inicial ya estaba concluida",
+      "todo": "Alguien la concluyó antes que tú, así que no se guardó nada de lo que escribiste. El administrador registrado entonces inicia sesión aquí cuando exista el inicio de sesión."
+    },
+    "setupConcludedWithoutAnswer": {
+      "title": "La configuración inicial está concluida",
+      "todo": "Un intento anterior de concluirla quedó sin respuesta: puede haber concluido la configuración con lo que escribiste, o alguien puede haberla concluido antes que tú. El administrador registrado entonces inicia sesión aquí cuando exista el inicio de sesión."
+    },
+    "administratorRegistered": {
+      "title": "El administrador está registrado",
+      "todo": "El nuevo administrador inicia sesión aquí cuando exista el inicio de sesión. Los usuarios que ya existían no se modificaron."
+    },
+    "administratorRegisteredWithoutAnswer": {
+      "title": "Puede que el administrador esté registrado",
+      "todo": "Un intento anterior de registrar al administrador quedó sin respuesta: puede haberlo registrado con el correo electrónico escrito entonces. Cuando exista el inicio de sesión, intenta iniciar sesión aquí con ese correo electrónico. Los usuarios que ya existían no se modificaron."
+    }
+  }
+}

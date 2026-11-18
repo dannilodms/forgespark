@@ -6,7 +6,7 @@
 # CODING_STANDARDS.md. The minimum version of each prerequisite is in the
 # prerequisites table of README.md.
 
-checked: 2026-11-16
+checked: 2026-11-17
 platform: Windows 11 Home 10.0.26200, amd64
 
 tools:
