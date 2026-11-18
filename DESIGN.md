@@ -4,6 +4,8 @@ How the product looks, and the rules every screen follows. This file is the sour
 
 The style follows Zed, its site and its application. The evidence behind every value is in section 1 of [`docs/design/references.md`](docs/design/references.md). Why Zed, and what else was considered, is in ADR-0006. Why the design system lives in the app, with no prototype and no gallery, is in ADR-0025.
 
+The size of the text does not follow Zed. Zed sets its interface in 12 to 13px; here it is 16px, and every control is taller to hold it. The maintainer found 13px too small to read, and chose 16px over 14 and 15px from sample pages of the setup and of the app shell.
+
 A change to a style variable, a component or a recipe updates this file in the same change.
 
 ## Vocabulary
@@ -34,7 +36,7 @@ One exception to rule 2: the mark of a login provider keeps the colours its owne
 
 - The style meets WCAG AA: 4.5:1 for text, 3:1 for large text, for the boundary of a control and for the focus indicator.
 - A value taken from Zed that fails is changed by the smallest step that passes. The colour table then gives both the value of Zed and the value in use. Nothing measures the pairs automatically: a value is measured when it is added or changed.
-- Every interactive component is operable by keyboard and shows a visible focus state: a 3px outline with a 2px offset. A box of InputOTP has no offset, because its neighbours touch it. A row of a list pane and a control in a 28px bar draw the outline inside themselves, because the pane or the bar would cut it.
+- Every interactive component is operable by keyboard and shows a visible focus state: a 3px outline with a 2px offset. A box of InputOTP has no offset, because its neighbours touch it. A row of a list pane and a control in a 32px bar draw the outline inside themselves, because the pane or the bar would cut it.
 - Motion respects `prefers-reduced-motion`.
 - Layouts are designed for desktop first and adapt down to a 375px-wide viewport with no overflow.
 - Text runs longer in Portuguese and Spanish than in English. Every component that carries text holds a long label without overflowing.
@@ -138,22 +140,22 @@ Each role is a `type-*` utility that sets family, size, line height, weight and 
 | Token | Use | Typeface | Size / line height / weight |
 | --- | --- | --- | --- |
 | `type-display` | A page title, the headline of an empty state. Used sparingly. | display | 28 to 36px / 1.15 / 300 italic, tracking -0.01em |
-| `type-title` | The title of a section, a card or a dialog. | interface | 15px / 20px / 600 |
-| `type-body` | Running text and descriptions. | interface | 13px / 20px / 400 |
-| `type-ui` | Controls, rows, menus, tabs. | interface | 13px / 16px / 400 |
-| `type-label` | A small label, in sentence case: table header, field group, section index. | interface | 12px / 16px / 500 |
-| `type-caption` | Secondary information under or beside something. | interface | 12px / 16px / 400 |
-| `type-code` | Shortcuts, counts, paths, identifiers, code. | mono | 12px / 16px / 400 |
+| `type-title` | The title of a section, a card or a dialog. | interface | 18px / 26px / 600 |
+| `type-body` | Running text and descriptions. | interface | 16px / 24px / 400 |
+| `type-ui` | Controls, rows, menus, tabs. | interface | 16px / 20px / 400 |
+| `type-label` | A small label, in sentence case: table header, field group, section index. | interface | 14px / 20px / 500 |
+| `type-caption` | Secondary information under or beside something. | interface | 14px / 20px / 400 |
+| `type-code` | Shortcuts, counts, paths, identifiers, code. | mono | 14px / 20px / 400 |
 
 The display size grows with the width of the viewport, between its two ends.
 
 | Typeface | Style variable | Family | Notes |
 | --- | --- | --- | --- |
 | Display | `font-serif` | IBM Plex Serif | Light italic, weight 300 |
-| Interface | `font-sans` | IBM Plex Sans | 12 to 13px |
+| Interface | `font-sans` | IBM Plex Sans | 14 to 18px |
 | Mono | `font-mono` | Lilex | |
 
-The three families are under the SIL Open Font License 1.1 and are installed from npm packages. A shadcn/ui component sets its text in `text-sm`, which is pinned to the interface size: 13px with an 18px line.
+The three families are under the SIL Open Font License 1.1 and are installed from npm packages. A shadcn/ui component sets its text in `text-sm`, which is pinned to the interface size, 16px with a 24px line, and its smaller text in `text-xs`, which is pinned to the size of a label, 14px with a 20px line.
 
 ### Spacing and control sizes
 
@@ -161,11 +163,13 @@ The base unit is 4px. Spacing steps are multiples of it.
 
 | Size | Use |
 | --- | --- |
-| 24px | Chip, small badge row |
-| 27 to 28px | Title bar, status bar, toolbar, row, small button |
-| 32px | Default control |
-| 36px | Prominent control |
-| 12 to 16px | Icon |
+| 24px | Shortcut chip, inside a button |
+| 28px | Badge, extra-small button, a control inside a bar |
+| 32px | Title bar, status bar, top bar, toolbar, small button, an item of a menu, the header of a table |
+| 36px | Row of a list pane, of the sidebar or of the command palette |
+| 40px | Default control |
+| 44px | Prominent control |
+| 14 to 16px | Icon: 16px, and 14px inside a chip, a badge or a small control |
 
 Button, input, select and tab heights move together, so a form stays aligned.
 
@@ -200,7 +204,7 @@ Behind a dialog or a sheet, the page is covered by `background` at 70% opacity. 
 - Colour and opacity: 100 to 150ms, `cubic-bezier(.4, 0, .2, 1)`.
 - Overlays: 200 to 250ms, opening from scale .96 to .98 along `ease-overlay`, which is `cubic-bezier(.2, .8, .2, 1)`.
 - With `prefers-reduced-motion`, no animation and no transition runs: every state is reached at once.
-- Icons are Lucide, at 12 to 16px.
+- Icons are Lucide, at 14 to 16px.
 
 ## Traits
 
@@ -212,7 +216,7 @@ What makes the style recognisable, beyond the values above.
 | Panes | Flush, split by 1px lines. No gap and no card between them |
 | Depth | No shadow inside the work surface |
 | Page framing | A 10px grid texture and diamond nodes where lines meet. A page opts in with the `page-framing` utility, and places each node with `frame-node` |
-| Density | 27 to 28px bars, 32px controls, 12 to 13px interface text |
+| Density | Flush panes and 1px lines, with 32px bars, 36px rows, 40px controls and 16px interface text: denser in layout than a web page, larger in text than Zed |
 | Display type | A light italic serif, used sparingly against the sans of the interface |
 
 ## Brand mark
@@ -277,14 +281,14 @@ Five compositions are described here. The framed pane has code, `FramedPane` in 
 
 A recipe is added when a second screen needs the same composition.
 
-**App shell.** The title bar and the status bar are 28px high, on `chrome`. The top bar is 28px high, on `card`, and its controls are 24px high. The shell takes the height it is given and never scrolls: each pane scrolls inside itself.
+**App shell.** The title bar and the status bar are 32px high, on `chrome`. The top bar is 32px high, on `card`, and its controls are 28px high. The shell takes the height it is given and never scrolls: each pane scrolls inside itself.
 
 - The user menu sits at the end of the title bar. Its button shows the name of the person who is logged in. The menu shows the name and the e-mail, then the actions on the session. Logging out is the last of them, and it leads to the login screen.
 - The button at the start of the top bar, or Ctrl B, collapses the sidebar to its icons. Under 768px the sidebar is a sheet that the same button opens.
 - The command palette opens from its trigger in the top bar, or with Ctrl K. It lists the places to go, the actions of the screen and the items to open.
 - The status bar holds counts: a status there is its sign and a number, with the word for whoever does not see the sign.
 
-**List pane.** A row is 28px high: an identifier in mono, the title, and a plain status indicator at the end. A hovered row takes `accent` and the selected one takes `selected`.
+**List pane.** A row is 36px high: an identifier in mono, the title, and a plain status indicator at the end. A hovered row takes `accent` and the selected one takes `selected`.
 
 - The filter keeps the rows that hold every word typed, whatever the case and the accents. The one action of the pane, creating an item, sits beside it.
 - The arrow keys, Home and End move between the rows, and Enter selects one.
@@ -292,7 +296,11 @@ A recipe is added when a second screen needs the same composition.
 
 **Detail pane.** The header holds the identifier in mono, the status as a badge, the actions at its end, and the title under them, which wraps. The tabs are the `line` variant, across the pane. Under 1024px the list and the detail do not fit side by side: the screen shows the list, then the detail of the item picked, with a button that leads back.
 
-**Framed pane.** The title bar and the status bar are 28px high, on `chrome`: the title bar shows the product name in caption type, and the status bar holds the language selector at its end. The page between them carries the page framing, with a diamond node on each corner of the pane. The pane is on `card`, with a 1px border and 24px of padding, at most 384px wide, in the centre of the page; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. The screen has no theme toggle, no version number and no link to the source code.
+**Framed pane.** The title bar and the status bar are 32px high, on `chrome`: the title bar shows the product name in caption type, and the status bar holds the language selector at its end. The page between them carries the page framing, with a diamond node on each corner of the pane. The pane is on `card`, with a 1px border and 24px of padding, in the centre of the page; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. The screen has no theme toggle, no version number and no link to the source code.
+
+- The pane has two widths. A screen of few controls, such as the login screen, takes the narrow pane, at most 384px wide. A form, such as the setup, takes the wide pane, at most 720px wide, so that its fields go side by side and the form stays short.
+- In the wide pane the fields go in pairs, or in threes when they are short, such as city, region and postal code. A field with a long value, such as a website, takes the whole line. Where the group of fields is narrower than 512px, they go one under the other.
+- A step of a form ends on a line above a 1px `border-subtle`: the way back to the step before at the start, when there is one, and the one primary action at the end. On a narrow screen the primary action takes the rest of the line.
 
 **Form dialog.** The fields, then a footer with the cancel action and the primary action. Enter in a field submits. A validation error shows under its field, in the error colour, with a sign and a sentence that says what to do; the field is marked and takes the focus. A dialog that closes keeps nothing of what was typed.
 

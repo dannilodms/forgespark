@@ -1,26 +1,41 @@
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
+import { cn } from "#ui/lib/utils"
+
 import { LanguageSelect } from "./language-select"
 
 /**
  * A screen of one pane, seen before anyone is logged in: the title bar with
  * the product name, the framed page with the pane in its centre, and the
  * status bar with the language selector and nothing else. It is the Framed
- * pane recipe of DESIGN.md. At a narrow width the pane takes the width of
- * the page.
+ * pane recipe of DESIGN.md. The pane is narrow for a screen of few controls,
+ * such as the login screen, and wide for a form, such as the setup, whose
+ * fields go side by side. At a narrow width the pane takes the width of the
+ * page.
  */
-export function FramedPane({ children }: { children: ReactNode }) {
+export function FramedPane({
+  width = "narrow",
+  children,
+}: {
+  width?: "narrow" | "wide"
+  children: ReactNode
+}) {
   const { t } = useTranslation()
 
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="flex h-7 shrink-0 items-center border-b bg-chrome px-3 type-caption text-muted-foreground">
+      <header className="flex h-8 shrink-0 items-center border-b bg-chrome px-3 type-caption text-muted-foreground">
         {t("productName")}
       </header>
 
       <main className="flex flex-1 items-center justify-center page-framing p-4">
-        <div className="relative w-full max-w-sm rounded-xl border bg-card p-6">
+        <div
+          className={cn(
+            "relative w-full rounded-xl border bg-card p-6",
+            width === "wide" ? "max-w-180" : "max-w-sm"
+          )}
+        >
           <span className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 frame-node" />
           <span className="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 frame-node" />
           <span className="absolute bottom-0 left-0 -translate-x-1/2 translate-y-1/2 frame-node" />
@@ -29,7 +44,7 @@ export function FramedPane({ children }: { children: ReactNode }) {
         </div>
       </main>
 
-      <footer className="flex h-7 shrink-0 items-center justify-end border-t bg-chrome px-2">
+      <footer className="flex h-8 shrink-0 items-center justify-end border-t bg-chrome px-2">
         <LanguageSelect />
       </footer>
     </div>

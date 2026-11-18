@@ -53,7 +53,7 @@ export function SetupScreen() {
   const images: SetupImages = { logo, photo }
 
   return (
-    <FramedPane>
+    <FramedPane width="wide">
       <h1 className="type-display">{t("setup.heading")}</h1>
       <Step flow={flow} dispatch={dispatch} form={form} images={images} />
     </FramedPane>

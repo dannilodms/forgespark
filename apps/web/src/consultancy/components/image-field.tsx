@@ -185,7 +185,7 @@ function ImageNotSent({
   return (
     <div role="alert" className="flex flex-col items-start gap-2">
       <p className="flex items-start gap-1 text-destructive">
-        <CircleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
+        <CircleAlertIcon className="mt-1 size-4 shrink-0" />
         <span>{t("setup.image.failed", { reason: title })}</span>
       </p>
       <p className="text-muted-foreground">{todo}</p>

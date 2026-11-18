@@ -11,6 +11,7 @@ import {
 } from "#ui/components/combobox"
 import { Field, FieldDescription, FieldLabel } from "#ui/components/field"
 import { Input } from "#ui/components/input"
+import { cn } from "#ui/lib/utils"
 
 import { FieldProblemMessage } from "../errors/field-problem"
 import type { FieldProblem } from "../errors/problems"
@@ -163,6 +164,32 @@ export function ListField({
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
+  )
+}
+
+/**
+ * Fields side by side inside a `FieldGroup` wide enough for them, one under
+ * the other inside a narrow one. A field left alone in a row takes the width
+ * of one column.
+ */
+export function FieldRow({
+  columns = 2,
+  children,
+}: {
+  columns?: 2 | 3
+  children: ReactNode
+}) {
+  return (
+    <div
+      className={cn(
+        "grid items-start gap-5 @lg/field-group:gap-x-4",
+        columns === 3
+          ? "@lg/field-group:grid-cols-3"
+          : "@lg/field-group:grid-cols-2"
+      )}
+    >
+      {children}
+    </div>
   )
 }
 

@@ -5,6 +5,7 @@ import { Button } from "#ui/components/button"
 import { FieldGroup } from "#ui/components/field"
 
 import {
+  FieldRow,
   ListField,
   TextField,
   focusTheFirstProblem,
@@ -24,6 +25,7 @@ import {
 } from "./setup-form"
 import type { SetupImageField } from "./setup-image"
 import type { SetupMode } from "./setup-mode"
+import { StepActions } from "./step-actions"
 import { StepHeading } from "./step-heading"
 
 const checkTheAdministrator = checkTheContract(
@@ -104,86 +106,93 @@ export function AdministratorStep({
           />
 
           <FieldGroup>
-            <form.Field name="administrator.name">
-              {(field) => (
-                <TextField
-                  field={field}
-                  label={t("setup.administrator.name")}
-                  autoComplete="name"
-                />
-              )}
-            </form.Field>
-            <form.Field name="administrator.email">
-              {(field) => (
-                <TextField
-                  field={field}
-                  label={t("setup.administrator.email")}
-                  description={t("setup.administrator.emailDescription")}
-                  type="email"
-                  autoComplete="email"
-                  spellCheck={false}
-                />
-              )}
-            </form.Field>
-            <form.Field name="administrator.country">
-              {(field) => (
-                <ListField
-                  field={field}
-                  items={countryItems(language)}
-                  label={t("setup.administrator.country")}
-                  description={t("setup.administrator.countryDescription")}
-                />
-              )}
-            </form.Field>
-            <form.Field name="administrator.national_id">
-              {(field) => (
-                <TextField
-                  field={field}
-                  label={t("setup.administrator.nationalId")}
-                  description={t("setup.administrator.nationalIdDescription")}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              )}
-            </form.Field>
-            <form.Field name="administrator.telephone">
-              {(field) => (
-                <TextField
-                  field={field}
-                  optional
-                  label={t("setup.telephone")}
-                  description={t("setup.telephoneDescription")}
-                  type="tel"
-                  autoComplete="tel"
-                />
-              )}
-            </form.Field>
-            <form.Field name="administrator.photo_file_id">
-              {(field) => (
-                <ImageField
-                  field={field}
-                  image={photo}
-                  texts={{
-                    label: t("setup.administrator.photo.label"),
-                    choose: t("setup.administrator.photo.choose"),
-                    replace: t("setup.administrator.photo.replace"),
-                    remove: t("setup.administrator.photo.remove"),
-                  }}
-                />
-              )}
-            </form.Field>
+            <FieldRow>
+              <form.Field name="administrator.name">
+                {(field) => (
+                  <TextField
+                    field={field}
+                    label={t("setup.administrator.name")}
+                    autoComplete="name"
+                  />
+                )}
+              </form.Field>
+              <form.Field name="administrator.email">
+                {(field) => (
+                  <TextField
+                    field={field}
+                    label={t("setup.administrator.email")}
+                    description={t("setup.administrator.emailDescription")}
+                    type="email"
+                    autoComplete="email"
+                    spellCheck={false}
+                  />
+                )}
+              </form.Field>
+            </FieldRow>
+            <FieldRow>
+              <form.Field name="administrator.country">
+                {(field) => (
+                  <ListField
+                    field={field}
+                    items={countryItems(language)}
+                    label={t("setup.administrator.country")}
+                    description={t("setup.administrator.countryDescription")}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="administrator.national_id">
+                {(field) => (
+                  <TextField
+                    field={field}
+                    label={t("setup.administrator.nationalId")}
+                    description={t("setup.administrator.nationalIdDescription")}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                )}
+              </form.Field>
+            </FieldRow>
+            <FieldRow>
+              <form.Field name="administrator.telephone">
+                {(field) => (
+                  <TextField
+                    field={field}
+                    optional
+                    label={t("setup.telephone")}
+                    description={t("setup.telephoneDescription")}
+                    type="tel"
+                    autoComplete="tel"
+                  />
+                )}
+              </form.Field>
+              <form.Field name="administrator.photo_file_id">
+                {(field) => (
+                  <ImageField
+                    field={field}
+                    image={photo}
+                    texts={{
+                      label: t("setup.administrator.photo.label"),
+                      choose: t("setup.administrator.photo.choose"),
+                      replace: t("setup.administrator.photo.replace"),
+                      remove: t("setup.administrator.photo.remove"),
+                    }}
+                  />
+                )}
+              </form.Field>
+            </FieldRow>
           </FieldGroup>
 
-          <div className="flex gap-2">
-            {onBack ? (
-              <Button type="button" variant="outline" onClick={onBack}>
-                {t("setup.back")}
-              </Button>
-            ) : null}
-            <Button type="submit" className="flex-1">
-              {t("setup.continue")}
-            </Button>
-          </div>
+          <StepActions
+            back={
+              onBack ? (
+                <Button type="button" variant="outline" onClick={onBack}>
+                  {t("setup.back")}
+                </Button>
+              ) : null
+            }
+          >
+            <Button type="submit">{t("setup.continue")}</Button>
+          </StepActions>
         </form>
       )}
     </form.FormGroup>

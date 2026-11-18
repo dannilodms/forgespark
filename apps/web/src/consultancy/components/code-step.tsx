@@ -8,6 +8,7 @@ import { Button } from "#ui/components/button"
 import { Field, FieldGroup, FieldLabel } from "#ui/components/field"
 import { Input } from "#ui/components/input"
 
+import { FieldRow } from "../../shared/components/form-fields"
 import { ErrorAlert } from "../../shared/errors/error-alert"
 import { FieldProblemMessage } from "../../shared/errors/field-problem"
 import {
@@ -21,6 +22,7 @@ import {
   setupCodeContract,
   useOpenSetup,
 } from "../data/setup"
+import { StepActions } from "./step-actions"
 
 /**
  * The step of the setup code: one field and one primary button. A code that
@@ -109,41 +111,47 @@ export function CodeStep({
       </p>
 
       <FieldGroup>
-        <form.Field name="code">
-          {(field) => {
-            const problem = field.state.meta.errors[0] as
-              | FieldProblem
-              | undefined
-            return (
-              <Field data-invalid={problem ? true : undefined}>
-                <FieldLabel htmlFor="setup-code">
-                  {t("setup.code.label")}
-                </FieldLabel>
-                <Input
-                  ref={input}
-                  id="setup-code"
-                  className="type-code"
-                  // Nothing typed here is kept by the browser.
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  value={field.state.value}
-                  aria-invalid={problem ? true : undefined}
-                  aria-describedby={problem ? "setup-code-problem" : undefined}
-                  onChange={(event) => field.handleChange(event.target.value)}
-                  onBlur={field.handleBlur}
-                />
-                {problem ? (
-                  <FieldProblemMessage
-                    id="setup-code-problem"
-                    problem={problem}
+        <FieldRow>
+          <form.Field name="code">
+            {(field) => {
+              const problem = field.state.meta.errors[0] as
+                | FieldProblem
+                | undefined
+              return (
+                <Field data-invalid={problem ? true : undefined}>
+                  <FieldLabel htmlFor="setup-code">
+                    {t("setup.code.label")}
+                  </FieldLabel>
+                  <Input
+                    ref={input}
+                    id="setup-code"
+                    className="type-code"
+                    // Nothing typed here is kept by the browser.
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    value={field.state.value}
+                    aria-invalid={problem ? true : undefined}
+                    aria-describedby={
+                      problem ? "setup-code-problem" : undefined
+                    }
+                    onChange={(event) => field.handleChange(event.target.value)}
+                    onBlur={field.handleBlur}
                   />
-                ) : null}
-              </Field>
-            )
-          }}
-        </form.Field>
+                  {problem ? (
+                    <FieldProblemMessage
+                      id="setup-code-problem"
+                      problem={problem}
+                    />
+                  ) : null}
+                </Field>
+              )
+            }}
+          </form.Field>
+        </FieldRow>
+      </FieldGroup>
 
+      <StepActions>
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(submitting) => (
             <Button type="submit" disabled={submitting}>
@@ -157,7 +165,7 @@ export function CodeStep({
             </Button>
           )}
         </form.Subscribe>
-      </FieldGroup>
+      </StepActions>
     </form>
   )
 }

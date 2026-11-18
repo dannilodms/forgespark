@@ -97,9 +97,14 @@
   --font-mono:
     "Lilex Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
 
-  /* shadcn/ui components set their text in `text-sm`: the interface size. */
-  --text-sm: 0.8125rem;
-  --text-sm--line-height: 1.125rem;
+  /*
+   * shadcn/ui components set their text in `text-sm`, the interface size,
+   * and their smaller text in `text-xs`, the size of a label.
+   */
+  --text-sm: 1rem;
+  --text-sm--line-height: 1.5rem;
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.25rem;
 }
 
 :root {
@@ -216,48 +221,48 @@
 
 @utility type-title {
   font-family: var(--font-sans);
-  font-size: 0.9375rem;
-  line-height: 1.25rem;
+  font-size: 1.125rem;
+  line-height: 1.625rem;
   font-weight: 600;
   letter-spacing: 0;
 }
 
 @utility type-body {
   font-family: var(--font-sans);
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
   font-weight: 400;
   letter-spacing: 0;
 }
 
 @utility type-ui {
   font-family: var(--font-sans);
-  font-size: 0.8125rem;
-  line-height: 1rem;
+  font-size: 1rem;
+  line-height: 1.25rem;
   font-weight: 400;
   letter-spacing: 0;
 }
 
 @utility type-label {
   font-family: var(--font-sans);
-  font-size: 0.75rem;
-  line-height: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 500;
   letter-spacing: 0;
 }
 
 @utility type-caption {
   font-family: var(--font-sans);
-  font-size: 0.75rem;
-  line-height: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 400;
   letter-spacing: 0;
 }
 
 @utility type-code {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  line-height: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 400;
   letter-spacing: 0;
 }

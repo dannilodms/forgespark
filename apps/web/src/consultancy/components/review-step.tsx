@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "#ui/components/button"
+import { cn } from "#ui/lib/utils"
 
 import { ErrorAlert } from "../../shared/errors/error-alert"
 import {
@@ -33,6 +34,7 @@ import {
   whyTheImagesAreNotStored,
 } from "./setup-image"
 import { type SetupMode, modeOf } from "./setup-mode"
+import { StepActions } from "./step-actions"
 import { StepHeading } from "./step-heading"
 
 /**
@@ -186,28 +188,30 @@ export function ReviewStep({
 
       {waitingFor === "sending" ? (
         <p className="flex items-start gap-1.5 text-muted-foreground">
-          <CircleDashedIcon className="mt-0.5 size-3.5 shrink-0 stroke-status-working" />
+          <CircleDashedIcon className="mt-1 size-4 shrink-0 stroke-status-working" />
           {t(mode.texts.imagesSending)}
         </p>
       ) : null}
       {waitingFor === "notSent" ? (
         <p className="flex items-start gap-1.5">
-          <CircleXIcon className="mt-0.5 size-3.5 shrink-0 stroke-status-error" />
+          <CircleXIcon className="mt-1 size-4 shrink-0 stroke-status-error" />
           {t(mode.texts.imagesNotSent)}
         </p>
       ) : null}
 
-      <div className="flex gap-2">
+      <StepActions
+        back={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onGoTo("administrator")}
+          >
+            {t("setup.back")}
+          </Button>
+        }
+      >
         <Button
           type="button"
-          variant="outline"
-          onClick={() => onGoTo("administrator")}
-        >
-          {t("setup.back")}
-        </Button>
-        <Button
-          type="button"
-          className="flex-1"
           disabled={sending || waitingFor !== undefined}
           onClick={send}
         >
@@ -219,7 +223,7 @@ export function ReviewStep({
           ) : null}
           {t(mode.texts.send)}
         </Button>
-      </div>
+      </StepActions>
     </div>
   )
 }
@@ -247,7 +251,7 @@ function ReviewSection({
   return (
     <section
       aria-labelledby={id}
-      className="flex flex-col gap-3 border-t border-border-subtle pt-4"
+      className="@container/review flex flex-col gap-3 border-t border-border-subtle pt-4"
     >
       <div className="flex items-center justify-between gap-2">
         <h3 id={id} className="type-label">
@@ -263,7 +267,7 @@ function ReviewSection({
           {t("setup.review.change")}
         </Button>
       </div>
-      <dl className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[auto_1fr]">
+      <dl className="grid gap-x-6 gap-y-3 @lg/review:grid-cols-2">
         {children}
       </dl>
       {note}
@@ -271,14 +275,31 @@ function ReviewSection({
   )
 }
 
-/** One row of the review: the label of a field and what was typed in it. */
-function Row({ label, value }: { label: string; value: ReactNode }) {
+/**
+ * One item of the review: the label of a field above what was typed in it.
+ * The items go in two columns where the section is wide enough; a wide item
+ * takes both.
+ */
+function Row({
+  label,
+  value,
+  wide = false,
+}: {
+  label: string
+  value: ReactNode
+  wide?: boolean
+}) {
   const { t } = useTranslation("consultancy")
   const given = value !== "" && value !== null
 
   return (
-    <>
-      <dt className="type-caption text-muted-foreground sm:pt-0.5">{label}</dt>
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-0.5",
+        wide && "@lg/review:col-span-2"
+      )}
+    >
+      <dt className="type-caption text-muted-foreground">{label}</dt>
       <dd className="min-w-0 break-words">
         {given ? (
           value
@@ -288,7 +309,7 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
           </span>
         )}
       </dd>
-    </>
+    </div>
   )
 }
 
@@ -353,20 +374,13 @@ function ConsultancyReview({
       <Row label={t("setup.telephone")} value={typed.telephone} />
       <Row label={t("setup.consultancy.website")} value={typed.website} />
       <Row
-        label={t("setup.consultancy.address.legend")}
-        value={
-          address.length > 0 ? (
-            <span className="flex flex-col">
-              {address.map((line) => (
-                <span key={line}>{line}</span>
-              ))}
-            </span>
-          ) : null
-        }
-      />
-      <Row
         label={t("setup.consultancy.logo.label")}
         value={imageReview(logo)}
+      />
+      <Row
+        wide
+        label={t("setup.consultancy.address.legend")}
+        value={address.length > 0 ? address.join(" · ") : null}
       />
     </ReviewSection>
   )
