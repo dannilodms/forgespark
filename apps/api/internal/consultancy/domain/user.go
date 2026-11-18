@@ -53,17 +53,17 @@ func NewUserDetails(typed TypedUser) (UserDetails, error) {
 	var err error
 
 	details.name, err = RequiredText(typed.Name, NameMaxLength)
-	invalid.Check("name", err)
+	invalid.AddField("name", err)
 	details.email, err = NewEmail(typed.Email)
-	invalid.Check("email", err)
+	invalid.AddField("email", err)
 	details.country, err = kernel.NewCountry(typed.Country)
-	invalid.Check("country", err)
+	invalid.AddField("country", err)
 	details.nationalID, err = RequiredText(typed.NationalID, NationalIDMaxLength)
-	invalid.Check("national_id", err)
+	invalid.AddField("national_id", err)
 	details.telephone, err = readOptional(typed.Telephone, NewTelephone)
-	invalid.Check("telephone", err)
+	invalid.AddField("telephone", err)
 	details.preferredLanguage, err = kernel.NewLanguage(typed.PreferredLanguage)
-	invalid.Check("preferred_language", err)
+	invalid.AddField("preferred_language", err)
 	details.photo = chosenFile(typed.PhotoFileID)
 
 	if err := invalid.Err(); err != nil {

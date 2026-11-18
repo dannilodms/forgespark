@@ -39,8 +39,8 @@ type DeclaredImage struct {
 func DeclareImage(mediaType string, size int64) (DeclaredImage, error) {
 	var invalid kernel.InvalidFieldsError
 	declared := DeclaredImage{mediaType: MediaType(mediaType), size: size}
-	invalid.Check("media_type", checkImageType(declared.mediaType))
-	invalid.Check("size", checkImageSize(size))
+	invalid.AddField("media_type", checkImageType(declared.mediaType))
+	invalid.AddField("size", checkImageSize(size))
 	if err := invalid.Err(); err != nil {
 		return DeclaredImage{}, err
 	}

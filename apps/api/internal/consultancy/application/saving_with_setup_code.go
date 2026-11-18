@@ -111,7 +111,7 @@ func (s savingWithSetupCode) confirmImages(ctx context.Context, images []chosenI
 	for _, image := range images {
 		refused, err := confirmImage(ctx, s.ConfirmUpload, image)
 		failed = errors.Join(failed, err)
-		invalid.Check(image.field, refused)
+		invalid.AddField(image.field, refused)
 	}
 	if failed != nil {
 		return failed

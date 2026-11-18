@@ -46,10 +46,10 @@ func (InvalidFieldsError) Code() string {
 	return "validation_failed"
 }
 
-// Check records the field when err is a broken rule, and nothing when err is
-// nil. An error that is not a broken rule is recorded as one that names no
-// rule of its own.
-func (e *InvalidFieldsError) Check(field string, err error) {
+// AddField adds the field with the rule err is, and nothing when err is nil.
+// An error that is not a broken rule is added as one that names no rule of
+// its own.
+func (e *InvalidFieldsError) AddField(field string, err error) {
 	if err == nil {
 		return
 	}
@@ -60,13 +60,14 @@ func (e *InvalidFieldsError) Check(field string, err error) {
 	e.Fields = append(e.Fields, FieldError{Field: field, Rule: broken})
 }
 
-// Include records the fields an object broke, each named as a field of that
-// object: `country` becomes `consultancy.country`. An error that lists no
-// fields is recorded as the object itself breaking a rule.
-func (e *InvalidFieldsError) Include(object string, err error) {
+// AddFieldsOf adds the fields an object broke, which err lists, each named
+// as a field of that object: `country` becomes `consultancy.country`. An
+// error that lists no fields is added as the object itself breaking a rule,
+// and nil adds nothing.
+func (e *InvalidFieldsError) AddFieldsOf(object string, err error) {
 	var invalid InvalidFieldsError
 	if !errors.As(err, &invalid) {
-		e.Check(object, err)
+		e.AddField(object, err)
 		return
 	}
 	for _, field := range invalid.Fields {

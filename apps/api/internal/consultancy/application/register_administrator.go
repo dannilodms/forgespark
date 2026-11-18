@@ -45,8 +45,8 @@ type RegisterAdministratorInput struct {
 func (u *RegisterAdministrator) Execute(ctx context.Context, input RegisterAdministratorInput) error {
 	var invalid kernel.InvalidFieldsError
 	details, err := domain.NewUserDetails(input.Administrator)
-	invalid.Include("administrator", err)
-	invalid.Check("administrator.photo_file_id", namesAFile(input.Administrator.PhotoFileID))
+	invalid.AddFieldsOf("administrator", err)
+	invalid.AddField("administrator.photo_file_id", namesAFile(input.Administrator.PhotoFileID))
 	if err := invalid.Err(); err != nil {
 		return err
 	}

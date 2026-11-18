@@ -96,25 +96,25 @@ func NewConsultancyDetails(typed TypedConsultancy) (ConsultancyDetails, error) {
 	var err error
 
 	details.name, err = RequiredText(typed.Name, NameMaxLength)
-	invalid.Check("name", err)
+	invalid.AddField("name", err)
 	details.legalName, err = RequiredText(typed.LegalName, LegalNameMaxLength)
-	invalid.Check("legal_name", err)
+	invalid.AddField("legal_name", err)
 	details.country, err = kernel.NewCountry(typed.Country)
-	invalid.Check("country", err)
+	invalid.AddField("country", err)
 	details.taxID, err = RequiredText(typed.TaxID, TaxIDMaxLength)
-	invalid.Check("tax_id", err)
+	invalid.AddField("tax_id", err)
 	details.timeZone, err = NewTimeZone(typed.TimeZone)
-	invalid.Check("time_zone", err)
+	invalid.AddField("time_zone", err)
 	details.currency, err = NewCurrency(typed.Currency)
-	invalid.Check("currency", err)
+	invalid.AddField("currency", err)
 	details.email, err = readOptional(typed.Email, NewEmail)
-	invalid.Check("email", err)
+	invalid.AddField("email", err)
 	details.telephone, err = readOptional(typed.Telephone, NewTelephone)
-	invalid.Check("telephone", err)
+	invalid.AddField("telephone", err)
 	details.website, err = readOptional(typed.Website, NewWebsite)
-	invalid.Check("website", err)
+	invalid.AddField("website", err)
 	details.address, err = readAddress(typed.Address)
-	invalid.Include("address", err)
+	invalid.AddFieldsOf("address", err)
 	details.logo = chosenFile(typed.LogoFileID)
 
 	if err := invalid.Err(); err != nil {
@@ -182,15 +182,15 @@ func readAddress(typed TypedAddress) (optional[Address], error) {
 	var err error
 
 	address.line1, err = OptionalText(typed.Line1, AddressLineMaxLength)
-	invalid.Check("line1", err)
+	invalid.AddField("line1", err)
 	address.line2, err = OptionalText(typed.Line2, AddressLineMaxLength)
-	invalid.Check("line2", err)
+	invalid.AddField("line2", err)
 	address.city, err = OptionalText(typed.City, CityMaxLength)
-	invalid.Check("city", err)
+	invalid.AddField("city", err)
 	address.region, err = OptionalText(typed.Region, RegionMaxLength)
-	invalid.Check("region", err)
+	invalid.AddField("region", err)
 	address.postalCode, err = OptionalText(typed.PostalCode, PostalCodeMaxLength)
-	invalid.Check("postal_code", err)
+	invalid.AddField("postal_code", err)
 
 	if err := invalid.Err(); err != nil {
 		return optional[Address]{}, err
