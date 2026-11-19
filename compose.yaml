@@ -126,6 +126,18 @@ services:
       DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD:?Set POSTGRES_API_PASSWORD, as .env.example does}@postgres:5432/software_factory?sslmode=disable
       SEED_MAILBOX: ${SEED_MAILBOX:?Set SEED_MAILBOX, as .env.example does}
 
+  # The e-mail of development: the worker sends over SMTP to MAILPIT_SMTP_PORT
+  # of the machine, and Mailpit keeps every e-mail, delivering none. Its
+  # screen and its API, through which the tests read an e-mail back, are at
+  # MAILPIT_PORT.
+  mailpit:
+    extends:
+      file: deploy/compose.base.yaml
+      service: mailpit
+    ports:
+      - 127.0.0.1:${MAILPIT_SMTP_PORT:?Set MAILPIT_SMTP_PORT, as .env.example does}:1025
+      - 127.0.0.1:${MAILPIT_PORT:?Set MAILPIT_PORT, as .env.example does}:8025
+
   # The River panel, in development only: it reads and manages the jobs of
   # the development database as the API role, on a port of the machine.
   riverui:

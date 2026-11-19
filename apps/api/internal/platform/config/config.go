@@ -54,6 +54,10 @@ type Config struct {
 	WorkerLightQueueMaxJobs          int           `env:"WORKER_LIGHT_QUEUE_MAX_JOBS" envDefault:"10"`
 	WorkerHeavyQueueMaxJobs          int           `env:"WORKER_HEAVY_QUEUE_MAX_JOBS" envDefault:"2"`
 	WorkerShutdownDeadline           time.Duration `env:"WORKER_SHUTDOWN_DEADLINE" envDefault:"20s"`
+	EmailSender                      EmailSender   `env:"EMAIL_SENDER"`
+	EmailSMTPAddress                 ServerAddress `env:"EMAIL_SMTP_ADDRESS"`
+	EmailFromAddress                 EmailAddress  `env:"EMAIL_FROM_ADDRESS"`
+	EmailFromName                    string        `env:"EMAIL_FROM_NAME"`
 }
 
 // requiredBy lists the variables with no default that each command needs. The
@@ -68,7 +72,8 @@ var requiredBy = map[Command][]string{
 	Migrate:        {"MIGRATION_DATABASE_URL"},
 	IssueSetupCode: {"DATABASE_URL", "APP_ORIGIN"},
 	Seed:           {"DATABASE_URL", "SEED_MAILBOX"},
-	Worker:         {"DATABASE_URL"},
+	// The worker delivers the e-mails, through SMTP, the only sender so far.
+	Worker: {"DATABASE_URL", "EMAIL_SENDER", "EMAIL_SMTP_ADDRESS", "EMAIL_FROM_ADDRESS", "EMAIL_FROM_NAME"},
 }
 
 // Load reads the environment into a Config for one command. A variable that
@@ -182,6 +187,12 @@ func expectationOf(valueType reflect.Type) string {
 		return "an origin such as https://example.com"
 	case reflect.TypeFor[Mailbox]():
 		return "a mailbox such as name@example.com"
+	case reflect.TypeFor[EmailAddress]():
+		return "an e-mail address such as name@example.com"
+	case reflect.TypeFor[EmailSender]():
+		return "smtp"
+	case reflect.TypeFor[ServerAddress]():
+		return "host:port, with a host"
 	case reflect.TypeFor[time.Duration]():
 		return "a duration such as 30s"
 	case reflect.TypeFor[int32](), reflect.TypeFor[int]():

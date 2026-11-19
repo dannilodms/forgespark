@@ -169,6 +169,76 @@ func (m Mailbox) String() string {
 	return m.localPart + "@" + m.domain
 }
 
+// EmailAddress is one e-mail address and nothing around it, no name and no
+// angle brackets, such as the address the e-mail of the system is sent from.
+type EmailAddress string
+
+// UnmarshalText reads an e-mail address from the text of a variable.
+func (a *EmailAddress) UnmarshalText(text []byte) error {
+	address := string(text)
+	parsed, err := mail.ParseAddress(address)
+	if err != nil || parsed.Name != "" || parsed.Address != address {
+		return errNotValid
+	}
+	*a = EmailAddress(address)
+	return nil
+}
+
+func (a EmailAddress) String() string {
+	return string(a)
+}
+
+// EmailSender is what the worker sends e-mail through.
+type EmailSender string
+
+// SMTPSender sends to an SMTP server, Mailpit outside production. The Resend
+// API joins it with its adapter.
+const SMTPSender EmailSender = "smtp"
+
+// UnmarshalText reads a sender from the text of a variable.
+func (s *EmailSender) UnmarshalText(text []byte) error {
+	if EmailSender(text) != SMTPSender {
+		return errNotValid
+	}
+	*s = EmailSender(text)
+	return nil
+}
+
+// ServerAddress is where a server that the binary calls listens, as
+// host:port, with a host.
+type ServerAddress struct {
+	host string
+	port int
+}
+
+// UnmarshalText reads a server address from the text of a variable.
+func (a *ServerAddress) UnmarshalText(text []byte) error {
+	host, port, err := net.SplitHostPort(string(text))
+	if err != nil || host == "" {
+		return errNotValid
+	}
+	number, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || number == 0 {
+		return errNotValid
+	}
+	a.host, a.port = host, int(number)
+	return nil
+}
+
+// Host returns the host of the server.
+func (a ServerAddress) Host() string {
+	return a.host
+}
+
+// Port returns the port of the server.
+func (a ServerAddress) Port() int {
+	return a.port
+}
+
+func (a ServerAddress) String() string {
+	return net.JoinHostPort(a.host, strconv.Itoa(a.port))
+}
+
 // Secret is a value that opens something, such as the key the API signs with
 // for the file storage. It prints as a placeholder: only Reveal gives it.
 type Secret struct {

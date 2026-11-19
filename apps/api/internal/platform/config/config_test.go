@@ -27,6 +27,21 @@ func validEnvironment() map[string]string {
 		"FILE_STORAGE_ACCESS_KEY_ID":     "GK0123456789abcdef01234567",
 		"FILE_STORAGE_SECRET_ACCESS_KEY": "storage-secret-access-key",
 		"SEED_MAILBOX":                   "seed@fabrica.example",
+		"EMAIL_SENDER":                   "smtp",
+		"EMAIL_SMTP_ADDRESS":             "mailpit:1025",
+		"EMAIL_FROM_ADDRESS":             "no-reply@fabrica.example",
+		"EMAIL_FROM_NAME":                "Fábrica Exemplo",
+	}
+}
+
+// workerEnvironment is what the worker needs, and nothing else.
+func workerEnvironment() map[string]string {
+	return map[string]string{
+		"DATABASE_URL":       "postgres://api:api-password@localhost:5432/software_factory",
+		"EMAIL_SENDER":       "smtp",
+		"EMAIL_SMTP_ADDRESS": "mailpit:1025",
+		"EMAIL_FROM_ADDRESS": "no-reply@fabrica.example",
+		"EMAIL_FROM_NAME":    "Fábrica Exemplo",
 	}
 }
 
@@ -155,6 +170,10 @@ func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
 		{config.Seed, "DATABASE_URL"},
 		{config.Seed, "SEED_MAILBOX"},
 		{config.Worker, "DATABASE_URL"},
+		{config.Worker, "EMAIL_SENDER"},
+		{config.Worker, "EMAIL_SMTP_ADDRESS"},
+		{config.Worker, "EMAIL_FROM_ADDRESS"},
+		{config.Worker, "EMAIL_FROM_NAME"},
 	}
 	for _, c := range cases {
 		t.Run(string(c.command)+" without "+c.variable, func(t *testing.T) {
@@ -220,6 +239,13 @@ func TestLoadNamesAnInvalidVariableAndNeverShowsItsValue(t *testing.T) {
 		{"WORKER_HEAVY_QUEUE_MAX_JOBS", "-1", "configuration: WORKER_HEAVY_QUEUE_MAX_JOBS is not valid: expected at least 1"},
 		{"WORKER_SHUTDOWN_DEADLINE", "soon", "configuration: WORKER_SHUTDOWN_DEADLINE is not valid: expected a duration such as 30s"},
 		{"WORKER_SHUTDOWN_DEADLINE", "0s", "configuration: WORKER_SHUTDOWN_DEADLINE is not valid: expected more than zero"},
+		{"EMAIL_SENDER", "postfix", "configuration: EMAIL_SENDER is not valid: expected smtp"},
+		{"EMAIL_SMTP_ADDRESS", "mailpit", "configuration: EMAIL_SMTP_ADDRESS is not valid: expected host:port, with a host"},
+		{"EMAIL_SMTP_ADDRESS", ":1025", "configuration: EMAIL_SMTP_ADDRESS is not valid: expected host:port, with a host"},
+		{"EMAIL_SMTP_ADDRESS", "mailpit:0", "configuration: EMAIL_SMTP_ADDRESS is not valid: expected host:port, with a host"},
+		{"EMAIL_SMTP_ADDRESS", "mailpit:smtp", "configuration: EMAIL_SMTP_ADDRESS is not valid: expected host:port, with a host"},
+		{"EMAIL_FROM_ADDRESS", "no-reply.fabrica.example", "configuration: EMAIL_FROM_ADDRESS is not valid: expected an e-mail address such as name@example.com"},
+		{"EMAIL_FROM_ADDRESS", "Fabrica <no-reply@fabrica.example>", "configuration: EMAIL_FROM_ADDRESS is not valid: expected an e-mail address such as name@example.com"},
 	}
 	for _, c := range cases {
 		t.Run(c.variable+"="+c.value, func(t *testing.T) {
@@ -277,15 +303,40 @@ func TestIssueSetupCodeNeedsNeitherTheListenAddressNorTheMigrationRole(t *testin
 	require.NoError(t, err)
 }
 
-func TestTheWorkerNeedsTheDatabaseAndNothingOfTheListeningOfTheAPI(t *testing.T) {
-	loaded, err := config.Load(config.Worker, map[string]string{
-		"DATABASE_URL": "postgres://api:api-password@localhost:5432/software_factory",
-	})
+func TestTheWorkerNeedsTheDatabaseAndTheSenderOfEmailAndNothingOfTheListeningOfTheAPI(t *testing.T) {
+	loaded, err := config.Load(config.Worker, workerEnvironment())
 
 	require.NoError(t, err)
 	assert.Equal(t, 10, loaded.WorkerLightQueueMaxJobs)
 	assert.Equal(t, 2, loaded.WorkerHeavyQueueMaxJobs)
 	assert.Equal(t, 20*time.Second, loaded.WorkerShutdownDeadline)
+}
+
+func TestLoadReadsTheSenderOfEmail(t *testing.T) {
+	loaded, err := config.Load(config.Worker, workerEnvironment())
+
+	require.NoError(t, err)
+	assert.Equal(t, config.SMTPSender, loaded.EmailSender)
+	assert.Equal(t, "mailpit", loaded.EmailSMTPAddress.Host())
+	assert.Equal(t, 1025, loaded.EmailSMTPAddress.Port())
+	assert.Equal(t, "mailpit:1025", loaded.EmailSMTPAddress.String())
+	assert.Equal(t, "no-reply@fabrica.example", loaded.EmailFromAddress.String())
+	assert.Equal(t, "Fábrica Exemplo", loaded.EmailFromName)
+}
+
+func TestOnlyTheWorkerNeedsTheSenderOfEmail(t *testing.T) {
+	environment := validEnvironment()
+	maps.DeleteFunc(environment, func(variable, _ string) bool { return strings.HasPrefix(variable, "EMAIL_") })
+
+	_, serve := config.Load(config.ServeAPI, environment)
+	_, migrate := config.Load(config.Migrate, environment)
+	_, issue := config.Load(config.IssueSetupCode, environment)
+	_, seed := config.Load(config.Seed, environment)
+
+	assert.NoError(t, serve)
+	assert.NoError(t, migrate)
+	assert.NoError(t, issue)
+	assert.NoError(t, seed)
 }
 
 func TestLoadReadsTheVariablesOfTheWorker(t *testing.T) {

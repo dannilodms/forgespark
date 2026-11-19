@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -39,12 +40,23 @@ func launchWorker(t *testing.T, environment map[string]string) runningWorker {
 }
 
 // workerEnvironmentOf gives the worker the variables it needs: the database of
-// the API role, and nothing of the listening address or the file storage.
+// the API role and the sender of e-mail, and nothing of the listening address
+// or the file storage.
 func workerEnvironmentOf(temporary databasetest.Database) map[string]string {
-	return map[string]string{
+	return withEmailSender(map[string]string{
 		"DATABASE_URL":             temporary.APIURL,
 		"WORKER_SHUTDOWN_DEADLINE": "2s",
-	}
+	})
+}
+
+// withEmailSender adds the sender of e-mail: the Mailpit of development, at
+// the address the tests receive in EMAIL_SMTP_ADDRESS.
+func withEmailSender(environment map[string]string) map[string]string {
+	environment["EMAIL_SENDER"] = "smtp"
+	environment["EMAIL_SMTP_ADDRESS"] = os.Getenv("EMAIL_SMTP_ADDRESS")
+	environment["EMAIL_FROM_ADDRESS"] = "no-reply@fabrica.example"
+	environment["EMAIL_FROM_NAME"] = "Fábrica Exemplo"
+	return environment
 }
 
 func TestTheWorkerRunsOnTheDatabaseAloneAndStopsOnTheSignalWithStatusZero(t *testing.T) {
@@ -64,21 +76,22 @@ func TestTheWorkerRunsOnTheDatabaseAloneAndStopsOnTheSignalWithStatusZero(t *tes
 	}
 }
 
-func TestTheWorkerRefusesToStartWithoutTheDatabase(t *testing.T) {
+func TestTheWorkerRefusesToStartWithoutTheDatabaseOrTheSenderOfEmail(t *testing.T) {
 	var stdout, stderr output
 
 	status := run(context.Background(), []string{"worker"}, map[string]string{}, &stdout, &stderr)
 
 	assert.Equal(t, 1, status)
-	assert.Equal(t, "api: configuration: DATABASE_URL is required\n", stderr.String())
+	assert.Equal(t, "api: configuration: DATABASE_URL is required; EMAIL_SENDER is required; EMAIL_SMTP_ADDRESS is required; "+
+		"EMAIL_FROM_ADDRESS is required; EMAIL_FROM_NAME is required\n", stderr.String())
 }
 
 func TestTheWorkerRefusesToStartWithAnInvalidQueueLimit(t *testing.T) {
 	var stdout, stderr output
-	environment := map[string]string{
+	environment := withEmailSender(map[string]string{
 		"DATABASE_URL":                "postgres://api:api@localhost:5432/software_factory",
 		"WORKER_HEAVY_QUEUE_MAX_JOBS": "0",
-	}
+	})
 
 	status := run(context.Background(), []string{"worker"}, environment, &stdout, &stderr)
 
@@ -102,10 +115,10 @@ func TestTheWorkerStopsAtOnceWhileAMigrationIsPending(t *testing.T) {
 func TestTheWorkerStopsAtOnceWhilePostgreSQLIsDown(t *testing.T) {
 	t.Parallel()
 	var stdout, logs output
-	environment := map[string]string{
+	environment := withEmailSender(map[string]string{
 		// Port 1 of the machine has no PostgreSQL behind it.
 		"DATABASE_URL": "postgres://api:hunter2@127.0.0.1:1/software_factory?sslmode=disable",
-	}
+	})
 
 	status := run(context.Background(), []string{"worker"}, environment, &stdout, &logs)
 

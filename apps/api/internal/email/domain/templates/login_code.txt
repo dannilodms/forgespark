@@ -1,0 +1,9 @@
+{{.Text.heading}}
+
+{{.Text.instruction}}
+
+    {{.Content.Code}}
+
+{{.Text.lifetime}}
+
+{{.Text.ignore}}
