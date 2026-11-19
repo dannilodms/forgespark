@@ -22,7 +22,7 @@ import {
   setupCodeContract,
   useOpenSetup,
 } from "../data/setup"
-import { StepActions } from "./step-actions"
+import { StepActions } from "../../shared/components/step-actions"
 
 /**
  * The step of the setup code: one field and one primary button. A code that

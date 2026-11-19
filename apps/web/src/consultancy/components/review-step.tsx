@@ -34,7 +34,7 @@ import {
   whyTheImagesAreNotStored,
 } from "./setup-image"
 import { type SetupMode, modeOf } from "./setup-mode"
-import { StepActions } from "./step-actions"
+import { StepActions } from "../../shared/components/step-actions"
 import { StepHeading } from "./step-heading"
 
 /**

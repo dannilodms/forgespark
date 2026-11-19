@@ -49,6 +49,14 @@ function resourcesOf(files: TranslationFiles) {
 }
 
 /**
+ * The language of the selector, which the screens before the login show:
+ * the one closest to what the browser asks for, until the person chooses
+ * another. The preferred language of a logged-in user does not change it, so
+ * logging out returns to it.
+ */
+let selectedLanguage: Language = defaultLanguage
+
+/**
  * Loads the texts and puts the screen in the supported language closest to
  * `wanted`, the languages the browser asks for. Call before the first
  * render. A later call only changes the language.
@@ -58,6 +66,7 @@ export function startLanguage(
   files: TranslationFiles
 ) {
   const language = closestLanguage(wanted)
+  selectedLanguage = language
   document.documentElement.lang = language
   if (i18n.isInitialized) {
     void i18n.changeLanguage(language)
@@ -85,13 +94,51 @@ export function startLanguage(
       maximumFractionDigits: 1,
     }).format(bytes / 2 ** 20)
   )
+  // `{{wait, seconds}}`: a number of seconds, in words, as the language
+  // writes them: "1 second", "42 segundos".
+  i18n.services.formatter?.add("seconds", (seconds: number, code) =>
+    new Intl.NumberFormat(code, {
+      style: "unit",
+      unit: "second",
+      unitDisplay: "long",
+    }).format(seconds)
+  )
 }
 
-/** The language the screen is in, and a way to change it at once. */
+/**
+ * The language the screen is in, and a way to change it at once: the
+ * selector's, which is kept for when a user logs out.
+ */
 export function useLanguage() {
   const { i18n: instance } = useTranslation()
   return {
     language: instance.language as Language,
-    choose: (language: Language) => void instance.changeLanguage(language),
+    choose: (language: Language) => {
+      selectedLanguage = language
+      void instance.changeLanguage(language)
+    },
   }
+}
+
+/** Changes every text to `language`, unless the screen is already in it. */
+function speak(language: Language) {
+  if (i18n.language !== language) {
+    void i18n.changeLanguage(language)
+  }
+}
+
+/**
+ * Puts the screen in the preferred language of the user logged in, whatever
+ * the browser asks for or the selector shows. The selector keeps its own.
+ */
+export function speakThePreferredLanguage(language: Language) {
+  speak(language)
+}
+
+/**
+ * Puts the screen back in the language of the selector, as nobody is logged
+ * in: after a logout, or a session that ended.
+ */
+export function speakTheSelectedLanguage() {
+  speak(selectedLanguage)
 }

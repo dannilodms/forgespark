@@ -12,7 +12,7 @@ import {
   getTellSetupStateMockHandler,
 } from "../../shared/api/generated/client.msw"
 import type { ConcludeSetupRequest } from "../../shared/api/generated/model"
-import { api, problem, traceId } from "../../testing/api"
+import { api, nobodyIsLoggedIn, problem, traceId } from "../../testing/api"
 import { renderApp } from "../../testing/render-app"
 
 type Screen = Awaited<ReturnType<typeof renderApp>>["screen"]
@@ -33,7 +33,12 @@ const typedCode = "ABCDE-FGHJK-MNPQR-STVWX"
  */
 async function openTheFirstSetup(language: keyof typeof codeStep = "en-US") {
   api.use(
-    getTellSetupStateMockHandler({ concluded: false, setup_code_waiting: true })
+    getTellSetupStateMockHandler({
+      concluded: false,
+      setup_code_waiting: true,
+    }),
+    // The login screen, where concluding leads, finds nobody logged in.
+    nobodyIsLoggedIn()
   )
   api.use(
     getOpenSetupMockHandler({

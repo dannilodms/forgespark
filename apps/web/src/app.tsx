@@ -7,6 +7,7 @@ import {
 
 import { TooltipProvider } from "#ui/components/tooltip"
 
+import { openTheLoginWhenTheSessionEnds } from "./access"
 import type accessTexts from "./access/locales/en-US.json"
 import type consultancyTexts from "./consultancy/locales/en-US.json"
 import { routeTree } from "./routeTree.gen"
@@ -62,6 +63,9 @@ export function createApp({ languages, history }: AppOptions) {
     defaultOptions: { queries: { retry: false } },
   })
   const router = createAppRouter(queryClient, history)
+  // A 401 past the login, from any request, opens the login: the session
+  // ended while the person worked.
+  openTheLoginWhenTheSessionEnds(queryClient, router)
 
   return function App() {
     return (

@@ -1,5 +1,6 @@
 import { setupWorker } from "msw/browser"
 
+import { getTellLoggedInUserMockHandler401 } from "../shared/api/generated/client.msw"
 import type { Problem } from "../shared/api/generated/model"
 
 /**
@@ -24,4 +25,14 @@ export function problem(
   more: Partial<Problem> = {}
 ): Problem {
   return { title: "", status, code, params: {}, trace_id: traceId, ...more }
+}
+
+/**
+ * The answer to who is logged in in a browser with no session, or whose
+ * session ended: 401 `unauthorized`. The gate reads it on every address but
+ * the setup's, so a test that reaches the login screen hands it to the API:
+ * `api.use(nobodyIsLoggedIn())`.
+ */
+export function nobodyIsLoggedIn() {
+  return getTellLoggedInUserMockHandler401(problem(401, "unauthorized"))
 }
