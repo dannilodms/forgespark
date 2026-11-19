@@ -121,10 +121,10 @@ var imageRules = []kernel.BrokenRule{
 // an e-mail and of a telephone.
 var administratorRules = []kernel.BrokenRule{
 	restapi.InField(kernel.RequiredError{}),
-	restapi.InField(domain.TooLongError{}),
+	restapi.InField(kernel.TooLongError{}),
 	restapi.InField(kernel.CountryUnknownError{}),
 	restapi.InField(kernel.LanguageUnsupportedError{}),
-	restapi.InField(domain.EmailInvalidError{}),
+	restapi.InField(kernel.EmailInvalidError{}),
 	restapi.InField(domain.TelephoneInvalidError{}),
 }
 

@@ -64,6 +64,10 @@ _Avoid_: API key, personal access token
 A six-digit code the system sends to a user's e-mail so that they can log in without a login provider. It works once, for a short time, and stops working after three wrong attempts.
 _Avoid_: Token, OTP, PIN, verification code
 
+**Login code request**:
+The record that a login code was asked for a user, from which the code is computed whenever it is needed; the code itself is kept nowhere. A new one ends the one before.
+_Avoid_: OTP request, code record, challenge
+
 **Login provider**:
 An outside service through which a user proves who they are in order to log in, such as Google, Microsoft or GitHub.
 _Avoid_: Identity provider, SSO, social login, external provider

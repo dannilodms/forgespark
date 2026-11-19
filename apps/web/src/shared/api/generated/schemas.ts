@@ -12,6 +12,21 @@
 import * as zod from 'zod';
 
 /**
+ * Sends a login code to the e-mail when it belongs to an active user, and answers the same way, with no body, for every e-mail, so that nobody learns from it who is a user. The code is six digits, works for 10 minutes, once, and only in the browser that asked for it, which the session remembers: the answer sets its cookie. A new code ends the one before. One code a minute and five an hour are sent to each e-mail; past them the operation answers `login_code_limit_reached`.
+ * @summary Ask for a login code
+ */
+export const askForLoginCodeBodyEmailMax = 254;
+
+
+
+export const AskForLoginCodeBody = zod.object({
+  "email": zod.email().min(1).max(askForLoginCodeBodyEmailMax).describe('The e-mail the person logs in with, in any case.')
+})
+
+export const AskForLoginCodeResponse = zod.void()
+
+
+/**
  * Tells whether the setup is concluded and whether a setup code is waiting. It needs no session.
  * @summary Tell the state of the setup
  */

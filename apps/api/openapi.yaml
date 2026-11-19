@@ -1,5 +1,17 @@
 components:
   schemas:
+    AskForLoginCodeRequest:
+      additionalProperties: false
+      properties:
+        email:
+          description: The e-mail the person logs in with, in any case.
+          format: email
+          maxLength: 254
+          minLength: 1
+          type: string
+      required:
+        - email
+      type: object
     ConcludeSetupRequest:
       additionalProperties: false
       properties:
@@ -325,6 +337,40 @@ info:
   version: unversioned
 openapi: 3.1.0
 paths:
+  /api/session/login_code:
+    post:
+      description: "Sends a login code to the e-mail when it belongs to an active user, and answers the same way, with no body, for every e-mail, so that nobody learns from it who is a user. The code is six digits, works for 10 minutes, once, and only in the browser that asked for it, which the session remembers: the answer sets its cookie. A new code ends the one before. One code a minute and five an hour are sent to each e-mail; past them the operation answers `login_code_limit_reached`."
+      operationId: ask_for_login_code
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AskForLoginCodeRequest"
+        required: true
+      responses:
+        "202":
+          description: Accepted
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unprocessable Entity. `login_code_limit_reached`: too many login codes were asked for this e-mail: one a minute and five an hour are allowed, so wait before asking for another. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule. The rules of a field: `required`: the field is required. `too_long`: the text is longer than the field allows. `email_invalid`: the text is not an e-mail address."
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Too Many Requests. `too_many_requests`: too many requests from this address, answered by Caddy before the API; the header Retry-After says how many seconds to wait."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Ask for a login code
+      tags:
+        - Login
   /api/setup:
     get:
       description: Tells whether the setup is concluded and whether a setup code is waiting. It needs no session.

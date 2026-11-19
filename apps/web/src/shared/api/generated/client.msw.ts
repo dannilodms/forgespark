@@ -24,6 +24,7 @@ import type {
 } from 'msw';
 
 import type {
+  AskForLoginCodeRequest,
   ConcludeSetupRequest,
   OpenSetupRequest,
   OpenedSetup,
@@ -34,6 +35,28 @@ import type {
   StartSetupUploadRequest
 } from './model';
 
+
+
+
+export const getAskForLoginCodeResponseMock422 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getAskForLoginCodeResponseMock429 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getAskForLoginCodeResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
 
 export const getTellSetupStateResponseMock = (overrideResponse: Partial<Extract<SetupState, object>> = {}): SetupState => ({concluded: faker.datatype.boolean(), setup_code_waiting: faker.datatype.boolean(), ...overrideResponse})
 
@@ -164,6 +187,66 @@ export const getStartSetupUploadResponseMock500 = (overrideResponse: Partial<Ext
         [faker.string.alphanumeric(5)]: {}
       }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
 
+
+export const getAskForLoginCodeMockHandler = (overrideResponse?: void | ((info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, AskForLoginCodeRequest>('*/api/session/login_code', async (info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 202
+      })
+  }, options)
+}
+
+
+export const getAskForLoginCodeMockHandler202 = (overrideResponse?: void | ((info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, AskForLoginCodeRequest>('*/api/session/login_code', async (info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 202
+      })
+  }, options)
+}
+
+
+export const getAskForLoginCodeMockHandler422 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, AskForLoginCodeRequest>('*/api/session/login_code', async (info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getAskForLoginCodeResponseMock422(),
+      { status: 422, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getAskForLoginCodeMockHandler429 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, AskForLoginCodeRequest>('*/api/session/login_code', async (info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getAskForLoginCodeResponseMock429(),
+      { status: 429, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getAskForLoginCodeMockHandler500 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.post<PathParams, AskForLoginCodeRequest>('*/api/session/login_code', async (info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getAskForLoginCodeResponseMock500(),
+      { status: 500, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
 
 export const getTellSetupStateMockHandler = (overrideResponse?: SetupState | ((info: Parameters<HttpResponseResolver>[0]) => Promise<SetupState> | SetupState), options?: RequestHandlerOptions) => {
   return http.get('*/api/setup', async (info: Parameters<HttpResponseResolver>[0]) => {
@@ -490,6 +573,7 @@ export const getStartSetupUploadMockHandler500 = (overrideResponse?: Problem | (
   }, options)
 }
 export const getMySoftwareFactoryManagerMock = () => [
+  getAskForLoginCodeMockHandler(),
   getTellSetupStateMockHandler(),
   getRegisterAdministratorMockHandler(),
   getConcludeSetupMockHandler(),

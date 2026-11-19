@@ -1,8 +1,8 @@
 // Package kernel holds what more than one domain area uses: the supported
-// language and the country, the rule of a required field left empty, and the
-// error that lists the fields of an input that break a rule. A value object
-// that one area alone uses lives in that area. It imports the standard
-// library only.
+// language, the country and the e-mail address, the rules of a required field
+// left empty and of a text too long for its field, and the error that lists
+// the fields of an input that break a rule. A value object that one area
+// alone uses lives in that area. It imports the standard library only.
 package kernel
 
 import (
@@ -104,4 +104,23 @@ func (RequiredError) Error() string {
 // Code returns the stable code an inbound adapter answers with.
 func (RequiredError) Code() string {
 	return "required"
+}
+
+// TooLongError is a text longer than its field allows.
+type TooLongError struct {
+	MaxLength int
+}
+
+func (TooLongError) Error() string {
+	return "the text is longer than the field allows"
+}
+
+// Code returns the stable code an inbound adapter answers with.
+func (TooLongError) Code() string {
+	return "too_long"
+}
+
+// Params gives the longest text the field allows, in characters.
+func (e TooLongError) Params() map[string]any {
+	return map[string]any{"max_length": e.MaxLength}
 }

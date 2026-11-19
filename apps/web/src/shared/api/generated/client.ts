@@ -10,6 +10,7 @@
  * OpenAPI spec version: unversioned
  */
 import type {
+  AskForLoginCodeRequest,
   ConcludeSetupRequest,
   OpenSetupRequest,
   OpenedSetup,
@@ -40,6 +41,31 @@ const getHeaders = (...sources: (RequestInit['headers'] | Record<string, string 
   }
   return Object.fromEntries(layers.reverse().flat()) as Extract<RequestInit['headers'], Record<string, unknown>>;
 };
+
+export const getAskForLoginCodeUrl = () => {
+
+
+
+
+  return `/api/session/login_code`
+}
+
+/**
+ * Sends a login code to the e-mail when it belongs to an active user, and answers the same way, with no body, for every e-mail, so that nobody learns from it who is a user. The code is six digits, works for 10 minutes, once, and only in the browser that asked for it, which the session remembers: the answer sets its cookie. A new code ends the one before. One code a minute and five an hour are sent to each e-mail; past them the operation answers `login_code_limit_reached`.
+ * @summary Ask for a login code
+ */
+export const askForLoginCode = async (askForLoginCodeRequest: AskForLoginCodeRequest, options?: Parameters<typeof request>[1]): Promise<void> => {
+
+  return request<void>(getAskForLoginCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+    body: JSON.stringify(askForLoginCodeRequest)
+  }
+);}
+
+
 
 export const getTellSetupStateUrl = () => {
 

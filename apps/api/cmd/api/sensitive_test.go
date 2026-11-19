@@ -7,6 +7,8 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -63,11 +65,22 @@ type sensitiveValue struct {
 	// the value itself.
 	what  string
 	value string
+	// wholeNumber finds the value only where no digit stands beside it, as a
+	// login code is written: six digits are often part of a longer number,
+	// such as an instant in nanoseconds.
+	wholeNumber bool
 }
 
 // add registers a value and returns it, for the scenario to use.
 func (s *sensitiveValues) add(what, value string) string {
 	s.values = append(s.values, sensitiveValue{what: what, value: value})
+	return value
+}
+
+// addWholeNumber registers a number that is sensitive alone, such as a login
+// code, and returns it.
+func (s *sensitiveValues) addWholeNumber(what, value string) string {
+	s.values = append(s.values, sensitiveValue{what: what, value: value, wholeNumber: true})
 	return value
 }
 
@@ -82,8 +95,19 @@ func (s *sensitiveValues) foundIn(text string) []string {
 }
 
 func (v sensitiveValue) namedWhenIn(lowered string) []string {
+	if v.wholeNumber {
+		return v.namedWhenAlone(lowered)
+	}
 	value := strings.ToLower(v.value)
 	if !strings.Contains(lowered, value) && !strings.Contains(lowered, strings.ToLower(url.QueryEscape(v.value))) {
+		return nil
+	}
+	return []string{v.what}
+}
+
+func (v sensitiveValue) namedWhenAlone(text string) []string {
+	alone := regexp.MustCompile(`(^|[^0-9])` + regexp.QuoteMeta(v.value) + `([^0-9]|$)`)
+	if !alone.MatchString(text) {
 		return nil
 	}
 	return []string{v.what}
@@ -97,6 +121,7 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	// PostgreSQL fails, and its raw error is logged.
 	environment := withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS":          "127.0.0.1:0",
+		"APP_ORIGIN":                  appOrigin(),
 		"LOG_LEVEL":                   "debug",
 		"OTEL_EXPORTER_OTLP_ENDPOINT": collector.URL,
 		"DATABASE_URL": "postgres://api:" + guarded.add("the password of the API role", "guarded-password-of-the-api-role") +
@@ -122,20 +147,22 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	throughResend["EMAIL_SENDER"] = "resend"
 	require.Equal(t, 1, run(context.Background(), []string{"worker"}, throughResend, &workerOutput, &workerLogs))
 
-	// Two requests carry a sensitive value in each place a request has one:
-	// readiness, which fails and writes its line but opens no span, and an
-	// operation under /api, which opens its span and refuses the unknown
-	// query parameter.
+	// Three requests carry a sensitive value in each place a request has one:
+	// readiness, which fails and writes its line but opens no span, an
+	// operation under /api whose session cannot be read, which fails with its
+	// raw error, and the same operation with no cookie, which opens its span
+	// and refuses the unknown query parameter.
 	api := launchAPI(t, environment)
 	query := "?code=" + guarded.add("a value in a query string", "guarded-value-in-a-query-string")
-	headers := []string{
-		"Cookie", "session=" + guarded.add("a session cookie", "guarded-session-cookie"),
-		"Authorization", "Bearer " + guarded.add("an access token", "guarded-access-token"),
-	}
+	cookie := []string{"Cookie", "session=" + guarded.add("a session cookie", "guarded-session-cookie")}
+	token := []string{"Authorization", "Bearer " + guarded.add("an access token", "guarded-access-token")}
+	headers := append(slices.Clone(cookie), token...)
 	body := guarded.add("a value in a body", "guarded-value-in-a-body")
 	failed := newCaller().send(http.MethodGet, api.url+"/readyz"+query, headers, body)
 	require.Equal(t, http.StatusServiceUnavailable, failed.status)
-	refused := newCaller().send(http.MethodGet, api.url+"/api/setup"+query, headers, body)
+	noSession := newCaller().send(http.MethodGet, api.url+"/api/setup"+query, headers, body)
+	require.Equal(t, http.StatusInternalServerError, noSession.status)
+	refused := newCaller().send(http.MethodGet, api.url+"/api/setup"+query, token, body)
 	require.Equal(t, http.StatusUnprocessableEntity, refused.status)
 	// Concluding the setup carries the data of a person in its body, which
 	// the use case checks before it fails to reach PostgreSQL.
@@ -199,6 +226,24 @@ func TestTheTestOfSensitiveValuesFindsAValueWrittenAsAQueryStringWritesIt(t *tes
 	found := guarded.foundIn(`{"msg":"request","query":"email=ana.souza%40example.com"}`)
 
 	assert.Equal(t, []string{"the e-mail of the administrator"}, found)
+}
+
+// A login code is six digits, which an instant or an identifier may hold
+// beside other digits: it is found where it stands alone.
+func TestTheTestOfSensitiveValuesFindsALoginCodeWhereItStandsAlone(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	guarded.addWholeNumber("the login code", "482915")
+
+	for line, found := range map[string]bool{
+		`{"msg":"code sent","code":"482915"}`:            true,
+		`{"msg":"checked 482915"}`:                       true,
+		`{"query":"code=482915&step=1"}`:                 true,
+		`{"time":"2026-11-18T12:00:00.1482915Z"}`:        false,
+		`{"start_time_unix_nano":"1763467200482915000"}`: false,
+	} {
+		assert.Equal(t, found, len(guarded.foundIn(line)) > 0, line)
+	}
 }
 
 // An SMTP server repeats the address it refuses, in angle brackets and in the
@@ -544,9 +589,9 @@ func TestTheLogsTheSpansAndTheAuditLogOfRegisteringAnAdministratorNeverCarryTheD
 // and the jobs River keeps, their arguments and their errors, for the address
 // and for the code the e-mail carried.
 //
-// No area gives the worker the content of an e-mail yet (the login will), so
-// the job runs with a source of login codes of the test, on the rest of the
-// wiring of the worker, instead of through the command.
+// The job runs with a source of login codes of the test, on the rest of the
+// wiring of the worker, so the code it carries is known before it runs. The
+// scenario of a login code below runs the whole way through the commands.
 func TestTheLogsTheSpansAndTheJobsOfSendingAnEmailNeverCarryTheAddressOrTheContent(t *testing.T) {
 	t.Parallel()
 	guarded := &sensitiveValues{}
@@ -670,4 +715,97 @@ func TestTheLogsAndTheSpansOfTheCleanupOfTheStorageNeverCarryTheKeyOfAnObject(t 
 	require.Contains(t, collector.Text(), "river.work/clean_up_storage", "the scenario exported no span of the job")
 	assert.Empty(t, guarded.foundIn(worker.logs.String()), "the logs carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+}
+
+// A login code goes by three places: the e-mail typed to ask for it, the
+// request it is computed from, and the delivery that writes it in the e-mail.
+// This scenario asks for codes through the API on a migrated database, with
+// the logs at their lowest level and the spans collected: for a user, for an
+// e-mail of no user, past the limit, refused by the contract, and failed with
+// a 5xx whose raw error is logged. Then the worker command delivers the code
+// to an SMTP server that refuses the recipient and repeats the address. The
+// test searches the logs and the spans of both commands, the jobs River keeps
+// and the answers for the e-mails, the code, the key it is computed with and
+// the cookie of the session.
+func TestTheLogsTheSpansAndTheJobsOfALoginCodeNeverCarryTheEmailTheCodeOrTheCookie(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	environment := environmentOf(temporary)
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	api := launchAPI(t, environment)
+	owner := asOwner(t, temporary)
+	// A user registered by the setup, and another written past it.
+	_, setupCode := issueSetupCodeIn(t, temporary)
+	guarded.add("the setup code", setupCode)
+	setup := setupBody(setupCode)
+	object(setup, "administrator")["email"] = guarded.add("the e-mail of the user, as typed in the setup", "Guarded.Login@Fabrica.example")
+	stored := guarded.add("the e-mail of the user, as stored", "guarded.login@fabrica.example")
+	require.Equal(t, http.StatusNoContent, concludeSetup(t, api.url, setup).status)
+	other := guarded.add("the e-mail of another user", "guarded.other@fabrica.example")
+	_, err := owner.Exec(context.Background(), `INSERT INTO users (id, name, email, country, national_id, preferred_language, deactivated)
+		VALUES (nextval('users_id_seq'), 'Someone Else', $1, 'BR', '1', 'en-US', false)`, other)
+	require.NoError(t, err)
+
+	answers := []asked{}
+	ask := func(email string, status int) asked {
+		t.Helper()
+		answer := askForLoginCode(t, aBrowser(t), api.url, email)
+		require.Equal(t, status, answer.status, answer.body)
+		answers = append(answers, answer)
+		return answer
+	}
+	first := ask(guarded.add("the e-mail of the user, as typed at the login", "GUARDED.Login@fabrica.EXAMPLE"), http.StatusAccepted)
+	guarded.add("the cookie of the session", sessionCookie(t, first).Value)
+	ask(guarded.add("an e-mail of no user", "guarded.nobody@fabrica.example"), http.StatusAccepted)
+	// Past the limit, and refused by the contract.
+	ask(stored, http.StatusUnprocessableEntity)
+	ask(stored+", "+other, http.StatusUnprocessableEntity)
+	// A 5xx: the API role may not write requests.
+	_, err = owner.Exec(context.Background(), "REVOKE INSERT ON login_code_requests FROM api")
+	require.NoError(t, err)
+	ask(other, http.StatusInternalServerError)
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	// The code exists once its request does: it is computed as the delivery
+	// computes it.
+	guarded.addWholeNumber("the login code", codeOfTheRequest(t, temporary))
+	guarded.add("the key of the login code", theLoginCodeKey)
+	server := smtptest.NewRefusingServer(t)
+	workerEnvironment := newStandInStorage(map[string]time.Time{}, false).environment(t, withEmailSender(map[string]string{
+		"DATABASE_URL":                temporary.APIURL,
+		"LOG_LEVEL":                   "debug",
+		"OTEL_EXPORTER_OTLP_ENDPOINT": collector.URL,
+	}))
+	workerEnvironment["EMAIL_SMTP_ADDRESS"] = server.Address()
+	worker := launchWorker(t, workerEnvironment)
+	receiveWithin(t, server.Refused, 30*time.Second, "the refusal of the recipient")
+	require.Eventually(t, func() bool {
+		var failures int
+		require.NoError(t, owner.QueryRow(context.Background(),
+			"SELECT count(*) FROM river_job WHERE kind = 'deliver_email' AND errors IS NOT NULL").Scan(&failures))
+		return failures > 0
+	}, 30*time.Second, 50*time.Millisecond, "River kept no error of the job")
+	worker.signal()
+	require.Equal(t, 0, <-worker.status, "%s", worker.logs)
+
+	var jobsKept string
+	require.NoError(t, owner.QueryRow(context.Background(),
+		"SELECT string_agg(row_to_json(river_job)::text, E'\n') FROM river_job").Scan(&jobsKept))
+	logs := api.logs.String() + worker.logs.String()
+	require.Contains(t, logs, "permission denied for table login_code_requests", "the scenario logged no raw error")
+	require.Contains(t, logs, "Job errored", "the scenario logged no failed job")
+	require.Contains(t, collector.Text(), "POST /api/session/login_code", "the scenario exported no span of the operation")
+	require.Contains(t, collector.Text(), "INSERT INTO login_code_requests", "the scenario exported no span of the query that saves a request")
+	require.Contains(t, collector.Text(), "INSERT INTO sessions", "the scenario exported no span of the session store")
+	require.Contains(t, collector.Text(), "river.work/deliver_email", "the scenario exported no span of the job")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(jobsKept), "a job carries a sensitive value")
+	for _, answer := range answers {
+		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats a sensitive value: %s", answer.body)
+	}
 }

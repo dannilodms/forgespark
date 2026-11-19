@@ -5,6 +5,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"reflect"
 	"slices"
@@ -51,6 +52,7 @@ type Config struct {
 	FileStorageAccessKeyID           string        `env:"FILE_STORAGE_ACCESS_KEY_ID"`
 	FileStorageSecretAccessKey       Secret        `env:"FILE_STORAGE_SECRET_ACCESS_KEY"`
 	SeedMailbox                      Mailbox       `env:"SEED_MAILBOX"`
+	LoginCodeKey                     Key           `env:"LOGIN_CODE_KEY"`
 	WorkerLightQueueMaxJobs          int           `env:"WORKER_LIGHT_QUEUE_MAX_JOBS" envDefault:"10"`
 	WorkerHeavyQueueMaxJobs          int           `env:"WORKER_HEAVY_QUEUE_MAX_JOBS" envDefault:"2"`
 	WorkerShutdownDeadline           time.Duration `env:"WORKER_SHUTDOWN_DEADLINE" envDefault:"20s"`
@@ -70,6 +72,8 @@ var requiredBy = map[Command][]string{
 		"API_LISTEN_ADDRESS", "DATABASE_URL",
 		"FILE_STORAGE_URL", "FILE_STORAGE_PUBLIC_URL", "FILE_STORAGE_REGION", "FILE_STORAGE_BUCKET",
 		"FILE_STORAGE_ACCESS_KEY_ID", "FILE_STORAGE_SECRET_ACCESS_KEY",
+		// The cookie of the session goes over HTTPS only when the app does.
+		"APP_ORIGIN",
 	},
 	Migrate:        {"MIGRATION_DATABASE_URL"},
 	IssueSetupCode: {"DATABASE_URL", "APP_ORIGIN"},
@@ -81,6 +85,8 @@ var requiredBy = map[Command][]string{
 		"DATABASE_URL", "EMAIL_SENDER", "EMAIL_FROM_ADDRESS", "EMAIL_FROM_NAME",
 		"FILE_STORAGE_URL", "FILE_STORAGE_PUBLIC_URL", "FILE_STORAGE_REGION", "FILE_STORAGE_BUCKET",
 		"FILE_STORAGE_ACCESS_KEY_ID", "FILE_STORAGE_SECRET_ACCESS_KEY",
+		// The delivery of a login code computes the code with its key.
+		"LOGIN_CODE_KEY",
 	},
 }
 
@@ -219,6 +225,8 @@ func expectationOf(valueType reflect.Type) string {
 		return "whsec_ followed by the key in base64"
 	case reflect.TypeFor[ServerAddress]():
 		return "host:port, with a host"
+	case reflect.TypeFor[Key]():
+		return fmt.Sprintf("at least %d hexadecimal digits (%d bytes)", 2*KeyMinSize, KeyMinSize)
 	case reflect.TypeFor[time.Duration]():
 		return "a duration such as 30s"
 	case reflect.TypeFor[int32](), reflect.TypeFor[int]():

@@ -59,3 +59,7 @@ rules:
         singular:
           - /api/setup
           - /api/health
+          # The session of the browser that calls, and its login code: one
+          # each, before the login and after it.
+          - /api/session
+          - /api/session/login_code

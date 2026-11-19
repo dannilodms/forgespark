@@ -271,19 +271,47 @@ func TestCaddyAnswers429InTheErrorFormatPastTheLimitOfTheSetup(t *testing.T) {
 	}
 }
 
+func TestCaddyAnswers429InTheErrorFormatPastTheLimitOfTheLoginCode(t *testing.T) {
+	t.Parallel()
+	caddy := behindCaddy(t, startAPI(t, onTheMachine(t, databasetest.Migrated(t))))
+
+	// Ten a minute pass untouched: the API answers each.
+	for range 10 {
+		within := caddy.send(t, http.MethodPost, "/api/session/login_code", anEmailOfNoUser)
+		require.Equal(t, http.StatusAccepted, within.status, within.body)
+	}
+	over := caddy.send(t, http.MethodPost, "/api/session/login_code", anEmailOfNoUser)
+
+	require.Equal(t, http.StatusTooManyRequests, over.status, over.body)
+	assert.Equal(t, "application/problem+json", over.mediaType)
+	assert.Equal(t, "no-store", over.header.Get("Cache-Control"))
+	assert.NotEmpty(t, over.header.Get("Retry-After"))
+	assert.Equal(t, "too_many_requests", over.fields["code"])
+	assertIsAProblem(t, over.body)
+	// Checking a code shares the limit.
+	assert.Equal(t, http.StatusTooManyRequests, caddy.send(t, http.MethodPost, "/api/session/login_code/check", `{"code":"123456"}`).status)
+	// The zone of the setup is apart: its first check reaches the API.
+	requireSetupCodeInvalid(t, caddy.send(t, http.MethodPost, "/api/setup/open", wrongSetupCode).received)
+}
+
+// anEmailOfNoUser asks for a login code that no one receives.
+const anEmailOfNoUser = `{"email":"nobody@fabrica.example"}`
+
 func TestTheReadOfTheSetupAndEveryOtherPathHaveNoLimit(t *testing.T) {
 	t.Parallel()
 	caddy := behindCaddy(t, startAPI(t, onTheMachine(t, databasetest.Migrated(t))))
-	// Past the limit of the setup first, so that what follows comes from an
-	// address that is over it.
+	// Past the limits of the setup and of the login code first, so that what
+	// follows comes from an address that is over both.
 	for range 11 {
 		caddy.send(t, http.MethodPost, "/api/setup/open", wrongSetupCode)
+		caddy.send(t, http.MethodPost, "/api/session/login_code", anEmailOfNoUser)
 	}
 	require.Equal(t, http.StatusTooManyRequests, caddy.send(t, http.MethodPost, "/api/setup/open", wrongSetupCode).status)
+	require.Equal(t, http.StatusTooManyRequests, caddy.send(t, http.MethodPost, "/api/session/login_code", anEmailOfNoUser).status)
 
 	for range 15 {
 		assert.NotEqual(t, http.StatusTooManyRequests, caddy.send(t, http.MethodGet, "/api/setup", "").status)
-		assert.NotEqual(t, http.StatusTooManyRequests, caddy.send(t, http.MethodPost, "/api/sessions", "{}").status)
+		assert.NotEqual(t, http.StatusTooManyRequests, caddy.send(t, http.MethodPost, "/api/session/log_out", "{}").status)
 		assert.NotEqual(t, http.StatusTooManyRequests, caddy.send(t, http.MethodGet, "/setup", "").status)
 	}
 }
@@ -401,6 +429,7 @@ func TestUpAnswersTheStatusOfReadinessWithNoBody(t *testing.T) {
 			environment: func(t *testing.T) map[string]string {
 				return withFileStorage(map[string]string{
 					"API_LISTEN_ADDRESS": net.JoinHostPort(machineHost(t), "0"),
+					"APP_ORIGIN":         appOrigin(),
 					// Port 1 of the machine has no PostgreSQL behind it.
 					"DATABASE_URL": "postgres://api:api@127.0.0.1:1/software_factory?sslmode=disable",
 				})
