@@ -330,10 +330,17 @@ Cada comando do binário exige apenas as variáveis que usa. As que o binário l
 | `EMAIL_FROM_NAME` | O nome de que todo e-mail é enviado | Nenhum: o `worker` exige. O `.env.example` traz um fictício |
 | `RESEND_API_KEY` | A chave da conta do Resend. É um segredo e nunca é impressa | Nenhum: o `worker` exige enquanto `EMAIL_SENDER` for `resend` |
 | `RESEND_WEBHOOK_SECRET` | O segredo de assinatura do webhook pelo qual o Resend avisa de uma devolução, como o Resend o mostra: `whsec_` seguido da chave em base64. Com ele, a API recebe os avisos em `/api/resend/bounces`, o endereço a cadastrar no Resend para o evento `email.bounced`; sem ele, esse caminho é desconhecido | Vazio: nenhum webhook |
+| `LOCAL_LOGIN_PROVIDER_KEY` | A chave do provedor de login local, um provedor OpenID Connect para o desenvolvimento e os testes: ela nomeia o provedor nos caminhos do login por ele (`/api/session/login_providers/<chave>/...`), nos seus vínculos com o provedor e, como forma de entrada, no registro de auditoria. Letras minúsculas, dígitos e sublinhados, começando por uma letra, 64 no máximo | Vazio: o provedor de login local fica desligado |
+| `LOCAL_LOGIN_PROVIDER_DISPLAY_NAME` | O nome que a tela de login mostra no botão do provedor de login local | Vazio: desligado |
+| `LOCAL_LOGIN_PROVIDER_ISSUER_URL` | O emissor do provedor de login local, cujo documento de descoberta a API lê no primeiro login por ele. O navegador e a API o alcançam nesse mesmo endereço | Vazio: desligado |
+| `LOCAL_LOGIN_PROVIDER_CLIENT_ID` | O cliente que o sistema é no provedor de login local | Vazio: desligado |
+| `LOCAL_LOGIN_PROVIDER_CLIENT_SECRET` | O segredo desse cliente. É um segredo, e nunca é impresso | Vazio: desligado |
 
-O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, a porta do Caddy, a porta do Garage e o segredo que os nós dele compartilham, as duas portas do Mailpit, a porta do painel do River, a interface em que o Vite escuta, a conexão com que os testes em Go criam seus bancos temporários e a `RESEND_TEST_API_KEY`, a chave dos testes contra o Resend, vazia ali. O Garage cria o seu bucket e a sua chave a partir das variáveis `FILE_STORAGE_`.
+As cinco variáveis `LOCAL_LOGIN_PROVIDER_` ligam o provedor de login local juntas, e a API se recusa a iniciar com umas preenchidas e outras vazias; quando ele está ligado, uma linha do log dela o nomeia ao iniciar. O endereço de retorno registrado para o cliente é a origem do app seguida de `/api/session/login_providers/<chave>/callback`. O `.env.example` o liga, apontado para o container do Dex do desenvolvimento; homologação e produção deixam as cinco vazias e fazem o login pelos provedores de login reais.
 
-As variáveis do que ainda não foi construído (os provedores de login e as demais) estão _A definir_, e cada uma entra com o código que a lê.
+O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, a porta do Caddy, a porta do Garage e o segredo que os nós dele compartilham, as duas portas do Mailpit, a porta do Dex, a porta do painel do River, a interface em que o Vite escuta, a conexão com que os testes em Go criam seus bancos temporários e a `RESEND_TEST_API_KEY`, a chave dos testes contra o Resend, vazia ali. O Garage cria o seu bucket e a sua chave a partir das variáveis `FILE_STORAGE_`.
+
+As variáveis do que ainda não foi construído (Google, Microsoft e GitHub como provedores de login, e as demais) estão _A definir_, e cada uma entra com o código que a lê.
 
 ### Ambiente de desenvolvimento
 
@@ -354,7 +361,7 @@ O seed preenche o banco com dados fictícios, os mesmos a cada execução. Para 
 
 A pipeline chama os mesmos alvos do Task, então uma verificação que falha nela falha do mesmo jeito na máquina.
 
-Da tabela acima, o PostgreSQL, o Garage, o Mailpit, o painel do River e o Caddy são o que roda hoje, ao lado da API, do worker e do app. De uma máquina limpa até a configuração inicial concluída, com os pré-requisitos instalados e o Docker em execução:
+Da tabela acima, o PostgreSQL, o Garage, o Mailpit, o Dex, o painel do River e o Caddy são o que roda hoje, ao lado da API, do worker e do app. De uma máquina limpa até a configuração inicial concluída, com os pré-requisitos instalados e o Docker em execução:
 
 1. Clone o repositório com o Git e abra um terminal na raiz dele. Todos os comandos abaixo rodam ali.
 2. `task install`. Na primeira vez, ele baixa o Node.js, o pnpm, as dependências JavaScript e o Chromium dos testes, cerca de 330 MB.
@@ -372,6 +379,15 @@ O navegador chega a tudo pelo Caddy, em um único endereço, `http://localhost`:
 
 O worker executa os trabalhos que a API grava, em uma fila leve e uma fila pesada. O primeiro trabalho dele entrega um e-mail: todo e-mail que o sistema envia é um registro, e o trabalho dele o escreve no idioma do destinatário e o envia por SMTP, ou pelo Resend em produção, que avisa a API de uma devolução. Em desenvolvimento o e-mail vai para o Mailpit, que o guarda e não entrega nada: a tela dele, em `http://localhost:8025` (`MAILPIT_PORT`), mostra todo e-mail enviado. O código de login é o primeiro e-mail que o sistema pede: `curl -i -c cookies.txt -X POST http://localhost/api/session/login_code -H "Content-Type: application/json" -d '{"email":"<o e-mail de um usuário>"}'` responde 202 para qualquer e-mail, e o Mailpit mostra o código logo depois quando o e-mail pertence a um usuário ativo. Com o mesmo cookie, `curl -i -b cookies.txt -c cookies.txt -X POST http://localhost/api/session/login_code/check -H "Content-Type: application/json" -d '{"code":"<os seis dígitos>"}'` faz o login do usuário (204), `curl -b cookies.txt http://localhost/api/session` diz quem está logado e `curl -i -b cookies.txt -X POST http://localhost/api/session/log_out` faz o logout. A tela de login vem em seguida. A cada hora, e uma vez ao iniciar, o worker também limpa o armazenamento de arquivos: remove os uploads nunca confirmados um dia depois de iniciados e os objetos com mais de um dia que nenhum arquivo confirmado nomeia. O painel do River mostra os trabalhos do banco de desenvolvimento em `http://localhost:8081` (`RIVER_PANEL_PORT`); ele roda só em desenvolvimento, até a API servi-lo aos administradores.
 
+O provedor de login local é o Dex, em `http://localhost:5556` (`DEX_PORT`), que conhece duas pessoas da seed, com senhas fixas também fictícias:
+
+| E-mail | Senha | No sistema |
+| --- | --- | --- |
+| `seed+admin@fabrica.example` | `local-provider-admin` | Ana Exemplo, a administradora que a seed cria |
+| `seed+developer@fabrica.example` | `local-provider-developer` | Ainda não é usuário: o login é recusado com o aviso de um e-mail sem usuário ativo |
+
+Abrir `http://localhost/api/session/login_providers/local/start` no navegador o leva à página de login do Dex; quando a pessoa entra ali, o Dex devolve o navegador à API, que faz o login da administradora e volta à raiz do app, ou ao caminho do app em `?return_to=`. O primeiro login pelo Dex encontra o usuário pelo e-mail que o Dex diz verificado e vincula a conta; os seguintes encontram o usuário por esse vínculo. `http://localhost/api/session/login` diz os provedores ligados e, depois de um login recusado, o e-mail dele. O Dex guarda o que precisa na memória, então um login em andamento não sobrevive a um reinício dele; as pessoas que ele conhece estão na configuração dele, no `compose.yaml`. O botão da tela de login vem em seguida.
+
 `http://localhost/up` responde com o status da prontidão da API e sem corpo: 503 até as migrations serem aplicadas, e 502 enquanto a API não estiver rodando. A própria API responde à verificação de atividade em `http://127.0.0.1:8080/livez` e à de prontidão em `http://127.0.0.1:8080/readyz`, que o Caddy não encaminha.
 
 Uma instalação nova não tem usuário nem consultoria. `task issue-setup-code` emite o código de configuração que abre a configuração inicial e mostra, na saída do próprio comando, o código, quando ele deixa de funcionar, o que ele abre e o endereço da configuração inicial. O código vale por uma hora, e um novo encerra o anterior. Só o seu hash é guardado, então um código perdido não pode ser lido de volta: emita outro. Em um servidor, o mesmo comando do binário da API, `issue-setup-code`, roda dentro do container da API. O app recebe o código no endereço da configuração inicial, `/setup`: até a configuração inicial ser concluída, todo endereço do app leva até lá. Depois de concluída, o mesmo comando é o caminho de volta quando nenhum administrador consegue entrar: o código que ele emite abre `/setup` no passo do administrador e cadastra um novo, e nenhum usuário que existe é alterado.
@@ -381,7 +397,7 @@ Os comandos, executados na raiz do repositório:
 | Comando | O que faz |
 | --- | --- |
 | `task install` | Instala as dependências JavaScript e o Chromium em que rodam os testes de tela. O Vite+ baixa as versões de Node.js e pnpm que o `apps/web/package.json` indica |
-| `task services` | Gera a imagem do Caddy, inicia os serviços de desenvolvimento no Docker (o PostgreSQL, o Garage com o seu bucket, a sua chave e a sua regra de origem cruzada, o Mailpit, o painel do River e o Caddy) e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
+| `task services` | Gera a imagem do Caddy, inicia os serviços de desenvolvimento no Docker (o PostgreSQL, o Garage com o seu bucket, a sua chave e a sua regra de origem cruzada, o Mailpit, o Dex, o painel do River e o Caddy) e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
 | `task services:stop` | Para os serviços de desenvolvimento e mantém os dados |
 | `task migrate` | Aplica as migrations pendentes no banco de desenvolvimento. Uma segunda execução não aplica nada |
 | `task issue-setup-code` | Emite um código de configuração no banco de desenvolvimento e o mostra, com quando deixa de funcionar, o que abre e o endereço da configuração inicial |
@@ -391,7 +407,7 @@ Os comandos, executados na raiz do repositório:
 | `task worker` | Inicia só o worker, que executa os trabalhos do banco de desenvolvimento. Ele para na hora quando há uma migration pendente |
 | `task web` | Inicia só o Vite, na porta 5173, atrás do Caddy |
 | `task api:build` | Gera o binário da API em `apps/api/bin` |
-| `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário; um teste do armazenamento de arquivos grava objetos próprios no bucket do Garage e os remove; um teste do adaptador SMTP envia ao Mailpit, para um endereço só dele, e lê o e-mail de volta pela API do Mailpit. Os argumentos depois de `--` substituem a lista de pacotes |
+| `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário; um teste do armazenamento de arquivos grava objetos próprios no bucket do Garage e os remove; um teste do adaptador SMTP envia ao Mailpit, para um endereço só dele, e lê o e-mail de volta pela API do Mailpit; um teste do login por um provedor entra no Dex, conduzindo a página de login dele por HTTP. Os argumentos depois de `--` substituem a lista de pacotes |
 | `task api:test:resend` | Roda os testes do adaptador do Resend contra o próprio Resend, enviando aos endereços de teste dele, que não entregam nada, com a chave em `RESEND_TEST_API_KEY`. Sem a chave, eles são pulados. O workflow agendado `resend.yml` os roda todo dia, nunca um pull request |
 | `task db:clean` | Apaga os bancos que os testes em Go deixam no PostgreSQL de desenvolvimento, os de nome `test_...` e `testdb_...`: o banco de um teste que falhou ou foi interrompido, e um template do pgtestdb para cada estado que as migrações tiveram. Nenhum outro banco é tocado, nem o `software_factory` nem o `software_factory_e2e`. Rode quando nenhum teste estiver rodando, de vez em quando ou quando a lista de bancos crescer: um banco ainda em uso não é apagado, e o comando para nele |
 | `task api:lint` | Roda o lint do código Go e verifica o formato, os imports entre camadas e entre áreas de domínio, o `else` e o nível de aninhamento |

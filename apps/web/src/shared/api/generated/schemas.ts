@@ -31,6 +31,19 @@ export const LogOutResponse = zod.void()
 
 
 /**
+ * Answers what the login screen needs before anyone is logged in: the login providers turned on, one button each, and the e-mail the last login through a provider in this browser was refused for, because no active user has it, which the screen shows with the notice `no_active_user`: the e-mail travels in this answer and in no address. It needs no session, and reading it forgets nothing.
+ * @summary Tell the state of the login
+ */
+export const TellLoginStateResponse = zod.object({
+  "login_providers": zod.array(zod.object({
+  "display_name": zod.string().describe('The name the button shows.'),
+  "key": zod.string().describe('The key of the provider, which names it in the path of its login.')
+})).describe('The login providers turned on, in the order the screen shows them, none included.'),
+  "refused_email": zod.email().optional().describe('The e-mail the last login through a provider in this browser was refused for, because no active user has it. Absent when it was not refused.')
+})
+
+
+/**
  * Sends a login code to the e-mail when it belongs to an active user, and answers the same way, with no body, for every e-mail, so that nobody learns from it who is a user. The code is six digits, works for 10 minutes, once, and only in the browser that asked for it, which the session remembers: the answer sets its cookie. A new code ends the one before. One code a minute and five an hour are sent to each e-mail; past them the operation answers `login_code_limit_reached`.
  * @summary Ask for a login code
  */
@@ -59,6 +72,43 @@ export const CheckLoginCodeBody = zod.object({
 })
 
 export const CheckLoginCodeResponse = zod.void()
+
+
+/**
+ * The login provider sends the browser back here; the generated client does not call it. The state must be the one of the login this browser started, which is used once. The code is exchanged with the verifier, and the ID token validated with its nonce; the user is found by the provider link of the account, or else by the e-mail the token says is verified, and the account is linked. It redirects to the path to return to, logged in, with the cookie of the session set again with a new token. A verified e-mail of no active user redirects to the login screen with the notice `no_active_user`, the e-mail kept for `tell_login_state`; a cancel or an error at the provider, a code it refuses, an e-mail it does not say is verified, or a state that is not the one of this browser redirects with `login_not_concluded`. The query parameters are the ones OAuth defines, and any other the provider adds is not refused. A key of no provider turned on answers `not_found`.
+ * @summary Conclude a login through a login provider
+ */
+export const ConcludeProviderLoginParams = zod.object({
+  "key": zod.string().describe('The key of the login provider.')
+})
+
+export const ConcludeProviderLoginQueryParams = zod.object({
+  "code": zod.string().optional().describe('The authorization code the provider gives, used once and with the verifier the session keeps.'),
+  "state": zod.string().optional().describe('The state the login was started with.'),
+  "error": zod.string().optional().describe('The code of the failure the provider answers, when the person cancelled or the provider failed.'),
+  "error_description": zod.string().optional().describe('What the provider says of its failure. It is not read.')
+})
+
+export const ConcludeProviderLoginResponse = zod.void()
+
+
+/**
+ * The browser navigates here from the button of a login provider; the generated client does not call it. It answers a redirect to the provider, with a state, a nonce and the challenge of a PKCE verifier, which the session of this browser keeps, with the path to return to: the answer sets its cookie. When the provider cannot be reached, it redirects to the login screen with the notice `login_not_concluded`. A key of no provider turned on answers `not_found`.
+ * @summary Start a login through a login provider
+ */
+export const StartProviderLoginParams = zod.object({
+  "key": zod.string().describe('The key of the login provider, as the login state names it.')
+})
+
+export const startProviderLoginQueryReturnToMax = 2048;
+
+
+
+export const StartProviderLoginQueryParams = zod.object({
+  "return_to": zod.string().max(startProviderLoginQueryReturnToMax).optional().describe('The path of the app to return to once logged in. Anything but a path of the app returns to its root.')
+})
+
+export const StartProviderLoginResponse = zod.void()
 
 
 /**

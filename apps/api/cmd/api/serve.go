@@ -11,6 +11,9 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
+	accessoidc "github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/oidc"
+	accessrest "github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/rest"
+	accessapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
 	filess3 "github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/s3"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
@@ -38,6 +41,34 @@ func fileStorageOf(settings config.Config, provider trace.TracerProvider) *files
 		SecretAccessKey: settings.FileStorageSecretAccessKey,
 		TracerProvider:  provider,
 	})
+}
+
+// loginProvidersOf are the login providers the configuration turns on: the
+// local one, when its variables are set, which a line of the log names (Login
+// in CODING_STANDARDS.md). Its callback is at the origin of the app.
+func loginProvidersOf(settings config.Config, provider trace.TracerProvider, logger *slog.Logger) ([]accessapplication.LoginProvider, error) {
+	if !settings.LocalLoginProviderIsOn() {
+		return nil, nil
+	}
+	key := settings.LocalLoginProviderKey.String()
+	local, err := accessoidc.NewLoginProvider(accessoidc.Settings{
+		Key:            key,
+		DisplayName:    settings.LocalLoginProviderDisplayName,
+		IssuerURL:      settings.LocalLoginProviderIssuerURL.String(),
+		ClientID:       settings.LocalLoginProviderClientID,
+		ClientSecret:   settings.LocalLoginProviderClientSecret,
+		RedirectURL:    settings.AppOrigin.String() + accessrest.CallbackPath(key),
+		TracerProvider: provider,
+		Logger:         logger,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("the local login provider: %w", err)
+	}
+	logger.Info("the local login provider is on",
+		slog.String("login_provider", key),
+		slog.String("display_name", settings.LocalLoginProviderDisplayName),
+		slog.String("issuer", settings.LocalLoginProviderIssuerURL.String()))
+	return []accessapplication.LoginProvider{local}, nil
 }
 
 // serveAPI serves the API until the shutdown notice, then stops without
@@ -90,12 +121,17 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 		return database.CheckSchema(ctx, pool, migrations.Files)
 	}
 	health.Mount(mux, ready, settings.HealthCheckTimeout)
+	providers, err := loginProvidersOf(settings, tracing.Provider, logger)
+	if err != nil {
+		return err
+	}
 	_, err = mountREST(mux, served{
-		pool:         pool,
-		storage:      fileStorageOf(settings, tracing.Provider),
-		saver:        saver,
-		sessions:     sessions,
-		loginCodeKey: settings.LoginCodeKey.Reveal(),
+		pool:           pool,
+		storage:        fileStorageOf(settings, tracing.Provider),
+		saver:          saver,
+		sessions:       sessions,
+		loginProviders: providers,
+		loginCodeKey:   settings.LoginCodeKey.Reveal(),
 	})
 	if err != nil {
 		return err

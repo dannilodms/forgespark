@@ -62,6 +62,19 @@ type Config struct {
 	EmailFromName                    string        `env:"EMAIL_FROM_NAME"`
 	ResendAPIKey                     Secret        `env:"RESEND_API_KEY"`
 	ResendWebhookSecret              WebhookSecret `env:"RESEND_WEBHOOK_SECRET"`
+	// The local login provider, on when its variables are set and off when
+	// they are empty (localLoginProviderVariables).
+	LocalLoginProviderKey          ProviderKey `env:"LOCAL_LOGIN_PROVIDER_KEY"`
+	LocalLoginProviderDisplayName  string      `env:"LOCAL_LOGIN_PROVIDER_DISPLAY_NAME"`
+	LocalLoginProviderIssuerURL    HTTPURL     `env:"LOCAL_LOGIN_PROVIDER_ISSUER_URL"`
+	LocalLoginProviderClientID     string      `env:"LOCAL_LOGIN_PROVIDER_CLIENT_ID"`
+	LocalLoginProviderClientSecret Secret      `env:"LOCAL_LOGIN_PROVIDER_CLIENT_SECRET"`
+}
+
+// LocalLoginProviderIsOn tells whether the local login provider is turned
+// on: its variables are set. Load refuses them half set.
+func (c Config) LocalLoginProviderIsOn() bool {
+	return c.LocalLoginProviderKey != ""
 }
 
 // requiredBy lists the variables with no default that each command needs. The
@@ -100,6 +113,26 @@ var requiredBySender = map[EmailSender][]string{
 	ResendSender: {"RESEND_API_KEY"},
 }
 
+// localLoginProviderVariables turn the local login provider on, all of them
+// together, for the API, which logs in through it.
+var localLoginProviderVariables = []string{
+	"LOCAL_LOGIN_PROVIDER_KEY", "LOCAL_LOGIN_PROVIDER_DISPLAY_NAME", "LOCAL_LOGIN_PROVIDER_ISSUER_URL",
+	"LOCAL_LOGIN_PROVIDER_CLIENT_ID", "LOCAL_LOGIN_PROVIDER_CLIENT_SECRET",
+}
+
+// requiredForLocalLoginProvider gives the variables of the local login
+// provider when the API is told to turn it on: one of them is set.
+func requiredForLocalLoginProvider(command Command, environment map[string]string) []string {
+	if command != ServeAPI {
+		return nil
+	}
+	set := slices.ContainsFunc(localLoginProviderVariables, func(variable string) bool { return environment[variable] != "" })
+	if !set {
+		return nil
+	}
+	return localLoginProviderVariables
+}
+
 // requiredForEmail gives the variables the sender of e-mail the environment
 // names needs, when the command sends e-mail.
 func requiredForEmail(command Command, environment map[string]string) []string {
@@ -116,7 +149,8 @@ func Load(command Command, environment map[string]string) (Config, error) {
 	var loaded Config
 	found := problems{}
 
-	for _, variable := range slices.Concat(requiredBy[command], requiredForEmail(command, environment)) {
+	required := slices.Concat(requiredBy[command], requiredForEmail(command, environment), requiredForLocalLoginProvider(command, environment))
+	for _, variable := range required {
 		found.addWhen(environment[variable] == "", variable, "is required")
 	}
 	found.addUnparsed(env.ParseWithOptions(&loaded, env.Options{Environment: environment}))
@@ -228,6 +262,8 @@ func expectationOf(valueType reflect.Type) string {
 		return "whsec_ followed by the key in base64"
 	case reflect.TypeFor[ServerAddress]():
 		return "host:port, with a host"
+	case reflect.TypeFor[ProviderKey]():
+		return "lowercase letters, digits and underscores, starting with a letter, 64 at most, other than the way in of the login code"
 	case reflect.TypeFor[Key]():
 		return fmt.Sprintf("at least %d hexadecimal digits (%d bytes)", 2*KeyMinSize, KeyMinSize)
 	case reflect.TypeFor[time.Duration]():

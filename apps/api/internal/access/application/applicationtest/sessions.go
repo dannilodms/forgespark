@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // browserKey is the key of the browser a context of a test carries.
@@ -21,6 +22,10 @@ type session struct {
 	loginCodeRequest       domain.LoginCodeRequestID
 	keepsLoginCodeRequest  bool
 	attemptsWithoutRequest int
+	providerLogin          domain.ProviderLogin
+	startedProviderLogin   bool
+	refusal                kernel.Email
+	refused                bool
 	user                   domain.UserID
 	loggedIn               bool
 	renewals               int
@@ -104,8 +109,62 @@ func (s *Sessions) RememberAttemptsWithoutRequest(ctx context.Context, attempts 
 	return nil
 }
 
+// RememberProviderLogin keeps the login through a provider the browser of
+// the context started.
+func (s *Sessions) RememberProviderLogin(ctx context.Context, login domain.ProviderLogin) error {
+	kept, err := s.of(ctx)
+	if err != nil {
+		return err
+	}
+	kept.providerLogin, kept.startedProviderLogin = login, true
+	return nil
+}
+
+// TakeProviderLogin returns the login through a provider the session keeps,
+// and forgets it.
+func (s *Sessions) TakeProviderLogin(ctx context.Context) (domain.ProviderLogin, bool, error) {
+	kept, err := s.of(ctx)
+	if err != nil {
+		return domain.ProviderLogin{}, false, err
+	}
+	login, started := kept.providerLogin, kept.startedProviderLogin
+	kept.providerLogin, kept.startedProviderLogin = domain.ProviderLogin{}, false
+	return login, started, nil
+}
+
+// RememberRefusal keeps the e-mail the last login through a provider was
+// refused for.
+func (s *Sessions) RememberRefusal(ctx context.Context, email kernel.Email) error {
+	kept, err := s.of(ctx)
+	if err != nil {
+		return err
+	}
+	kept.refusal, kept.refused = email, true
+	return nil
+}
+
+// ForgetRefusal forgets the refusal of the last login through a provider.
+func (s *Sessions) ForgetRefusal(ctx context.Context) error {
+	kept, err := s.of(ctx)
+	if err != nil {
+		return err
+	}
+	kept.refusal, kept.refused = kernel.Email{}, false
+	return nil
+}
+
+// Refusal returns the e-mail the last login through a provider was refused
+// for.
+func (s *Sessions) Refusal(ctx context.Context) (kernel.Email, bool, error) {
+	kept, err := s.of(ctx)
+	if err != nil {
+		return kernel.Email{}, false, err
+	}
+	return kept.refusal, kept.refused, nil
+}
+
 // LogIn renews the token of the session, which RenewalsOf counts, keeps the
-// user, and forgets the request and the attempts.
+// user, and forgets everything else.
 func (s *Sessions) LogIn(ctx context.Context, user domain.UserID) error {
 	kept, err := s.of(ctx)
 	if err != nil {
@@ -147,6 +206,21 @@ func (s *Sessions) LoginCodeRequestOf(browser string) (domain.LoginCodeRequestID
 func (s *Sessions) UserOf(browser string) (domain.UserID, bool) {
 	kept := s.ofBrowser(browser)
 	return kept.user, kept.loggedIn
+}
+
+// ProviderLoginOf returns the login through a provider the session of the
+// browser keeps, and false when it keeps none.
+func (s *Sessions) ProviderLoginOf(browser string) (domain.ProviderLogin, bool) {
+	kept := s.ofBrowser(browser)
+	return kept.providerLogin, kept.startedProviderLogin
+}
+
+// RefusalOf returns the e-mail the session of the browser keeps as the
+// refusal of its last login through a provider, and false when it keeps
+// none.
+func (s *Sessions) RefusalOf(browser string) (kernel.Email, bool) {
+	kept := s.ofBrowser(browser)
+	return kept.refusal, kept.refused
 }
 
 // RenewalsOf counts the times the token of the session of the browser was

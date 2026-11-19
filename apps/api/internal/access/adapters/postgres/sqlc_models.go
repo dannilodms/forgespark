@@ -17,3 +17,10 @@ type LoginCodeRequest struct {
 	Attempts    int32
 	EndedAt     *time.Time
 }
+
+type ProviderLink struct {
+	ProviderKey string
+	Subject     string
+	UserID      int64
+	LinkedAt    time.Time
+}

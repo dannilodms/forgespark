@@ -95,6 +95,21 @@ components:
         - preferred_language
         - role_keys
       type: object
+    LoginState:
+      additionalProperties: false
+      properties:
+        login_providers:
+          description: The login providers turned on, in the order the screen shows them, none included.
+          items:
+            $ref: "#/components/schemas/TurnedOnLoginProvider"
+          type: array
+        refused_email:
+          description: The e-mail the last login through a provider in this browser was refused for, because no active user has it. Absent when it was not refused.
+          format: email
+          type: string
+      required:
+        - login_providers
+      type: object
     OpenSetupRequest:
       additionalProperties: false
       properties:
@@ -368,6 +383,19 @@ components:
         - media_type
         - size
       type: object
+    TurnedOnLoginProvider:
+      additionalProperties: false
+      properties:
+        display_name:
+          description: The name the button shows.
+          type: string
+        key:
+          description: The key of the provider, which names it in the path of its login.
+          type: string
+      required:
+        - key
+        - display_name
+      type: object
 info:
   description: |-
     The REST contract of the system, generated from the Go code and committed.
@@ -419,6 +447,26 @@ paths:
                 $ref: "#/components/schemas/Problem"
           description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
       summary: Log out
+      tags:
+        - Login
+  /api/session/login:
+    get:
+      description: "Answers what the login screen needs before anyone is logged in: the login providers turned on, one button each, and the e-mail the last login through a provider in this browser was refused for, because no active user has it, which the screen shows with the notice `no_active_user`: the e-mail travels in this answer and in no address. It needs no session, and reading it forgets nothing."
+      operationId: tell_login_state
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginState"
+          description: OK
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Tell the state of the login
       tags:
         - Login
   /api/session/login_code:
@@ -487,6 +535,124 @@ paths:
                 $ref: "#/components/schemas/Problem"
           description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
       summary: Check a login code
+      tags:
+        - Login
+  /api/session/login_providers/{key}/callback:
+    get:
+      description: The login provider sends the browser back here; the generated client does not call it. The state must be the one of the login this browser started, which is used once. The code is exchanged with the verifier, and the ID token validated with its nonce; the user is found by the provider link of the account, or else by the e-mail the token says is verified, and the account is linked. It redirects to the path to return to, logged in, with the cookie of the session set again with a new token. A verified e-mail of no active user redirects to the login screen with the notice `no_active_user`, the e-mail kept for `tell_login_state`; a cancel or an error at the provider, a code it refuses, an e-mail it does not say is verified, or a state that is not the one of this browser redirects with `login_not_concluded`. The query parameters are the ones OAuth defines, and any other the provider adds is not refused. A key of no provider turned on answers `not_found`.
+      operationId: conclude_provider_login
+      parameters:
+        - description: The key of the login provider.
+          in: path
+          name: key
+          required: true
+          schema:
+            description: The key of the login provider.
+            type: string
+        - description: The authorization code the provider gives, used once and with the verifier the session keeps.
+          explode: false
+          in: query
+          name: code
+          schema:
+            description: The authorization code the provider gives, used once and with the verifier the session keeps.
+            type: string
+        - description: The state the login was started with.
+          explode: false
+          in: query
+          name: state
+          schema:
+            description: The state the login was started with.
+            type: string
+        - description: The code of the failure the provider answers, when the person cancelled or the provider failed.
+          explode: false
+          in: query
+          name: error
+          schema:
+            description: The code of the failure the provider answers, when the person cancelled or the provider failed.
+            type: string
+        - description: What the provider says of its failure. It is not read.
+          explode: false
+          in: query
+          name: error_description
+          schema:
+            description: What the provider says of its failure. It is not read.
+            type: string
+      responses:
+        "303":
+          description: See Other
+          headers:
+            Location:
+              schema:
+                description: Where the browser goes next.
+                type: string
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Not Found. `not_found`: the path names nothing that exists."
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unprocessable Entity. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Conclude a login through a login provider
+      tags:
+        - Login
+  /api/session/login_providers/{key}/start:
+    get:
+      description: "The browser navigates here from the button of a login provider; the generated client does not call it. It answers a redirect to the provider, with a state, a nonce and the challenge of a PKCE verifier, which the session of this browser keeps, with the path to return to: the answer sets its cookie. When the provider cannot be reached, it redirects to the login screen with the notice `login_not_concluded`. A key of no provider turned on answers `not_found`."
+      operationId: start_provider_login
+      parameters:
+        - description: The key of the login provider, as the login state names it.
+          in: path
+          name: key
+          required: true
+          schema:
+            description: The key of the login provider, as the login state names it.
+            type: string
+        - description: The path of the app to return to once logged in. Anything but a path of the app returns to its root.
+          explode: false
+          in: query
+          name: return_to
+          schema:
+            description: The path of the app to return to once logged in. Anything but a path of the app returns to its root.
+            maxLength: 2048
+            type: string
+      responses:
+        "302":
+          description: Found
+          headers:
+            Location:
+              schema:
+                description: Where the browser goes next.
+                type: string
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Not Found. `not_found`: the path names nothing that exists."
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unprocessable Entity. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Start a login through a login provider
       tags:
         - Login
   /api/setup:
