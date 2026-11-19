@@ -70,6 +70,8 @@ func mountREST(mux *http.ServeMux, with served) (*restapi.API, error) {
 		RecordEntry:   auditapplication.NewRecordEntry(auditpostgres.NewAuditLog(with.pool)),
 		Clock:         clock.System{},
 	}
+	// The reads that show an image sign the URL the browser reads it from.
+	signDownload := filesapplication.NewSignDownload(files, with.storage)
 	consultancyrest.Register(api, consultancyrest.UseCases{
 		TellSetupState: consultancyapplication.NewTellSetupState(consultancypostgres.NewSetupStateReader(with.pool), clock.System{}),
 		OpenSetup:      consultancyapplication.NewOpenSetup(setupCodes, consultancies, clock.System{}),
@@ -81,6 +83,7 @@ func mountREST(mux *http.ServeMux, with served) (*restapi.API, error) {
 		),
 		ConcludeSetup:         consultancyapplication.NewConcludeSetup(setup),
 		RegisterAdministrator: consultancyapplication.NewRegisterAdministrator(setup),
+		TellConsultancy:       consultancyapplication.NewTellConsultancy(consultancypostgres.NewConsultancyReader(with.pool), signDownload),
 	})
 
 	browser := accessrest.NewSession(with.sessions)
@@ -122,7 +125,7 @@ func mountREST(mux *http.ServeMux, with served) (*restapi.API, error) {
 			rand.Reader,
 		),
 		CheckLoginCode:     checkLoginCode,
-		TellLoggedInUser:   accessapplication.NewTellLoggedInUser(findActiveUserByID),
+		TellLoggedInUser:   accessapplication.NewTellLoggedInUser(findActiveUserByID, signDownload),
 		LogOut:             accessapplication.NewLogOut(browser),
 		TellLoginState:     accessapplication.NewTellLoginState(providers, browser),
 		StartProviderLogin: accessapplication.NewStartProviderLogin(providers, browser, rand.Reader),

@@ -59,6 +59,8 @@ rules:
         singular:
           - /api/setup
           - /api/health
+          # The consultancy the system is run for: there is one.
+          - /api/consultancy
           # The session of the browser that calls, its login code and the
           # state of its login: one each, before the login and after it.
           - /api/session

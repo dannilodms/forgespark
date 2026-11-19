@@ -19,6 +19,8 @@ import (
 	consultancyapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application/applicationtest"
 	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
 	emailapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application/applicationtest"
+	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
+	filesapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application/applicationtest"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
@@ -53,8 +55,8 @@ func theKey() []byte {
 const theBrowser = "the browser of Ana"
 
 // system is the login built on the in-memory implementations of this area,
-// of the consultancy area, of the e-mail area and of the audit log, with the
-// clock stopped at noon.
+// of the consultancy area, of the e-mail area, of the files area and of the
+// audit log, with the clock stopped at noon.
 type system struct {
 	clock            *applicationtest.Clock
 	requests         *applicationtest.LoginCodeRequestRepository
@@ -69,6 +71,9 @@ type system struct {
 	findActor        *application.FindActor
 	tellLoggedInUser *application.TellLoggedInUser
 	logOut           *application.LogOut
+	// The files the photos of the users are, and the storage of their bytes.
+	files   *filesapplicationtest.FileRepository
+	objects *filesapplicationtest.Storage
 	// The login through a provider: the provider links, and two providers
 	// turned on, the local one first.
 	links                 *applicationtest.ProviderLinkRepository
@@ -88,6 +93,8 @@ func newSystem(t *testing.T) system {
 	deliveries := emailapplicationtest.NewDeliveryJobs()
 	auditLog := auditapplicationtest.NewAuditLog()
 	links := applicationtest.NewProviderLinkRepository()
+	files := filesapplicationtest.NewFileRepository()
+	objects := filesapplicationtest.NewStorage(clock)
 	transactions := applicationtest.NewTransactions(requests, emails, deliveries, auditLog, links)
 	loginCodes, err := application.NewLoginCodeContents(requests, theKey())
 	require.NoError(t, err)
@@ -128,8 +135,10 @@ func newSystem(t *testing.T) system {
 		loginCodes:       loginCodes,
 		checkLoginCode:   checkLoginCode,
 		findActor:        application.NewFindActor(sessions, findActiveUserByID),
-		tellLoggedInUser: application.NewTellLoggedInUser(findActiveUserByID),
+		tellLoggedInUser: application.NewTellLoggedInUser(findActiveUserByID, filesapplication.NewSignDownload(files, objects)),
 		logOut:           application.NewLogOut(sessions),
+		files:            files,
+		objects:          objects,
 		links:            links,
 		localProvider:    localProvider,
 		// The random source counts from 0, apart from the one of the login

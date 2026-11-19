@@ -14,6 +14,7 @@ export * from './askForLoginCodeRequest.ts';
 export * from './checkLoginCodeRequest.ts';
 export * from './concludeProviderLoginParams.ts';
 export * from './concludeSetupRequest.ts';
+export * from './consultancy.ts';
 export * from './fieldError.ts';
 export * from './fieldErrorParams.ts';
 export * from './loggedInUser.ts';

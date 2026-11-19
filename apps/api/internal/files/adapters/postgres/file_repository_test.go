@@ -302,6 +302,40 @@ func TestTheKeysOfConfirmedFilesAreFoundAmongTheKeysGiven(t *testing.T) {
 	assert.Empty(t, none)
 }
 
+// A read that shows a file signs the download of the key its bytes are kept
+// under, which only a confirmed file has.
+func TestTheKeyOfAFileIsReadOnceItIsConfirmedWithoutLockingIt(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	confirmed := temporary.confirm(t, temporary.startAt(t, noon).ID(), noon.Add(time.Minute))
+	unconfirmed := temporary.startAt(t, noon)
+	var key domain.ObjectKey
+	var found bool
+
+	err := temporary.transactions.Run(context.Background(), func(ctx context.Context) error {
+		_, _, err := temporary.files.Load(ctx, confirmed.ID())
+		require.NoError(t, err)
+		// A second transaction, which gives up at once on a lock, reads the
+		// key of the file the first one holds.
+		return temporary.transactions.Run(context.Background(), func(other context.Context) error {
+			_, err := database.Within(other, temporary.pool).Exec(other, "SET LOCAL lock_timeout = '100ms'")
+			require.NoError(t, err)
+			key, found, err = temporary.files.ConfirmedKey(other, confirmed.ID())
+			return err
+		})
+	})
+	require.NoError(t, err)
+	_, unconfirmedFound, err := temporary.files.ConfirmedKey(context.Background(), unconfirmed.ID())
+	require.NoError(t, err)
+	_, unknownFound, err := temporary.files.ConfirmedKey(context.Background(), domain.FileID(987654))
+	require.NoError(t, err)
+
+	require.True(t, found)
+	assert.Equal(t, confirmed.ObjectKey(), key)
+	assert.False(t, unconfirmedFound, "the key of a file never confirmed was read")
+	assert.False(t, unknownFound, "a key was read for a file that does not exist")
+}
+
 // The cleanup of the storage removes an abandoned upload while a late
 // confirmation may hold it. The removal waits for the confirmation, and finds
 // the file confirmed: it is kept.

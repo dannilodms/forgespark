@@ -12,12 +12,23 @@
 import * as zod from 'zod';
 
 /**
- * Answers the user logged in to the session of this browser, as the app shows them, and the keys of their roles. It asks for no scope. With no user logged in, the session missing, ended, or of a user deactivated since, it answers 401; the session of a deactivated user is ended.
+ * Answers the consultancy as the shell of the app shows it: its name, and a URL that reads its logo from the file storage for fifteen minutes. The app reads it again sooner than that, so the logo never breaks. Any logged-in user reads it: it asks for no scope.
+ * @summary Tell the consultancy
+ */
+export const TellConsultancyResponse = zod.object({
+  "logo_url": zod.url().optional().describe('A URL that reads the logo of the consultancy from the file storage, signed for its public host name and valid for fifteen minutes. Left out when the consultancy has no logo.'),
+  "name": zod.string().describe('The name of the consultancy.')
+})
+
+
+/**
+ * Answers the user logged in to the session of this browser, as the app shows them, with a URL that reads their photo from the file storage for fifteen minutes, and the keys of their roles. The app reads it again sooner than that, so the photo never breaks. It asks for no scope. With no user logged in, the session missing, ended, or of a user deactivated since, it answers 401; the session of a deactivated user is ended.
  * @summary Tell who is logged in
  */
 export const TellLoggedInUserResponse = zod.object({
   "email": zod.email().describe('The e-mail the user logs in with, in lowercase.'),
   "name": zod.string().describe('The name of the user.'),
+  "photo_url": zod.url().optional().describe('A URL that reads the photo of the user from the file storage, signed for its public host name and valid for fifteen minutes. Left out when the user has no photo.'),
   "preferred_language": zod.enum(['en-US', 'es', 'pt-BR']).describe('The supported language the user reads the system in.'),
   "role_keys": zod.array(zod.enum(['administrator', 'developer'])).describe('The keys of the roles of the user, sorted, which the app translates.')
 })

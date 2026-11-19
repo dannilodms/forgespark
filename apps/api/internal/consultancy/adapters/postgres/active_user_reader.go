@@ -76,6 +76,7 @@ func activeUserOf(row activeUserRow) (application.ActiveUser, bool, error) {
 		Name:              row.Name,
 		Email:             stored,
 		PreferredLanguage: language,
+		PhotoFileID:       fileOrNone(row.PhotoFileID),
 		Roles:             roles,
 		Scopes:            nil,
 	}, true, nil

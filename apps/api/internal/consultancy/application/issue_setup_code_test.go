@@ -65,6 +65,7 @@ type installation struct {
 	concludeSetup         *application.ConcludeSetup
 	registerAdministrator *application.RegisterAdministrator
 	tellSetupState        *application.TellSetupState
+	tellConsultancy       *application.TellConsultancy
 }
 
 func newInstallation() installation {
@@ -108,6 +109,10 @@ func newInstallation() installation {
 		concludeSetup:         application.NewConcludeSetup(setup),
 		registerAdministrator: application.NewRegisterAdministrator(setup),
 		tellSetupState:        application.NewTellSetupState(applicationtest.NewSetupStateReader(consultancies, setupCodes), clock),
+		tellConsultancy: application.NewTellConsultancy(
+			applicationtest.NewConsultancyReader(consultancies),
+			filesapplication.NewSignDownload(files, objects),
+		),
 	}
 }
 

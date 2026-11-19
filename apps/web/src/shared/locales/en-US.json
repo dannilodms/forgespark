@@ -1,6 +1,10 @@
 {
   "productName": "My Software Factory Manager",
   "language": "Language",
+  "shell": {
+    "sidebar": "Sidebar",
+    "openSidebar": "Open the sidebar"
+  },
   "form": {
     "optional": "{{label}} (optional)",
     "nothingMatches": "Nothing matches what was typed.",

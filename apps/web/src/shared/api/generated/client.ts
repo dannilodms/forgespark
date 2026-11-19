@@ -14,6 +14,7 @@ import type {
   CheckLoginCodeRequest,
   ConcludeProviderLoginParams,
   ConcludeSetupRequest,
+  Consultancy,
   LoggedInUser,
   LoginState,
   OpenSetupRequest,
@@ -47,6 +48,31 @@ const getHeaders = (...sources: (RequestInit['headers'] | Record<string, string 
   return Object.fromEntries(layers.reverse().flat()) as Extract<RequestInit['headers'], Record<string, unknown>>;
 };
 
+export const getTellConsultancyUrl = () => {
+
+
+
+
+  return `/api/consultancy`
+}
+
+/**
+ * Answers the consultancy as the shell of the app shows it: its name, and a URL that reads its logo from the file storage for fifteen minutes. The app reads it again sooner than that, so the logo never breaks. Any logged-in user reads it: it asks for no scope.
+ * @summary Tell the consultancy
+ */
+export const tellConsultancy = async ( options?: Parameters<typeof request>[1]): Promise<Consultancy> => {
+
+  return request<Consultancy>(getTellConsultancyUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getTellLoggedInUserUrl = () => {
 
 
@@ -56,7 +82,7 @@ export const getTellLoggedInUserUrl = () => {
 }
 
 /**
- * Answers the user logged in to the session of this browser, as the app shows them, and the keys of their roles. It asks for no scope. With no user logged in, the session missing, ended, or of a user deactivated since, it answers 401; the session of a deactivated user is ended.
+ * Answers the user logged in to the session of this browser, as the app shows them, with a URL that reads their photo from the file storage for fifteen minutes, and the keys of their roles. The app reads it again sooner than that, so the photo never breaks. It asks for no scope. With no user logged in, the session missing, ended, or of a user deactivated since, it answers 401; the session of a deactivated user is ended.
  * @summary Tell who is logged in
  */
 export const tellLoggedInUser = async ( options?: Parameters<typeof request>[1]): Promise<LoggedInUser> => {

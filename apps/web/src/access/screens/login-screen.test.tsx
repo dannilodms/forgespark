@@ -9,7 +9,6 @@ import {
   getCheckLoginCodeMockHandler,
   getCheckLoginCodeMockHandler422,
   getCheckLoginCodeMockHandler429,
-  getTellLoggedInUserMockHandler,
   getTellLoginStateMockHandler,
   getTellLoginStateMockHandler500,
   getTellSetupStateMockHandler,
@@ -19,7 +18,13 @@ import type {
   LoginState,
   TurnedOnLoginProvider,
 } from "../../shared/api/generated/model"
-import { api, nobodyIsLoggedIn, problem, traceId } from "../../testing/api"
+import {
+  api,
+  loggedIn,
+  nobodyIsLoggedIn,
+  problem,
+  traceId,
+} from "../../testing/api"
 import { renderApp } from "../../testing/render-app"
 
 /** The administrator of the tests, as the API answers who is logged in. */
@@ -86,7 +91,7 @@ function theCodeLogsIn(user = ana) {
   api.use(
     getCheckLoginCodeMockHandler(async ({ request }) => {
       sent.push(await request.json())
-      api.use(getTellLoggedInUserMockHandler(user))
+      api.use(...loggedIn(user))
     })
   )
   return sent
@@ -216,7 +221,7 @@ describe("the step of the code", () => {
     await screen.getByRole("button", { name: "Log in" }).click()
 
     await expect
-      .element(screen.getByText("You are logged in as Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu of Ana Example" }))
       .toBeVisible()
     expect(sent).toEqual([{ code: "123456" }])
     expect(address()).toBe("/")
@@ -234,7 +239,7 @@ describe("the step of the code", () => {
     await screen.getByRole("button", { name: "Log in" }).click()
 
     await expect
-      .element(screen.getByText("You are logged in as Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu of Ana Example" }))
       .toBeVisible()
     expect(address()).toBe("/?view=board")
   })
@@ -666,7 +671,7 @@ describe("the login screen by keyboard", () => {
     await userEvent.keyboard("123456{Enter}")
 
     await expect
-      .element(screen.getByText("You are logged in as Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu of Ana Example" }))
       .toBeVisible()
   })
 })

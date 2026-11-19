@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -889,6 +890,56 @@ func TestTheLogsAndTheSpansOfALoginNeverCarryTheCodeTheEmailOrTheCookie(t *testi
 	for _, answer := range answers {
 		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats a sensitive value: %s", answer.body)
 	}
+}
+
+// The shell reads who is logged in and the consultancy, each with a URL that
+// reads an image from the storage: the URL holds the key of the object and a
+// signature. Neither may reach the logs or the spans, whether the read
+// succeeds or fails with a 5xx whose raw error is logged.
+func TestTheLogsAndTheSpansOfTheImagesOfTheShellNeverCarryTheKeyOrTheSignature(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	environment := environmentOf(temporary)
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	guarded.add("the secret key of the file storage", environment["FILE_STORAGE_SECRET_ACCESS_KEY"])
+	api := launchAPI(t, environment)
+	owner := asOwner(t, temporary)
+	browser := loggedInWithImages(t, temporary, api.url)
+	rows, err := owner.Query(context.Background(), "SELECT object_key FROM files WHERE confirmed_at IS NOT NULL")
+	require.NoError(t, err)
+	keys, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	require.NoError(t, err)
+	require.Len(t, keys, 2, "the logo and the photo")
+	for _, key := range keys {
+		guarded.add("the key of an image", key)
+	}
+
+	for _, read := range []struct{ path, field string }{{sessionPath, "photo_url"}, {consultancyPath, "logo_url"}} {
+		answer := sendFrom(t, browser, http.MethodGet, api.url+read.path, "", nil)
+		require.Equal(t, http.StatusOK, answer.status, answer.body)
+		signed, err := url.Parse(answer.fields[read.field].(string))
+		require.NoError(t, err)
+		guarded.add("the signature of the URL of an image", signed.Query().Get("X-Amz-Signature"))
+	}
+	// A 5xx in each read: the API role may not read the files.
+	_, err = owner.Exec(context.Background(), "REVOKE SELECT ON files FROM api")
+	require.NoError(t, err)
+	for _, path := range []string{sessionPath, consultancyPath} {
+		failed := sendFrom(t, browser, http.MethodGet, api.url+path, "", nil)
+		require.Equal(t, http.StatusInternalServerError, failed.status, failed.body)
+	}
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	logs := api.logs.String()
+	require.Contains(t, logs, "permission denied for table files", "the scenario logged no raw error")
+	require.Contains(t, collector.Text(), "GET /api/consultancy", "the scenario exported no span of the consultancy")
+	require.Contains(t, collector.Text(), "SELECT object_key", "the scenario exported no span of the query of a key")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
 }
 
 // A login through the local provider: the code and the state travel in the

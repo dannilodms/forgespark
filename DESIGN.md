@@ -214,6 +214,7 @@ The base unit is 4px. Spacing steps are multiples of it.
 | 40px | Default control, item of the sidebar, header of a table |
 | 44px | Row of a table, prominent control |
 | 56px | The header of the app |
+| 960px | `breakpoint-shell`: under it the sidebar of the app shell is a sheet |
 | 16 to 20px | Icon: 20px in the header and the sidebar, 16px in a control, 14px inside a chip or a badge |
 
 Button, input, select and tab heights move together, so a form stays aligned.
@@ -314,7 +315,7 @@ A component holds no text of its own. Every word comes from the screen, in the l
 
 ## Recipes
 
-Seven compositions are described here. The framed pane has code, `FramedPane` in `apps/web/src/shared/components`, with `StepActions` for the end of a step; the setup and the login screen use it. The others have none yet: the first screen that needs one writes it in `apps/web`, following the clickable prototype the maintainer approved on 2026-11-18 (ADR-0027).
+Seven compositions are described here. Two have code, in `apps/web/src/shared/components`: the framed pane, `FramedPane`, with `StepActions` for the end of a step, which the setup and the login screen use; and the app shell, `AppShell`, which holds every screen after the login. The others have none yet: the first screen that needs one writes it in `apps/web`, following the clickable prototype the maintainer approved on 2026-11-18 (ADR-0027).
 
 | Recipe | What it is |
 | --- | --- |
@@ -333,6 +334,15 @@ A recipe is added when a second screen needs the same composition.
 - The user menu shows the name and the e-mail, then the actions on the session. Logging out is the last of them, and it leads to the login screen.
 - Under 960px the sidebar is a sheet that a button at the start of the header opens, and the search field gives way to its icon.
 - The command palette lists the places to go, the actions of the screen and the items to open.
+
+The code, `AppShell`, draws the recipe cut down to what works, because a control that does nothing is not shown: the header has the mark, the product name and the user menu; the sidebar has the consultancy alone; the work surface holds the screen. The search field and the command palette, the notifications, help, the items of the menu, favourites and the settings are left out until the feature each one opens exists: there is no area of work, no notification and no setting yet. Each arrives with its feature, in the place this recipe gives it.
+
+- The consultancy at the top of the sidebar is its logo, or its initials, in a 32px square with 4px corners, where the whole logo shows, beside its name.
+- The button of the user menu is the photo of the user, or their initials, in a 32px circle. The menu shows them again at 40px, with the name and the e-mail, and one action, logging out, which leads to the login screen with its notice. The menu stays open while the logout is sent, and shows its failure.
+- Initials are the first letters of the first and the last words of the name. They take the `muted` fill for now: the colour of a person's circle comes with the first screen that tells people apart, such as the board table.
+- The photo and the logo come from the file storage, through URLs that work for 15 minutes; the app reads the user and the consultancy again every ten minutes, and keeps showing an image until the picture of its new URL has loaded, so an image never breaks nor blinks to the initials.
+- The sidebar lies on the frame, below the header, with no line of its own. The work surface keeps 12px from the edge of the window on its left too, while the sidebar is a sheet.
+- The width at which the sidebar becomes a sheet is `--breakpoint-shell`, 960px, whose `shell:` classes the Sidebar of `ui` uses in place of shadcn/ui's `md:` (768px), and `useIsMobile` in `ui/hooks` holds the same width.
 
 **Board table.** Each group starts with its title in `type-title`, in the group colour, with a chevron that folds it and its count. Its table has a header of 40px, with the titles of the columns in `type-label`, centred but for the first. Each row is 44px high; the first cell holds the name and starts with a 6px strip in the group colour. A status column is a label that fills its cell. A person is a coloured circle with initials. Numbers align to the right. The last row of a group adds an item. The foot of a group sums its numbers and shows a bar of its labels, each colour as wide as its share. A hovered row takes `muted`, the selected one takes `selected`. Under the toolbar of the screen (the split button that creates an item, the search field, and the tools Person, Filter, Sort and Group), the table scrolls sideways inside its own container when it is wider than the work surface.
 

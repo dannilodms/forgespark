@@ -23,7 +23,7 @@ func (q *Queries) EmailInUse(ctx context.Context, email string) (bool, error) {
 }
 
 const findActiveUser = `-- name: FindActiveUser :one
-SELECT users.id, users.name, users.email, users.preferred_language,
+SELECT users.id, users.name, users.email, users.preferred_language, users.photo_file_id,
        coalesce(array_agg(roles.key ORDER BY roles.key) FILTER (WHERE roles.key IS NOT NULL), '{}')::text[] AS role_keys
 FROM users
 LEFT JOIN user_roles ON user_roles.user_id = users.id
@@ -37,6 +37,7 @@ type FindActiveUserRow struct {
 	Name              string
 	Email             string
 	PreferredLanguage string
+	PhotoFileID       *int64
 	RoleKeys          []string
 }
 
@@ -51,13 +52,14 @@ func (q *Queries) FindActiveUser(ctx context.Context, email string) (FindActiveU
 		&i.Name,
 		&i.Email,
 		&i.PreferredLanguage,
+		&i.PhotoFileID,
 		&i.RoleKeys,
 	)
 	return i, err
 }
 
 const findActiveUserByID = `-- name: FindActiveUserByID :one
-SELECT users.id, users.name, users.email, users.preferred_language,
+SELECT users.id, users.name, users.email, users.preferred_language, users.photo_file_id,
        coalesce(array_agg(roles.key ORDER BY roles.key) FILTER (WHERE roles.key IS NOT NULL), '{}')::text[] AS role_keys
 FROM users
 LEFT JOIN user_roles ON user_roles.user_id = users.id
@@ -71,6 +73,7 @@ type FindActiveUserByIDRow struct {
 	Name              string
 	Email             string
 	PreferredLanguage string
+	PhotoFileID       *int64
 	RoleKeys          []string
 }
 
@@ -84,6 +87,7 @@ func (q *Queries) FindActiveUserByID(ctx context.Context, id int64) (FindActiveU
 		&i.Name,
 		&i.Email,
 		&i.PreferredLanguage,
+		&i.PhotoFileID,
 		&i.RoleKeys,
 	)
 	return i, err

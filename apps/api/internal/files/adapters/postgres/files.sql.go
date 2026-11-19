@@ -10,6 +10,22 @@ import (
 	"time"
 )
 
+const confirmedObjectKeyOf = `-- name: ConfirmedObjectKeyOf :one
+SELECT object_key
+FROM files
+WHERE id = $1
+  AND confirmed_at IS NOT NULL
+`
+
+// The key the bytes of a confirmed file are kept under, for a read: it locks
+// nothing.
+func (q *Queries) ConfirmedObjectKeyOf(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRow(ctx, confirmedObjectKeyOf, id)
+	var object_key string
+	err := row.Scan(&object_key)
+	return object_key, err
+}
+
 const confirmedObjectKeys = `-- name: ConfirmedObjectKeys :many
 SELECT object_key
 FROM files

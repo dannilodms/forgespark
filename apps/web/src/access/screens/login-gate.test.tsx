@@ -4,13 +4,13 @@ import {
   getAskForLoginCodeMockHandler,
   getCheckLoginCodeMockHandler,
   getLogOutMockHandler,
-  getTellLoggedInUserMockHandler,
   getTellLoggedInUserMockHandler500,
   getTellSetupStateMockHandler,
 } from "../../shared/api/generated/client.msw"
 import type { LoggedInUser } from "../../shared/api/generated/model"
 import {
   api,
+  loggedIn,
   noLoginProviderIsOn,
   nobodyIsLoggedIn,
   problem,
@@ -80,40 +80,40 @@ describe("the gate, without a session", () => {
 describe("the gate, with a session", () => {
   it("opens the app at the root", async () => {
     setupConcluded()
-    api.use(getTellLoggedInUserMockHandler(ana))
+    api.use(...loggedIn(ana))
 
     const { screen, address } = await renderApp({ at: "/" })
 
     await expect
-      .element(screen.getByText("You are logged in as Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu of Ana Example" }))
       .toBeVisible()
     expect(address()).toBe("/")
   })
 
   it("takes a logged-in user at the login address to the app", async () => {
     setupConcluded()
-    api.use(getTellLoggedInUserMockHandler(ana))
+    api.use(...loggedIn(ana))
 
     const { screen, address } = await renderApp({
       at: "/login?notice=setup_concluded",
     })
 
     await expect
-      .element(screen.getByText("You are logged in as Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu of Ana Example" }))
       .toBeVisible()
     expect(address()).toBe("/")
   })
 
   it("takes a logged-in user at the login address to the address to return to", async () => {
     setupConcluded()
-    api.use(getTellLoggedInUserMockHandler(ana))
+    api.use(...loggedIn(ana))
 
     const { screen, address } = await renderApp({
       at: "/login?return_to=%2F%3Fview%3Dboard",
     })
 
     await expect
-      .element(screen.getByText("You are logged in as Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu of Ana Example" }))
       .toBeVisible()
     expect(address()).toBe("/?view=board")
   })
@@ -122,14 +122,14 @@ describe("the gate, with a session", () => {
     "opens the root instead of %s, which is no path of the app",
     async (returnTo) => {
       setupConcluded()
-      api.use(getTellLoggedInUserMockHandler(ana))
+      api.use(...loggedIn(ana))
 
       const { screen, address } = await renderApp({
         at: `/login?return_to=${encodeURIComponent(returnTo)}`,
       })
 
       await expect
-        .element(screen.getByText("You are logged in as Ana Example."))
+        .element(screen.getByRole("button", { name: "Menu of Ana Example" }))
         .toBeVisible()
       expect(address()).toBe("/")
     }
@@ -137,24 +137,24 @@ describe("the gate, with a session", () => {
 
   it("takes a logged-in user at an address the app does not have to the root", async () => {
     setupConcluded()
-    api.use(getTellLoggedInUserMockHandler(ana))
+    api.use(...loggedIn(ana))
 
     const { screen, address } = await renderApp({ at: "/projects/42" })
 
     await expect
-      .element(screen.getByText("You are logged in as Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu of Ana Example" }))
       .toBeVisible()
     expect(address()).toBe("/")
   })
 
   it("takes a logged-in user at the address of the setup to the app while no setup code is waiting", async () => {
     setupConcluded()
-    api.use(getTellLoggedInUserMockHandler(ana))
+    api.use(...loggedIn(ana))
 
     const { screen, address } = await renderApp({ at: "/setup" })
 
     await expect
-      .element(screen.getByText("You are logged in as Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu of Ana Example" }))
       .toBeVisible()
     expect(address()).toBe("/")
   })
@@ -192,7 +192,7 @@ async function logInWithACode(screen: Screen, user: LoggedInUser) {
   api.use(
     getAskForLoginCodeMockHandler(),
     getCheckLoginCodeMockHandler(() => {
-      api.use(getTellLoggedInUserMockHandler(user))
+      api.use(...loggedIn(user))
     })
   )
   await screen.getByRole("textbox", { name: /E-mail|Correo/ }).fill(user.email)
@@ -237,14 +237,15 @@ describe("the session", () => {
     await logInWithACode(screen, { ...ana, preferred_language: "pt-BR" })
 
     await expect
-      .element(screen.getByText("Você entrou como Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu de Ana Example" }))
       .toBeVisible()
     expect(document.documentElement.lang).toBe("pt-BR")
     await expect
       .element(screen.getByRole("combobox", { name: "Idioma" }))
       .not.toBeInTheDocument()
 
-    await screen.getByRole("button", { name: "Sair" }).click()
+    await screen.getByRole("button", { name: "Menu de Ana Example" }).click()
+    await screen.getByRole("menuitem", { name: "Sair" }).click()
 
     await expect
       .element(screen.getByRole("heading", { name: "Iniciar sesión" }))
@@ -260,13 +261,13 @@ describe("the session", () => {
     vi.useFakeTimers({ toFake: ["Date"] })
     setupConcluded()
     const user: LoggedInUser = { ...ana, preferred_language: "pt-BR" }
-    api.use(getTellLoggedInUserMockHandler(user))
+    api.use(...loggedIn(user))
     const { screen, address } = await renderApp({
       at: "/?view=board",
       languages: ["en-US"],
     })
     await expect
-      .element(screen.getByText("Você entrou como Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu de Ana Example" }))
       .toBeVisible()
 
     // The session ends: idle for 7 days, or the user was deactivated.
@@ -286,7 +287,7 @@ describe("the session", () => {
     await logInWithACode(screen, user)
 
     await expect
-      .element(screen.getByText("Você entrou como Ana Example."))
+      .element(screen.getByRole("button", { name: "Menu de Ana Example" }))
       .toBeVisible()
     expect(address()).toBe("/?view=board")
   })

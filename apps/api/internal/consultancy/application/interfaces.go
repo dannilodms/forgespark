@@ -97,6 +97,20 @@ type ActiveUserReader interface {
 	ActiveUserOf(ctx context.Context, id domain.UserID) (ActiveUser, bool, error)
 }
 
+// ConsultancyReader reads the consultancy as the shell of the app shows it.
+type ConsultancyReader interface {
+	// Read returns the name of the consultancy and the file of its logo, and
+	// false while no consultancy is registered. It locks nothing.
+	Read(ctx context.Context) (ConsultancyNameAndLogo, bool, error)
+}
+
+// ConsultancyNameAndLogo is the name of the consultancy and the file of its
+// logo, which is the file 0 when it has none.
+type ConsultancyNameAndLogo struct {
+	Name       string
+	LogoFileID domain.FileID
+}
+
 // SetupStateReader reads the state of the setup, shaped for whoever asks.
 type SetupStateReader interface {
 	// Read tells whether the setup is concluded and whether a setup code
