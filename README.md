@@ -11,7 +11,7 @@
 
 Client and project manager: a centralized platform for managing clients, projects and software development requests.
 
-> **Status:** the foundation is built. A new install runs in development and can be set up, with its consultancy and its first administrator (see [Local development](#local-development)). The login and everything after it are not built yet; sections marked _TBD_ are filled in as the project evolves.
+> **Status:** the foundation, the setup and the login are built. A new install runs in development and can be set up, with its consultancy and its first administrator, who then logs in, through a login provider or with a login code sent by e-mail, and lands in the shell of the app (see [Local development](#local-development)). The areas of work, such as clients and projects, and everything after them are not built yet; sections marked _TBD_ are filled in as the project evolves.
 
 ## Contents
 
@@ -96,7 +96,7 @@ An agent enters with an access token that a user created for it, limited by scop
 
 Data is read from and written to PostgreSQL. Files travel straight between the browser and the storage, through signed URLs that the API issues. Work that nobody waits for on a screen is saved as a job and run by the worker: sending e-mail, processing files, calls to LLM providers.
 
-The kinds of user, and what each one may do, are not modelled yet.
+A user holds roles: the administrator and the developer exist from the setup on (see [ADR-0026](docs/adr/0026-a-role-is-a-record-that-grants-scopes-fixed-in-the-code.md)). What each role may do, its scopes, arrives with the areas that check them.
 
 ## Architecture
 
@@ -138,6 +138,7 @@ flowchart TB
     api -->|"login"| idp
     binary --> llm
     worker --> mail
+    mail -->|"bounces"| caddy
     binary -->|"files"| storage
     db -->|"backups,<br/>pgBackRest"| storage
     spa -->|"files, through<br/>signed URLs"| storage
@@ -281,7 +282,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 
 Each minimum is the version in use on the maintainer's machine, recorded in [`docs/machine-tools.yaml`](docs/machine-tools.yaml). No earlier version has been tried. Git clones the repository.
 
-Development takes five ports of the machine: 80 (Caddy), 5432 (PostgreSQL), 3900 (Garage), 8080 (the API) and 5173 (Vite). A `.env` moves the first three (see below); Caddy forwards to the last two.
+Development takes nine ports of the machine: 80 (Caddy), 5432 (PostgreSQL), 3900 (Garage), 1025 and 8025 (Mailpit), 5556 (Dex), 8081 (the River panel), 8080 (the API) and 5173 (Vite). A `.env` moves all but the last two (see below); Caddy forwards to those two.
 
 The installed Go only downloads the toolchain that `go.mod` names. Every other version the build uses is pinned in the repository (see Versions in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
@@ -371,13 +372,13 @@ Of the table above, PostgreSQL, Garage, Mailpit, Dex, the River panel and Caddy 
 6. In a second terminal, `task issue-setup-code`. It prints the setup code and the address of the setup, `http://localhost/setup`.
 7. Open that address. The first load takes a while, because Vite bundles the dependencies of the app. Type the code, fill in the consultancy and its first administrator, a logo and a photo if you have them, review what you typed and conclude.
 
-The app then leads to the login screen, which says the setup is concluded. The login itself comes with the next part of the work. `task e2e` runs the same path in a browser, on a database of its own.
+The app then leads to the login screen, which says the setup is concluded and that the administrator logs in below: with a login code, which Mailpit shows (see below), or through Dex when the e-mail of the administrator is one Dex knows. After the login the app opens its shell, in the preferred language of the user: the header with their menu, which logs out, the sidebar with the name and the logo of the consultancy, and a work surface that says the areas of work come next. `task e2e` runs the same path in a browser, on a database and a bucket of its own: the setup, a login through Dex, the logout, a login with a code read from Mailpit, and a person Dex knows who is no user.
 
 To skip the setup, run `task seed` in place of steps 6 and 7. It registers a fictitious consultancy, Fábrica Exemplo, and its administrator, Ana Exemplo, through the same use cases the setup runs, so the data obeys every rule, and the app opens on the login screen. Every run on an empty database creates the same data with the same identifiers, and a run on a database whose setup is concluded changes nothing. The administrator's e-mail is the mailbox of `SEED_MAILBOX` tagged `+admin`: `seed+admin@fabrica.example` with the value of `.env.example`. Nothing in the seed is real.
 
 The browser reaches everything through Caddy, at one address, `http://localhost`: the app, and the API under `/api`. The file storage has a host name of its own, `http://files.localhost`, where the browser sends an image to a URL the API signed; Garage accepts it from the origin of the app only. Nothing is configured by hand: the values of `.env.example` work as they are with Docker Desktop. With Docker Engine on Linux, Caddy reaches the API and Vite only when they listen on every interface: write `API_LISTEN_ADDRESS=0.0.0.0:8080` and `WEB_LISTEN_HOST=0.0.0.0` in a `.env`. When port 80 is taken, change `CADDY_PORT` there and add the port to `APP_ORIGIN` and to `FILE_STORAGE_PUBLIC_URL`.
 
-The worker runs the jobs the API saves, in a light queue and a heavy queue. Its first job delivers an e-mail: every e-mail the system sends is a record, and its job writes it in the language of the recipient and sends it through SMTP, or through Resend in production, which reports a bounce back to the API. In development the e-mail goes to Mailpit, which keeps it and delivers nothing: its screen, at `http://localhost:8025` (`MAILPIT_PORT`), shows every e-mail sent. The login code is the first e-mail the system asks for: `curl -i -c cookies.txt -X POST http://localhost/api/session/login_code -H "Content-Type: application/json" -d '{"email":"<the e-mail of a user>"}'` answers 202 for every e-mail, and Mailpit shows the code a moment later when the e-mail belongs to an active user. With the same cookie, `curl -i -b cookies.txt -c cookies.txt -X POST http://localhost/api/session/login_code/check -H "Content-Type: application/json" -d '{"code":"<the six digits>"}'` logs the user in (204), `curl -b cookies.txt http://localhost/api/session` tells who is logged in, and `curl -i -b cookies.txt -X POST http://localhost/api/session/log_out` logs out. The screen of the login comes next. Every hour, and once when it starts, the worker also cleans up the file storage: it removes the uploads never confirmed a day after they started, and the objects more than a day old that no confirmed file names. The River panel shows the jobs of the development database at `http://localhost:8081` (`RIVER_PANEL_PORT`); it runs in development only, until the API serves it to administrators.
+The worker runs the jobs the API saves, in a light queue and a heavy queue. Its first job delivers an e-mail: every e-mail the system sends is a record, and its job writes it in the language of the recipient and sends it through SMTP, or through Resend in production, which reports a bounce back to the API. In development the e-mail goes to Mailpit, which keeps it and delivers nothing: its screen, at `http://localhost:8025` (`MAILPIT_PORT`), shows every e-mail sent. The login code is the first e-mail the system asks for: on the login screen, type the e-mail of a user and "Send a code", and Mailpit shows the code a moment later, in the preferred language of the user; type its six digits on the screen. Without the screen, `curl -i -c cookies.txt -X POST http://localhost/api/session/login_code -H "Content-Type: application/json" -d '{"email":"<the e-mail of a user>"}'` answers 202 for every e-mail, and sends the code only when the e-mail belongs to an active user. With the same cookie, `curl -i -b cookies.txt -c cookies.txt -X POST http://localhost/api/session/login_code/check -H "Content-Type: application/json" -d '{"code":"<the six digits>"}'` logs the user in (204), `curl -b cookies.txt http://localhost/api/session` tells who is logged in, and `curl -i -b cookies.txt -X POST http://localhost/api/session/log_out` logs out. Every hour, and once when it starts, the worker also cleans up the file storage: it removes the uploads never confirmed a day after they started, and the objects more than a day old that no confirmed file names. The River panel shows the jobs of the development database at `http://localhost:8081` (`RIVER_PANEL_PORT`); it runs in development only, until the API serves it to administrators.
 
 The local login provider is Dex, at `http://localhost:5556` (`DEX_PORT`), which knows two people of the seed, with fixed passwords that are fictitious too:
 
@@ -426,7 +427,7 @@ The commands, run from the repository root:
 | `task web:generate:check` | Fails when the committed client that orval generated is stale |
 | `task web:imports` | Fails when an import of the app breaks its dependency rule, with dependency-cruiser |
 | `task web:knip` | Fails on a file, an export or a dependency of the app that nothing uses, with Knip |
-| `task e2e` | Runs the end-to-end test of the setup in Chromium, through Caddy, with Playwright. It starts the services, builds the API, restarts Caddy so that its limit starts empty, creates the database `software_factory_e2e` empty and applies the migrations; Playwright starts the API and Vite, and stops them at the end. The development database is not touched. Ports 8080 and 5173 must be free: stop `task dev` first. A failed test leaves its trace in `apps/web/test-results`, which `vp exec playwright show-trace <file>`, run in `apps/web`, opens |
+| `task e2e` | Runs the end-to-end test of the setup and the login in Chromium, through Caddy, with Playwright: the setup, a login through Dex, the shell and the logout, a login with a code read from Mailpit, and the limits of Caddy. It starts the services, Mailpit and Dex among them, builds the API, restarts Caddy so that its limits start empty, creates the database `software_factory_e2e` empty and applies the migrations, and creates the bucket `software-factory-e2e-files` in Garage on its first run; Playwright starts the API, the worker and Vite on that database and that bucket, and stops them at the end. The development database and its bucket are not touched. Ports 8080 and 5173 must be free: stop `task dev` first. A failed test leaves its trace in `apps/web/test-results`, which `vp exec playwright show-trace <file>`, run in `apps/web`, opens |
 | `task check` | Runs every check of a pull request: the exact versions, the check of the workflow files, the check of the generated client, the format, lint and type checks of `apps/web`, its dependency rule, its unused code, its missing translation keys and its tests, then the lint of the API, the check of the generated code, the check of the OpenAPI spec, the check of the lists of the app, the lint and the breaking-change report of the spec, the build and the tests of the API, and the end-to-end test. Because of the end-to-end test it needs ports 8080 and 5173 free and restarts Caddy: stop `task dev` first |
 | `task check:quick` | Runs everything `task check` runs except the end-to-end test, for daily use. It needs no free port and does not restart Caddy, so it runs beside `task dev`. Before a pull request, run `task check` |
 | `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
