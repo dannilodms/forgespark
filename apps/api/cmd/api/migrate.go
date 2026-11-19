@@ -7,16 +7,20 @@ import (
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 	"github.com/dannilodms/software-factory-manager/apps/api/migrations"
 )
 
 // migrate applies the migrations the database lacks, as the migration role,
-// and prints each one. It is its own step, run before the API starts.
-func migrate(ctx context.Context, environment map[string]string, stdout, _ io.Writer) error {
+// and prints each one. It is its own step, run before the API starts. It
+// writes no line of its own on the error output but its failure; a line a
+// library writes there is a JSON line of its logger.
+func migrate(ctx context.Context, environment map[string]string, stdout, stderr io.Writer) error {
 	settings, err := config.Load(config.Migrate, environment)
 	if err != nil {
 		return err
 	}
+	telemetry.RouteTheStandardLogger(telemetry.NewLogger(stderr, settings.LogLevel))
 
 	applied, err := database.Migrate(ctx, settings.MigrationDatabaseURL, migrations.Files)
 	if err != nil {

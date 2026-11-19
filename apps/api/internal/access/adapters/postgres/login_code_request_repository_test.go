@@ -82,13 +82,6 @@ func (s stored) find(t *testing.T, id domain.LoginCodeRequestID) (*domain.LoginC
 	return found, ok
 }
 
-func (s stored) countSince(t *testing.T, user domain.UserID, since time.Time) int {
-	t.Helper()
-	count, err := s.requests.CountAskedSince(context.Background(), user, since)
-	require.NoError(t, err)
-	return count
-}
-
 func TestARequestIsFoundAsItWasSaved(t *testing.T) {
 	t.Parallel()
 	temporary := newStored(t)
@@ -122,24 +115,6 @@ func TestNoRequestIsFoundForAnIdentifierThatWasNeverSaved(t *testing.T) {
 
 	assert.False(t, ok)
 	assert.Nil(t, found)
-}
-
-func TestTheRequestsAskedForSinceAMomentAreCountedForEachUser(t *testing.T) {
-	t.Parallel()
-	temporary := newStored(t)
-	ana := temporary.aUser(t, "ana@fabrica.example")
-	bruno := temporary.aUser(t, "bruno@fabrica.example")
-	for _, minutes := range []int{0, 10, 20} {
-		request := temporary.ask(t, ana, noon.Add(time.Duration(minutes)*time.Minute))
-		request.End(noon.Add(time.Duration(minutes+1) * time.Minute))
-		require.NoError(t, temporary.requests.Save(context.Background(), request))
-	}
-	temporary.ask(t, bruno, noon.Add(15*time.Minute))
-
-	assert.Equal(t, 3, temporary.countSince(t, ana, noon.Add(-time.Second)), "an ended request still counts")
-	assert.Equal(t, 2, temporary.countSince(t, ana, noon), "a request asked for at the moment itself is not after it")
-	assert.Equal(t, 0, temporary.countSince(t, ana, noon.Add(20*time.Minute)))
-	assert.Equal(t, 1, temporary.countSince(t, bruno, noon))
 }
 
 func TestTheRequestsOfAUserThatWereNotEndedAreLoaded(t *testing.T) {
@@ -321,4 +296,34 @@ func TestARowOfARequestHoldsNoCode(t *testing.T) {
 
 	assert.NotContains(t, row, code)
 	assert.Contains(t, row, `"random_value"`)
+}
+
+// The daily cleanup removes the requests that ended, or expired, before a
+// moment, and keeps the others.
+func TestTheRequestsThatEndedOrExpiredBeforeAMomentAreRemoved(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	ana := temporary.aUser(t, "ana@fabrica.example")
+	expired := temporary.ask(t, ana, noon.Add(-time.Hour))
+	expired.End(noon.Add(time.Hour))
+	require.NoError(t, temporary.requests.Save(context.Background(), expired))
+	ended := temporary.ask(t, ana, noon.Add(-5*time.Minute))
+	ended.End(noon.Add(-4 * time.Minute))
+	require.NoError(t, temporary.requests.Save(context.Background(), ended))
+	endedLater := temporary.ask(t, ana, noon.Add(-time.Minute))
+	endedLater.End(noon.Add(time.Minute))
+	require.NoError(t, temporary.requests.Save(context.Background(), endedLater))
+	open := temporary.ask(t, ana, noon)
+
+	err := temporary.requests.RemoveEndedOrExpiredBefore(context.Background(), noon)
+
+	require.NoError(t, err)
+	_, keptExpired := temporary.find(t, expired.ID())
+	_, keptEnded := temporary.find(t, ended.ID())
+	_, keptEndedLater := temporary.find(t, endedLater.ID())
+	_, keptOpen := temporary.find(t, open.ID())
+	assert.False(t, keptExpired, "a request that expired, then ended, was kept")
+	assert.False(t, keptEnded, "a request that ended before the moment was kept")
+	assert.True(t, keptEndedLater)
+	assert.True(t, keptOpen)
 }

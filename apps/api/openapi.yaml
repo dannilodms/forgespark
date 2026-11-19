@@ -97,6 +97,7 @@ components:
             - en-US
             - es
             - pt-BR
+          minLength: 1
           type: string
         role_keys:
           description: The keys of the roles of the user, sorted, which the app translates.
@@ -582,7 +583,7 @@ paths:
         - Login
   /api/session/login_providers/{key}/callback:
     get:
-      description: The login provider sends the browser back here; the generated client does not call it. The state must be the one of the login this browser started, which is used once. The code is exchanged with the verifier, and the ID token validated with its nonce; the user is found by the provider link of the account, or else by the e-mail the token says is verified, and the account is linked. It redirects to the path to return to, logged in, with the cookie of the session set again with a new token. A verified e-mail of no active user redirects to the login screen with the notice `no_active_user`, the e-mail kept for `tell_login_state`; a cancel or an error at the provider, a code it refuses, an e-mail it does not say is verified, or a state that is not the one of this browser redirects with `login_not_concluded`. The query parameters are the ones OAuth defines, and any other the provider adds is not refused. A key of no provider turned on answers `not_found`.
+      description: The login provider sends the browser back here; the generated client does not call it. The state must be the one of the login this browser started, which is used once. The code is exchanged with the verifier, and the ID token validated with its nonce; the user is found by the provider link of the account, or else by the e-mail the token says is verified, and the account is linked. It redirects to the path to return to, logged in, with the cookie of the session set again with a new token. A verified e-mail of no active user redirects to the login screen with the notice `no_active_user`, the e-mail kept for `tell_login_state`; an account that is not linked, whose verified e-mail is the one of a user who has another account of the provider linked, redirects with `another_account_linked`; a cancel or an error at the provider, a code it refuses, an e-mail it does not say is verified, or a state that is not the one of this browser redirects with `login_not_concluded`. The query parameters are the ones OAuth defines, and any other the provider adds is not refused. A key of no provider turned on answers `not_found`.
       operationId: conclude_provider_login
       parameters:
         - description: The key of the login provider.
@@ -634,12 +635,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
           description: "Not Found. `not_found`: the path names nothing that exists."
-        "422":
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-          description: "Unprocessable Entity. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule."
         "500":
           content:
             application/problem+json:

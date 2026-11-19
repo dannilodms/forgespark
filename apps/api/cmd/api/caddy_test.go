@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -275,9 +276,10 @@ func TestCaddyAnswers429InTheErrorFormatPastTheLimitOfTheLoginCode(t *testing.T)
 	t.Parallel()
 	caddy := behindCaddy(t, startAPI(t, onTheMachine(t, databasetest.Migrated(t))))
 
-	// Ten a minute pass untouched: the API answers each.
-	for range 10 {
-		within := caddy.send(t, http.MethodPost, "/api/session/login_code", anEmailOfNoUser)
+	// Ten a minute pass untouched: the API answers each. Each asks for an
+	// address of its own, past which the API counts a limit of its own.
+	for ask := range 10 {
+		within := caddy.send(t, http.MethodPost, "/api/session/login_code", `{"email":"nobody+`+strconv.Itoa(ask)+`@fabrica.example"}`)
 		require.Equal(t, http.StatusAccepted, within.status, within.body)
 	}
 	over := caddy.send(t, http.MethodPost, "/api/session/login_code", anEmailOfNoUser)

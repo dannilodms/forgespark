@@ -57,12 +57,6 @@ func appendIf(requests []*domain.LoginCodeRequest, request *domain.LoginCodeRequ
 	return append(requests, request)
 }
 
-// CountAskedSince counts the requests of the user asked for after the moment.
-func (r *LoginCodeRequestRepository) CountAskedSince(_ context.Context, user domain.UserID, since time.Time) (int, error) {
-	asked := slices.DeleteFunc(r.ofUser(user), func(stored domain.LoginCodeRequest) bool { return !stored.AskedAt().After(since) })
-	return len(asked), nil
-}
-
 // Find returns a copy of the request with this identifier.
 func (r *LoginCodeRequestRepository) Find(_ context.Context, id domain.LoginCodeRequestID) (*domain.LoginCodeRequest, bool, error) {
 	position := slices.IndexFunc(r.requests, func(stored domain.LoginCodeRequest) bool { return stored.ID() == id })
@@ -91,6 +85,16 @@ func (r *LoginCodeRequestRepository) Save(_ context.Context, request *domain.Log
 		return nil
 	}
 	r.requests[position] = *request
+	return nil
+}
+
+// RemoveEndedOrExpiredBefore removes the requests that ended, or expired,
+// before the moment.
+func (r *LoginCodeRequestRepository) RemoveEndedOrExpiredBefore(_ context.Context, before time.Time) error {
+	r.requests = slices.DeleteFunc(r.requests, func(stored domain.LoginCodeRequest) bool {
+		endedAt, ended := stored.EndedAt()
+		return stored.ExpiresAt().Before(before) || (ended && endedAt.Before(before))
+	})
 	return nil
 }
 

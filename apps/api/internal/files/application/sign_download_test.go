@@ -69,3 +69,21 @@ func TestADownloadOfAFileTheDatabaseCannotReadIsAFailure(t *testing.T) {
 	require.ErrorIs(t, err, unreachable)
 	assert.Empty(t, stored.objects.SignedDownloadKeys())
 }
+
+// A read that shows an image a record may lack signs the file when there is
+// one, and answers no URL, signing nothing, when there is none.
+func TestTheURLOfAFileThatMayBeAbsentIsSignedOnlyWhenThereIsOne(t *testing.T) {
+	stored := newStorage()
+	id := uploaded(t, stored, anImage(pngStart, 1024))
+	require.NoError(t, confirmLogo(stored, id))
+
+	none, err := stored.signDownload.URLOf(context.Background(), nil)
+	require.NoError(t, err)
+	assert.Empty(t, none)
+	assert.Empty(t, stored.objects.SignedDownloadKeys(), "a download was signed for no file")
+
+	url, err := stored.signDownload.URLOf(context.Background(), &id)
+	require.NoError(t, err)
+	signed, _ := stored.objects.SignedDownload(stored.files.All()[0].ObjectKey())
+	assert.Equal(t, signed.URL, url)
+}

@@ -72,7 +72,7 @@ func TestAUserWhoCanLogInIsFoundByTheirIdentifierWithTheKeysOfTheirRoles(t *test
 		Name:              "Ana Souza",
 		Email:             ana.Details().Email(),
 		PreferredLanguage: ana.Details().PreferredLanguage(),
-		PhotoFileID:       0,
+		PhotoFileID:       nil,
 		Roles:             []domain.RoleKey{domain.AdministratorRoleKey, domain.DeveloperRoleKey},
 		Scopes:            nil,
 	}, foundAna)
@@ -95,8 +95,10 @@ func TestAUserWhoCanLogInIsFoundWithTheFileOfTheirPhoto(t *testing.T) {
 	byIdentifier, _ := temporary.activeUserOf(t, user.ID())
 	byEmail, _ := temporary.activeUserWith(t, typed.Email)
 
-	assert.Equal(t, typed.PhotoFileID, byIdentifier.PhotoFileID)
-	assert.Equal(t, typed.PhotoFileID, byEmail.PhotoFileID)
+	require.NotNil(t, byIdentifier.PhotoFileID)
+	require.NotNil(t, byEmail.PhotoFileID)
+	assert.Equal(t, typed.PhotoFileID, *byIdentifier.PhotoFileID)
+	assert.Equal(t, typed.PhotoFileID, *byEmail.PhotoFileID)
 }
 
 func TestNoUserIsFoundForAnIdentifierNobodyHasOrForADeactivatedUser(t *testing.T) {

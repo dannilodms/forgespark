@@ -38,9 +38,10 @@ func (r *ConsultancyReader) Read(ctx context.Context) (application.ConsultancyNa
 }
 
 // fileOrNone is the file a column names, and the file 0 when it names none.
-func fileOrNone(id *int64) domain.FileID {
+func fileOrNone(id *int64) *domain.FileID {
 	if id == nil {
-		return 0
+		return nil
 	}
-	return domain.FileID(*id)
+	file := domain.FileID(*id)
+	return &file
 }

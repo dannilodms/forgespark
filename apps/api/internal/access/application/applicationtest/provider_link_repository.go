@@ -2,7 +2,6 @@ package applicationtest
 
 import (
 	"context"
-	"errors"
 	"slices"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
@@ -11,8 +10,9 @@ import (
 // ProviderLinkRepository keeps the provider links in memory, unique on the
 // account and on the user at each provider, as the table is.
 type ProviderLinkRepository struct {
-	links   []domain.ProviderLink
-	failure error
+	links     []domain.ProviderLink
+	meanwhile []domain.ProviderLink
+	failure   error
 }
 
 // NewProviderLinkRepository returns a repository with no link.
@@ -20,13 +20,17 @@ func NewProviderLinkRepository() *ProviderLinkRepository {
 	return &ProviderLinkRepository{}
 }
 
-// errLinkedAlready is the unique constraint of the table, broken.
-var errLinkedAlready = errors.New("the account, or the user at this provider, is linked already")
-
 // FailWith makes every later Save fail with this error, as a database that
 // refuses the write.
 func (r *ProviderLinkRepository) FailWith(failure error) {
 	r.failure = failure
+}
+
+// LinkMeanwhile makes the next Save find this link saved just before it, as
+// by another login at the same moment, whose transaction committed while the
+// one of the Save waited.
+func (r *ProviderLinkRepository) LinkMeanwhile(link *domain.ProviderLink) {
+	r.meanwhile = append(r.meanwhile, *link)
 }
 
 // Find returns a copy of the link of the account.
@@ -48,18 +52,21 @@ func (r *ProviderLinkRepository) HasLink(_ context.Context, provider domain.Logi
 	}), nil
 }
 
-// Save stores a copy of a new link.
-func (r *ProviderLinkRepository) Save(ctx context.Context, link *domain.ProviderLink) error {
+// Save stores a copy of a new link, and returns false, storing nothing, when
+// the account or the user at the provider is linked already.
+func (r *ProviderLinkRepository) Save(ctx context.Context, link *domain.ProviderLink) (bool, error) {
 	if r.failure != nil {
-		return r.failure
+		return false, r.failure
 	}
+	r.links = append(r.links, r.meanwhile...)
+	r.meanwhile = nil
 	_, linked, _ := r.Find(ctx, link.Provider(), link.Subject())
 	userLinked, _ := r.HasLink(ctx, link.Provider(), link.User())
 	if linked || userLinked {
-		return errLinkedAlready
+		return false, nil
 	}
 	r.links = append(r.links, *link)
-	return nil
+	return true, nil
 }
 
 // All returns a copy of every link, in the order they were saved.

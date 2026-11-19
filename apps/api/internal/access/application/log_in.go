@@ -6,6 +6,7 @@ import (
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
 	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
 	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // LogInDependencies are what logging a user in needs: the transactions, the
@@ -45,7 +46,7 @@ type FindUser func(ctx context.Context) (domain.UserID, bool, error)
 //
 // It returns false, and logs nobody in, when the way in refused or the user it
 // found cannot log in: deactivated, or gone.
-func (u *LogIn) Execute(ctx context.Context, way domain.WayIn, findUser FindUser) (bool, error) {
+func (u *LogIn) Execute(ctx context.Context, way kernel.WayIn, findUser FindUser) (bool, error) {
 	var user domain.UserID
 	var active bool
 	err := u.with.Transactions.Run(ctx, func(ctx context.Context) error {
@@ -65,7 +66,7 @@ func (u *LogIn) Execute(ctx context.Context, way domain.WayIn, findUser FindUser
 
 // record records the login of the user, when they can log in, and tells
 // whether they can.
-func (u *LogIn) record(ctx context.Context, user domain.UserID, way domain.WayIn) (bool, error) {
+func (u *LogIn) record(ctx context.Context, user domain.UserID, way kernel.WayIn) (bool, error) {
 	_, active, err := u.with.FindActiveUserByID.Execute(ctx, consultancyapplication.UserID(user))
 	if err != nil || !active {
 		return false, err
@@ -75,6 +76,6 @@ func (u *LogIn) record(ctx context.Context, user domain.UserID, way domain.WayIn
 		Operation:  auditapplication.LoggedIn,
 		Actor:      auditapplication.ActingUser(int64(user)),
 		Subject:    auditapplication.User(int64(user)),
-		WayIn:      auditapplication.WayIn(way),
+		WayIn:      way,
 	})
 }

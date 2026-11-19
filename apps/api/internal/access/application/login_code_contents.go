@@ -18,14 +18,9 @@ type LoginCodeContents struct {
 	key      domain.LoginCodeKey
 }
 
-// NewLoginCodeContents builds the source. The key comes from configuration,
-// and has at least domain.LoginCodeKeyMinSize bytes.
-func NewLoginCodeContents(requests LoginCodeRequestRepository, key []byte) (*LoginCodeContents, error) {
-	held, err := domain.NewLoginCodeKey(key)
-	if err != nil {
-		return nil, err
-	}
-	return &LoginCodeContents{requests: requests, key: held}, nil
+// NewLoginCodeContents builds the source. The key comes from configuration.
+func NewLoginCodeContents(requests LoginCodeRequestRepository, key domain.LoginCodeKey) *LoginCodeContents {
+	return &LoginCodeContents{requests: requests, key: key}
 }
 
 // ContentOf gives the content of the e-mail that refers to a login code

@@ -9,6 +9,7 @@ import (
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/identifier"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
 )
 
 // The bodies of the setup. Each declares in the contract what a client can
@@ -120,13 +121,13 @@ func (a *SetupAddress) typed() domain.TypedAddress {
 
 // SetupAdministrator is an administrator as typed in the setup.
 type SetupAdministrator struct {
-	Name              string   `json:"name" minLength:"1" doc:"The name of the person."`
-	Email             string   `json:"email" minLength:"1" format:"email" doc:"The e-mail the administrator logs in with. It is stored in lowercase, and belongs to one user."`
-	Country           string   `json:"country" minLength:"1" doc:"The country that gave the national ID, by its ISO 3166-1 alpha-2 code: BR."`
-	NationalID        string   `json:"national_id" minLength:"1" doc:"The identifier the country gives the person, as the country writes it."`
-	Telephone         string   `json:"telephone,omitempty" doc:"The telephone, in international form: a plus sign and 7 to 15 digits. Spaces are dropped."`
-	PreferredLanguage language `json:"preferred_language" doc:"The supported language the administrator reads the system in: the language the setup screen was in."`
-	PhotoFileID       string   `json:"photo_file_id,omitempty" doc:"The file of the photo, as start_setup_upload answered it, once the image was sent to the storage."`
+	Name              string           `json:"name" minLength:"1" doc:"The name of the person."`
+	Email             string           `json:"email" minLength:"1" format:"email" doc:"The e-mail the administrator logs in with. It is stored in lowercase, and belongs to one user."`
+	Country           string           `json:"country" minLength:"1" doc:"The country that gave the national ID, by its ISO 3166-1 alpha-2 code: BR."`
+	NationalID        string           `json:"national_id" minLength:"1" doc:"The identifier the country gives the person, as the country writes it."`
+	Telephone         string           `json:"telephone,omitempty" doc:"The telephone, in international form: a plus sign and 7 to 15 digits. Spaces are dropped."`
+	PreferredLanguage restapi.Language `json:"preferred_language" doc:"The supported language the administrator reads the system in: the language the setup screen was in."`
+	PhotoFileID       string           `json:"photo_file_id,omitempty" doc:"The file of the photo, as start_setup_upload answered it, once the image was sent to the storage."`
 }
 
 // TransformSchema sets the limits and the forms of the domain.
@@ -186,22 +187,6 @@ type SetupUpload struct {
 func (SetupUpload) TransformSchema(_ huma.Registry, schema *huma.Schema) *huma.Schema {
 	shape(schema, "file_id", identifier.File.Pattern())
 	return schema
-}
-
-// language is a supported language. Its schema lists the supported languages
-// of kernel, so the generated client knows them. It asks at least one
-// character, so an empty one is answered as a required field left empty.
-type language string
-
-// Schema lists the supported languages.
-func (language) Schema(huma.Registry) *huma.Schema {
-	tags := kernel.SupportedLanguages()
-	enum := make([]any, 0, len(tags))
-	for _, tag := range tags {
-		enum = append(enum, tag)
-	}
-	atLeastOne := 1
-	return &huma.Schema{Type: huma.TypeString, MinLength: &atLeastOne, Enum: enum}
 }
 
 // limit sets the longest text a property takes, in characters.

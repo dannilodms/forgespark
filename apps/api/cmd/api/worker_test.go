@@ -183,6 +183,47 @@ func TestTheWorkerCleansUpTheStorageWhenItStarts(t *testing.T) {
 	assert.Empty(t, storage.removals, "the young object was removed")
 }
 
+// The daily cleanup runs when the worker starts, and then once a day. It
+// removes what is kept only for a while, and keeps what is still read.
+func TestTheWorkerRemovesTheOldRecordsWhenItStarts(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+	owner := asOwner(t, temporary)
+	ctx := context.Background()
+	for _, statement := range []string{
+		`INSERT INTO users (id, name, email, country, national_id, preferred_language, deactivated)
+			VALUES (nextval('users_id_seq'), 'Ana Souza', 'ana.souza@fabrica.example', 'BR', '1', 'pt-BR', false)`,
+		`INSERT INTO login_code_requests (id, user_id, random_value, asked_at, expires_at, attempts, ended_at)
+			SELECT 1, id, decode(repeat('00', 32), 'hex'), now() - interval '2 days', now() - interval '2 days' + interval '10 minutes', 0, now() - interval '2 days'
+			FROM users`,
+		`INSERT INTO login_code_requests (id, user_id, random_value, asked_at, expires_at, attempts, ended_at)
+			SELECT 2, id, decode(repeat('00', 32), 'hex'), now(), now() + interval '10 minutes', 0, NULL FROM users`,
+		`INSERT INTO login_code_asks (address, asked_at) VALUES (decode(repeat('01', 32), 'hex'), now() - interval '2 hours')`,
+		`INSERT INTO login_code_asks (address, asked_at) VALUES (decode(repeat('02', 32), 'hex'), now())`,
+		`INSERT INTO sessions (token, data, expiry) VALUES ('ended', decode('00', 'hex'), now() - interval '1 minute')`,
+		`INSERT INTO sessions (token, data, expiry) VALUES ('open', decode('00', 'hex'), now() + interval '7 days')`,
+		`INSERT INTO bounce_notices (id, received_at) VALUES ('msg_old', now() - interval '31 days')`,
+		`INSERT INTO bounce_notices (id, received_at) VALUES ('msg_recent', now())`,
+	} {
+		_, err := owner.Exec(ctx, statement)
+		require.NoError(t, err, statement)
+	}
+
+	worker := launchWorker(t, workerEnvironmentOf(t, temporary))
+
+	assert.Eventually(t, func() bool {
+		return countOf(t, owner, "login_code_requests") == 1 && countOf(t, owner, "login_code_asks") == 1 &&
+			countOf(t, owner, "sessions") == 1 && countOf(t, owner, "bounce_notices") == 1
+	}, 30*time.Second, 100*time.Millisecond, "the old records were not removed")
+	worker.signal()
+	assert.Equal(t, 0, <-worker.status, "%s", worker.logs)
+	var kept string
+	require.NoError(t, owner.QueryRow(ctx, "SELECT token FROM sessions").Scan(&kept))
+	assert.Equal(t, "open", kept)
+	require.NoError(t, owner.QueryRow(ctx, "SELECT id FROM bounce_notices").Scan(&kept))
+	assert.Equal(t, "msg_recent", kept)
+}
+
 func receiveWithin[T any](t *testing.T, from <-chan T, wait time.Duration, what string) T {
 	t.Helper()
 	select {

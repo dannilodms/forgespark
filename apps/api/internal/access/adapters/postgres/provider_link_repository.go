@@ -59,17 +59,19 @@ func (r *ProviderLinkRepository) HasLink(ctx context.Context, provider domain.Lo
 	return has, nil
 }
 
-// Save inserts a new link. A second link of the account, or of the user at
-// the provider, breaks a unique constraint of the table.
-func (r *ProviderLinkRepository) Save(ctx context.Context, link *domain.ProviderLink) error {
-	err := r.queries(ctx).InsertProviderLink(ctx, InsertProviderLinkParams{
+// Save inserts a new link, and returns false, inserting nothing, when the
+// account, or the user at the provider, is linked already: the unique
+// constraints of the table decide, and an insert of another transaction is
+// waited for, so the transaction is not aborted and reads that link.
+func (r *ProviderLinkRepository) Save(ctx context.Context, link *domain.ProviderLink) (bool, error) {
+	inserted, err := r.queries(ctx).InsertProviderLink(ctx, InsertProviderLinkParams{
 		ProviderKey: link.Provider().String(),
 		Subject:     link.Subject().String(),
 		UserID:      int64(link.User()),
 		LinkedAt:    link.LinkedAt(),
 	})
 	if err != nil {
-		return fmt.Errorf("save a provider link: %w", err)
+		return false, fmt.Errorf("save a provider link: %w", err)
 	}
-	return nil
+	return inserted == 1, nil
 }

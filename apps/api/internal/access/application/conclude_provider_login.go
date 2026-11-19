@@ -62,6 +62,11 @@ const (
 	// deactivated user, refused the same way. The session keeps the e-mail
 	// for the login screen.
 	NoActiveUser
+	// AnotherAccountLinked is an account that is not linked, whose verified
+	// e-mail is the one of a user who has another account of the provider
+	// linked: a user has one at each provider, so the person logs in with
+	// that account, or with a login code.
+	AnotherAccountLinked
 )
 
 // ConcludedProviderLogin is how the login ended, and the path of the app the
@@ -128,11 +133,11 @@ func accountOf(provider domain.LoginProviderKey, identity ProviderIdentity) (acc
 // logIn logs in the user of the account, through the step every way in ends
 // with, and tells the outcome.
 func (u *ConcludeProviderLogin) logIn(ctx context.Context, account account, returnTo domain.ReturnPath) (ConcludedProviderLogin, bool, error) {
-	var found ProviderLoginOutcome
+	var outcome ProviderLoginOutcome
 	loggedIn, err := u.with.LogIn.Execute(ctx, account.provider.WayIn(), func(ctx context.Context) (domain.UserID, bool, error) {
-		user, outcome, err := u.userOf(ctx, account)
-		found = outcome
-		return user, outcome == LoggedInThroughProvider, err
+		user, userOutcome, err := u.userOf(ctx, account)
+		outcome = userOutcome
+		return user, userOutcome == LoggedInThroughProvider, err
 	})
 	if err != nil {
 		return ConcludedProviderLogin{}, true, err
@@ -140,8 +145,8 @@ func (u *ConcludeProviderLogin) logIn(ctx context.Context, account account, retu
 	if loggedIn {
 		return ConcludedProviderLogin{Outcome: LoggedInThroughProvider, ReturnTo: returnTo}, true, nil
 	}
-	if found == LoginNotConcluded {
-		return u.notConcluded(ctx, returnTo)
+	if outcome != LoggedInThroughProvider && outcome != NoActiveUser {
+		return u.refusedWithout(ctx, outcome, returnTo)
 	}
 	// No active user has the e-mail, or the user found by the link was
 	// deactivated since: refused for the e-mail either way.
@@ -170,19 +175,40 @@ func (u *ConcludeProviderLogin) userOf(ctx context.Context, account account) (do
 	owner := domain.UserID(user.ID)
 	hasLink, err := u.with.Links.HasLink(ctx, account.provider, owner)
 	if err != nil || hasLink {
+		return 0, AnotherAccountLinked, err
+	}
+	saved, err := u.with.Links.Save(ctx, domain.LinkProvider(account.provider, account.subject, owner, u.with.Clock.Now()))
+	if err != nil {
 		return 0, LoginNotConcluded, err
 	}
-	created := domain.LinkProvider(account.provider, account.subject, owner, u.with.Clock.Now())
-	if err := u.with.Links.Save(ctx, created); err != nil {
-		return 0, LoginNotConcluded, err
+	if !saved {
+		return u.linkedMeanwhile(ctx, account)
 	}
 	return owner, LoggedInThroughProvider, nil
 }
 
+// linkedMeanwhile reads the link again when another login at the same moment
+// linked the account, or another account of the user at the provider, while
+// this one was linking it: the user of the account, or the user known there
+// by another account.
+func (u *ConcludeProviderLogin) linkedMeanwhile(ctx context.Context, account account) (domain.UserID, ProviderLoginOutcome, error) {
+	link, linked, err := u.with.Links.Find(ctx, account.provider, account.subject)
+	if err != nil || !linked {
+		return 0, AnotherAccountLinked, err
+	}
+	return link.User(), LoggedInThroughProvider, nil
+}
+
 // notConcluded logs nobody in, and forgets the refusal of the login before.
 func (u *ConcludeProviderLogin) notConcluded(ctx context.Context, returnTo domain.ReturnPath) (ConcludedProviderLogin, bool, error) {
+	return u.refusedWithout(ctx, LoginNotConcluded, returnTo)
+}
+
+// refusedWithout logs nobody in for a reason that is not the e-mail, and
+// forgets the refusal of the login before.
+func (u *ConcludeProviderLogin) refusedWithout(ctx context.Context, outcome ProviderLoginOutcome, returnTo domain.ReturnPath) (ConcludedProviderLogin, bool, error) {
 	if err := u.with.Session.ForgetRefusal(ctx); err != nil {
 		return ConcludedProviderLogin{}, true, err
 	}
-	return ConcludedProviderLogin{Outcome: LoginNotConcluded, ReturnTo: returnTo}, true, nil
+	return ConcludedProviderLogin{Outcome: outcome, ReturnTo: returnTo}, true, nil
 }

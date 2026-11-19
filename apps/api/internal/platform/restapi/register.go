@@ -39,6 +39,12 @@ func Register[I, O any](api *API, operation huma.Operation, failures Failures, h
 		return output, nil
 	})
 
+	// Huma declares a 422 for every operation that has parameters or a body.
+	// One that checks neither, and declares no broken rule under 422, never
+	// answers it.
+	if operation.SkipValidateParams && operation.SkipValidateBody && len(failures[http.StatusUnprocessableEntity]) == 0 {
+		delete(operation.Responses, strconv.Itoa(http.StatusUnprocessableEntity))
+	}
 	for status, response := range operation.Responses {
 		response.Description = failures.describe(status, response.Description)
 	}

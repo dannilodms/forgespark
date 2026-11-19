@@ -116,13 +116,12 @@ func (r *ActiveUserReader) activeUser(wanted func(domain.User) bool) (applicatio
 		roles = append(roles, r.roles[role])
 	}
 	slices.Sort(roles)
-	photo, _ := found.Details().PhotoFileID()
 	return application.ActiveUser{
 		ID:                found.ID(),
 		Name:              found.Details().Name(),
 		Email:             found.Details().Email(),
 		PreferredLanguage: found.Details().PreferredLanguage(),
-		PhotoFileID:       photo,
+		PhotoFileID:       fileOrNone(found.Details().PhotoFileID()),
 		Roles:             roles,
 	}, true, nil
 }

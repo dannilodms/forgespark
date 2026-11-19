@@ -84,13 +84,24 @@ type data struct {
 
 // subjectIn returns the subject of the e-mails of the template in the
 // language. A subject takes no value from the content: it is written in the
-// e-mail record when the e-mail is queued, before the content exists.
-func (t Template) subjectIn(language kernel.Language) string {
+// e-mail record when the e-mail is queued, before the content exists. A
+// subject the language lacks is an error, never an e-mail with no subject.
+func (t Template) subjectIn(language kernel.Language) (string, error) {
 	read, err := library()
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return read.texts[language.String()][t]["subject"]
+	return read.subjectOf(t, language)
+}
+
+// subjectOf returns the subject of the template in the language, as its
+// translation file writes it.
+func (l *templateLibrary) subjectOf(template Template, language kernel.Language) (string, error) {
+	subject := l.texts[language.String()][template]["subject"]
+	if subject == "" {
+		return "", fmt.Errorf("no subject of %s in %s", template, language)
+	}
+	return subject, nil
 }
 
 // write writes the two parts of the template in the language, with the

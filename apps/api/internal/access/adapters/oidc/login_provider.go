@@ -20,9 +20,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	openid "github.com/coreos/go-oidc/v3/oidc"
@@ -35,6 +34,7 @@ import (
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 )
 
@@ -80,8 +80,9 @@ type LoginProvider struct {
 	client   *http.Client
 	logger   *slog.Logger
 
-	mu         sync.Mutex
-	discovered *discovered
+	// discovered is what the first discovery that succeeded gave, and nil
+	// until one does.
+	discovered atomic.Pointer[discovered]
 }
 
 var _ application.LoginProvider = (*LoginProvider)(nil)
@@ -117,8 +118,7 @@ func NewLoginProvider(settings Settings) (*LoginProvider, error) {
 			Transport: tracedTransport{base: http.DefaultTransport, tracer: tracer, key: key},
 		},
 		logger:     logger,
-		mu:         sync.Mutex{},
-		discovered: nil,
+		discovered: atomic.Pointer[discovered]{},
 	}, nil
 }
 
@@ -196,18 +196,19 @@ func (p *LoginProvider) identify(ctx context.Context, code string, login domain.
 }
 
 // discover reads the discovery document of the provider once, and again
-// while it fails.
+// while it fails. No lock is held while the provider is called, so a provider
+// that hangs keeps waiting only the login that called it: two first logins at
+// once may both discover it, and the first result kept is the one every later
+// login uses.
 func (p *LoginProvider) discover(ctx context.Context) (*discovered, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.discovered != nil {
-		return p.discovered, nil
+	if known := p.discovered.Load(); known != nil {
+		return known, nil
 	}
 	provider, err := openid.NewProvider(openid.ClientContext(ctx, p.client), p.settings.IssuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("discover the provider at its issuer: %s", brief(err))
 	}
-	p.discovered = &discovered{
+	p.discovered.CompareAndSwap(nil, &discovered{
 		config: oauth2.Config{
 			ClientID:     p.settings.ClientID,
 			ClientSecret: p.settings.ClientSecret.Reveal(),
@@ -216,8 +217,8 @@ func (p *LoginProvider) discover(ctx context.Context) (*discovered, error) {
 			Scopes:       scopes,
 		},
 		verifier: provider.Verifier(&openid.Config{ClientID: p.settings.ClientID}),
-	}
-	return p.discovered, nil
+	})
+	return p.discovered.Load(), nil
 }
 
 // tell writes the failure of a login through the provider: the step and the
@@ -226,10 +227,6 @@ func (p *LoginProvider) tell(ctx context.Context, err error) {
 	p.logger.LogAttrs(ctx, slog.LevelWarn, "a login through a provider failed",
 		slog.String("login_provider", p.key.String()), slog.String("error", err.Error()))
 }
-
-// errorCodeForm is the form of the code of a failure OAuth defines, such as
-// `invalid_grant`. Anything else the provider answers is not repeated.
-var errorCodeForm = regexp.MustCompile(`^[a-z][a-z_]{0,63}$`)
 
 // exchangeFailure tells why the exchange of a code failed: the status and
 // the code of the answer of the provider, or that it could not be reached.
@@ -254,8 +251,11 @@ func statusOf(refused *oauth2.RetrieveError) int {
 	return refused.Response.StatusCode
 }
 
+// codeOf repeats the code of a failure OAuth defines, such as
+// `invalid_grant`, which is a key (kernel.Key). Anything else the provider
+// answers is not repeated.
 func codeOf(code string) string {
-	if !errorCodeForm.MatchString(code) {
+	if _, err := kernel.NewKey(code); err != nil {
 		return "with no code"
 	}
 	return code

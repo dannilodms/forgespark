@@ -209,6 +209,8 @@ func TestANewCodeAskedForGivesThreeAttemptsAgain(t *testing.T) {
 	require.NoError(t, s.ask("bruno.lima@fabrica.example"))
 	requireInvalid(t, s.check("000000"), 2)
 	requireInvalid(t, s.check("000000"), 1)
+	// The limit of one a minute counts the asks for an address of no user too.
+	s.clock.Advance(time.Minute)
 
 	require.NoError(t, s.ask("bruno.lima@fabrica.example"))
 

@@ -13,6 +13,7 @@ import (
 type Sender struct {
 	sent    []domain.Message
 	failure error
+	hangs   bool
 }
 
 // NewSender returns a sender that took nothing yet.
@@ -26,8 +27,19 @@ func (s *Sender) FailWith(failure error) {
 	s.failure = failure
 }
 
+// HangUntilTheContextEnds makes every later Send wait until its context ends
+// and fail with its error, as an e-mail server that never answers, until the
+// job runs out of its time or is cut.
+func (s *Sender) HangUntilTheContextEnds() {
+	s.hangs = true
+}
+
 // Send keeps the message.
-func (s *Sender) Send(_ context.Context, message domain.Message) (string, error) {
+func (s *Sender) Send(ctx context.Context, message domain.Message) (string, error) {
+	if s.hangs {
+		<-ctx.Done()
+		return "", ctx.Err()
+	}
 	if s.failure != nil {
 		return "", s.failure
 	}

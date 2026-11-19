@@ -5,14 +5,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"net"
-	"net/mail"
 	"net/url"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 var errNotValid = errors.New("not valid")
@@ -117,8 +117,13 @@ func (u PostgresURL) String() string {
 }
 
 // Origin is the address a browser reaches a site at: a scheme, a host and
-// maybe a port, with nothing after them.
+// maybe a port, with nothing after them. It is kept as a browser writes the
+// Origin of a request: the scheme and the host in lowercase, and no port
+// that is the default of the scheme, so two origins compare as text.
 type Origin string
+
+// defaultPorts are the ports an origin leaves out, by scheme.
+var defaultPorts = map[string]string{"http": "80", "https": "443"}
 
 // UnmarshalText reads an origin from the text of a variable. One slash at
 // the end is accepted and dropped.
@@ -127,15 +132,30 @@ func (o *Origin) UnmarshalText(text []byte) error {
 	if err != nil {
 		return errNotValid
 	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+	scheme := strings.ToLower(parsed.Scheme)
+	port, known := defaultPorts[scheme]
+	if !known || parsed.Hostname() == "" || parsed.User != nil {
 		return errNotValid
 	}
-	bare := url.URL{Scheme: parsed.Scheme, Host: parsed.Host}
-	if parsed.Host == "" || strings.TrimSuffix(string(text), "/") != bare.String() {
+	if (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Opaque != "" {
 		return errNotValid
 	}
-	*o = Origin(bare.String())
+	// Hostname drops the brackets of an IPv6 address, which the host of a URL
+	// keeps.
+	host := strings.TrimSuffix(strings.ToLower(parsed.Host), ":"+parsed.Port())
+	if parsed.Port() != "" && parsed.Port() != port {
+		host += ":" + parsed.Port()
+	}
+	*o = Origin(scheme + "://" + host)
 	return nil
+}
+
+// NewOrigin reads an origin that comes from somewhere other than a variable,
+// such as the Origin header of a request, as a variable is read.
+func NewOrigin(text string) (Origin, error) {
+	var origin Origin
+	err := origin.UnmarshalText([]byte(text))
+	return origin, err
 }
 
 func (o Origin) String() string {
@@ -155,12 +175,11 @@ type Mailbox struct {
 	domain    string
 }
 
-// UnmarshalText reads a mailbox from the text of a variable: one address and
-// nothing around it, no name and no angle brackets.
+// UnmarshalText reads a mailbox from the text of a variable: one e-mail
+// address and nothing around it, by the rule of kernel.IsEmailAddress.
 func (m *Mailbox) UnmarshalText(text []byte) error {
 	address := string(text)
-	parsed, err := mail.ParseAddress(address)
-	if err != nil || parsed.Name != "" || parsed.Address != address {
+	if !kernel.IsEmailAddress(address) {
 		return errNotValid
 	}
 	localPart, domain, _ := strings.Cut(address, "@")
@@ -182,11 +201,11 @@ func (m Mailbox) String() string {
 // angle brackets, such as the address the e-mail of the system is sent from.
 type EmailAddress string
 
-// UnmarshalText reads an e-mail address from the text of a variable.
+// UnmarshalText reads an e-mail address from the text of a variable, by the
+// rule of kernel.IsEmailAddress.
 func (a *EmailAddress) UnmarshalText(text []byte) error {
 	address := string(text)
-	parsed, err := mail.ParseAddress(address)
-	if err != nil || parsed.Name != "" || parsed.Address != address {
+	if !kernel.IsEmailAddress(address) {
 		return errNotValid
 	}
 	*a = EmailAddress(address)
@@ -254,19 +273,15 @@ func (a ServerAddress) String() string {
 }
 
 // ProviderKey is the key that names a login provider, in the paths of a
-// login through it, in its provider links and in the audit log: lowercase
-// letters, digits and underscores, starting with a letter, 64 at most. It is
-// never `login_code`, the way in of the login code.
+// login through it, in its provider links and in the audit log: a key in
+// snake_case that is never `login_code`, the way in of the login code, by the
+// rule of kernel.NewProviderWayIn.
 type ProviderKey string
-
-// providerKeyForm is the form of a ProviderKey: words of lowercase letters
-// and digits joined by one underscore.
-var providerKeyForm = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
 
 // UnmarshalText reads a key from the text of a variable.
 func (k *ProviderKey) UnmarshalText(text []byte) error {
-	key := string(text)
-	if len(key) > 64 || !providerKeyForm.MatchString(key) || key == "login_code" {
+	key, err := kernel.NewProviderWayIn(string(text))
+	if err != nil {
 		return errNotValid
 	}
 	*k = ProviderKey(key)

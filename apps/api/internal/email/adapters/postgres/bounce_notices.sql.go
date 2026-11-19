@@ -30,3 +30,13 @@ func (q *Queries) KeepBounceNotice(ctx context.Context, arg KeepBounceNoticePara
 	}
 	return result.RowsAffected(), nil
 }
+
+const removeBounceNoticesReceivedBefore = `-- name: RemoveBounceNoticesReceivedBefore :exec
+DELETE FROM bounce_notices
+WHERE received_at < $1
+`
+
+func (q *Queries) RemoveBounceNoticesReceivedBefore(ctx context.Context, before time.Time) error {
+	_, err := q.db.Exec(ctx, removeBounceNoticesReceivedBefore, before)
+	return err
+}

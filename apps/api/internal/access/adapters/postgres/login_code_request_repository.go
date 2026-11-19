@@ -54,19 +54,6 @@ func (r *LoginCodeRequestRepository) LoadNotEndedOf(ctx context.Context, user do
 	return requests, nil
 }
 
-// CountAskedSince counts the requests of the user asked for after the moment,
-// and locks nothing.
-func (r *LoginCodeRequestRepository) CountAskedSince(ctx context.Context, user domain.UserID, since time.Time) (int, error) {
-	count, err := r.queries(ctx).CountLoginCodeRequestsAskedSince(ctx, CountLoginCodeRequestsAskedSinceParams{
-		UserID: int64(user),
-		Since:  since,
-	})
-	if err != nil {
-		return 0, fmt.Errorf("count the login code requests of a user: %w", err)
-	}
-	return int(count), nil
-}
-
 // Find returns the request with this identifier, and locks nothing.
 func (r *LoginCodeRequestRepository) Find(ctx context.Context, id domain.LoginCodeRequestID) (*domain.LoginCodeRequest, bool, error) {
 	row, err := r.queries(ctx).FindLoginCodeRequest(ctx, int64(id))
@@ -129,4 +116,13 @@ func restored(row LoginCodeRequest) *domain.LoginCodeRequest {
 		stored.EndedAt = &endedAt
 	}
 	return domain.RestoreLoginCodeRequest(stored)
+}
+
+// RemoveEndedOrExpiredBefore removes the requests that ended, or expired,
+// before the moment.
+func (r *LoginCodeRequestRepository) RemoveEndedOrExpiredBefore(ctx context.Context, before time.Time) error {
+	if err := r.queries(ctx).RemoveLoginCodeRequestsEndedOrExpiredBefore(ctx, before); err != nil {
+		return fmt.Errorf("remove the old login code requests: %w", err)
+	}
+	return nil
 }

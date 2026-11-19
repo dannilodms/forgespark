@@ -69,8 +69,32 @@ func requireWritten(t *testing.T, template Template, language kernel.Language) {
 	written, err := template.write(language, sampleContent[template])
 
 	require.NoError(t, err, "%s in %s", template, language)
-	assert.NotEmpty(t, template.subjectIn(language), "the subject of %s in %s", template, language)
+	subject, err := template.subjectIn(language)
+	require.NoError(t, err, "the subject of %s in %s", template, language)
+	assert.NotEmpty(t, subject, "the subject of %s in %s", template, language)
 	assert.NotEmpty(t, written.html, "the HTML part of %s in %s", template, language)
 	assert.NotEmpty(t, written.text, "the plain-text part of %s in %s", template, language)
 	assert.NotContains(t, written.html+written.text, "<no value>")
+}
+
+// A subject the translation file lacks fails the e-mail, as a missing text of
+// its parts does, and never leaves it with no subject (E-mail in
+// CODING_STANDARDS.md).
+func TestASubjectTheTranslationFileLacksFailsTheEmail(t *testing.T) {
+	language, err := kernel.NewLanguage("es")
+	require.NoError(t, err)
+	without := &templateLibrary{texts: map[string]map[Template]map[string]string{
+		"es": {LoginCode: {"lifetime": "Funciona durante {{.Minutes}} minutos."}},
+	}}
+	empty := &templateLibrary{texts: map[string]map[Template]map[string]string{
+		"es": {LoginCode: {"subject": ""}},
+	}}
+
+	_, missing := without.subjectOf(LoginCode, language)
+	_, blank := empty.subjectOf(LoginCode, language)
+	_, noLanguage := (&templateLibrary{texts: map[string]map[Template]map[string]string{}}).subjectOf(LoginCode, language)
+
+	assert.Error(t, missing)
+	assert.Error(t, blank)
+	assert.Error(t, noLanguage)
 }

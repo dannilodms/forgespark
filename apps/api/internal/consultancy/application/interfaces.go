@@ -105,10 +105,10 @@ type ConsultancyReader interface {
 }
 
 // ConsultancyNameAndLogo is the name of the consultancy and the file of its
-// logo, which is the file 0 when it has none.
+// logo, which is nil when it has none.
 type ConsultancyNameAndLogo struct {
 	Name       string
-	LogoFileID domain.FileID
+	LogoFileID *domain.FileID
 }
 
 // SetupStateReader reads the state of the setup, shaped for whoever asks.

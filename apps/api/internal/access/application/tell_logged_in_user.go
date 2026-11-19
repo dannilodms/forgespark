@@ -45,7 +45,7 @@ func (u *TellLoggedInUser) Execute(ctx context.Context, actor kernel.Actor) (Log
 	if err != nil || !found {
 		return LoggedInUser{}, false, err
 	}
-	photoURL, err := u.photoURLOf(ctx, user)
+	photoURL, err := u.signDownload.URLOf(ctx, (*filesapplication.FileID)(user.PhotoFileID))
 	if err != nil {
 		return LoggedInUser{}, false, err
 	}
@@ -60,14 +60,4 @@ func (u *TellLoggedInUser) Execute(ctx context.Context, actor kernel.Actor) (Log
 		PreferredLanguage: user.PreferredLanguage,
 		Roles:             roles,
 	}, true, nil
-}
-
-// photoURLOf signs the download of the photo of the user, and is empty when
-// they have none.
-func (u *TellLoggedInUser) photoURLOf(ctx context.Context, user consultancyapplication.ActiveUser) (string, error) {
-	if user.PhotoFileID == 0 {
-		return "", nil
-	}
-	url, _, err := u.signDownload.Execute(ctx, filesapplication.FileID(user.PhotoFileID))
-	return url, err
 }

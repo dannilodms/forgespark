@@ -73,11 +73,12 @@ func TestTheJobOfAnEmailIsSavedInTheTransactionInTheLightQueueWithItsIdentifierA
 // office is the e-mail area on its in-memory implementations, with its job
 // worker run by River's test helper in a temporary database.
 type office struct {
-	pool   *pgxpool.Pool
-	emails *applicationtest.EmailRepository
-	sender *applicationtest.Sender
-	worker *rivertest.Worker[river.DeliveryArgs, pgx.Tx]
-	id     domain.EmailID
+	pool           *pgxpool.Pool
+	emails         *applicationtest.EmailRepository
+	sender         *applicationtest.Sender
+	deliveryWorker *river.DeliveryWorker
+	worker         *rivertest.Worker[river.DeliveryArgs, pgx.Tx]
+	id             domain.EmailID
 }
 
 // newOffice queues the e-mail of the login code request 42 to Ana, whose code
@@ -101,12 +102,14 @@ func newOffice(t *testing.T) office {
 	}))
 	deliver := application.NewDeliverEmail(transactions, emails, application.ContentSources{application.LoginCode: loginCodes}, sender, clock)
 	pool := poolOf(t)
+	worker := river.NewDeliveryWorker(deliver)
 	return office{
-		pool:   pool,
-		emails: emails,
-		sender: sender,
-		worker: rivertest.NewWorker(t, riverpgxv5.New(pool), &riverqueue.Config{}, river.NewDeliveryWorker(deliver)),
-		id:     emails.All()[0].ID(),
+		pool:           pool,
+		emails:         emails,
+		sender:         sender,
+		deliveryWorker: worker,
+		worker:         rivertest.NewWorker(t, riverpgxv5.New(pool), &riverqueue.Config{}, worker),
+		id:             emails.All()[0].ID(),
 	}
 }
 
@@ -154,6 +157,25 @@ func TestAJobThatFailsBeforeItsLastAttemptLeavesTheEmailQueued(t *testing.T) {
 	assert.Equal(t, riverqueue.EventKindJobFailed, result.EventKind)
 	assert.NotEqual(t, rivertype.JobStateDiscarded, result.Job.State, "River runs the job again")
 	assert.Equal(t, domain.Queued, post.status(t))
+}
+
+// River's timeout of a job ends its context with the deadline, which is not
+// the cut of a shutdown: the last attempt that runs out of its time marks the
+// e-mail failed, so it is not left queued with no job.
+func TestTheLastAttemptOfAJobThatRunsOutOfItsTimeMarksTheEmailFailed(t *testing.T) {
+	t.Parallel()
+	post := newOffice(t)
+	post.sender.HangUntilTheContextEnds()
+	post.worker = rivertest.NewWorker(t, riverpgxv5.New(post.pool), &riverqueue.Config{JobTimeout: 50 * time.Millisecond}, post.deliveryWorker)
+
+	result, err := post.work(t, 1)
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Equal(t, rivertype.JobStateDiscarded, result.Job.State, "River runs the job no more")
+	email, _ := post.emails.Find(post.id)
+	code, _, failed := email.Failure()
+	assert.True(t, failed, "the e-mail is left queued with no job")
+	assert.Equal(t, domain.SendingFailed, code)
 }
 
 func TestTheLastAttemptOfAJobThatFailsMarksTheEmailFailed(t *testing.T) {

@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 
@@ -94,4 +96,26 @@ func TestTheLoggerWritesNothingBelowItsLevel(t *testing.T) {
 	lines := linesOf(t, written.String())
 	require.Len(t, lines, 1)
 	assert.Equal(t, "something to look at", lines[0]["msg"])
+}
+
+// A library that writes with the standard library's logger, such as a server
+// of net/http, writes through the logger of the command: a JSON line, never a
+// plain one. The test changes the logger of the whole process, so it runs
+// alone and puts it back.
+func TestTheStandardLoggerWritesThroughTheLoggerOfTheCommand(t *testing.T) {
+	previous := slog.Default()
+	t.Cleanup(func() {
+		slog.SetDefault(previous)
+		log.SetOutput(os.Stderr)
+		log.SetFlags(log.LstdFlags)
+	})
+	var written bytes.Buffer
+
+	telemetry.RouteTheStandardLogger(telemetry.NewLogger(&written, slog.LevelInfo))
+	log.Print("http: a line of a library")
+
+	lines := linesOf(t, written.String())
+	require.Len(t, lines, 1)
+	assert.Equal(t, "http: a line of a library", lines[0]["msg"])
+	assert.Equal(t, "INFO", lines[0]["level"])
 }

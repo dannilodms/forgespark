@@ -10,11 +10,6 @@ WHERE user_id = @user_id AND ended_at IS NULL
 ORDER BY id
 FOR UPDATE;
 
--- name: CountLoginCodeRequestsAskedSince :one
-SELECT count(*)::integer
-FROM login_code_requests
-WHERE user_id = @user_id AND asked_at > @since;
-
 -- name: FindLoginCodeRequest :one
 SELECT id, user_id, random_value, asked_at, expires_at, attempts, ended_at
 FROM login_code_requests
@@ -38,3 +33,7 @@ SET user_id = excluded.user_id,
     expires_at = excluded.expires_at,
     attempts = excluded.attempts,
     ended_at = excluded.ended_at;
+
+-- name: RemoveLoginCodeRequestsEndedOrExpiredBefore :exec
+DELETE FROM login_code_requests
+WHERE expires_at < @before OR ended_at < @before;

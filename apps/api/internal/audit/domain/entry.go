@@ -5,8 +5,9 @@ package domain
 
 import (
 	"fmt"
-	"regexp"
 	"time"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // Operation is a sensitive operation the audit log records.
@@ -110,25 +111,11 @@ func (s Subject) Identifier() int64 {
 	return s.identifier
 }
 
-// WayIn is how a user logged in: with a login code, or through the login
-// provider with this key. It is a key, never an e-mail or an account. A login
+// NoWayIn is the way in of every operation that is not a login. The way in
+// of a login (kernel.WayIn) is a key, never an e-mail or an account. A login
 // provider is configured, so the audit log takes the key of any provider and
 // checks only its form.
-type WayIn string
-
-const (
-	// NoWayIn is the way in of every operation that is not a login.
-	NoWayIn WayIn = ""
-	// LoginCodeWayIn is a login with a login code.
-	LoginCodeWayIn WayIn = "login_code"
-)
-
-// wayInForm is the form of a way in: a key in snake_case, as long as a key
-// of a login provider may be.
-var wayInForm = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
-
-// wayInMaxLength is the longest way in.
-const wayInMaxLength = 64
+const NoWayIn kernel.WayIn = ""
 
 // Entry is one record of the audit log.
 type Entry struct {
@@ -136,7 +123,7 @@ type Entry struct {
 	operation  Operation
 	actor      Actor
 	subject    Subject
-	wayIn      WayIn
+	wayIn      kernel.WayIn
 }
 
 // recorded lists, for each operation the audit log records, the kind of its
@@ -161,7 +148,7 @@ var recorded = map[Operation]struct {
 // the system has none), a missing time, a login whose subject is not the user
 // who logged in, and a way in that is missing from a login, given to another
 // operation, or not a key.
-func NewEntry(occurredAt time.Time, operation Operation, actor Actor, subject Subject, wayIn WayIn) (Entry, error) {
+func NewEntry(occurredAt time.Time, operation Operation, actor Actor, subject Subject, wayIn kernel.WayIn) (Entry, error) {
 	expected, known := recorded[operation]
 	if !known {
 		return Entry{}, fmt.Errorf("the audit log does not record the operation %q", operation)
@@ -192,15 +179,15 @@ func NewEntry(occurredAt time.Time, operation Operation, actor Actor, subject Su
 
 // checkWayIn checks that an operation that has a way in was given one, in
 // the form of a key, and that any other was given none.
-func checkWayIn(operation Operation, expected bool, wayIn WayIn) error {
+func checkWayIn(operation Operation, expected bool, wayIn kernel.WayIn) error {
 	if !expected && wayIn != NoWayIn {
 		return fmt.Errorf("%q has no way in", operation)
 	}
 	if !expected {
 		return nil
 	}
-	if len(wayIn) > wayInMaxLength || !wayInForm.MatchString(string(wayIn)) {
-		return fmt.Errorf("the way in of %q is not a key of at most %d letters, digits and underscores", operation, wayInMaxLength)
+	if _, err := kernel.NewWayIn(string(wayIn)); err != nil {
+		return fmt.Errorf("the way in of %q: %w", operation, err)
 	}
 	return nil
 }
@@ -227,6 +214,6 @@ func (e Entry) Subject() Subject {
 
 // WayIn returns how the user logged in, and false for an operation that is
 // not a login.
-func (e Entry) WayIn() (WayIn, bool) {
+func (e Entry) WayIn() (kernel.WayIn, bool) {
 	return e.wayIn, e.wayIn != NoWayIn
 }

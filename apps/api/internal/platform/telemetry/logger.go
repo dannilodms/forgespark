@@ -22,6 +22,14 @@ func NewLogger(output io.Writer, level slog.Level) *slog.Logger {
 	return slog.New(traceHandler{lines: lines})
 }
 
+// RouteTheStandardLogger makes the logger of the command the one of the whole
+// process: what a library writes with the standard library's logger, or with
+// the default logger of slog, becomes a line of it, in JSON, at `info`. Every
+// command calls it once it has its logger.
+func RouteTheStandardLogger(logger *slog.Logger) {
+	slog.SetDefault(logger)
+}
+
 // TraceID returns the trace identifier of the request the context belongs
 // to, and an empty text outside a request. It is the `trace_id` of a log line
 // and of an error body.

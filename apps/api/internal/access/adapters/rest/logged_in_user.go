@@ -72,11 +72,11 @@ type tellLoggedInUserOutput struct {
 
 // LoggedInUser is the user logged in to the session.
 type LoggedInUser struct {
-	Name              string   `json:"name" doc:"The name of the user."`
-	Email             string   `json:"email" format:"email" doc:"The e-mail the user logs in with, in lowercase."`
-	PhotoURL          string   `json:"photo_url,omitempty" format:"uri" doc:"A URL that reads the photo of the user from the file storage, signed for its public host name and valid for fifteen minutes. Left out when the user has no photo."`
-	PreferredLanguage language `json:"preferred_language" doc:"The supported language the user reads the system in."`
-	RoleKeys          []string `json:"role_keys" enum:"administrator,developer" nullable:"false" doc:"The keys of the roles of the user, sorted, which the app translates."`
+	Name              string           `json:"name" doc:"The name of the user."`
+	Email             string           `json:"email" format:"email" doc:"The e-mail the user logs in with, in lowercase."`
+	PhotoURL          string           `json:"photo_url,omitempty" format:"uri" doc:"A URL that reads the photo of the user from the file storage, signed for its public host name and valid for fifteen minutes. Left out when the user has no photo."`
+	PreferredLanguage restapi.Language `json:"preferred_language" doc:"The supported language the user reads the system in."`
+	RoleKeys          []string         `json:"role_keys" enum:"administrator,developer" nullable:"false" doc:"The keys of the roles of the user, sorted, which the app translates."`
 }
 
 func (o tellLoggedInUser) handle(ctx context.Context, actor kernel.Actor, _ *struct{}) (*tellLoggedInUserOutput, error) {
@@ -91,23 +91,9 @@ func (o tellLoggedInUser) handle(ctx context.Context, actor kernel.Actor, _ *str
 		Name:              user.Name,
 		Email:             user.Email.String(),
 		PhotoURL:          user.PhotoURL,
-		PreferredLanguage: language(user.PreferredLanguage.String()),
+		PreferredLanguage: restapi.Language(user.PreferredLanguage.String()),
 		RoleKeys:          user.Roles,
 	}}, nil
-}
-
-// language is a supported language. Its schema lists the supported languages
-// of kernel, so the generated client knows them.
-type language string
-
-// Schema lists the supported languages.
-func (language) Schema(huma.Registry) *huma.Schema {
-	tags := kernel.SupportedLanguages()
-	enum := make([]any, 0, len(tags))
-	for _, tag := range tags {
-		enum = append(enum, tag)
-	}
-	return &huma.Schema{Type: huma.TypeString, Enum: enum}
 }
 
 type logOut struct {

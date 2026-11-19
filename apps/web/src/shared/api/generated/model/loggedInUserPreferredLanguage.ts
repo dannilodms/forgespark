@@ -12,6 +12,7 @@
 
 /**
  * The supported language the user reads the system in.
+ * @minLength 1
  */
 export type LoggedInUserPreferredLanguage = typeof LoggedInUserPreferredLanguage[keyof typeof LoggedInUserPreferredLanguage];
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application/applicationtest"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 var noon = time.Date(2026, time.November, 17, 12, 0, 0, 0, time.UTC)
@@ -81,7 +82,7 @@ func TestTheRegistrationOfAnAdministratorIsRecordedWithTheSetupCodeUsedAndTheUse
 }
 
 func TestALoginIsRecordedWithTheUserWhoLoggedInAndTheWayIn(t *testing.T) {
-	for _, way := range []application.WayIn{application.LoginCodeWayIn, "local"} {
+	for _, way := range []kernel.WayIn{kernel.LoginCodeWayIn, "local"} {
 		t.Run(string(way), func(t *testing.T) {
 			auditLog := applicationtest.NewAuditLog()
 			recordEntry := application.NewRecordEntry(auditLog)
@@ -108,7 +109,7 @@ func TestALoginIsRecordedWithTheUserWhoLoggedInAndTheWayIn(t *testing.T) {
 			assert.Equal(t, way, wayIn)
 		})
 	}
-	assert.Equal(t, "login_code", string(application.LoginCodeWayIn))
+	assert.Equal(t, "login_code", string(kernel.LoginCodeWayIn))
 }
 
 func TestAnOperationOtherThanALoginHasNoWayIn(t *testing.T) {
@@ -133,7 +134,7 @@ func TestALoginWhoseEntryDoesNotFitIsRefusedAndNotRecorded(t *testing.T) {
 		Operation:  application.LoggedIn,
 		Actor:      application.ActingUser(5),
 		Subject:    application.User(5),
-		WayIn:      application.LoginCodeWayIn,
+		WayIn:      kernel.LoginCodeWayIn,
 	}
 	cases := map[string]func(input *application.RecordEntryInput){
 		"no way in": func(input *application.RecordEntryInput) {
@@ -143,7 +144,7 @@ func TestALoginWhoseEntryDoesNotFitIsRefusedAndNotRecorded(t *testing.T) {
 			input.WayIn = "Login Code"
 		},
 		"a way in longer than a key": func(input *application.RecordEntryInput) {
-			input.WayIn = application.WayIn("provider_" + strings.Repeat("a", 64))
+			input.WayIn = kernel.WayIn("provider_" + strings.Repeat("a", 64))
 		},
 		"a user with no identifier": func(input *application.RecordEntryInput) {
 			input.Actor = application.ActingUser(0)

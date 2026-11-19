@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 func TestTheKeyOfALoginProviderIsAKeyInSnakeCase(t *testing.T) {
@@ -18,7 +19,7 @@ func TestTheKeyOfALoginProviderIsAKeyInSnakeCase(t *testing.T) {
 
 		require.NoError(t, err, accepted)
 		assert.Equal(t, accepted, key.String())
-		assert.Equal(t, domain.WayIn(accepted), key.WayIn())
+		assert.Equal(t, kernel.WayIn(accepted), key.WayIn())
 	}
 }
 

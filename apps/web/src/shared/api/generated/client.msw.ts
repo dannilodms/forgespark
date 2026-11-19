@@ -151,13 +151,6 @@ export const getConcludeProviderLoginResponseMock404 = (overrideResponse: Partia
       }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
 
 
-export const getConcludeProviderLoginResponseMock422 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
-        [faker.string.alphanumeric(5)]: {}
-      }})), undefined]), params: {
-        [faker.string.alphanumeric(5)]: {}
-      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
-
-
 export const getConcludeProviderLoginResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
         [faker.string.alphanumeric(5)]: {}
       }})), undefined]), params: {
@@ -640,19 +633,6 @@ export const getConcludeProviderLoginMockHandler404 = (overrideResponse?: Proble
     ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
     : getConcludeProviderLoginResponseMock404(),
       { status: 404, headers: { 'Content-Type': 'application/problem+json' }
-      })
-  }, options)
-}
-
-
-export const getConcludeProviderLoginMockHandler422 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
-  return http.get<{ key: string }>('*/api/session/login_providers/:key/callback', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
-
-
-    return HttpResponse.json(overrideResponse !== undefined
-    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
-    : getConcludeProviderLoginResponseMock422(),
-      { status: 422, headers: { 'Content-Type': 'application/problem+json' }
       })
   }, options)
 }

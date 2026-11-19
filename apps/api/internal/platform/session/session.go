@@ -20,6 +20,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
 )
 
@@ -31,9 +32,6 @@ const (
 	// Lifetime ends a session this long after it started, used or not. The
 	// login renews the token of the session, which starts it again.
 	Lifetime = 30 * 24 * time.Hour
-	// cleanupInterval is how often the sessions that ended are removed from
-	// the table. An ended session is never read, removed or not.
-	cleanupInterval = 5 * time.Minute
 )
 
 // Settings is what the sessions take from configuration.
@@ -43,26 +41,28 @@ type Settings struct {
 	Secure bool
 	// AppOrigin is the origin the app is served from, as APP_ORIGIN names
 	// it: a request that changes state with the cookie must come from it.
-	AppOrigin string
+	AppOrigin config.Origin
 }
 
 // Sessions are the sessions of the browsers, kept in the sessions table.
 type Sessions struct {
 	*scs.SessionManager
 
-	store     *pgxstore.PostgresStore
-	appOrigin string
+	appOrigin config.Origin
 }
 
-// New builds the sessions on the pool, and starts the cleanup of the ones
-// that ended. Stop stops it.
+// New builds the sessions on the pool. The store removes no session that
+// ended: an ended session is never read, and the daily cleanup of the worker
+// removes it (Jobs in CODING_STANDARDS.md), so the API runs no query of its
+// own outside a request.
 //
 // The cookie is HttpOnly and SameSite=Lax, so the callback of a login
 // provider, a navigation from another site, carries it. Its token is 256
 // random bits, and the table keeps its SHA-256 only. A session ends after
 // IdleTimeout without use and, in any case, Lifetime after it started.
 func New(pool *pgxpool.Pool, settings Settings) *Sessions {
-	store := pgxstore.NewWithCleanupInterval(pool, cleanupInterval)
+	// An interval of zero starts no cleanup of the store.
+	store := pgxstore.NewWithCleanupInterval(pool, 0)
 	manager := scs.New()
 	manager.Store = store
 	manager.IdleTimeout = IdleTimeout
@@ -77,7 +77,7 @@ func New(pool *pgxpool.Pool, settings Settings) *Sessions {
 	// A session that cannot be read or saved fails the request in the error
 	// format, with its raw error in the logs.
 	manager.ErrorFunc = restapi.WriteFailure
-	return &Sessions{SessionManager: manager, store: store, appOrigin: settings.AppOrigin}
+	return &Sessions{SessionManager: manager, appOrigin: settings.AppOrigin}
 }
 
 // Under loads the session of each request whose path is under the prefix,
@@ -120,9 +120,12 @@ func (s *Sessions) fromAnotherSite(r *http.Request) bool {
 	if _, err := r.Cookie(CookieName); err != nil {
 		return false
 	}
-	origin := r.Header.Get("Origin")
-	if origin != "" {
-		return origin != s.appOrigin
+	if origin := r.Header.Get("Origin"); origin != "" {
+		// Read as the origin of the app is, so the case of its letters and a
+		// default port do not tell one apart from the other. An opaque origin
+		// (`null`) is no origin of the app.
+		sent, err := config.NewOrigin(origin)
+		return err != nil || sent != s.appOrigin
 	}
 	return r.Header.Get("Sec-Fetch-Site") == "cross-site"
 }
@@ -136,10 +139,4 @@ func routeWrittenBack(received *http.Request, next http.Handler) http.Handler {
 		defer func() { received.Pattern = withSession.Pattern }()
 		next.ServeHTTP(w, withSession)
 	})
-}
-
-// Stop stops the cleanup of the sessions that ended. The command that serves
-// calls it during the shutdown, before it closes the pool.
-func (s *Sessions) Stop() {
-	s.store.StopCleanup()
 }

@@ -89,21 +89,35 @@ func TestTwoDeliveriesOfANoticeAtOnceKeepItOnce(t *testing.T) {
 	assert.False(t, second)
 }
 
-// The API role keeps a notice and reads it, and changes or removes none.
-func TestTheAPIRoleCannotChangeOrRemoveANotice(t *testing.T) {
+// The API role keeps a notice, reads it and removes it, and changes none.
+func TestTheAPIRoleCannotChangeANotice(t *testing.T) {
 	t.Parallel()
 	temporary := newStored(t)
 	temporary.keep(t, postgres.NewBounceNotices(temporary.pool), "msg_2fKq8bX1")
 	const insufficientPrivilege = "42501"
 
-	for _, statement := range []string{
-		"UPDATE bounce_notices SET id = 'msg_changed'",
-		"DELETE FROM bounce_notices",
-	} {
-		_, err := temporary.pool.Exec(context.Background(), statement)
+	_, err := temporary.pool.Exec(context.Background(), "UPDATE bounce_notices SET id = 'msg_changed'")
 
-		var failure *pgconn.PgError
-		require.ErrorAs(t, err, &failure, statement)
-		assert.Equal(t, insufficientPrivilege, failure.Code, statement)
+	var failure *pgconn.PgError
+	require.ErrorAs(t, err, &failure)
+	assert.Equal(t, insufficientPrivilege, failure.Code)
+}
+
+// The daily cleanup removes the notices received before a moment, and keeps
+// the rest, which a notice delivered again still meets.
+func TestTheNoticesReceivedBeforeAMomentAreRemoved(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	notices := postgres.NewBounceNotices(temporary.pool)
+	for notice, at := range map[string]time.Time{"msg_old": noon.Add(-time.Hour), "msg_now": noon, "msg_new": noon.Add(time.Hour)} {
+		_, err := notices.Keep(context.Background(), notice, at)
+		require.NoError(t, err)
 	}
+
+	err := notices.RemoveReceivedBefore(context.Background(), noon)
+
+	require.NoError(t, err)
+	assert.True(t, temporary.keep(t, notices, "msg_old"), "the old notice was not removed")
+	assert.False(t, temporary.keep(t, notices, "msg_now"))
+	assert.False(t, temporary.keep(t, notices, "msg_new"))
 }

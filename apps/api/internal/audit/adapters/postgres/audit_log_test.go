@@ -14,6 +14,7 @@ import (
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/audit/adapters/postgres"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/audit/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
 )
@@ -92,7 +93,7 @@ func TestTheTableTakesEveryOperationTheAuditLogRecords(t *testing.T) {
 			return domain.NewEntry(noon, domain.AdministratorRegistered, domain.SetupCodeUsed(8), domain.User(4), domain.NoWayIn)
 		},
 		domain.LoggedIn: func() (domain.Entry, error) {
-			return domain.NewEntry(noon, domain.LoggedIn, domain.ActingUser(4), domain.User(4), domain.LoginCodeWayIn)
+			return domain.NewEntry(noon, domain.LoggedIn, domain.ActingUser(4), domain.User(4), kernel.LoginCodeWayIn)
 		},
 	}
 
@@ -110,7 +111,7 @@ func TestALoginIsARowWithTheUserAndTheWayIn(t *testing.T) {
 	t.Parallel()
 	pool := apiPool(t)
 	auditLog := postgres.NewAuditLog(pool)
-	for _, way := range []domain.WayIn{domain.LoginCodeWayIn, "local"} {
+	for _, way := range []kernel.WayIn{kernel.LoginCodeWayIn, "local"} {
 		entry, err := domain.NewEntry(noon, domain.LoggedIn, domain.ActingUser(4), domain.User(4), way)
 		require.NoError(t, err)
 		require.NoError(t, auditLog.Append(context.Background(), entry))

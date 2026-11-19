@@ -7,35 +7,24 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // LoginProviderKey names a login provider turned on: in the paths of a login
 // through it, in its provider links and, as the way in, in the audit log. It
-// is a key in snake_case of 64 characters at most, and never the way in of
-// the login code.
+// is a key (kernel.Key), and never the way in of the login code.
 type LoginProviderKey string
-
-// loginProviderKeyForm is the form of a key: lowercase letters and digits,
-// in words joined by one underscore, starting with a letter.
-var loginProviderKeyForm = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
-
-// loginProviderKeyMaxLength is the longest key, the longest way in the audit
-// log takes.
-const loginProviderKeyMaxLength = 64
 
 // NewLoginProviderKey reads the key of a login provider.
 func NewLoginProviderKey(text string) (LoginProviderKey, error) {
-	if len(text) > loginProviderKeyMaxLength || !loginProviderKeyForm.MatchString(text) {
-		return "", fmt.Errorf("the key of a login provider is lowercase letters, digits and underscores, %d at most, "+
-			"starting with a letter", loginProviderKeyMaxLength)
+	wayIn, err := kernel.NewProviderWayIn(text)
+	if err != nil {
+		return "", fmt.Errorf("the key of a login provider: %w", err)
 	}
-	if WayIn(text) == LoginCodeWayIn {
-		return "", errors.New("the key of a login provider is never the way in of the login code")
-	}
-	return LoginProviderKey(text), nil
+	return LoginProviderKey(wayIn), nil
 }
 
 func (k LoginProviderKey) String() string {
@@ -44,8 +33,8 @@ func (k LoginProviderKey) String() string {
 
 // WayIn is the way in the audit log records for a login through this
 // provider: its key.
-func (k LoginProviderKey) WayIn() WayIn {
-	return WayIn(k)
+func (k LoginProviderKey) WayIn() kernel.WayIn {
+	return kernel.WayIn(k)
 }
 
 // ReturnPath is the path of the app a browser returns to once it logs in: the

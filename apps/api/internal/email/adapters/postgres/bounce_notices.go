@@ -30,3 +30,11 @@ func (n *BounceNotices) Keep(ctx context.Context, notice string, receivedAt time
 	}
 	return kept == 1, nil
 }
+
+// RemoveReceivedBefore removes the notices received before the moment.
+func (n *BounceNotices) RemoveReceivedBefore(ctx context.Context, before time.Time) error {
+	if err := New(database.Within(ctx, n.pool)).RemoveBounceNoticesReceivedBefore(ctx, before); err != nil {
+		return fmt.Errorf("remove the old bounce notices: %w", err)
+	}
+	return nil
+}

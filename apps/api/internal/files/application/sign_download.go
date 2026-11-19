@@ -39,3 +39,14 @@ func (u *SignDownload) Execute(ctx context.Context, id FileID) (string, bool, er
 	}
 	return url, true, nil
 }
+
+// URLOf signs the download of a file that may be absent, as the photo of a
+// user or the logo of the consultancy: the URL of Execute, and no URL, with
+// nothing signed, when there is no file, nil, or it was never confirmed.
+func (u *SignDownload) URLOf(ctx context.Context, id *FileID) (string, error) {
+	if id == nil {
+		return "", nil
+	}
+	url, _, err := u.Execute(ctx, *id)
+	return url, err
+}

@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application/applicationtest"
 	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
 )
 
@@ -30,12 +28,6 @@ func TestTheDeliveryOfTheEmailGivesTheCodeOfItsRequestAndHowLongItWorks(t *testi
 
 	assert.Equal(t, emailapplication.LoginCodeContent{Code: "774421", Lifetime: 10 * time.Minute}, first)
 	assert.Equal(t, emailapplication.LoginCodeContent{Code: "865246", Lifetime: 10 * time.Minute}, second)
-}
-
-func TestTheContentNeedsAKeyOfAtLeast32Bytes(t *testing.T) {
-	_, err := application.NewLoginCodeContents(applicationtest.NewLoginCodeRequestRepository(), make([]byte, 31))
-
-	assert.Error(t, err)
 }
 
 func TestTheDeliveryGetsNoContentForARequestThatDoesNotExist(t *testing.T) {

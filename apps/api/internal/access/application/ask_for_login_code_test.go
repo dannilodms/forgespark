@@ -42,11 +42,14 @@ func (c *countingBytes) Read(buffer []byte) (int, error) {
 }
 
 // theKey is the key of the login code of these tests: the bytes 0 to 31.
-func theKey() []byte {
-	key := make([]byte, 32)
-	for i := range key {
-		key[i] = byte(i)
+func theKey(t *testing.T) domain.LoginCodeKey {
+	t.Helper()
+	raw := make([]byte, 32)
+	for i := range raw {
+		raw[i] = byte(i)
 	}
+	key, err := domain.NewLoginCodeKey(raw)
+	require.NoError(t, err)
 	return key
 }
 
@@ -60,10 +63,13 @@ const theBrowser = "the browser of Ana"
 type system struct {
 	clock            *applicationtest.Clock
 	requests         *applicationtest.LoginCodeRequestRepository
+	asks             *applicationtest.AskedAddressRepository
 	sessions         *applicationtest.Sessions
 	users            *consultancyapplicationtest.UserRepository
 	emails           *emailapplicationtest.EmailRepository
 	deliveries       *emailapplicationtest.DeliveryJobs
+	notices          *emailapplicationtest.BounceNotices
+	endedSessions    *applicationtest.EndedSessions
 	auditLog         *auditapplicationtest.AuditLog
 	askForLoginCode  *application.AskForLoginCode
 	loginCodes       *application.LoginCodeContents
@@ -81,27 +87,32 @@ type system struct {
 	startProviderLogin    *application.StartProviderLogin
 	concludeProviderLogin *application.ConcludeProviderLogin
 	tellLoginState        *application.TellLoginState
+	// The daily cleanup, which removes what the login and the e-mail keep
+	// only for a while.
+	cleanUpOldRecords *application.CleanUpOldRecords
 }
 
 func newSystem(t *testing.T) system {
 	t.Helper()
 	clock := applicationtest.NewClock(noon)
 	requests := applicationtest.NewLoginCodeRequestRepository()
+	asks := applicationtest.NewAskedAddressRepository()
 	sessions := applicationtest.NewSessions()
 	users := consultancyapplicationtest.NewUserRepository()
 	emails := emailapplicationtest.NewEmailRepository()
 	deliveries := emailapplicationtest.NewDeliveryJobs()
+	notices := emailapplicationtest.NewBounceNotices()
+	endedSessions := applicationtest.NewEndedSessions()
 	auditLog := auditapplicationtest.NewAuditLog()
 	links := applicationtest.NewProviderLinkRepository()
 	files := filesapplicationtest.NewFileRepository()
 	objects := filesapplicationtest.NewStorage(clock)
-	transactions := applicationtest.NewTransactions(requests, emails, deliveries, auditLog, links)
-	loginCodes, err := application.NewLoginCodeContents(requests, theKey())
-	require.NoError(t, err)
+	transactions := applicationtest.NewTransactions(requests, asks, emails, deliveries, auditLog, links)
 	login := application.LoginCodeDependencies{
 		Transactions: transactions,
 		Requests:     requests,
 		Session:      sessions,
+		Key:          theKey(t),
 		Clock:        clock,
 	}
 	activeUsers := consultancyapplicationtest.NewActiveUserReader(users)
@@ -113,27 +124,29 @@ func newSystem(t *testing.T) system {
 		RecordEntry:        auditapplication.NewRecordEntry(auditLog),
 		Clock:              clock,
 	})
-	checkLoginCode, err := application.NewCheckLoginCode(login, logIn, theKey())
-	require.NoError(t, err)
 	localProvider := applicationtest.NewLoginProvider("local", "Local login provider")
 	providers, err := application.NewLoginProviders(localProvider, applicationtest.NewLoginProvider("another", "Another provider"))
 	require.NoError(t, err)
 	return system{
-		clock:      clock,
-		requests:   requests,
-		sessions:   sessions,
-		users:      users,
-		emails:     emails,
-		deliveries: deliveries,
-		auditLog:   auditLog,
+		clock:         clock,
+		requests:      requests,
+		asks:          asks,
+		sessions:      sessions,
+		users:         users,
+		emails:        emails,
+		deliveries:    deliveries,
+		notices:       notices,
+		endedSessions: endedSessions,
+		auditLog:      auditLog,
 		askForLoginCode: application.NewAskForLoginCode(
 			login,
+			asks,
 			consultancyapplication.NewFindActiveUser(activeUsers),
 			emailapplication.NewQueueEmail(transactions, emails, deliveries, clock),
 			&countingBytes{next: 100},
 		),
-		loginCodes:       loginCodes,
-		checkLoginCode:   checkLoginCode,
+		loginCodes:       application.NewLoginCodeContents(requests, theKey(t)),
+		checkLoginCode:   application.NewCheckLoginCode(login, logIn),
 		findActor:        application.NewFindActor(sessions, findActiveUserByID),
 		tellLoggedInUser: application.NewTellLoggedInUser(findActiveUserByID, filesapplication.NewSignDownload(files, objects)),
 		logOut:           application.NewLogOut(sessions),
@@ -153,6 +166,13 @@ func newSystem(t *testing.T) system {
 			Clock:          clock,
 		}),
 		tellLoginState: application.NewTellLoginState(providers, sessions),
+		cleanUpOldRecords: application.NewCleanUpOldRecords(application.OldRecords{
+			Requests:             requests,
+			Asks:                 asks,
+			EndedSessions:        endedSessions,
+			CleanUpBounceNotices: emailapplication.NewCleanUpBounceNotices(notices, clock),
+			Clock:                clock,
+		}),
 	}
 }
 
@@ -273,6 +293,7 @@ func TestAnEmailThatIsNotAnAddressIsAFieldThatBreaksARule(t *testing.T) {
 			assert.Equal(t, "email", invalid.Fields[0].Field)
 			assert.Equal(t, example.code, invalid.Fields[0].Rule.Code())
 			s.requireNothingSaved(t)
+			assert.Empty(t, s.asks.All(), "a text that is no address was counted")
 		})
 	}
 }
@@ -291,8 +312,56 @@ func TestASecondCodeWithinAMinuteIsRefusedAndChangesNothing(t *testing.T) {
 	_, ended := s.requests.All()[0].EndedAt()
 	assert.False(t, ended, "the refused request ended the one before")
 	assert.Len(t, s.emails.All(), 1)
+	assert.Len(t, s.asks.All(), 1, "the refused ask was counted")
 	kept, _ := s.sessions.LoginCodeRequestOf(theBrowser)
 	assert.Equal(t, first, kept, "the refused request changed the session")
+}
+
+// The limits count the asks for the typed address, whether or not it belongs
+// to a user, so an address of no user answers the same 422 as the address of
+// a user, and the limit tells nothing of who is a user (ADR-0011).
+func TestTheLimitsAnswerTheSameForEveryAddress(t *testing.T) {
+	cases := map[string]func(t *testing.T, s system){
+		"an e-mail of an active user": func(t *testing.T, s system) { s.registered(t, "ana.souza@fabrica.example", "pt-BR") },
+		"an e-mail of no user":        func(*testing.T, system) {},
+		"an e-mail of a deactivated user": func(t *testing.T, s system) {
+			id, err := s.users.RegisterUser("ana.souza@fabrica.example", "pt-BR")
+			require.NoError(t, err)
+			require.NoError(t, s.users.DeactivateUser(id))
+		},
+	}
+	for name, prepare := range cases {
+		t.Run(name, func(t *testing.T) {
+			s := newSystem(t)
+			prepare(t, s)
+			require.NoError(t, s.ask("ana.souza@fabrica.example"))
+
+			s.clock.Advance(59 * time.Second)
+			withinTheMinute := s.ask("Ana.Souza@Fabrica.example")
+			s.clock.Advance(time.Second)
+			aMinuteAfter := s.ask("ana.souza@fabrica.example")
+
+			require.ErrorIs(t, withinTheMinute, domain.LoginCodeLimitReachedError{}, "the address typed in another case is the same address")
+			require.NoError(t, aMinuteAfter)
+			assert.Len(t, s.asks.All(), 2, "the refused ask was counted")
+		})
+	}
+}
+
+// The limits keep the keyed digest of the address and when it was asked for,
+// never the address.
+func TestTheLimitsKeepNoAddress(t *testing.T) {
+	s := newSystem(t)
+	email, err := kernel.NewEmail("bruno.lima@fabrica.example")
+	require.NoError(t, err)
+
+	require.NoError(t, s.ask("  Bruno.Lima@Fabrica.example"))
+
+	require.Len(t, s.asks.All(), 1)
+	ask := s.asks.All()[0]
+	assert.Equal(t, theKey(t).AskedAddress(email).Digest(), ask.Digest)
+	assert.NotContains(t, string(ask.Digest), "bruno")
+	assert.Equal(t, noon, ask.AskedAt)
 }
 
 func TestACodeIsAllowedAgainOneMinuteAfterTheLast(t *testing.T) {
@@ -308,28 +377,36 @@ func TestACodeIsAllowedAgainOneMinuteAfterTheLast(t *testing.T) {
 }
 
 func TestASixthCodeWithinAnHourIsRefusedAndAllowedOnceTheFirstIsAnHourOld(t *testing.T) {
-	s := newSystem(t)
-	s.registered(t, "ana.souza@fabrica.example", "pt-BR")
-	for range 5 {
-		require.NoError(t, s.ask("ana.souza@fabrica.example"))
-		s.clock.Advance(10 * time.Minute)
+	for name, user := range map[string]bool{"an e-mail of an active user": true, "an e-mail of no user": false} {
+		t.Run(name, func(t *testing.T) {
+			s := newSystem(t)
+			if user {
+				s.registered(t, "ana.souza@fabrica.example", "pt-BR")
+			}
+			for range 5 {
+				require.NoError(t, s.ask("ana.souza@fabrica.example"))
+				s.clock.Advance(10 * time.Minute)
+			}
+			// The five were asked at noon, 12:10, 12:20, 12:30 and 12:40; it is
+			// 12:50.
+
+			sixth := s.ask("ana.souza@fabrica.example")
+			s.clock.Advance(10 * time.Minute)
+			anHourAfterTheFirst := s.ask("ana.souza@fabrica.example")
+
+			require.ErrorIs(t, sixth, domain.LoginCodeLimitReachedError{})
+			require.NoError(t, anHourAfterTheFirst)
+			assert.Len(t, s.asks.All(), 6)
+		})
 	}
-	// The five were asked at noon, 12:10, 12:20, 12:30 and 12:40; it is 12:50.
-
-	sixth := s.ask("ana.souza@fabrica.example")
-	s.clock.Advance(10 * time.Minute)
-	anHourAfterTheFirst := s.ask("ana.souza@fabrica.example")
-
-	require.ErrorIs(t, sixth, domain.LoginCodeLimitReachedError{})
-	require.NoError(t, anHourAfterTheFirst)
-	assert.Len(t, s.requests.All(), 6)
 }
 
-func TestTheLimitsCountTheRequestsOfEachUserApart(t *testing.T) {
+func TestTheLimitsCountTheAsksOfEachAddressApart(t *testing.T) {
 	s := newSystem(t)
 	s.registered(t, "ana.souza@fabrica.example", "pt-BR")
 	s.registered(t, "bruno.lima@fabrica.example", "en-US")
 	require.NoError(t, s.ask("ana.souza@fabrica.example"))
+	require.NoError(t, s.ask("carla.dias@fabrica.example"))
 
 	err := s.askFrom("the browser of Bruno", "bruno.lima@fabrica.example")
 
@@ -373,6 +450,7 @@ func TestNothingIsSavedAndTheSessionIsLeftAsItWasWhenTheEmailCannotBeQueued(t *t
 	_, ended := s.requests.All()[0].EndedAt()
 	assert.False(t, ended, "the earlier request was ended by a request that was not saved")
 	assert.Len(t, s.emails.All(), 1)
+	assert.Len(t, s.asks.All(), 1, "an ask that saved nothing was counted")
 	kept, _ := s.sessions.LoginCodeRequestOf(theBrowser)
 	assert.Equal(t, first, kept)
 }

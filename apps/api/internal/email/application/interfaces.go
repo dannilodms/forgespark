@@ -63,6 +63,9 @@ type BounceNotices interface {
 	// Keep keeps the identifier of a notice in the transaction the context
 	// carries, and tells false when it was kept before.
 	Keep(ctx context.Context, notice string, receivedAt time.Time) (bool, error)
+	// RemoveReceivedBefore removes the identifiers of the notices received
+	// before the moment.
+	RemoveReceivedBefore(ctx context.Context, before time.Time) error
 }
 
 // ContentSource gives the content of the e-mails of one template, from the

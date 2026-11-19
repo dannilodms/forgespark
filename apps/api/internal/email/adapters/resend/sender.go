@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"net/mail"
 	"net/url"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -31,6 +30,7 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 )
 
@@ -139,10 +139,6 @@ type refusal struct {
 	Name string `json:"name"`
 }
 
-// knownName is the form of the name of a failure Resend answers with, such
-// as `validation_error`. Anything else is not repeated.
-var knownName = regexp.MustCompile(`^[a-z][a-z_]{0,63}$`)
-
 func (s *Sender) send(ctx context.Context, message domain.Message) (string, int, error) {
 	request, err := s.request(ctx, message)
 	if err != nil {
@@ -195,12 +191,18 @@ func (s *Sender) request(ctx context.Context, message domain.Message) (*http.Req
 }
 
 // refusalOf tells why Resend did not take the e-mail by the status and the
-// name of the failure. Its message, which may quote the address of the
-// recipient, is left out.
+// name of the failure, such as `validation_error`, which is a key
+// (kernel.Key): anything else is not repeated. Its message, which may quote
+// the address of the recipient, is left out.
 func refusalOf(status int, answer []byte) error {
 	var refused refusal
-	if json.Unmarshal(answer, &refused) != nil || !knownName.MatchString(refused.Name) {
+	if json.Unmarshal(answer, &refused) != nil || !isKey(refused.Name) {
 		return fmt.Errorf("the API of Resend did not take the e-mail: answered %d", status)
 	}
 	return fmt.Errorf("the API of Resend did not take the e-mail: answered %d %s", status, refused.Name)
+}
+
+func isKey(text string) bool {
+	_, err := kernel.NewKey(text)
+	return err == nil
 }

@@ -4,3 +4,7 @@
 INSERT INTO bounce_notices (id, received_at)
 VALUES (@id, @received_at)
 ON CONFLICT (id) DO NOTHING;
+
+-- name: RemoveBounceNoticesReceivedBefore :exec
+DELETE FROM bounce_notices
+WHERE received_at < @before;

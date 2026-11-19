@@ -93,13 +93,16 @@ test("past the limit, an operation of the login code answers 429 in the error fo
 }) => {
   // Ten POST a minute over the two operations of the login code, counted
   // together (Rate limit in CODING_STANDARDS.md). An e-mail of no user is
-  // answered 202 and sends nothing.
+  // answered 202 and sends nothing; each ask names an address of its own,
+  // since the API limits the asks for each address too.
   const limit = 10
-  const nobody = { data: { email: "nobody@consultancy.example" } }
-  let answer = await request.post("/api/session/login_code", nobody)
+  const nobody = (sent: number) => ({
+    data: { email: `nobody+${sent}@consultancy.example` },
+  })
+  let answer = await request.post("/api/session/login_code", nobody(0))
   for (let sent = 1; sent <= limit && answer.status() !== 429; sent++) {
     expect(answer.status()).toBe(202)
-    answer = await request.post("/api/session/login_code", nobody)
+    answer = await request.post("/api/session/login_code", nobody(sent))
   }
 
   expect(answer.status()).toBe(429)

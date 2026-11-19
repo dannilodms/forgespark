@@ -14,6 +14,7 @@ import (
 	accessoidc "github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/oidc"
 	accessrest "github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/rest"
 	accessapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
+	accessdomain "github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
 	filess3 "github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/s3"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
@@ -41,6 +42,19 @@ func fileStorageOf(settings config.Config, provider trace.TracerProvider) *files
 		SecretAccessKey: settings.FileStorageSecretAccessKey,
 		TracerProvider:  provider,
 	})
+}
+
+// loginCodeKeyOf is the key of the login code the configuration holds, in the
+// type of the access area, which prints as a placeholder as the type of the
+// configuration does: its bytes pass from one secret type to the other, and
+// only the HMACs of the access area read them (Configuration in
+// CODING_STANDARDS.md).
+func loginCodeKeyOf(settings config.Config) (accessdomain.LoginCodeKey, error) {
+	key, err := accessdomain.NewLoginCodeKey(settings.LoginCodeKey.Reveal())
+	if err != nil {
+		return accessdomain.LoginCodeKey{}, fmt.Errorf("LOGIN_CODE_KEY: %w", err)
+	}
+	return key, nil
 }
 
 // loginProvidersOf are the login providers the configuration turns on: the
@@ -83,6 +97,7 @@ func serveAPI(shutdown context.Context, environment map[string]string, _, stderr
 	}
 
 	logger := telemetry.NewLogger(stderr, settings.LogLevel)
+	telemetry.RouteTheStandardLogger(logger)
 	if err := serve(shutdown, settings, logger); err != nil {
 		logger.Error("the API stopped", slog.String("error", err.Error()))
 		return errLogged
@@ -106,12 +121,10 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 	if err != nil {
 		return err
 	}
-	// Deferred after the pool, so its cleanup stops before the pool closes.
 	sessions := session.New(pool, session.Settings{
 		Secure:    settings.AppOrigin.IsHTTPS(),
-		AppOrigin: settings.AppOrigin.String(),
+		AppOrigin: settings.AppOrigin,
 	})
-	defer sessions.Stop()
 
 	mux := http.NewServeMux()
 	ready := func(ctx context.Context) error {
@@ -125,13 +138,17 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 	if err != nil {
 		return err
 	}
+	loginCodeKey, err := loginCodeKeyOf(settings)
+	if err != nil {
+		return err
+	}
 	_, err = mountREST(mux, served{
 		pool:           pool,
 		storage:        fileStorageOf(settings, tracing.Provider),
 		saver:          saver,
 		sessions:       sessions,
 		loginProviders: providers,
-		loginCodeKey:   settings.LoginCodeKey.Reveal(),
+		loginCodeKey:   loginCodeKey,
 	})
 	if err != nil {
 		return err
