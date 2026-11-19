@@ -10,9 +10,15 @@ import {
   getCheckLoginCodeMockHandler422,
   getCheckLoginCodeMockHandler429,
   getTellLoggedInUserMockHandler,
+  getTellLoginStateMockHandler,
+  getTellLoginStateMockHandler500,
   getTellSetupStateMockHandler,
 } from "../../shared/api/generated/client.msw"
-import type { LoggedInUser } from "../../shared/api/generated/model"
+import type {
+  LoggedInUser,
+  LoginState,
+  TurnedOnLoginProvider,
+} from "../../shared/api/generated/model"
 import { api, nobodyIsLoggedIn, problem, traceId } from "../../testing/api"
 import { renderApp } from "../../testing/render-app"
 
@@ -24,16 +30,30 @@ const ana: LoggedInUser = {
   role_keys: ["administrator"],
 }
 
+/** The local login provider, as `.env.example` turns it on. */
+const local: TurnedOnLoginProvider = {
+  key: "local",
+  display_name: "Local login provider",
+}
+
 type Screen = Awaited<ReturnType<typeof renderApp>>["screen"]
 
-/** The login screen, as a browser with no session opens it. */
-async function openTheLogin(at = "/login") {
+/**
+ * The login screen, as a browser with no session opens it. The API tells
+ * the login state it is given: by default, no login provider is on and no
+ * login through one was refused.
+ */
+async function openTheLogin(
+  at = "/login",
+  loginState: LoginState = { login_providers: [] }
+) {
   api.use(
     getTellSetupStateMockHandler({
       concluded: true,
       setup_code_waiting: false,
     }),
-    nobodyIsLoggedIn()
+    nobodyIsLoggedIn(),
+    getTellLoginStateMockHandler(loginState)
   )
   const app = await renderApp({ at })
   await expect
@@ -387,6 +407,125 @@ describe("the step of the code", () => {
   })
 })
 
+/** The button of a login provider, which leads the browser to its login. */
+function providerButton(screen: Screen, name: string) {
+  return screen.getByRole("link", { name: `Log in with ${name}` })
+}
+
+describe("the login providers", () => {
+  it("draws the button of the one provider turned on, above the divider, leading to its login", async () => {
+    const { screen } = await openTheLogin("/login", {
+      login_providers: [local],
+    })
+
+    const button = providerButton(screen, "Local login provider")
+    await expect.element(button).toBeVisible()
+    await expect
+      .element(button)
+      .toHaveAttribute("href", "/api/session/login_providers/local/start")
+    await expect.element(screen.getByText("or", { exact: true })).toBeVisible()
+    await expect.element(emailField(screen)).toBeVisible()
+  })
+
+  it("draws one button for each provider turned on, in the order of the login state", async () => {
+    const { screen } = await openTheLogin("/login", {
+      login_providers: [
+        { key: "google", display_name: "Google" },
+        { key: "microsoft", display_name: "Microsoft" },
+        local,
+      ],
+    })
+
+    const buttons = screen.getByRole("link", { name: /^Log in with / })
+    await expect.element(buttons.first()).toBeVisible()
+    expect(buttons.elements().map((button) => button.textContent)).toEqual([
+      "Log in with Google",
+      "Log in with Microsoft",
+      "Log in with Local login provider",
+    ])
+    expect(
+      buttons.elements().map((button) => button.getAttribute("href"))
+    ).toEqual([
+      "/api/session/login_providers/google/start",
+      "/api/session/login_providers/microsoft/start",
+      "/api/session/login_providers/local/start",
+    ])
+  })
+
+  it("draws neither a button nor the divider while no provider is on", async () => {
+    const { screen } = await openTheLogin()
+
+    await expect.element(emailField(screen)).toBeVisible()
+    await expect
+      .element(screen.getByRole("link", { name: /^Log in with / }))
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByText("or", { exact: true }))
+      .not.toBeInTheDocument()
+  })
+
+  it("passes the address to return to on to the login through the provider", async () => {
+    const { screen } = await openTheLogin(
+      "/login?notice=session_ended&return_to=%2Fprojects%2F42%3Ftab%3D2",
+      { login_providers: [local] }
+    )
+
+    await expect
+      .element(providerButton(screen, "Local login provider"))
+      .toHaveAttribute(
+        "href",
+        "/api/session/login_providers/local/start?return_to=%2Fprojects%2F42%3Ftab%3D2"
+      )
+  })
+
+  it.for(["//elsewhere.example/", "https://elsewhere.example/", "/"])(
+    "passes no address to return to for %s, which leads to the root",
+    async (returnTo) => {
+      const { screen } = await openTheLogin(
+        `/login?return_to=${encodeURIComponent(returnTo)}`,
+        { login_providers: [local] }
+      )
+
+      await expect
+        .element(providerButton(screen, "Local login provider"))
+        .toHaveAttribute("href", "/api/session/login_providers/local/start")
+    }
+  )
+
+  it("passes no address to return to longer than the contract takes", async () => {
+    const { screen } = await openTheLogin(
+      `/login?return_to=${encodeURIComponent(`/projects?q=${"a".repeat(2048)}`)}`,
+      { login_providers: [local] }
+    )
+
+    await expect
+      .element(providerButton(screen, "Local login provider"))
+      .toHaveAttribute("href", "/api/session/login_providers/local/start")
+  })
+
+  it("shows the error screen when the login state cannot be read", async () => {
+    api.use(
+      getTellLoginStateMockHandler500(problem(500, "internal_server_error"))
+    )
+    api.use(
+      getTellSetupStateMockHandler({
+        concluded: true,
+        setup_code_waiting: false,
+      }),
+      nobodyIsLoggedIn()
+    )
+
+    const { screen } = await renderApp({ at: "/login" })
+
+    await expect
+      .element(
+        screen.getByRole("heading", { name: "This screen could not open" })
+      )
+      .toBeVisible()
+    await expect.element(screen.getByRole("alert")).toMatchTextContent(traceId)
+  })
+})
+
 describe("the notices of the login screen", () => {
   it.for([
     ["setup_concluded", "The setup is concluded", /logs in below/],
@@ -420,15 +559,98 @@ describe("the notices of the login screen", () => {
     await expect.element(alert).toMatchTextContent(todo)
   })
 
-  it.for(["login_not_concluded", "no_active_user", "nonsense"])(
-    "shows nothing yet for %s",
-    async (notice) => {
-      const { screen } = await openTheLogin(`/login?notice=${notice}`)
+  it("shows login_not_concluded, and that the person can try again, with the button of the provider", async () => {
+    const { screen } = await openTheLogin(
+      "/login?notice=login_not_concluded&return_to=%2Fprojects",
+      { login_providers: [local] }
+    )
 
-      await expect.element(emailField(screen)).toBeVisible()
-      await expect.element(screen.getByRole("alert")).not.toBeInTheDocument()
-    }
-  )
+    const alert = screen.getByRole("alert")
+    await expect.element(alert).toMatchTextContent("The login did not conclude")
+    await expect.element(alert).toMatchTextContent(/You can try again below/)
+    await expect
+      .element(providerButton(screen, "Local login provider"))
+      .toHaveAttribute(
+        "href",
+        "/api/session/login_providers/local/start?return_to=%2Fprojects"
+      )
+  })
+
+  it("shows no_active_user with the e-mail of the login state, and to ask an administrator, the same for an unknown and a deactivated user", async () => {
+    const { screen } = await openTheLogin(
+      "/login?notice=no_active_user&email=someone%40else.example",
+      {
+        login_providers: [local],
+        refused_email: "bruno@consultancy.example",
+      }
+    )
+
+    const alert = screen.getByRole("alert")
+    await expect
+      .element(alert)
+      .toMatchTextContent("No active user has this e-mail")
+    await expect
+      .element(alert)
+      .toMatchTextContent(
+        "The login provider gave the e-mail bruno@consultancy.example, and no active user of the system has it. Ask an administrator for access."
+      )
+    await expect
+      .element(screen.getByText("someone@else.example"))
+      .not.toBeInTheDocument()
+  })
+
+  it("shows no_active_user in the language of the screen", async () => {
+    api.use(
+      getTellSetupStateMockHandler({
+        concluded: true,
+        setup_code_waiting: false,
+      }),
+      nobodyIsLoggedIn(),
+      getTellLoginStateMockHandler({
+        login_providers: [local],
+        refused_email: "bruno@consultancy.example",
+      })
+    )
+
+    const { screen } = await renderApp({
+      at: "/login?notice=no_active_user",
+      languages: ["pt-BR"],
+    })
+
+    const alert = screen.getByRole("alert")
+    await expect
+      .element(alert)
+      .toMatchTextContent("Nenhum usuário ativo tem este e-mail")
+    await expect
+      .element(alert)
+      .toMatchTextContent(
+        /bruno@consultancy\.example.*Peça acesso a um administrador/
+      )
+    await expect
+      .element(providerButton(screen, "Local login provider"))
+      .not.toBeInTheDocument()
+    await expect
+      .element(
+        screen.getByRole("link", { name: "Entrar com Local login provider" })
+      )
+      .toBeVisible()
+  })
+
+  it("shows no notice for no_active_user when no login was refused in this browser", async () => {
+    const { screen } = await openTheLogin("/login?notice=no_active_user", {
+      login_providers: [local],
+    })
+
+    await expect.element(emailField(screen)).toBeVisible()
+    await expect.element(screen.getByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("shows no notice for a value it does not know", async () => {
+    const { screen } = await openTheLogin("/login?notice=nonsense")
+
+    await expect.element(emailField(screen)).toBeVisible()
+    await expect.element(screen.getByRole("alert")).not.toBeInTheDocument()
+  })
 })
 
 describe("the login screen by keyboard", () => {

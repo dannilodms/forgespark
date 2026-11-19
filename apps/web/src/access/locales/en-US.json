@@ -29,7 +29,19 @@
       "loggedOut": {
         "title": "You logged out",
         "todo": "To use the system again, log in below."
+      },
+      "loginNotConcluded": {
+        "title": "The login did not conclude",
+        "todo": "It was cancelled at the login provider, or it failed there. You can try again below."
+      },
+      "noActiveUser": {
+        "title": "No active user has this e-mail",
+        "todo": "The login provider gave the e-mail <email>{{email}}</email>, and no active user of the system has it. Ask an administrator for access."
       }
+    },
+    "providers": {
+      "logInWith": "Log in with {{name}}",
+      "or": "or"
     },
     "email": {
       "intro": "Type the e-mail you log in with, and a login code is sent to it.",

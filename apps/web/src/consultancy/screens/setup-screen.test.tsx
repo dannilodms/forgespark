@@ -10,7 +10,13 @@ import {
   getTellSetupStateMockHandler,
   getTellSetupStateMockHandler500,
 } from "../../shared/api/generated/client.msw"
-import { api, nobodyIsLoggedIn, problem, traceId } from "../../testing/api"
+import {
+  api,
+  noLoginProviderIsOn,
+  nobodyIsLoggedIn,
+  problem,
+  traceId,
+} from "../../testing/api"
 import { renderApp } from "../../testing/render-app"
 
 /**
@@ -23,7 +29,8 @@ function setupState(concluded: boolean, setupCodeWaiting: boolean) {
       concluded,
       setup_code_waiting: setupCodeWaiting,
     }),
-    nobodyIsLoggedIn()
+    nobodyIsLoggedIn(),
+    noLoginProviderIsOn()
   )
 }
 

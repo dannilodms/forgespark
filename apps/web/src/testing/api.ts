@@ -1,6 +1,9 @@
 import { setupWorker } from "msw/browser"
 
-import { getTellLoggedInUserMockHandler401 } from "../shared/api/generated/client.msw"
+import {
+  getTellLoggedInUserMockHandler401,
+  getTellLoginStateMockHandler,
+} from "../shared/api/generated/client.msw"
 import type { Problem } from "../shared/api/generated/model"
 
 /**
@@ -35,4 +38,15 @@ export function problem(
  */
 export function nobodyIsLoggedIn() {
   return getTellLoggedInUserMockHandler401(problem(401, "unauthorized"))
+}
+
+/**
+ * The login state of a browser where no login provider is turned on and no
+ * login through one was refused. The login screen reads it when it opens, so
+ * a test that reaches the login screen hands it to the API beside
+ * `nobodyIsLoggedIn()`. A test of the providers hands its own:
+ * `getTellLoginStateMockHandler({ login_providers: [...] })`.
+ */
+export function noLoginProviderIsOn() {
+  return getTellLoginStateMockHandler({ login_providers: [] })
 }

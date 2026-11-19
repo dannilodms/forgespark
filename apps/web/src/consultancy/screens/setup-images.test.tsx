@@ -16,7 +16,13 @@ import type {
   ConcludeSetupRequest,
   StartSetupUploadRequest,
 } from "../../shared/api/generated/model"
-import { api, nobodyIsLoggedIn, problem, traceId } from "../../testing/api"
+import {
+  api,
+  noLoginProviderIsOn,
+  nobodyIsLoggedIn,
+  problem,
+  traceId,
+} from "../../testing/api"
 import { renderApp } from "../../testing/render-app"
 
 type Screen = Awaited<ReturnType<typeof renderApp>>["screen"]
@@ -35,7 +41,8 @@ async function openTheFirstSetup() {
       setup_code_waiting: true,
     }),
     // The login screen, where concluding leads, finds nobody logged in.
-    nobodyIsLoggedIn()
+    nobodyIsLoggedIn(),
+    noLoginProviderIsOn()
   )
   api.use(
     getOpenSetupMockHandler({
