@@ -73,3 +73,8 @@
 - **The other areas of the shell.** The search field, the command palette, notifications, help, the items of the sidebar, favourites and settings wait for their features, as DESIGN.md now says; the settings of the next effort will decide whether they reuse `GET /api/consultancy` with more fields, as the spec left open.
 - **The coloured circles of people** (Traits of DESIGN.md) are muted initials for now; their colour is chosen with the first screen that tells people apart.
 - `docs/machine-tools.yaml` and `docs/providers.md` need no change.
+
+### Settled at the end of the effort
+
+- **The other areas of the shell**: nothing to settle; each arrives with its feature, as DESIGN.md says.
+- **The colour of the circles of people**: deferred by the maintainer to the first screen that tells people apart. Recorded under Deferred of the frontend rules in `CODING_STANDARDS.md`.

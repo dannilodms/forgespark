@@ -60,3 +60,8 @@
 - **One bucket in development for several databases.** The development worker removes, a day later, the objects only the end-to-end database or a test database names (the logo of the end-to-end setup, the leftovers of a killed test). Harmless today, since the end-to-end database is recreated on every run; a bucket or a key prefix per database would change it. Recorded in Files.
 - **The rule for keys is a shape.** Any run of 32 hexadecimal digits in an error or a span of the storage becomes `[key]`, so an identifier of that shape from the storage (a request identifier, say) would be hidden too. If the form of an object key changes, `keyless.go` changes with it.
 - `docs/machine-tools.yaml` and `docs/providers.md` need no change.
+
+### Settled at the end of the effort
+
+- **One bucket in development for several databases**: deferred by the maintainer, with no effort of its own yet. Recorded under Deferred in `CODING_STANDARDS.md` and in ADR-0017. The cleanup of the storage stays hourly, as the maintainer chose in the grilling.
+- **The rule for keys is a shape**: accepted as it is, as the ticket recorded in Files.

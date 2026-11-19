@@ -57,3 +57,9 @@
 ### Found, and left for a decision
 
 - **The setup and the e-mail step lose a click the same way.** Their fields pass `onBlur` (`TextField` in `shared/components/form-fields.tsx`, and the setup's code step), so an answer under a field vanishes when the field is left, and a button under it can move away from the pointer between the press and the release. Leaving out `onBlur` there too is a small change; it was not made here because it changes the setup's fields.
+
+### Settled at the end of the effort
+
+- **The setup and the e-mail step lost a click the same way**: fixed in the review-fix pass. `TextField`, `ListField` and the code step of the setup pass no `onBlur`, so an answer of the API under a field stays until its value changes; screen tests leave the field and read the answer still there. Recorded in Fields of Forms and validation in `CODING_STANDARDS.md`.
+- **The code step holds no attempts left**, shown from the answer of the API: accepted by the maintainer. Recorded in ADR-0011 and in State of the frontend rules.
+- **The gate sends an address the app does not have to the login with `return_to` and no notice**: accepted by the maintainer. Recorded in ADR-0011 and in The session of the Data module.
