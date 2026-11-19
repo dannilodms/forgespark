@@ -403,6 +403,7 @@ The commands, run from the repository root:
 | `task migrate` | Applies the pending migrations to the development database. A second run applies nothing |
 | `task issue-setup-code` | Issues a setup code in the development database and prints it, with when it stops working, what it opens and the address of the setup |
 | `task seed` | Fills the development database with the fictitious consultancy and its administrator, through the use cases of the setup, so the app opens on the login screen. On a database whose setup is concluded it changes nothing |
+| `task seed:image` | Builds the image of the seed, the `seed` service of `compose.yaml`, which staging runs, and publishes nothing. The pipeline runs it on every pull request |
 | `task dev` | Starts the API, the worker and Vite together. The app opens at `http://localhost`, through Caddy |
 | `task api` | Starts the API alone, at `http://127.0.0.1:8080` |
 | `task worker` | Starts the worker alone, which runs the jobs of the development database. It stops at once when a migration is pending |

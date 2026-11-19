@@ -403,6 +403,7 @@ Os comandos, executados na raiz do repositório:
 | `task migrate` | Aplica as migrations pendentes no banco de desenvolvimento. Uma segunda execução não aplica nada |
 | `task issue-setup-code` | Emite um código de configuração no banco de desenvolvimento e o mostra, com quando deixa de funcionar, o que abre e o endereço da configuração inicial |
 | `task seed` | Preenche o banco de desenvolvimento com a consultoria fictícia e a sua administradora, pelos casos de uso da configuração inicial, para o app abrir na tela de login. Em um banco cuja configuração inicial foi concluída, não altera nada |
+| `task seed:image` | Constrói a imagem do seed, o serviço `seed` do `compose.yaml`, que o staging executa, e não publica nada. O pipeline a executa em todo pull request |
 | `task dev` | Inicia a API, o worker e o Vite juntos. O app abre em `http://localhost`, pelo Caddy |
 | `task api` | Inicia só a API, em `http://127.0.0.1:8080` |
 | `task worker` | Inicia só o worker, que executa os trabalhos do banco de desenvolvimento. Ele para na hora quando há uma migration pendente |

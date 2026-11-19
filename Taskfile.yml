@@ -80,6 +80,14 @@ tasks:
       # seed, which staging runs, is the `seed` service of compose.yaml.
       - go run ./cmd/seed
 
+  seed:image:
+    desc: Build the image of the seed, the `seed` service of compose.yaml, and publish nothing
+    cmds:
+      # The image staging runs on every publish (Seed in Environments in
+      # CODING_STANDARDS.md); the pipeline builds it on every pull request,
+      # so a change that breaks its build fails before it is published.
+      - docker compose --profile seed build seed
+
   api:
     desc: Start the API
     dir: apps/api

@@ -170,6 +170,11 @@ jobs:
       - name: Build the API binary
         run: task api:build
 
+      # The image of the seed, which staging runs; it is built and published
+      # nowhere.
+      - name: Build the image of the seed
+        run: task seed:image
+
       - name: Run the Go tests against the PostgreSQL container
         run: task api:test
 
