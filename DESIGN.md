@@ -314,7 +314,7 @@ A component holds no text of its own. Every word comes from the screen, in the l
 
 ## Recipes
 
-Seven compositions are described here. The framed pane has code, `FramedPane` in `apps/web/src/shared/components`. The others have none yet: the first screen that needs one writes it in `apps/web`, following the clickable prototype the maintainer approved on 2026-11-18 (ADR-0027).
+Seven compositions are described here. The framed pane has code, `FramedPane` in `apps/web/src/shared/components`, with `StepActions` for the end of a step; the setup and the login screen use it. The others have none yet: the first screen that needs one writes it in `apps/web`, following the clickable prototype the maintainer approved on 2026-11-18 (ADR-0027).
 
 | Recipe | What it is |
 | --- | --- |
@@ -347,6 +347,7 @@ A recipe is added when a second screen needs the same composition.
 - The pane has two widths. A screen of few controls, such as the login screen, takes the narrow pane, at most 384px wide. A form, such as the setup, takes the wide pane, at most 720px wide, so that its fields go side by side and the form stays short.
 - In the wide pane the fields go in pairs, or in threes when they are short, such as city, region and postal code. A field with a long value, such as a website, takes the whole line. Where the group of fields is narrower than 512px, they go one under the other.
 - A step of a form ends on a line above a 1px `border-subtle`: the way back to the step before at the start, when there is one, and the one primary action at the end. On a narrow screen the primary action takes the rest of the line.
+- The login screen is the narrow pane: its heading, the notice it was given, the buttons of the login providers above a divider, absent while no provider is on, then the step of the e-mail or of the login code. The six digits of a login code are an InputOTP of six boxes, in mono. The way to a new code is a link button under the field, closed for a minute after the last code, with the seconds left in caption type under it.
 
 **Form dialog.** The fields, then a footer with the cancel action and the primary action. Enter in a field submits. A validation error shows under its field, in the error colour, with a sign and a sentence that says what to do; the field is marked and takes the focus. A dialog that closes keeps nothing of what was typed.
 
