@@ -88,6 +88,23 @@ tasks:
       # so a change that breaks its build fails before it is published.
       - docker compose --profile seed build seed
 
+  api:image:
+    desc: Build the image of the API, software-factory-manager-api:servers, which the servers run with each command of the binary, and publish nothing
+    cmds:
+      # The pipeline builds it on every pull request, as it builds the image
+      # of the seed, so a change that breaks its build fails before it is
+      # published (Publishing in CODING_STANDARDS.md).
+      - docker build --file apps/api/cmd/api/Dockerfile --tag software-factory-manager-api:servers apps/api
+
+  caddy:image:
+    desc: Build the web app, and the Caddy image of the servers with it inside, software-factory-manager-caddy:servers, and publish nothing
+    cmds:
+      # The app is built here every time, so the image never holds an
+      # earlier build. The output of the build is the context of the stage
+      # `servers`, which copies it whole.
+      - task: web:build
+      - docker build --file deploy/caddy/Dockerfile --target servers --tag software-factory-manager-caddy:servers apps/web/dist
+
   api:
     desc: Start the API
     dir: apps/api
@@ -221,6 +238,14 @@ tasks:
         SELECT format('DROP DATABASE %I', datname) FROM pg_database
           WHERE datname LIKE 'test\_%' OR datname LIKE 'testdb\_%' \gexec
         SQL
+
+  web:build:
+    desc: Build the web app for the servers into apps/web/dist, with a Brotli copy beside each text file
+    dir: apps/web
+    cmds:
+      # The one build of the app: the checks run it through caddy:image,
+      # which copies its output into the Caddy image of the servers.
+      - vp build
 
   web:generate:
     desc: Generate the API client, its Zod schemas and its simulated responses from apps/api/openapi.yaml, with orval
@@ -363,6 +388,11 @@ tasks:
       - task: api:spec:lint
       - task: api:spec:breaking
       - task: api:build
+      # The three images a commit is published with, built and published
+      # nowhere, as the pipeline builds them.
+      - task: api:image
+      - task: caddy:image
+      - task: seed:image
       - task: api:test
 
   check:fix:

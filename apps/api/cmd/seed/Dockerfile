@@ -12,8 +12,10 @@ WORKDIR /source
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-# Static, so that it runs on an image with no C library.
-RUN CGO_ENABLED=0 go build -trimpath -o /seed ./cmd/seed
+# Static, so that it runs on an image with no C library. The cache of the
+# compiler is kept by Docker between builds on the same machine, so a build
+# after a change compiles only what changed; it leaves nothing in the image.
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -trimpath -o /seed ./cmd/seed
 
 # No shell and no package manager: the binary, the root certificates and a
 # user that is not root. The image has no version of its own, so it is pinned

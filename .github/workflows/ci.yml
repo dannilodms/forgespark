@@ -170,10 +170,14 @@ jobs:
       - name: Build the API binary
         run: task api:build
 
-      # The image of the seed, which staging runs; it is built and published
-      # nowhere.
+      # The images of the seed and of the API, which the servers run; they
+      # are built and published nowhere. Docker builds them, so they need no
+      # Go of the runner.
       - name: Build the image of the seed
         run: task seed:image
+
+      - name: Build the image of the API
+        run: task api:image
 
       - name: Run the Go tests against the PostgreSQL container
         run: task api:test
@@ -249,6 +253,11 @@ jobs:
 
       - name: Check the generated client, format, lint, types, imports, unused code and translations, and run the screen tests
         run: task web:check
+
+      # The build of the app needs the Node.js of this job. The image is
+      # built and published nowhere.
+      - name: Build the web app, and the Caddy image of the servers with it inside
+        run: task caddy:image
 
   # The setup, end to end, in Chromium, through Caddy: the services of
   # development, the API binary on a database that starts empty, and Vite.

@@ -30,6 +30,9 @@ services:
       service: caddy
     build:
       context: deploy/caddy
+      # Caddy with its plugin and no app: Vite serves the app here. The
+      # stage `servers` of the same Dockerfile holds the built app.
+      target: development
     image: software-factory-manager-caddy:development
     depends_on:
       # The host name of the files leads to a bucket that has its rule.
