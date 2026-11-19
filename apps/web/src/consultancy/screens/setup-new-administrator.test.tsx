@@ -196,6 +196,11 @@ describe("the e-mail of a user that exists", () => {
   it("is changed, and the administrator is registered with the new one", async () => {
     const { screen } = await openTheWayBackIn()
     await fillTheAdministrator(screen)
+    // The handler last given is asked first: the refusal answers the first
+    // attempt, and the registering requests record only the second. Given
+    // after the click, the recording handler could answer the first attempt,
+    // when the request leaves after it, and the setup would conclude.
+    const sent = registeringRequests()
     api.use(
       getRegisterAdministratorMockHandler409(problem(409, "email_in_use"), {
         once: true,
@@ -204,9 +209,12 @@ describe("the e-mail of a user that exists", () => {
     await screen
       .getByRole("button", { name: "Register the administrator" })
       .click()
-    const sent = registeringRequests()
+    const email = textField(screen, "E-mail")
+    await expect
+      .element(email)
+      .toHaveAccessibleDescription(/This e-mail belongs to a user/)
 
-    await textField(screen, "E-mail").fill("bruno.lima@acme.example")
+    await email.fill("bruno.lima@acme.example")
     await screen.getByRole("button", { name: "Continue" }).click()
     await screen
       .getByRole("button", { name: "Register the administrator" })
