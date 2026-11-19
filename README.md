@@ -323,10 +323,14 @@ A command of the binary requires only the variables it uses. The ones the binary
 | `WORKER_LIGHT_QUEUE_MAX_JOBS` | The most jobs of the light queue, such as sending an e-mail, that one worker runs at once | `10` |
 | `WORKER_HEAVY_QUEUE_MAX_JOBS` | The most jobs of the heavy queue, such as converting a file, that one worker runs at once | `2` |
 | `WORKER_SHUTDOWN_DEADLINE` | How long the running jobs have to finish once the worker is told to stop, before they are cancelled and left for the next worker | `20s` |
+| `EMAIL_SENDER` | What the worker sends e-mail through: `smtp`, the only sender so far | None: `worker` requires it |
+| `EMAIL_SMTP_ADDRESS` | The SMTP server, as `host:port` with a host: Mailpit outside production | None: `worker` requires it while `EMAIL_SENDER` is `smtp` |
+| `EMAIL_FROM_ADDRESS` | The address every e-mail is sent from | None: `worker` requires it. `.env.example` holds a fictitious one |
+| `EMAIL_FROM_NAME` | The name every e-mail is sent from | None: `worker` requires it. `.env.example` holds a fictitious one |
 
-`.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, the port of Caddy, the port of Garage and the secret its nodes share, the port of the River panel, the interface Vite listens on, and the connection with which the Go tests create their temporary databases. Garage creates its bucket and its key from the `FILE_STORAGE_` variables.
+`.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, the port of Caddy, the port of Garage and the secret its nodes share, the two ports of Mailpit, the port of the River panel, the interface Vite listens on, and the connection with which the Go tests create their temporary databases. Garage creates its bucket and its key from the `FILE_STORAGE_` variables.
 
-The variables of what is not built yet (the e-mail server and the rest) are _TBD_, each added with the code that reads it.
+The variables of what is not built yet (Resend, the login and the rest) are _TBD_, each added with the code that reads it.
 
 ### Local development
 
@@ -347,7 +351,7 @@ The seed fills the database with fictitious data, the same on every run. To work
 
 The pipeline calls the same Task targets, so a check that fails there fails the same way on the machine.
 
-Of the table above, PostgreSQL, Garage, the River panel and Caddy are what run today, beside the API, the worker and the app. From a clean machine to a concluded setup, with the prerequisites installed and Docker running:
+Of the table above, PostgreSQL, Garage, Mailpit, the River panel and Caddy are what run today, beside the API, the worker and the app. From a clean machine to a concluded setup, with the prerequisites installed and Docker running:
 
 1. Clone the repository with Git and open a terminal at its root. Every command below runs there.
 2. `task install`. The first time, it downloads Node.js, pnpm, the JavaScript dependencies and the Chromium of the tests, about 330 MB.
@@ -363,7 +367,7 @@ To skip the setup, run `task seed` in place of steps 6 and 7. It registers a fic
 
 The browser reaches everything through Caddy, at one address, `http://localhost`: the app, and the API under `/api`. The file storage has a host name of its own, `http://files.localhost`, where the browser sends an image to a URL the API signed; Garage accepts it from the origin of the app only. Nothing is configured by hand: the values of `.env.example` work as they are with Docker Desktop. With Docker Engine on Linux, Caddy reaches the API and Vite only when they listen on every interface: write `API_LISTEN_ADDRESS=0.0.0.0:8080` and `WEB_LISTEN_HOST=0.0.0.0` in a `.env`. When port 80 is taken, change `CADDY_PORT` there and add the port to `APP_ORIGIN` and to `FILE_STORAGE_PUBLIC_URL`.
 
-The worker runs the jobs the API saves, in a light queue and a heavy queue. No job exists yet: until the first one arrives, the worker logs that it has no job kind to run and waits. The River panel shows the jobs of the development database at `http://localhost:8081` (`RIVER_PANEL_PORT`); it runs in development only, until the API serves it to administrators.
+The worker runs the jobs the API saves, in a light queue and a heavy queue. Its first job delivers an e-mail: every e-mail the system sends is a record, and its job writes it in the language of the recipient and sends it through SMTP. In development the e-mail goes to Mailpit, which keeps it and delivers nothing: its screen, at `http://localhost:8025` (`MAILPIT_PORT`), shows every e-mail sent. No part of the system asks for an e-mail yet; the login code is the first. The River panel shows the jobs of the development database at `http://localhost:8081` (`RIVER_PANEL_PORT`); it runs in development only, until the API serves it to administrators.
 
 `http://localhost/up` answers with the status of the readiness of the API and no body: 503 until the migrations are applied, and 502 while the API is not running. The API itself answers liveness at `http://127.0.0.1:8080/livez` and readiness at `http://127.0.0.1:8080/readyz`, which Caddy does not forward.
 
@@ -374,7 +378,7 @@ The commands, run from the repository root:
 | Command | What it does |
 | --- | --- |
 | `task install` | Installs the JavaScript dependencies, and the Chromium the screen tests run in. Vite+ downloads the versions of Node.js and pnpm that `apps/web/package.json` names |
-| `task services` | Builds the Caddy image, starts the services of development in Docker (PostgreSQL, Garage with its bucket, its key and its cross-origin rule, the River panel and Caddy) and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
+| `task services` | Builds the Caddy image, starts the services of development in Docker (PostgreSQL, Garage with its bucket, its key and its cross-origin rule, Mailpit, the River panel and Caddy) and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
 | `task services:stop` | Stops the services of development and keeps their data |
 | `task migrate` | Applies the pending migrations to the development database. A second run applies nothing |
 | `task issue-setup-code` | Issues a setup code in the development database and prints it, with when it stops working, what it opens and the address of the setup |
@@ -384,7 +388,7 @@ The commands, run from the repository root:
 | `task worker` | Starts the worker alone, which runs the jobs of the development database. It stops at once when a migration is pending |
 | `task web` | Starts Vite alone, at port 5173, behind Caddy |
 | `task api:build` | Builds the API binary into `apps/api/bin` |
-| `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there; a test of the file storage writes objects of its own to the bucket of Garage and removes them. Arguments after `--` replace the list of packages |
+| `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there; a test of the file storage writes objects of its own to the bucket of Garage and removes them; a test of the SMTP adapter sends to Mailpit, to an address of its own, and reads the e-mail back through its API. Arguments after `--` replace the list of packages |
 | `task db:clean` | Drops the databases the Go tests leave in the development PostgreSQL, the ones named `test_...` and `testdb_...`: the database of a test that failed or was killed, and a template of pgtestdb for each state the migrations had. No other database is touched, neither `software_factory` nor `software_factory_e2e`. Run it when no test runs, now and then or when the list of databases grows: a database still in use is not dropped, and the command stops on it |
 | `task api:lint` | Lints the Go code and checks its format, the imports between layers and between domain areas, `else` and the level of nesting |
 | `task api:format` | Rewrites the Go files as the formatter asks |

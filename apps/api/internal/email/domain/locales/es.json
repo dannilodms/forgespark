@@ -1,0 +1,9 @@
+{
+  "login_code": {
+    "subject": "Tu código de inicio de sesión",
+    "heading": "Tu código de inicio de sesión",
+    "instruction": "Escribe este código en la pantalla de inicio de sesión para entrar:",
+    "lifetime": "Funciona durante {{.Minutes}} minutos, una sola vez, en el navegador donde lo pediste.",
+    "ignore": "Si no pediste este código, ignora este correo electrónico. Nadie puede iniciar sesión con tu correo electrónico sin él."
+  }
+}

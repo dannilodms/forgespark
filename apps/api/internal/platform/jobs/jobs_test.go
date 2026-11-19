@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -26,10 +25,11 @@ import (
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry/telemetrytest"
 )
 
-// These tests stand in for the first `adapters/river` package: a job kind
-// whose arguments are identifiers, a job worker that reads them and calls one
-// use case, and the saving of the job in the transaction of a use case. The
-// use case here records what it was called with.
+// These tests prove what every `adapters/river` package stands on, the first
+// being the e-mail's: a job kind whose arguments are identifiers, a job
+// worker that reads them and calls one use case, and the saving of the job in
+// the transaction of a use case. The use case here records what it was
+// called with.
 
 // lightArgs are the arguments of a job of the light queue.
 type lightArgs struct {
@@ -353,36 +353,4 @@ func TestTheShutdownTakesNoNewJobCutsTheRunningOneAtTheDeadlineAndBothRunAgainLa
 		return completed == 2
 	}, 30*time.Second, 50*time.Millisecond, "the two jobs completed on the next worker")
 	require.NoError(t, stopNext())
-}
-
-// lockedBuffer collects the logs of a runner, which writes from its own
-// goroutine while the test reads.
-type lockedBuffer struct {
-	mu   sync.Mutex
-	text bytes.Buffer
-}
-
-func (b *lockedBuffer) Write(p []byte) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.text.Write(p)
-}
-
-func (b *lockedBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.text.String()
-}
-
-func TestTheRunnerStandsByUntilTheSignalWhenNoJobKindIsRegistered(t *testing.T) {
-	t.Parallel()
-	_, pool := poolOf(t, nil)
-	logs := &lockedBuffer{}
-	logger := slog.New(slog.NewJSONHandler(logs, nil))
-	runner, err := jobs.NewRunner(pool, settingsOf(jobs.NewKinds(), time.Second, nil, logger))
-	require.NoError(t, err)
-	stop := runUntilSignalled(t, runner)
-
-	require.Eventually(t, func() bool { return strings.Contains(logs.String(), "no job kind") }, 10*time.Second, 10*time.Millisecond)
-	assert.NoError(t, stop())
 }

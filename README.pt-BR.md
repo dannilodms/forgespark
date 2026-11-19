@@ -323,10 +323,14 @@ Cada comando do binário exige apenas as variáveis que usa. As que o binário l
 | `WORKER_LIGHT_QUEUE_MAX_JOBS` | O máximo de trabalhos da fila leve, como enviar um e-mail, que um worker executa ao mesmo tempo | `10` |
 | `WORKER_HEAVY_QUEUE_MAX_JOBS` | O máximo de trabalhos da fila pesada, como converter um arquivo, que um worker executa ao mesmo tempo | `2` |
 | `WORKER_SHUTDOWN_DEADLINE` | Quanto tempo os trabalhos em execução têm para terminar depois que o worker recebe a ordem de parar, antes de serem cancelados e deixados para o próximo worker | `20s` |
+| `EMAIL_SENDER` | Por onde o worker envia e-mail: `smtp`, o único remetente até agora | Nenhum: o `worker` exige |
+| `EMAIL_SMTP_ADDRESS` | O servidor SMTP, como `host:porta` com um host: o Mailpit fora da produção | Nenhum: o `worker` exige enquanto `EMAIL_SENDER` for `smtp` |
+| `EMAIL_FROM_ADDRESS` | O endereço de que todo e-mail é enviado | Nenhum: o `worker` exige. O `.env.example` traz um fictício |
+| `EMAIL_FROM_NAME` | O nome de que todo e-mail é enviado | Nenhum: o `worker` exige. O `.env.example` traz um fictício |
 
-O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, a porta do Caddy, a porta do Garage e o segredo que os nós dele compartilham, a porta do painel do River, a interface em que o Vite escuta e a conexão com que os testes em Go criam seus bancos temporários. O Garage cria o seu bucket e a sua chave a partir das variáveis `FILE_STORAGE_`.
+O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, a porta do Caddy, a porta do Garage e o segredo que os nós dele compartilham, as duas portas do Mailpit, a porta do painel do River, a interface em que o Vite escuta e a conexão com que os testes em Go criam seus bancos temporários. O Garage cria o seu bucket e a sua chave a partir das variáveis `FILE_STORAGE_`.
 
-As variáveis do que ainda não foi construído (o servidor de e-mail e as demais) estão _A definir_, e cada uma entra com o código que a lê.
+As variáveis do que ainda não foi construído (o Resend, o login e as demais) estão _A definir_, e cada uma entra com o código que a lê.
 
 ### Ambiente de desenvolvimento
 
@@ -347,7 +351,7 @@ O seed preenche o banco com dados fictícios, os mesmos a cada execução. Para 
 
 A pipeline chama os mesmos alvos do Task, então uma verificação que falha nela falha do mesmo jeito na máquina.
 
-Da tabela acima, o PostgreSQL, o Garage, o painel do River e o Caddy são o que roda hoje, ao lado da API, do worker e do app. De uma máquina limpa até a configuração inicial concluída, com os pré-requisitos instalados e o Docker em execução:
+Da tabela acima, o PostgreSQL, o Garage, o Mailpit, o painel do River e o Caddy são o que roda hoje, ao lado da API, do worker e do app. De uma máquina limpa até a configuração inicial concluída, com os pré-requisitos instalados e o Docker em execução:
 
 1. Clone o repositório com o Git e abra um terminal na raiz dele. Todos os comandos abaixo rodam ali.
 2. `task install`. Na primeira vez, ele baixa o Node.js, o pnpm, as dependências JavaScript e o Chromium dos testes, cerca de 330 MB.
@@ -363,7 +367,7 @@ Para pular a configuração inicial, rode `task seed` no lugar dos passos 6 e 7.
 
 O navegador chega a tudo pelo Caddy, em um único endereço, `http://localhost`: o app, e a API em `/api`. O armazenamento de arquivos tem um nome de host próprio, `http://files.localhost`, onde o navegador envia uma imagem para uma URL que a API assinou; o Garage só a aceita vinda da origem do app. Nada é configurado à mão: os valores do `.env.example` funcionam como estão com o Docker Desktop. Com o Docker Engine no Linux, o Caddy só alcança a API e o Vite quando eles escutam em todas as interfaces: escreva `API_LISTEN_ADDRESS=0.0.0.0:8080` e `WEB_LISTEN_HOST=0.0.0.0` em um `.env`. Quando a porta 80 estiver ocupada, mude ali o `CADDY_PORT` e acrescente a porta ao `APP_ORIGIN` e ao `FILE_STORAGE_PUBLIC_URL`.
 
-O worker executa os trabalhos que a API grava, em uma fila leve e uma fila pesada. Ainda não existe nenhum trabalho: até o primeiro chegar, o worker registra no log que não tem tipo de trabalho para executar e espera. O painel do River mostra os trabalhos do banco de desenvolvimento em `http://localhost:8081` (`RIVER_PANEL_PORT`); ele roda só em desenvolvimento, até a API servi-lo aos administradores.
+O worker executa os trabalhos que a API grava, em uma fila leve e uma fila pesada. O primeiro trabalho dele entrega um e-mail: todo e-mail que o sistema envia é um registro, e o trabalho dele o escreve no idioma do destinatário e o envia por SMTP. Em desenvolvimento o e-mail vai para o Mailpit, que o guarda e não entrega nada: a tela dele, em `http://localhost:8025` (`MAILPIT_PORT`), mostra todo e-mail enviado. Nenhuma parte do sistema pede um e-mail ainda; o código de login é o primeiro. O painel do River mostra os trabalhos do banco de desenvolvimento em `http://localhost:8081` (`RIVER_PANEL_PORT`); ele roda só em desenvolvimento, até a API servi-lo aos administradores.
 
 `http://localhost/up` responde com o status da prontidão da API e sem corpo: 503 até as migrations serem aplicadas, e 502 enquanto a API não estiver rodando. A própria API responde à verificação de atividade em `http://127.0.0.1:8080/livez` e à de prontidão em `http://127.0.0.1:8080/readyz`, que o Caddy não encaminha.
 
@@ -374,7 +378,7 @@ Os comandos, executados na raiz do repositório:
 | Comando | O que faz |
 | --- | --- |
 | `task install` | Instala as dependências JavaScript e o Chromium em que rodam os testes de tela. O Vite+ baixa as versões de Node.js e pnpm que o `apps/web/package.json` indica |
-| `task services` | Gera a imagem do Caddy, inicia os serviços de desenvolvimento no Docker (o PostgreSQL, o Garage com o seu bucket, a sua chave e a sua regra de origem cruzada, o painel do River e o Caddy) e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
+| `task services` | Gera a imagem do Caddy, inicia os serviços de desenvolvimento no Docker (o PostgreSQL, o Garage com o seu bucket, a sua chave e a sua regra de origem cruzada, o Mailpit, o painel do River e o Caddy) e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
 | `task services:stop` | Para os serviços de desenvolvimento e mantém os dados |
 | `task migrate` | Aplica as migrations pendentes no banco de desenvolvimento. Uma segunda execução não aplica nada |
 | `task issue-setup-code` | Emite um código de configuração no banco de desenvolvimento e o mostra, com quando deixa de funcionar, o que abre e o endereço da configuração inicial |
@@ -384,7 +388,7 @@ Os comandos, executados na raiz do repositório:
 | `task worker` | Inicia só o worker, que executa os trabalhos do banco de desenvolvimento. Ele para na hora quando há uma migration pendente |
 | `task web` | Inicia só o Vite, na porta 5173, atrás do Caddy |
 | `task api:build` | Gera o binário da API em `apps/api/bin` |
-| `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário; um teste do armazenamento de arquivos grava objetos próprios no bucket do Garage e os remove. Os argumentos depois de `--` substituem a lista de pacotes |
+| `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário; um teste do armazenamento de arquivos grava objetos próprios no bucket do Garage e os remove; um teste do adaptador SMTP envia ao Mailpit, para um endereço só dele, e lê o e-mail de volta pela API do Mailpit. Os argumentos depois de `--` substituem a lista de pacotes |
 | `task db:clean` | Apaga os bancos que os testes em Go deixam no PostgreSQL de desenvolvimento, os de nome `test_...` e `testdb_...`: o banco de um teste que falhou ou foi interrompido, e um template do pgtestdb para cada estado que as migrações tiveram. Nenhum outro banco é tocado, nem o `software_factory` nem o `software_factory_e2e`. Rode quando nenhum teste estiver rodando, de vez em quando ou quando a lista de bancos crescer: um banco ainda em uso não é apagado, e o comando para nele |
 | `task api:lint` | Roda o lint do código Go e verifica o formato, os imports entre camadas e entre áreas de domínio, o `else` e o nível de aninhamento |
 | `task api:format` | Reescreve os arquivos Go como o formatador pede |

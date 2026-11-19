@@ -58,19 +58,17 @@ var ErrNoTransaction = errors.New("a job is saved inside the transaction of a us
 // and each domain area adds its job workers to it with Add.
 type Kinds struct {
 	workers *river.Workers
-	count   int
 }
 
 // NewKinds returns an empty set of job kinds.
 func NewKinds() *Kinds {
-	return &Kinds{workers: river.NewWorkers(), count: 0}
+	return &Kinds{workers: river.NewWorkers()}
 }
 
 // Add registers a job worker for the kind of its arguments. It panics when
 // the kind is already registered, as a wiring mistake should.
 func Add[T river.JobArgs](kinds *Kinds, worker river.Worker[T]) {
 	river.AddWorker(kinds.workers, worker)
-	kinds.count++
 }
 
 // Saver saves jobs for the API, inside the transaction of the use case that
@@ -157,18 +155,9 @@ func NewRunner(pool *pgxpool.Pool, settings RunnerSettings) (*Runner, error) {
 // shutdown deadline, then cancels their contexts and waits for them to
 // return. A job cut this way is made available again by River, with the
 // attempt given back, so it runs again on the next worker. Run returns nil
-// once River has stopped, and an error when it could not start or a cut job
-// did not return within returnGrace.
+// once River has stopped, and an error when it could not start, as with no
+// job kind to run, or a cut job did not return within returnGrace.
 func (r *Runner) Run(shutdown context.Context) error {
-	if r.settings.Kinds.count == 0 {
-		// River refuses to start with no kind to run. Until the first domain
-		// area registers one, the worker stands by so that `task dev` and the
-		// Compose service have a worker to start.
-		r.settings.Logger.Warn("the worker has no job kind to run")
-		<-shutdown.Done()
-		return nil
-	}
-
 	// The jobs outlive the notice: River cancels every job at once when the
 	// context of Start ends, and the deadline is what gives them time.
 	if err := r.client.Start(context.WithoutCancel(shutdown)); err != nil {

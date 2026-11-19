@@ -9,11 +9,22 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	emailpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/postgres"
+	emailriver "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/river"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/smtp/smtptest"
+	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
+	emailapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application/applicationtest"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/jobs"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry/telemetrytest"
 )
@@ -24,7 +35,9 @@ import (
 // then searches the logs and the exported spans for each value.
 //
 // A ticket that brings a new kind of sensitive value (a setup code, an
-// e-mail, a name) adds it to TestTheLogsAndTheSpansCarryNothingSensitive:
+// e-mail, a name) adds it to TestTheLogsAndTheSpansCarryNothingSensitive, or
+// to a scenario of its own below when the value needs a migrated database or
+// a job to go by:
 //
 //  1. Add to the scenario the step that carries the value: a command of the
 //     binary, or a request to the API. Prefer a step that fails, because a
@@ -91,6 +104,7 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 			"@127.0.0.1:1/software_factory?sslmode=disable",
 	})
 	environment["FILE_STORAGE_SECRET_ACCESS_KEY"] = guarded.add("the secret key of the file storage", "guarded-secret-key-of-the-file-storage")
+	withEmailSender(environment)
 
 	// The migrations fail to apply.
 	var migrateOutput, migrateLogs output
@@ -171,6 +185,21 @@ func TestTheTestOfSensitiveValuesFindsAValueWrittenAsAQueryStringWritesIt(t *tes
 	found := guarded.foundIn(`{"msg":"request","query":"email=ana.souza%40example.com"}`)
 
 	assert.Equal(t, []string{"the e-mail of the administrator"}, found)
+}
+
+// An SMTP server repeats the address it refuses, in angle brackets and in the
+// case it was sent in, and go-mail lists it after the answer.
+func TestTheTestOfSensitiveValuesFindsAnAddressInTheAnswerOfAnEmailServer(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	guarded.add("the address of a recipient", "ana.souza@fabrica.example")
+
+	for _, line := range []string{
+		`{"msg":"Job errored; retrying","error":"550 5.1.1 <Ana.Souza@Fabrica.example>: Recipient address rejected"}`,
+		`{"msg":"Job errored","error":"sending SMTP RCPT TO command, affected recipient(s): ana.souza@fabrica.example"}`,
+	} {
+		assert.Equal(t, []string{"the address of a recipient"}, guarded.foundIn(line), line)
+	}
 }
 
 // The scenario of the test above runs with PostgreSQL out of reach, and a
@@ -490,4 +519,110 @@ func TestTheLogsTheSpansAndTheAuditLogOfRegisteringAnAdministratorNeverCarryTheD
 		"SELECT string_agg(row_to_json(audit_log)::text, E'\n') FROM audit_log").Scan(&auditLog))
 	require.Contains(t, auditLog, "administrator_registered", "the scenario recorded no registration")
 	assert.Empty(t, guarded.foundIn(auditLog), "the audit log carries a sensitive value")
+}
+
+// An e-mail record carries the address of its recipient, and the job that
+// delivers it the identifier of the record alone. This scenario queues an
+// e-mail on a migrated database, inside the span of a request, and runs its
+// job as the worker does, with the worker's wiring and logs at their lowest
+// level, against an SMTP server that refuses the recipient and repeats the
+// address in its answer, as servers do. It then searches the logs, the spans
+// and the jobs River keeps, their arguments and their errors, for the address
+// and for the code the e-mail carried.
+//
+// No area gives the worker the content of an e-mail yet (the login will), so
+// the job runs with a source of login codes of the test, on the rest of the
+// wiring of the worker, instead of through the command.
+func TestTheLogsTheSpansAndTheJobsOfSendingAnEmailNeverCarryTheAddressOrTheContent(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	recipient := guarded.add("the address of the recipient", "Guarded.Recipient@Fabrica.example")
+	code := guarded.add("the code the e-mail carries", "guarded-login-code-482915")
+	collector := telemetrytest.NewCollector(t)
+	logs := &output{}
+	logger := telemetry.NewLogger(logs, slog.LevelDebug)
+	tracing, err := telemetry.StartTracing("api", collector.URL, logger)
+	require.NoError(t, err)
+	temporary := databasetest.Migrated(t)
+	pool, err := database.NewPool(database.PoolSettings{
+		ConnectionURL:            temporary.APIConnection(t),
+		MaxSize:                  4,
+		StatementTimeout:         10 * time.Second,
+		IdleInTransactionTimeout: time.Minute,
+		TracerProvider:           tracing.Provider,
+	})
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+
+	// Queued inside the span of a request, as the login will.
+	saver, err := jobs.NewSaver(pool, tracing.Provider, logger)
+	require.NoError(t, err)
+	queue := emailapplication.NewQueueEmail(
+		database.NewTransactions(pool), emailpostgres.NewEmailRepository(pool), emailriver.NewDeliveryJobs(saver), clock.System{})
+	english, err := kernel.NewLanguage("en-US")
+	require.NoError(t, err)
+	requestCtx, request := tracing.Provider.Tracer("test").Start(context.Background(), "POST /api/login/codes")
+	err = database.NewTransactions(pool).Run(requestCtx, func(ctx context.Context) error {
+		return queue.Execute(ctx, emailapplication.QueueEmailInput{
+			Recipient: recipient,
+			Template:  emailapplication.LoginCode,
+			Language:  english,
+			Reference: emailapplication.LoginCodeRequest(1),
+		})
+	})
+	require.NoError(t, err)
+	request.End()
+
+	// The job runs on the configuration of the worker, pointed at a server
+	// that refuses the recipient.
+	server := smtptest.NewRefusingServer(t)
+	environment := withEmailSender(map[string]string{"DATABASE_URL": temporary.APIURL})
+	environment["EMAIL_SMTP_ADDRESS"] = server.Address()
+	settings, err := config.Load(config.Worker, environment)
+	require.NoError(t, err)
+	loginCodes := emailapplicationtest.NewContentSource()
+	loginCodes.Give(emailapplication.LoginCodeRequest(1), emailapplication.LoginCodeContent{Code: code, Lifetime: 10 * time.Minute})
+	kinds := jobs.NewKinds()
+	contents := emailapplication.ContentSources{emailapplication.LoginCode: loginCodes}
+	jobs.Add(kinds, emailriver.NewDeliveryWorker(deliverEmail(pool, emailSender(settings, tracing.Provider), contents)))
+	runner, err := jobs.NewRunner(pool, jobs.RunnerSettings{
+		LightQueueMaxJobs: 1,
+		HeavyQueueMaxJobs: 1,
+		ShutdownDeadline:  2 * time.Second,
+		Kinds:             kinds,
+		PeriodicJobs:      nil,
+		TracerProvider:    tracing.Provider,
+		Logger:            logger,
+	})
+	require.NoError(t, err)
+	shutdown, signal := context.WithCancel(context.Background())
+	stopped := make(chan error, 1)
+	go func() { stopped <- runner.Run(shutdown) }()
+	select {
+	case <-server.Refused:
+	case <-time.After(30 * time.Second):
+		t.Fatalf("the job did not reach the SMTP server: %s", logs)
+	}
+	require.Eventually(t, func() bool {
+		var failures int
+		require.NoError(t, pool.QueryRow(context.Background(),
+			"SELECT count(*) FROM river_job WHERE kind = 'deliver_email' AND errors IS NOT NULL").Scan(&failures))
+		return failures > 0
+	}, 30*time.Second, 50*time.Millisecond, "River kept no error of the job")
+	signal()
+	require.NoError(t, <-stopped)
+	tracing.Stop()
+
+	var jobsKept string
+	require.NoError(t, pool.QueryRow(context.Background(),
+		"SELECT string_agg(row_to_json(river_job)::text, E'\n') FROM river_job").Scan(&jobsKept))
+	require.Contains(t, logs.String(), "Job errored", "the scenario logged no failed job")
+	require.Contains(t, logs.String(), "RCPT TO", "the scenario logged no refusal of the SMTP server")
+	require.Contains(t, jobsKept, "RCPT TO", "River kept no error of the job")
+	require.Contains(t, collector.Text(), "river.work/deliver_email", "the scenario exported no span of the job")
+	require.Contains(t, collector.Text(), "SMTP send", "the scenario exported no span of the sending")
+	require.Contains(t, collector.Text(), "INSERT INTO emails", "the scenario exported no span of the query that records the e-mail")
+	assert.Empty(t, guarded.foundIn(logs.String()), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(jobsKept), "a job carries a sensitive value")
 }

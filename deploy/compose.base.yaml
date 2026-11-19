@@ -72,6 +72,14 @@ services:
     image: curlimages/curl:8.23.0
     logging: *logging
 
+  # The e-mail server of development and staging (ADR-0019): it takes every
+  # e-mail over SMTP and keeps it, to read on its screen or through its API.
+  # Production sends through Resend and declares no Mailpit. The image checks
+  # its own health.
+  mailpit:
+    image: axllent/mailpit:v1.34.0
+    logging: *logging
+
   # The River panel (ADR-0016), which shows the jobs. Development alone runs
   # it, until the API serves it behind the session (Jobs in
   # CODING_STANDARDS.md). Its release is built with a River of its own: it is

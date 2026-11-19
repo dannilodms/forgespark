@@ -6,8 +6,15 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel/trace"
 
+	emailpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/postgres"
+	emailriver "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/river"
+	emailsmtp "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/smtp"
+	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/jobs"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 )
@@ -52,7 +59,7 @@ func work(shutdown context.Context, settings config.Config, logger *slog.Logger)
 		LightQueueMaxJobs: settings.WorkerLightQueueMaxJobs,
 		HeavyQueueMaxJobs: settings.WorkerHeavyQueueMaxJobs,
 		ShutdownDeadline:  settings.WorkerShutdownDeadline,
-		Kinds:             mountJobs(pool),
+		Kinds:             mountJobs(pool, settings, tracing.Provider),
 		PeriodicJobs:      nil,
 		TracerProvider:    tracing.Provider,
 		Logger:            logger,
@@ -68,8 +75,36 @@ func work(shutdown context.Context, settings config.Config, logger *slog.Logger)
 
 // mountJobs builds the job kinds the worker runs: it wires the job worker of
 // each domain area to its use case and its adapters, by hand, as mountREST
-// does for the REST operations. No domain area has a job yet: the e-mails and
-// the cleanup of the storage bring the first ones.
-func mountJobs(_ *pgxpool.Pool) *jobs.Kinds {
-	return jobs.NewKinds()
+// does for the REST operations. A new kind is one more line.
+func mountJobs(pool *pgxpool.Pool, settings config.Config, tracerProvider trace.TracerProvider) *jobs.Kinds {
+	// The area that asks for the e-mails of a template gives their content.
+	// No area asks for one yet: the login adds the login code here.
+	contents := emailapplication.ContentSources{}
+
+	kinds := jobs.NewKinds()
+	jobs.Add(kinds, emailriver.NewDeliveryWorker(deliverEmail(pool, emailSender(settings, tracerProvider), contents)))
+	return kinds
+}
+
+// deliverEmail wires the delivery of an e-mail: its record in PostgreSQL, the
+// sender the configuration chose and the content of each template.
+func deliverEmail(pool *pgxpool.Pool, sender emailapplication.Sender, contents emailapplication.ContentSources) *emailapplication.DeliverEmail {
+	return emailapplication.NewDeliverEmail(
+		database.NewTransactions(pool),
+		emailpostgres.NewEmailRepository(pool),
+		contents,
+		sender,
+		clock.System{},
+	)
+}
+
+// emailSender is the sender EMAIL_SENDER names: SMTP, the only one so far.
+func emailSender(settings config.Config, tracerProvider trace.TracerProvider) emailapplication.Sender {
+	return emailsmtp.NewSender(emailsmtp.Settings{
+		Host:           settings.EmailSMTPAddress.Host(),
+		Port:           settings.EmailSMTPAddress.Port(),
+		FromAddress:    settings.EmailFromAddress.String(),
+		FromName:       settings.EmailFromName,
+		TracerProvider: tracerProvider,
+	})
 }
