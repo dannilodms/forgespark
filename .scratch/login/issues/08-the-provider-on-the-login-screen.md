@@ -11,7 +11,7 @@
 - [x] The notice `no_active_user` shows the e-mail from the login state and tells the person to ask an administrator; the same text for an unknown and a deactivated user.
 - [x] The notice `login_not_concluded` says the login did not conclude and that the person can try again.
 - [x] Screen tests cover one and several providers, none, the two notices, and the return path passed to the start operation.
-- [ ] In development, logging in through Dex as the seed's administrator lands in the shell, and as the seed's developer shows the notice with their e-mail.
+- [x] In development, logging in through Dex as the seed's administrator lands in the shell, and as the seed's developer shows the notice with their e-mail.
 - [x] The texts exist in the three supported languages.
 
 ## Comments
@@ -46,7 +46,7 @@
 
 ### What was not checked
 
-- **Landing in the shell** (the sixth criterion, unticked): ticket 06 had not merged, so the login through Dex as the administrator landed on the provisional landing of ticket 05, not the shell. The part on the developer was seen as the criterion says. Once 06 merges, the same login lands where the root leads; ticket 12's end-to-end test logs in through Dex to the shell.
+- **Landing in the shell** was not seen here: ticket 06 had not merged, so the login through Dex as the administrator landed on the provisional landing of ticket 05. It was seen in ticket 06's browser check, after 08 was merged into it: through Dex as `seed+admin@fabrica.example` the browser landed at `/` in the shell, in `pt-BR`, with the user menu and the consultancy. The sixth criterion is ticked on that check.
 - `task e2e`, which belongs to ticket 12. The Chrome DevTools MCP was not connected; the browser check used Playwright's Chromium.
 
 ### Found, and left for a decision
