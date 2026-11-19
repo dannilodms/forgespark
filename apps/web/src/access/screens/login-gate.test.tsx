@@ -9,7 +9,13 @@ import {
   getTellSetupStateMockHandler,
 } from "../../shared/api/generated/client.msw"
 import type { LoggedInUser } from "../../shared/api/generated/model"
-import { api, nobodyIsLoggedIn, problem, traceId } from "../../testing/api"
+import {
+  api,
+  noLoginProviderIsOn,
+  nobodyIsLoggedIn,
+  problem,
+  traceId,
+} from "../../testing/api"
 import { renderApp } from "../../testing/render-app"
 
 type Screen = Awaited<ReturnType<typeof renderApp>>["screen"]
@@ -35,7 +41,7 @@ function setupConcluded(setupCodeWaiting = false) {
 describe("the gate, without a session", () => {
   it.for(["/", "/login"])("leads %s to the login screen", async (at) => {
     setupConcluded()
-    api.use(nobodyIsLoggedIn())
+    api.use(nobodyIsLoggedIn(), noLoginProviderIsOn())
 
     const { screen, address } = await renderApp({ at })
 
@@ -47,7 +53,7 @@ describe("the gate, without a session", () => {
 
   it("leads any other address to the login screen, which keeps the address to return to", async () => {
     setupConcluded()
-    api.use(nobodyIsLoggedIn())
+    api.use(nobodyIsLoggedIn(), noLoginProviderIsOn())
 
     const { screen, address } = await renderApp({ at: "/projects/42?tab=2" })
 
@@ -60,7 +66,7 @@ describe("the gate, without a session", () => {
 
   it("leads the address of the setup to the login screen while no setup code is waiting", async () => {
     setupConcluded()
-    api.use(nobodyIsLoggedIn())
+    api.use(nobodyIsLoggedIn(), noLoginProviderIsOn())
 
     const { address, screen } = await renderApp({ at: "/setup" })
 
@@ -217,7 +223,7 @@ describe("the session", () => {
 
   it("speaks the preferred language of the user once logged in, and the language of the selector after the logout", async () => {
     setupConcluded()
-    api.use(nobodyIsLoggedIn(), getLogOutMockHandler())
+    api.use(nobodyIsLoggedIn(), noLoginProviderIsOn(), getLogOutMockHandler())
     const { screen, address } = await renderApp({
       at: "/login",
       languages: ["en-US"],
@@ -264,7 +270,7 @@ describe("the session", () => {
       .toBeVisible()
 
     // The session ends: idle for 7 days, or the user was deactivated.
-    api.use(nobodyIsLoggedIn())
+    api.use(nobodyIsLoggedIn(), noLoginProviderIsOn())
     comeBackToTheTab(2)
 
     await expect

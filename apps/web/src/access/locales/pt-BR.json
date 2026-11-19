@@ -29,7 +29,19 @@
       "loggedOut": {
         "title": "Você saiu",
         "todo": "Para usar o sistema de novo, entre logo abaixo."
+      },
+      "loginNotConcluded": {
+        "title": "O login não foi concluído",
+        "todo": "Ele foi cancelado no provedor de login, ou falhou lá. Você pode tentar de novo logo abaixo."
+      },
+      "noActiveUser": {
+        "title": "Nenhum usuário ativo tem este e-mail",
+        "todo": "O provedor de login informou o e-mail <email>{{email}}</email>, e nenhum usuário ativo do sistema tem esse e-mail. Peça acesso a um administrador."
       }
+    },
+    "providers": {
+      "logInWith": "Entrar com {{name}}",
+      "or": "ou"
     },
     "email": {
       "intro": "Digite o e-mail com que você entra, e um código de login é enviado a ele.",

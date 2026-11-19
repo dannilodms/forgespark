@@ -11,7 +11,13 @@ import {
   getTellSetupStateMockHandler,
 } from "../../shared/api/generated/client.msw"
 import type { RegisterAdministratorRequest } from "../../shared/api/generated/model"
-import { api, nobodyIsLoggedIn, problem, traceId } from "../../testing/api"
+import {
+  api,
+  noLoginProviderIsOn,
+  nobodyIsLoggedIn,
+  problem,
+  traceId,
+} from "../../testing/api"
 import { renderApp } from "../../testing/render-app"
 
 type Screen = Awaited<ReturnType<typeof renderApp>>["screen"]
@@ -28,7 +34,8 @@ async function openTheWayBackIn(languages: readonly string[] = ["en-US"]) {
   api.use(
     getTellSetupStateMockHandler({ concluded: true, setup_code_waiting: true }),
     // The login screen, where registering leads, finds nobody logged in.
-    nobodyIsLoggedIn()
+    nobodyIsLoggedIn(),
+    noLoginProviderIsOn()
   )
   api.use(
     getOpenSetupMockHandler({

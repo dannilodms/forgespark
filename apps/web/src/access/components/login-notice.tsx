@@ -1,6 +1,6 @@
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon } from "lucide-react"
 import type { ReactNode } from "react"
-import { useTranslation } from "react-i18next"
+import { Trans, useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "#ui/components/alert"
 
@@ -14,9 +14,9 @@ import { Alert, AlertDescription, AlertTitle } from "#ui/components/alert"
  *   by an attempt of theirs that got no answer;
  * - their session ended while they worked, or they logged out;
  * - a login through a login provider did not conclude, or the provider's
- *   verified e-mail belongs to no active user. The login through a provider
- *   shows these two (ticket 08 of the login): the e-mail comes from the
- *   login state, never from the address.
+ *   verified e-mail belongs to no active user. The callback of the provider
+ *   sends these two; the e-mail comes from the login state, never from the
+ *   address.
  */
 export const loginNotices = [
   "setup_concluded",
@@ -32,7 +32,7 @@ export const loginNotices = [
 
 export type LoginNotice = (typeof loginNotices)[number]
 
-/** The notices this screen writes: a title and what to do, in `access`. */
+/** The texts of each notice: a title and what to do, in `access`. */
 const texts = {
   setup_concluded: "login.notices.setupConcluded",
   setup_already_concluded: "login.notices.setupAlreadyConcluded",
@@ -42,13 +42,15 @@ const texts = {
     "login.notices.administratorRegisteredWithoutAnswer",
   session_ended: "login.notices.sessionEnded",
   logged_out: "login.notices.loggedOut",
-} as const
+  login_not_concluded: "login.notices.loginNotConcluded",
+  no_active_user: "login.notices.noActiveUser",
+} as const satisfies Record<LoginNotice, string>
 
 /**
  * The sign of each notice, in a feedback colour: done, attention or
  * information (rule 9 of DESIGN.md: never colour alone, the title says it).
  */
-const signs: Record<keyof typeof texts, ReactNode> = {
+const signs: Record<LoginNotice, ReactNode> = {
   setup_concluded: <CircleCheckIcon className="text-status-done" />,
   setup_already_concluded: (
     <TriangleAlertIcon className="text-status-attention" />
@@ -62,16 +64,31 @@ const signs: Record<keyof typeof texts, ReactNode> = {
   ),
   session_ended: <TriangleAlertIcon className="text-status-attention" />,
   logged_out: <InfoIcon className="text-status-working" />,
+  login_not_concluded: <TriangleAlertIcon className="text-status-attention" />,
+  no_active_user: <TriangleAlertIcon className="text-status-attention" />,
 }
 
-function isWrittenHere(notice: LoginNotice): notice is keyof typeof texts {
-  return Object.hasOwn(texts, notice)
-}
-
-/** The notice the screen was given, above the ways to log in. */
-export function LoginNoticeAlert({ notice }: { notice?: LoginNotice }) {
+/**
+ * The notice the screen was given, above the ways to log in. The notice
+ * `no_active_user` shows the e-mail the last login through a provider in
+ * this browser was refused for, as the login state tells it; the same text
+ * whether the e-mail is unknown or of a deactivated user, which the API does
+ * not tell apart. With no refusal in the login state, the address was not
+ * the one the refusal led to, and the notice has nothing to say.
+ */
+export function LoginNoticeAlert({
+  notice,
+  refusedEmail,
+}: {
+  notice?: LoginNotice
+  /** The e-mail of the refused login, from the login state. */
+  refusedEmail?: string
+}) {
   const { t } = useTranslation("access")
-  if (notice === undefined || !isWrittenHere(notice)) {
+  if (
+    notice === undefined ||
+    (notice === "no_active_user" && refusedEmail === undefined)
+  ) {
     return null
   }
 
@@ -79,7 +96,16 @@ export function LoginNoticeAlert({ notice }: { notice?: LoginNotice }) {
     <Alert>
       {signs[notice]}
       <AlertTitle>{t(`${texts[notice]}.title`)}</AlertTitle>
-      <AlertDescription>{t(`${texts[notice]}.todo`)}</AlertDescription>
+      <AlertDescription>
+        <Trans
+          t={t}
+          i18nKey={`${texts[notice]}.todo`}
+          values={{ email: refusedEmail }}
+          // The e-mail goes whole to the next line, and breaks only where it
+          // is longer than the line.
+          components={{ email: <strong className="wrap-anywhere" /> }}
+        />
+      </AlertDescription>
     </Alert>
   )
 }

@@ -9,19 +9,26 @@ import type { RegisteredRouter } from "@tanstack/react-router"
 import {
   askForLoginCode,
   checkLoginCode,
+  getStartProviderLoginUrl,
   logOut,
   tellLoggedInUser,
+  tellLoginState,
 } from "../../shared/api/generated/client"
-import type { LoggedInUser } from "../../shared/api/generated/model"
+import type {
+  LoggedInUser,
+  TurnedOnLoginProvider,
+} from "../../shared/api/generated/model"
 import {
   AskForLoginCodeBody,
   CheckLoginCodeBody,
+  StartProviderLoginQueryParams,
 } from "../../shared/api/generated/schemas"
 import { ApiError, whenUnauthorized } from "../../shared/api/request"
 
 // The reads and writes of the session (Data module in CODING_STANDARDS.md):
-// who is logged in, asking for a login code, checking it, and logging out.
-// None is a set: they go through TanStack Query.
+// who is logged in, the login state, asking for a login code, checking it,
+// the way to a login through a provider, and logging out. None is a set:
+// they go through TanStack Query.
 
 /**
  * Who is logged in to the session of this browser, or `null` when nobody is:
@@ -115,6 +122,39 @@ export function openTheLoginWhenTheSessionEnds(
       replace: true,
     })
   })
+}
+
+/**
+ * The login state, which the login screen reads when it opens, before anyone
+ * is logged in: the login providers turned on, one button each, in the
+ * order the API gives them, and the e-mail the last login through a
+ * provider in this browser was refused for, which the notice
+ * `no_active_user` shows. The e-mail travels in this answer and in no
+ * address. Reading it forgets nothing.
+ */
+export const loginStateQuery = queryOptions({
+  queryKey: ["session", "login"],
+  queryFn: () => tellLoginState(),
+})
+
+/** A login provider turned on, as the login state names it. */
+export type LoginProvider = TurnedOnLoginProvider
+
+/**
+ * The address of the button of a login provider: the start of a login
+ * through it, to which the browser navigates (the generated client never
+ * calls it, since the API answers it with a redirect to the provider). It
+ * carries the path to return to once logged in, when there is one other
+ * than the root that the contract takes; the provider brings the browser
+ * back there, or to the login with a notice that keeps it.
+ */
+export function providerLoginAddress(key: string, returnTo: unknown) {
+  const path = whereTheLoginLeads(returnTo)
+  const taken = StartProviderLoginQueryParams.safeParse({ return_to: path })
+  return getStartProviderLoginUrl(
+    key,
+    path !== "/" && taken.success ? taken.data : {}
+  )
 }
 
 /** What the screen sends to ask for a login code, as the contract checks it. */

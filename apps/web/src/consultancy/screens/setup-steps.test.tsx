@@ -12,7 +12,13 @@ import {
   getTellSetupStateMockHandler,
 } from "../../shared/api/generated/client.msw"
 import type { ConcludeSetupRequest } from "../../shared/api/generated/model"
-import { api, nobodyIsLoggedIn, problem, traceId } from "../../testing/api"
+import {
+  api,
+  noLoginProviderIsOn,
+  nobodyIsLoggedIn,
+  problem,
+  traceId,
+} from "../../testing/api"
 import { renderApp } from "../../testing/render-app"
 
 type Screen = Awaited<ReturnType<typeof renderApp>>["screen"]
@@ -38,7 +44,8 @@ async function openTheFirstSetup(language: keyof typeof codeStep = "en-US") {
       setup_code_waiting: true,
     }),
     // The login screen, where concluding leads, finds nobody logged in.
-    nobodyIsLoggedIn()
+    nobodyIsLoggedIn(),
+    noLoginProviderIsOn()
   )
   api.use(
     getOpenSetupMockHandler({

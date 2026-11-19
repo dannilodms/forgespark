@@ -2,6 +2,7 @@
 export { loginNotices } from "./components/login-notice"
 export {
   loggedInUserQuery,
+  loginStateQuery,
   openTheLoginWhenTheSessionEnds,
   returnPathOf,
   whereTheLoginLeads,

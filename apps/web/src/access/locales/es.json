@@ -29,7 +29,19 @@
       "loggedOut": {
         "title": "Cerraste la sesión",
         "todo": "Para volver a usar el sistema, inicia sesión aquí abajo."
+      },
+      "loginNotConcluded": {
+        "title": "El inicio de sesión no se concluyó",
+        "todo": "Se canceló en el proveedor de inicio de sesión, o falló allí. Puedes intentarlo de nuevo aquí abajo."
+      },
+      "noActiveUser": {
+        "title": "Ningún usuario activo tiene este correo electrónico",
+        "todo": "El proveedor de inicio de sesión dio el correo electrónico <email>{{email}}</email>, y ningún usuario activo del sistema lo tiene. Pide acceso a un administrador."
       }
+    },
+    "providers": {
+      "logInWith": "Iniciar sesión con {{name}}",
+      "or": "o"
     },
     "email": {
       "intro": "Escribe el correo electrónico con el que inicias sesión, y se le envía un código de inicio de sesión.",
