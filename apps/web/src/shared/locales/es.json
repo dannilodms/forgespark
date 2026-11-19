@@ -57,6 +57,10 @@
         "title": "La configuración inicial no está concluida",
         "todo": "No se guardó nada. Vuelve a cargar la página y escribe el código de configuración: abre la configuración inicial."
       },
+      "login_code_limit_reached": {
+        "title": "Demasiados códigos pedidos para este correo electrónico",
+        "todo": "Espera unos minutos antes de pedir otro."
+      },
       "internal_server_error": {
         "title": "El servidor falló",
         "todo": "Vuelve a intentarlo en un momento. Si vuelve a ocurrir, transmite el identificador a quien mantiene el sistema."
@@ -91,7 +95,8 @@
       "file_not_found": "No se encontró esta imagen. Elígela de nuevo.",
       "file_not_uploaded": "Esta imagen no llegó al almacenamiento. Elígela de nuevo.",
       "email_in_use": "Este correo electrónico pertenece a un usuario del sistema. Escribe otro.",
-      "setup_code_invalid": "Este código de configuración no funciona: es incorrecto, expiró o ya se usó. Emite uno nuevo en el servidor y escríbelo aquí."
+      "setup_code_invalid": "Este código de configuración no funciona: es incorrecto, expiró o ya se usó. Emite uno nuevo en el servidor y escríbelo aquí.",
+      "login_code_invalid": "Este código no funciona: es incorrecto, expiró o se envió uno más nuevo. Revisa el último correo electrónico y escríbelo de nuevo. Intentos restantes: {{attempts_left}}."
     }
   },
   "errorScreen": {

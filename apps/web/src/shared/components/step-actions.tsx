@@ -1,9 +1,10 @@
 import type { ReactNode } from "react"
 
 /**
- * The end of a step of the setup: the way back to the step before, when
- * there is one, at the start of the line, and the one primary action at its
- * end. On a narrow screen the primary action takes the rest of the line.
+ * The end of a step of a form in the framed pane, the setup's or the
+ * login's: the way back to the step before, when there is one, at the start
+ * of the line, and the one primary action at its end. On a narrow screen the
+ * primary action takes the rest of the line.
  */
 export function StepActions({
   back,
