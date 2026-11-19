@@ -53,5 +53,8 @@ A person logs in through an external provider or with a login code sent to their
 - Every way in ends in one step that records the login in the audit log, with the way in, in the transaction that ends the code or links the provider, and renews the session token only after it commits.
 - Rate limiting, which ADR-0009 had left out, exists for the login code.
 - Staging does not use the local provider. It is public, so it logs in through the real providers, or with a login code read from a Mailpit that sits behind a password (ADR-0019).
+- A user has one provider link at each provider. Once an account is linked, another account of the same provider that claims the user's verified e-mail logs nobody in, so an e-mail that changes hands at the provider never logs someone else in; a user who loses the linked account logs in through another provider or with a login code. Every login through a provider asks for a verified e-mail, linked account or not.
+- The login through a provider keeps its state, nonce and PKCE verifier in the session that exists before the login, and uses them once: a callback this browser did not start, or with another state, logs nobody in. The provider is discovered at the first login through it, so the API starts while the provider is down, and the login screen sends the person back with a notice.
+- The callback of a provider takes the query the provider writes, including parameters of its own, so it is the one operation that does not refuse an unknown query parameter.
 - How each provider states that an e-mail is verified has to be checked when the login is built. Microsoft is the known hard case: its e-mail claim is not always verified.
 - Agents are unaffected: they keep using access tokens (ADR-0008).
