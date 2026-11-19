@@ -2,8 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"maps"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,14 +45,88 @@ func launchWorker(t *testing.T, environment map[string]string) runningWorker {
 	return runningWorker{signal: signal, status: status, logs: logs}
 }
 
+// standInStorage stands in for the file storage of the worker, which cleans
+// it up as soon as it starts. The bucket of development is shared by the
+// database of development and by every temporary one: a cleanup there with a
+// temporary database would remove objects the database of development names.
+// The stand-in lists the objects it was given, and removes each one asked
+// for, or cuts the connection of each removal, as a storage that goes away
+// does: the error of the request then carries its URL, with the key in it.
+type standInStorage struct {
+	mu       sync.Mutex
+	objects  map[string]time.Time
+	cut      bool
+	removals chan string
+}
+
+func newStandInStorage(objects map[string]time.Time, cut bool) *standInStorage {
+	return &standInStorage{objects: objects, cut: cut, removals: make(chan string, 16)}
+}
+
+// environment gives the variables of a file storage that is this stand-in.
+func (s *standInStorage) environment(t *testing.T, environment map[string]string) map[string]string {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(s.answer))
+	t.Cleanup(server.Close)
+	environment["FILE_STORAGE_URL"] = server.URL
+	environment["FILE_STORAGE_PUBLIC_URL"] = server.URL
+	environment["FILE_STORAGE_REGION"] = "garage"
+	environment["FILE_STORAGE_BUCKET"] = "files"
+	environment["FILE_STORAGE_ACCESS_KEY_ID"] = "GK0123"
+	environment["FILE_STORAGE_SECRET_ACCESS_KEY"] = "a-secret-key-of-the-stand-in"
+	return environment
+}
+
+func (s *standInStorage) answer(answer http.ResponseWriter, request *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	answer.Header().Set("Content-Type", "application/xml")
+	if request.Method == http.MethodDelete {
+		s.remove(answer, strings.TrimPrefix(request.URL.Path, "/files/"))
+		return
+	}
+	contents := ""
+	for _, key := range slices.Sorted(maps.Keys(s.objects)) {
+		contents += fmt.Sprintf("<Contents><Key>%s</Key><LastModified>%s</LastModified><Size>64</Size></Contents>",
+			key, s.objects[key].UTC().Format("2006-01-02T15:04:05.000Z"))
+	}
+	_, _ = fmt.Fprintf(answer, `<?xml version="1.0" encoding="UTF-8"?>
+<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>files</Name><KeyCount>%d</KeyCount>
+<MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated>%s</ListBucketResult>`, len(s.objects), contents)
+}
+
+func (s *standInStorage) remove(answer http.ResponseWriter, key string) {
+	// The SDK and River try again: the test reads the first removal only.
+	select {
+	case s.removals <- key:
+	default:
+	}
+	if s.cut {
+		cutConnection(answer)
+		return
+	}
+	delete(s.objects, key)
+	answer.WriteHeader(http.StatusNoContent)
+}
+
+// cutConnection closes the connection of the request without an answer.
+func cutConnection(answer http.ResponseWriter) {
+	connection, _, err := http.NewResponseController(answer).Hijack()
+	if err != nil {
+		return
+	}
+	_ = connection.Close()
+}
+
 // workerEnvironmentOf gives the worker the variables it needs: the database of
-// the API role and the sender of e-mail, and nothing of the listening address
-// or the file storage.
-func workerEnvironmentOf(temporary databasetest.Database) map[string]string {
-	return withEmailSender(map[string]string{
+// the API role, the sender of e-mail and a stand-in of the file storage with
+// nothing in it, and nothing of the listening address.
+func workerEnvironmentOf(t *testing.T, temporary databasetest.Database) map[string]string {
+	t.Helper()
+	return newStandInStorage(map[string]time.Time{}, false).environment(t, withEmailSender(map[string]string{
 		"DATABASE_URL":             temporary.APIURL,
 		"WORKER_SHUTDOWN_DEADLINE": "2s",
-	})
+	}))
 }
 
 // withEmailSender adds the sender of e-mail: the Mailpit of development, at
@@ -59,12 +139,12 @@ func withEmailSender(environment map[string]string) map[string]string {
 	return environment
 }
 
-func TestTheWorkerRunsOnTheDatabaseAloneAndStopsOnTheSignalWithStatusZero(t *testing.T) {
+func TestTheWorkerRunsOnTheDatabaseTheSenderOfEmailAndTheFileStorageAndStopsOnTheSignalWithStatusZero(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.New(t)
 	_, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), migrations.Files)
 	require.NoError(t, err)
-	worker := launchWorker(t, workerEnvironmentOf(temporary))
+	worker := launchWorker(t, workerEnvironmentOf(t, temporary))
 
 	worker.signal()
 
@@ -76,22 +156,57 @@ func TestTheWorkerRunsOnTheDatabaseAloneAndStopsOnTheSignalWithStatusZero(t *tes
 	}
 }
 
-func TestTheWorkerRefusesToStartWithoutTheDatabaseOrTheSenderOfEmail(t *testing.T) {
+// The cleanup of the storage runs when the worker starts, and then every
+// hour. It removes the object more than a day old that no file names, and
+// keeps the younger one.
+func TestTheWorkerCleansUpTheStorageWhenItStarts(t *testing.T) {
+	t.Parallel()
+	const old, young = "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f", "1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e"
+	storage := newStandInStorage(map[string]time.Time{
+		old:   time.Now().Add(-25 * time.Hour),
+		young: time.Now().Add(-time.Hour),
+	}, false)
+	worker := launchWorker(t, storage.environment(t, withEmailSender(map[string]string{"DATABASE_URL": databasetest.Migrated(t).APIURL})))
+
+	removed := receiveWithin(t, storage.removals, 30*time.Second, "the removal of the old object")
+	worker.signal()
+
+	assert.Equal(t, 0, <-worker.status, "%s", worker.logs)
+	assert.Equal(t, old, removed)
+	assert.Empty(t, storage.removals, "the young object was removed")
+}
+
+func receiveWithin[T any](t *testing.T, from <-chan T, wait time.Duration, what string) T {
+	t.Helper()
+	select {
+	case value := <-from:
+		return value
+	case <-time.After(wait):
+		t.Fatalf("%s did not happen within %s", what, wait)
+		var zero T
+		return zero
+	}
+}
+
+func TestTheWorkerRefusesToStartWithoutTheDatabaseTheSenderOfEmailOrTheFileStorage(t *testing.T) {
 	var stdout, stderr output
 
 	status := run(context.Background(), []string{"worker"}, map[string]string{}, &stdout, &stderr)
 
 	assert.Equal(t, 1, status)
-	assert.Equal(t, "api: configuration: DATABASE_URL is required; EMAIL_SENDER is required; EMAIL_SMTP_ADDRESS is required; "+
-		"EMAIL_FROM_ADDRESS is required; EMAIL_FROM_NAME is required\n", stderr.String())
+	assert.Equal(t, "api: configuration: DATABASE_URL is required; "+
+		"FILE_STORAGE_URL is required; FILE_STORAGE_PUBLIC_URL is required; FILE_STORAGE_REGION is required; "+
+		"FILE_STORAGE_BUCKET is required; FILE_STORAGE_ACCESS_KEY_ID is required; FILE_STORAGE_SECRET_ACCESS_KEY is required; "+
+		"EMAIL_SENDER is required; EMAIL_SMTP_ADDRESS is required; EMAIL_FROM_ADDRESS is required; EMAIL_FROM_NAME is required\n",
+		stderr.String())
 }
 
 func TestTheWorkerRefusesToStartWithAnInvalidQueueLimit(t *testing.T) {
 	var stdout, stderr output
-	environment := withEmailSender(map[string]string{
+	environment := newStandInStorage(map[string]time.Time{}, false).environment(t, withEmailSender(map[string]string{
 		"DATABASE_URL":                "postgres://api:api@localhost:5432/software_factory",
 		"WORKER_HEAVY_QUEUE_MAX_JOBS": "0",
-	})
+	}))
 
 	status := run(context.Background(), []string{"worker"}, environment, &stdout, &stderr)
 
@@ -104,7 +219,7 @@ func TestTheWorkerStopsAtOnceWhileAMigrationIsPending(t *testing.T) {
 	temporary := databasetest.New(t)
 	var stdout, logs output
 
-	status := run(context.Background(), []string{"worker"}, workerEnvironmentOf(temporary), &stdout, &logs)
+	status := run(context.Background(), []string{"worker"}, workerEnvironmentOf(t, temporary), &stdout, &logs)
 
 	assert.Equal(t, 1, status)
 	assert.Contains(t, logs.String(), `"msg":"the worker stopped"`)
@@ -115,10 +230,10 @@ func TestTheWorkerStopsAtOnceWhileAMigrationIsPending(t *testing.T) {
 func TestTheWorkerStopsAtOnceWhilePostgreSQLIsDown(t *testing.T) {
 	t.Parallel()
 	var stdout, logs output
-	environment := withEmailSender(map[string]string{
+	environment := newStandInStorage(map[string]time.Time{}, false).environment(t, withEmailSender(map[string]string{
 		// Port 1 of the machine has no PostgreSQL behind it.
 		"DATABASE_URL": "postgres://api:hunter2@127.0.0.1:1/software_factory?sslmode=disable",
-	})
+	}))
 
 	status := run(context.Background(), []string{"worker"}, environment, &stdout, &logs)
 

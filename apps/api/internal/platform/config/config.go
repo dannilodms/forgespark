@@ -72,8 +72,13 @@ var requiredBy = map[Command][]string{
 	Migrate:        {"MIGRATION_DATABASE_URL"},
 	IssueSetupCode: {"DATABASE_URL", "APP_ORIGIN"},
 	Seed:           {"DATABASE_URL", "SEED_MAILBOX"},
-	// The worker delivers the e-mails, through SMTP, the only sender so far.
-	Worker: {"DATABASE_URL", "EMAIL_SENDER", "EMAIL_SMTP_ADDRESS", "EMAIL_FROM_ADDRESS", "EMAIL_FROM_NAME"},
+	// The worker delivers the e-mails, through SMTP, the only sender so far,
+	// and cleans up the file storage.
+	Worker: {
+		"DATABASE_URL", "EMAIL_SENDER", "EMAIL_SMTP_ADDRESS", "EMAIL_FROM_ADDRESS", "EMAIL_FROM_NAME",
+		"FILE_STORAGE_URL", "FILE_STORAGE_PUBLIC_URL", "FILE_STORAGE_REGION", "FILE_STORAGE_BUCKET",
+		"FILE_STORAGE_ACCESS_KEY_ID", "FILE_STORAGE_SECRET_ACCESS_KEY",
+	},
 }
 
 // Load reads the environment into a Config for one command. A variable that

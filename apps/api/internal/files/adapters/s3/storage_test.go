@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
@@ -19,6 +21,8 @@ import (
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/s3"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
@@ -393,6 +397,92 @@ func TestRemovingAKeyWithNoObjectIsNoFailure(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// listed lists the whole bucket and returns the objects of these keys, as
+// the listing gave them, and how many pages it took. The bucket is shared by
+// every test and every checkout, so it may hold objects of others: the test
+// looks at its own keys only.
+func listed(t *testing.T, storage *s3.Storage, keys ...domain.ObjectKey) (map[domain.ObjectKey][]domain.ListedObject, int) {
+	t.Helper()
+	found := map[domain.ObjectKey][]domain.ListedObject{}
+	pages := 0
+	err := storage.List(context.Background(), func(objects []domain.ListedObject) error {
+		pages++
+		for _, object := range objects {
+			found[object.Key] = append(found[object.Key], object)
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	mine := map[domain.ObjectKey][]domain.ListedObject{}
+	for _, key := range keys {
+		mine[key] = found[key]
+	}
+	return mine, pages
+}
+
+// The listing goes through every page of the bucket, and gives each object
+// once, with the time it was last written.
+func TestTheListingGivesEachObjectOnceWithTheTimeItWasLastWritten(t *testing.T) {
+	t.Parallel()
+	settings := settingsOf(t)
+	storage := s3.NewStorage(settings)
+	// Two keys a page, so three objects take two pages at least.
+	s3.ListInPagesOf(storage, 2)
+	keys := []domain.ObjectKey{aKey(t, storage), aKey(t, storage), aKey(t, storage)}
+	// The clock of the storage may differ a little from the clock of the
+	// machine.
+	before := time.Now().Add(-5 * time.Second)
+	for _, key := range keys {
+		storedPast(t, settings, key, aPNG(64))
+	}
+	after := time.Now().Add(5 * time.Second)
+
+	found, pages := listed(t, storage, keys...)
+
+	assert.GreaterOrEqual(t, pages, 2, "the listing stopped at the first page")
+	for _, key := range keys {
+		require.Len(t, found[key], 1, "an object is not listed once")
+		assert.Equal(t, key, found[key][0].Key)
+		assert.WithinRange(t, found[key][0].LastModified, before, after)
+		assert.Equal(t, time.UTC, found[key][0].LastModified.Location())
+	}
+}
+
+// Confirming a file copies its object to the key the file keeps it under.
+// The copy is written when it is made, not when the upload was sent, so the
+// cleanup of the storage, which removes the objects no confirmed file names
+// once they are a day old, finds it young while the confirmation commits.
+func TestACopyIsListedWithTheTimeItWasMade(t *testing.T) {
+	t.Parallel()
+	settings := settingsOf(t)
+	storage := s3.NewStorage(settings)
+	from := aKey(t, storage)
+	to := aKey(t, storage)
+	storedPast(t, settings, from, aPNG(64))
+	time.Sleep(1500 * time.Millisecond)
+
+	require.NoError(t, storage.Copy(context.Background(), from, to))
+
+	found, _ := listed(t, storage, from, to)
+	require.Len(t, found[from], 1)
+	require.Len(t, found[to], 1)
+	assert.GreaterOrEqual(t, found[to][0].LastModified.Sub(found[from][0].LastModified), time.Second,
+		"the copy is listed with the time of the object it was copied from")
+}
+
+func TestAnObjectRemovedIsListedNoMore(t *testing.T) {
+	t.Parallel()
+	settings := settingsOf(t)
+	storage := s3.NewStorage(settings)
+	key := aKey(t, storage)
+	storedPast(t, settings, key, aPNG(64))
+	require.NoError(t, storage.Remove(context.Background(), key))
+
+	found, _ := listed(t, storage, key)
+
+	assert.Empty(t, found[key])
+}
+
 // The secret key keeps its secret type until the adapter hands it to the SDK,
 // so settings printed by mistake show no key.
 func TestTheSettingsOfTheStoragePrintNoSecretKey(t *testing.T) {
@@ -403,6 +493,148 @@ func TestTheSettingsOfTheStoragePrintNoSecretKey(t *testing.T) {
 
 	for _, printed := range []string{fmt.Sprint(settings), fmt.Sprintf("%+v", settings), fmt.Sprintf("%#v", settings)} {
 		assert.NotContains(t, printed, "a-secret-key-to-hide")
+	}
+}
+
+// standIn is a storage that answers as the handler says, in place of Garage,
+// for what Garage never answers on demand.
+func standIn(t *testing.T, handler http.HandlerFunc) *s3.Storage {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return s3.NewStorage(s3.Settings{
+		URL: server.URL, PublicURL: server.URL, Region: "garage", Bucket: "files",
+		AccessKeyID: "GK0123", SecretAccessKey: config.NewSecret("a-secret-key"), TracerProvider: nil,
+	})
+}
+
+// A failed call names the storage it could not reach and no key of an
+// object: its error goes into the logs of the job or of the request.
+func TestACallThatFailsNamesTheStorageAndNoKeyOfAnObject(t *testing.T) {
+	t.Parallel()
+	settings := settingsOf(t)
+	// Port 1 of the machine has nothing behind it.
+	settings.URL = "http://127.0.0.1:1"
+	storage := s3.NewStorage(settings)
+	key := domain.ObjectKey("0123456789abcdef0123456789abcdef")
+	other := domain.ObjectKey("fedcba9876543210fedcba9876543210")
+	calls := map[string]func() error{
+		"Inspect": func() error { _, _, err := storage.Inspect(context.Background(), key); return err },
+		"Copy":    func() error { return storage.Copy(context.Background(), key, other) },
+		"Remove":  func() error { return storage.Remove(context.Background(), key) },
+		"List": func() error {
+			return storage.List(context.Background(), func([]domain.ListedObject) error { return nil })
+		},
+	}
+	for name, call := range calls {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			err := call()
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "127.0.0.1:1")
+			assert.NotContains(t, err.Error(), string(key))
+			assert.NotContains(t, err.Error(), string(other))
+		})
+	}
+}
+
+// Each page of the listing after the first asks for the keys after a token,
+// which the storage makes from the last key it gave (Garage encodes it in
+// base64). A page that fails names neither.
+func TestAListingThatFailsOnALaterPageNamesNoKey(t *testing.T) {
+	t.Parallel()
+	key := "0123456789abcdef0123456789abcdef"
+	token := "]" + base64.StdEncoding.EncodeToString([]byte(key))
+	storage := standIn(t, func(answer http.ResponseWriter, request *http.Request) {
+		if request.URL.Query().Get("continuation-token") != "" {
+			// The connection is cut, as a storage that goes away does.
+			cutConnection(answer)
+			return
+		}
+		answer.Header().Set("Content-Type", "application/xml")
+		_, _ = fmt.Fprintf(answer, `<?xml version="1.0" encoding="UTF-8"?>
+<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>files</Name><KeyCount>1</KeyCount>
+<MaxKeys>1000</MaxKeys><IsTruncated>true</IsTruncated>
+<Contents><Key>%s</Key><LastModified>2026-11-16T12:00:00.000Z</LastModified><Size>64</Size></Contents>
+<NextContinuationToken>%s</NextContinuationToken></ListBucketResult>`, key, token)
+	})
+	var first []domain.ListedObject
+
+	err := storage.List(context.Background(), func(objects []domain.ListedObject) error {
+		first = append(first, objects...)
+		return nil
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, []domain.ListedObject{{Key: domain.ObjectKey(key), LastModified: time.Date(2026, time.November, 16, 12, 0, 0, 0, time.UTC)}}, first)
+	assert.NotContains(t, err.Error(), key)
+	assert.NotContains(t, err.Error(), url.QueryEscape(token))
+	assert.NotContains(t, err.Error(), strings.TrimPrefix(token, "]"))
+}
+
+// cutConnection closes the connection of the request without an answer.
+func cutConnection(answer http.ResponseWriter) {
+	connection, _, err := http.NewResponseController(answer).Hijack()
+	if err != nil {
+		return
+	}
+	_ = connection.Close()
+}
+
+// What the storage answers is part of the error, except a key it repeats.
+func TestAnAnswerOfTheStorageThatNamesTheKeyIsNotRepeated(t *testing.T) {
+	t.Parallel()
+	key := "0123456789abcdef0123456789abcdef"
+	storage := standIn(t, refusingWithTheKey(key))
+
+	err := storage.Remove(context.Background(), domain.ObjectKey(key))
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "AccessDenied")
+	assert.NotContains(t, err.Error(), key)
+}
+
+// refusingWithTheKey answers every request with a refusal that repeats the
+// key in its message.
+func refusingWithTheKey(key string) http.HandlerFunc {
+	return func(answer http.ResponseWriter, _ *http.Request) {
+		answer.Header().Set("Content-Type", "application/xml")
+		answer.WriteHeader(http.StatusForbidden)
+		_, _ = fmt.Fprintf(answer, `<?xml version="1.0" encoding="UTF-8"?>
+<Error><Code>AccessDenied</Code><Message>no right to remove %s</Message><Key>%s</Key></Error>`, key, key)
+	}
+}
+
+// The SDK records on the span of a call its raw error, with the URL of the
+// request, and what the storage answered. Neither carries a key of an object.
+func TestTheSpansOfACallThatFailsCarryNoKeyOfAnObject(t *testing.T) {
+	t.Parallel()
+	key := domain.ObjectKey("0123456789abcdef0123456789abcdef")
+	repeating := httptest.NewServer(refusingWithTheKey(string(key)))
+	t.Cleanup(repeating.Close)
+	cases := map[string]string{
+		"a storage that does not answer": "http://127.0.0.1:1",
+		"a storage that repeats the key": repeating.URL,
+	}
+	for name, address := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			spans := tracetest.NewInMemoryExporter()
+			settings := s3.Settings{
+				URL: address, PublicURL: address, Region: "garage", Bucket: "files",
+				AccessKeyID: "GK0123", SecretAccessKey: config.NewSecret("a-secret-key"),
+				TracerProvider: sdktrace.NewTracerProvider(sdktrace.WithSyncer(spans)),
+			}
+
+			err := s3.NewStorage(settings).Remove(context.Background(), key)
+
+			require.Error(t, err)
+			recorded := fmt.Sprint(spans.GetSpans().Snapshots())
+			require.Contains(t, recorded, "exception.message", "the span recorded no error")
+			assert.NotContains(t, recorded, string(key))
+		})
 	}
 }
 

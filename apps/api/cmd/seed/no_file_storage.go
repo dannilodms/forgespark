@@ -33,3 +33,7 @@ func (noFileStorage) Copy(context.Context, filesdomain.ObjectKey, filesdomain.Ob
 func (noFileStorage) Remove(context.Context, filesdomain.ObjectKey) error {
 	return errNoFileStorage
 }
+
+func (noFileStorage) List(context.Context, func([]filesdomain.ListedObject) error) error {
+	return errNoFileStorage
+}

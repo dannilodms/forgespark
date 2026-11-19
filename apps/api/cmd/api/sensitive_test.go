@@ -574,9 +574,11 @@ func TestTheLogsTheSpansAndTheJobsOfSendingAnEmailNeverCarryTheAddressOrTheConte
 	request.End()
 
 	// The job runs on the configuration of the worker, pointed at a server
-	// that refuses the recipient.
+	// that refuses the recipient. The worker also requires a file storage,
+	// which this scenario never reaches.
 	server := smtptest.NewRefusingServer(t)
-	environment := withEmailSender(map[string]string{"DATABASE_URL": temporary.APIURL})
+	environment := newStandInStorage(map[string]time.Time{}, false).environment(t,
+		withEmailSender(map[string]string{"DATABASE_URL": temporary.APIURL}))
 	environment["EMAIL_SMTP_ADDRESS"] = server.Address()
 	settings, err := config.Load(config.Worker, environment)
 	require.NoError(t, err)
@@ -590,7 +592,6 @@ func TestTheLogsTheSpansAndTheJobsOfSendingAnEmailNeverCarryTheAddressOrTheConte
 		HeavyQueueMaxJobs: 1,
 		ShutdownDeadline:  2 * time.Second,
 		Kinds:             kinds,
-		PeriodicJobs:      nil,
 		TracerProvider:    tracing.Provider,
 		Logger:            logger,
 	})
@@ -625,4 +626,34 @@ func TestTheLogsTheSpansAndTheJobsOfSendingAnEmailNeverCarryTheAddressOrTheConte
 	assert.Empty(t, guarded.foundIn(logs.String()), "the logs carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(jobsKept), "a job carries a sensitive value")
+}
+
+// The cleanup of the storage handles the key of every object. This scenario
+// runs the worker on a migrated database with a storage that lists an object
+// left behind and cuts the connection of its removal, whose URL holds the
+// key, so the job fails and River logs the failure. It then searches the logs
+// and the spans for the key.
+func TestTheLogsAndTheSpansOfTheCleanupOfTheStorageNeverCarryTheKeyOfAnObject(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	key := guarded.add("the key of an object", "0f1e2d3c4b5a69788796a5b4c3d2e1f0")
+	collector := telemetrytest.NewCollector(t)
+	storage := newStandInStorage(map[string]time.Time{key: time.Now().Add(-25 * time.Hour)}, true)
+	environment := storage.environment(t, withEmailSender(map[string]string{
+		"DATABASE_URL":                databasetest.Migrated(t).APIURL,
+		"LOG_LEVEL":                   "debug",
+		"OTEL_EXPORTER_OTLP_ENDPOINT": collector.URL,
+	}))
+	worker := launchWorker(t, environment)
+
+	require.Equal(t, key, receiveWithin(t, storage.removals, 30*time.Second, "the removal of the object"))
+	require.Eventually(t, func() bool { return strings.Contains(worker.logs.String(), "Job errored") },
+		30*time.Second, 10*time.Millisecond, "the failed cleanup was not logged: %s", worker.logs)
+	worker.signal()
+	require.Equal(t, 0, <-worker.status, "%s", worker.logs)
+
+	require.Contains(t, worker.logs.String(), "remove an object", "the logs do not say why the cleanup failed")
+	require.Contains(t, collector.Text(), "river.work/clean_up_storage", "the scenario exported no span of the job")
+	assert.Empty(t, guarded.foundIn(worker.logs.String()), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
 }

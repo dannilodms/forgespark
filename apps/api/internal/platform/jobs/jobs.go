@@ -9,7 +9,8 @@
 // declares by calling Saver.Save with the job's arguments, which carry
 // identifiers only. Inbound, it runs one: a job worker is a river.Worker
 // whose Work reads the identifiers from the job's arguments and calls one use
-// case, and the `worker` command adds it to the Kinds the Runner runs.
+// case, and the `worker` command adds it to the Kinds the Runner runs, with
+// Add, or with AddPeriodic for a job River saves by itself at an interval.
 package jobs
 
 import (
@@ -54,21 +55,45 @@ const (
 // never on its own.
 var ErrNoTransaction = errors.New("a job is saved inside the transaction of a use case")
 
-// Kinds is the set of job kinds a worker runs. The `worker` command builds it
-// and each domain area adds its job workers to it with Add.
+// Kinds is the set of job kinds a worker runs, and the periodic jobs among
+// them. The `worker` command builds it and each domain area adds its job
+// workers to it with Add, or with AddPeriodic.
 type Kinds struct {
-	workers *river.Workers
+	workers  *river.Workers
+	periodic []*river.PeriodicJob
 }
 
 // NewKinds returns an empty set of job kinds.
 func NewKinds() *Kinds {
-	return &Kinds{workers: river.NewWorkers()}
+	return &Kinds{workers: river.NewWorkers(), periodic: nil}
 }
 
 // Add registers a job worker for the kind of its arguments. It panics when
 // the kind is already registered, as a wiring mistake should.
 func Add[T river.JobArgs](kinds *Kinds, worker river.Worker[T]) {
 	river.AddWorker(kinds.workers, worker)
+}
+
+// AddPeriodic registers a job worker for the kind of its arguments, and has
+// River save a job of that kind when the worker starts and then once every
+// interval. The arguments of the job are the zero value of their type: a
+// periodic job names no record.
+//
+// River keeps the schedule in the memory of the worker it elects, so a
+// restart or a new election starts it over, and a run can be missed. The run
+// at the start bounds the wait: a worker restarted more often than the
+// interval still runs the job. A periodic job tolerates a missed run and a
+// run more than it needed (Jobs in CODING_STANDARDS.md).
+func AddPeriodic[T river.JobArgs](kinds *Kinds, worker river.Worker[T], interval time.Duration) {
+	Add(kinds, worker)
+	kinds.periodic = append(kinds.periodic, river.NewPeriodicJob(
+		river.PeriodicInterval(interval),
+		func() (river.JobArgs, *river.InsertOpts) {
+			var arguments T
+			return arguments, nil
+		},
+		&river.PeriodicJobOpts{ID: "", RunOnStart: true},
+	))
 }
 
 // Saver saves jobs for the API, inside the transaction of the use case that
@@ -113,11 +138,9 @@ type RunnerSettings struct {
 	// ShutdownDeadline is how long the running jobs have to finish once the
 	// shutdown starts, before their contexts are cancelled.
 	ShutdownDeadline time.Duration
-	// Kinds are the job kinds this runner runs.
+	// Kinds are the job kinds this runner runs, and the periodic jobs River
+	// schedules by itself, on the one runner it elects as leader.
 	Kinds *Kinds
-	// PeriodicJobs are the jobs River schedules by itself, on the one runner
-	// it elects as leader.
-	PeriodicJobs []*river.PeriodicJob
 	// TracerProvider traces the saving and the running of a job. With none,
 	// nothing is traced.
 	TracerProvider trace.TracerProvider
@@ -141,7 +164,7 @@ func NewRunner(pool *pgxpool.Pool, settings RunnerSettings) (*Runner, error) {
 		QueueHeavy: {MaxWorkers: settings.HeavyQueueMaxJobs},
 	}
 	config.Workers = settings.Kinds.workers
-	config.PeriodicJobs = settings.PeriodicJobs
+	config.PeriodicJobs = settings.Kinds.periodic
 	config.SoftStopTimeout = settings.ShutdownDeadline
 	client, err := river.NewClient(riverpgxv5.New(pool), config)
 	if err != nil {

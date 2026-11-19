@@ -3,6 +3,7 @@ package applicationtest
 import (
 	"context"
 	"slices"
+	"time"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
 )
@@ -20,8 +21,8 @@ func NewFileRepository() *FileRepository {
 	return &FileRepository{}
 }
 
-// FailWith makes every later Save fail with this error, as a database that
-// refuses the write.
+// FailWith makes every later Save, removal and read of keys fail with this
+// error, as a database that refuses the write or does not answer.
 func (r *FileRepository) FailWith(failure error) {
 	r.failure = failure
 }
@@ -55,6 +56,37 @@ func (r *FileRepository) Save(_ context.Context, file *domain.File) error {
 	}
 	r.files[position] = *file
 	return nil
+}
+
+// RemoveAbandoned removes the files whose upload started before this instant
+// and was never confirmed.
+func (r *FileRepository) RemoveAbandoned(_ context.Context, startedBefore time.Time) error {
+	if r.failure != nil {
+		return r.failure
+	}
+	r.files = slices.DeleteFunc(r.files, func(stored domain.File) bool {
+		return !stored.IsConfirmed() && stored.StartedAt().Before(startedBefore)
+	})
+	return nil
+}
+
+// ConfirmedKeys returns those of the keys a confirmed file names.
+func (r *FileRepository) ConfirmedKeys(_ context.Context, among []domain.ObjectKey) ([]domain.ObjectKey, error) {
+	if r.failure != nil {
+		return nil, r.failure
+	}
+	confirmed := []domain.ObjectKey{}
+	for _, stored := range r.files {
+		confirmed = append(confirmed, keyIfConfirmed(stored, among)...)
+	}
+	return confirmed, nil
+}
+
+func keyIfConfirmed(file domain.File, among []domain.ObjectKey) []domain.ObjectKey {
+	if !file.IsConfirmed() || !slices.Contains(among, file.ObjectKey()) {
+		return nil
+	}
+	return []domain.ObjectKey{file.ObjectKey()}
 }
 
 // Snapshot lets the repository take part in the in-memory transactions.

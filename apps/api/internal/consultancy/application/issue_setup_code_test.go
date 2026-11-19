@@ -75,7 +75,7 @@ func newInstallation() installation {
 	roles := applicationtest.NewRoleRepository()
 	auditLog := auditapplicationtest.NewAuditLog()
 	files := filesapplicationtest.NewFileRepository()
-	objects := filesapplicationtest.NewStorage()
+	objects := filesapplicationtest.NewStorage(clock)
 	transactions := applicationtest.NewTransactions(setupCodes, consultancies, users, roles, auditLog, files)
 	recordEntry := auditapplication.NewRecordEntry(auditLog)
 	// One source for the keys of the storage, so no two keys are the same.
