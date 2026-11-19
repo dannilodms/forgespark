@@ -44,8 +44,10 @@ A person logs in through an external provider or with a login code sent to their
 - A person locked out of one provider logs in through another with the same verified e-mail, or with a login code.
 - Whoever reads a user's mailbox can log in as that user.
 - The login code depends on the e-mail server, an optional part of the system health. With it down, only the providers work.
-- Caddy has no rate limit of its own, so its image is built in this repository with a plugin. The setup (ADR-0024), the first code that needs the limit, chose `mholt/caddy-ratelimit` and the number for the setup code, recorded in Rate limit in `CODING_STANDARDS.md`. The numbers of the login code are chosen with the login.
+- Caddy has no rate limit of its own, so its image is built in this repository with a plugin. The setup (ADR-0024), the first code that needs the limit, chose `mholt/caddy-ratelimit` and the number for the setup code, recorded in Rate limit in `CODING_STANDARDS.md`. The login chose the numbers of the login code there too: 10 requests a minute for each IP address over its two operations, counted together in a zone of their own.
 - The key of the login code is one more secret in the deploy configuration. Changing it only ends the codes not yet used.
+- The cookie is `Secure` wherever the app is served over HTTPS, which the API reads from the origin of the app in its configuration; development, on plain HTTP, sends it without. The session table keeps the SHA-256 of each token, so a dump of the database opens no session either.
+- The session exists before the login, so asking for a code writes it for every e-mail, an unknown one included: an answer that set a cookie only for a user would tell who is a user.
 - Rate limiting, which ADR-0009 had left out, exists for the login code.
 - Staging does not use the local provider. It is public, so it logs in through the real providers, or with a login code read from a Mailpit that sits behind a password (ADR-0019).
 - How each provider states that an e-mail is verified has to be checked when the login is built. Microsoft is the known hard case: its e-mail claim is not always verified.
