@@ -12,6 +12,25 @@
 import * as zod from 'zod';
 
 /**
+ * Answers the user logged in to the session of this browser, as the app shows them, and the keys of their roles. It asks for no scope. With no user logged in, the session missing, ended, or of a user deactivated since, it answers 401; the session of a deactivated user is ended.
+ * @summary Tell who is logged in
+ */
+export const TellLoggedInUserResponse = zod.object({
+  "email": zod.email().describe('The e-mail the user logs in with, in lowercase.'),
+  "name": zod.string().describe('The name of the user.'),
+  "preferred_language": zod.enum(['en-US', 'es', 'pt-BR']).describe('The supported language the user reads the system in.'),
+  "role_keys": zod.array(zod.enum(['administrator', 'developer'])).describe('The keys of the roles of the user, sorted, which the app translates.')
+})
+
+
+/**
+ * Ends the session of this browser, whether a user is logged in to it or not: the answer expires its cookie, and the session opens nothing any more.
+ * @summary Log out
+ */
+export const LogOutResponse = zod.void()
+
+
+/**
  * Sends a login code to the e-mail when it belongs to an active user, and answers the same way, with no body, for every e-mail, so that nobody learns from it who is a user. The code is six digits, works for 10 minutes, once, and only in the browser that asked for it, which the session remembers: the answer sets its cookie. A new code ends the one before. One code a minute and five an hour are sent to each e-mail; past them the operation answers `login_code_limit_reached`.
  * @summary Ask for a login code
  */
@@ -24,6 +43,22 @@ export const AskForLoginCodeBody = zod.object({
 })
 
 export const AskForLoginCodeResponse = zod.void()
+
+
+/**
+ * Checks the six digits against the login code this browser asked for last, which the session remembers. The right code, within 10 minutes, logs the user in: the answer sets the cookie of the session again, with a new token, and the logged-in user is read with `tell_logged_in_user`. A wrong code, the code of a request that no longer works, or a code typed in a browser that asked for none, answers `login_code_invalid` with the attempts left; the third answers `login_code_ended`, and a new code has to be asked for.
+ * @summary Check a login code
+ */
+
+
+export const checkLoginCodeBodyCodeRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const CheckLoginCodeBody = zod.object({
+  "code": zod.string().min(1).regex(checkLoginCodeBodyCodeRegExp).describe('The six digits of the login code, as the e-mail wrote them.')
+})
+
+export const CheckLoginCodeResponse = zod.void()
 
 
 /**

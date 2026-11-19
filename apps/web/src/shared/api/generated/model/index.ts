@@ -11,9 +11,13 @@
  */
 
 export * from './askForLoginCodeRequest.ts';
+export * from './checkLoginCodeRequest.ts';
 export * from './concludeSetupRequest.ts';
 export * from './fieldError.ts';
 export * from './fieldErrorParams.ts';
+export * from './loggedInUser.ts';
+export * from './loggedInUserPreferredLanguage.ts';
+export * from './loggedInUserRoleKeysItem.ts';
 export * from './openedSetup.ts';
 export * from './openedSetupOpens.ts';
 export * from './openSetupRequest.ts';
