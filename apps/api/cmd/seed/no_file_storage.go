@@ -22,6 +22,10 @@ func (noFileStorage) SignUpload(context.Context, filesdomain.ObjectKey, filesdom
 	return "", errNoFileStorage
 }
 
+func (noFileStorage) SignDownload(context.Context, filesdomain.ObjectKey, time.Duration) (string, error) {
+	return "", errNoFileStorage
+}
+
 func (noFileStorage) Inspect(context.Context, filesdomain.ObjectKey) (filesdomain.StoredObject, bool, error) {
 	return filesdomain.StoredObject{}, false, errNoFileStorage
 }

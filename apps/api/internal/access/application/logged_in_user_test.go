@@ -2,7 +2,9 @@ package application_test
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,6 +13,7 @@ import (
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application/applicationtest"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
 	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
+	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
@@ -105,6 +108,56 @@ func TestTheLoggedInUserIsTheirNameEmailPreferredLanguageAndRoles(t *testing.T) 
 	assert.Equal(t, "ana.souza@fabrica.example", user.Email.String())
 	assert.Equal(t, "pt-BR", user.PreferredLanguage.String())
 	assert.Equal(t, []string{"administrator"}, user.Roles)
+}
+
+// The menu of the app shows the photo of the user, which the browser reads
+// from the storage through a URL signed for fifteen minutes.
+func TestTheLoggedInUserWithAPhotoHasAURLThatReadsIt(t *testing.T) {
+	s := newSystem(t)
+	photo, key := s.files.SaveConfirmed(filesapplication.UserPhoto, noon)
+	bruno, err := s.users.RegisterAdministratorWithPhoto("Bruno Lima", "bruno.lima@fabrica.example", "es", consultancyapplication.FileID(photo))
+	require.NoError(t, err)
+	require.NoError(t, s.sessions.LogIn(inTheBrowser(), domain.UserID(bruno)))
+	actor, _, err := s.findActor.Execute(inTheBrowser())
+	require.NoError(t, err)
+
+	user, found, err := s.tellLoggedInUser.Execute(inTheBrowser(), actor)
+
+	require.NoError(t, err)
+	require.True(t, found)
+	signed, signedFound := s.objects.SignedDownload(key)
+	require.True(t, signedFound, "no download was signed for the photo")
+	assert.Equal(t, signed.URL, user.PhotoURL)
+	assert.Equal(t, 15*time.Minute, signed.Validity)
+}
+
+func TestTheLoggedInUserWithNoPhotoHasNoURL(t *testing.T) {
+	s := newSystem(t)
+	s.loggedIn(t)
+	actor, _, err := s.findActor.Execute(inTheBrowser())
+	require.NoError(t, err)
+
+	user, _, err := s.tellLoggedInUser.Execute(inTheBrowser(), actor)
+
+	require.NoError(t, err)
+	assert.Empty(t, user.PhotoURL)
+	assert.Empty(t, s.objects.SignedDownloadKeys())
+}
+
+func TestTheLoggedInUserWhosePhotoCannotBeSignedIsAFailure(t *testing.T) {
+	s := newSystem(t)
+	photo, _ := s.files.SaveConfirmed(filesapplication.UserPhoto, noon)
+	bruno, err := s.users.RegisterAdministratorWithPhoto("Bruno Lima", "bruno.lima@fabrica.example", "es", consultancyapplication.FileID(photo))
+	require.NoError(t, err)
+	require.NoError(t, s.sessions.LogIn(inTheBrowser(), domain.UserID(bruno)))
+	actor, _, err := s.findActor.Execute(inTheBrowser())
+	require.NoError(t, err)
+	unreachable := errors.New("the storage does not answer")
+	s.objects.FailWith(unreachable)
+
+	_, _, err = s.tellLoggedInUser.Execute(inTheBrowser(), actor)
+
+	require.ErrorIs(t, err, unreachable)
 }
 
 func TestTheLoggedInUserIsNotFoundOnceDeactivated(t *testing.T) {

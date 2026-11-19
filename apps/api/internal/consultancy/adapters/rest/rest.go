@@ -15,9 +15,11 @@ type UseCases struct {
 	StartSetupUpload      *application.StartSetupUpload
 	ConcludeSetup         *application.ConcludeSetup
 	RegisterAdministrator *application.RegisterAdministrator
+	TellConsultancy       *application.TellConsultancy
 }
 
 // Register adds the operations of the area to the API.
 func Register(api *restapi.API, useCases UseCases) {
 	registerSetup(api, useCases)
+	registerConsultancy(api, useCases)
 }

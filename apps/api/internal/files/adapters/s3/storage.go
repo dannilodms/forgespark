@@ -1,10 +1,10 @@
 // Package s3 keeps the bytes of the files in an S3 storage, through the AWS
 // SDK for Go v2 and only what the S3 API defines (Files in
 // CODING_STANDARDS.md): Garage in development and staging, a provider in
-// production. The browser sends the bytes itself, to a URL this adapter signs
-// for the public host name of the storage; the API only reads the start of an
-// object, copies one inside the storage and removes one, and the worker lists
-// the bucket to clean it up.
+// production. The browser sends the bytes itself, and reads them, through URLs
+// this adapter signs for the public host name of the storage; the API only
+// reads the start of an object, copies one inside the storage and removes
+// one, and the worker lists the bucket to clean it up.
 package s3
 
 import (
@@ -102,6 +102,20 @@ func (s *Storage) SignUpload(ctx context.Context, key domain.ObjectKey, declared
 	}, s3.WithPresignExpires(validity))
 	if err != nil {
 		return "", failed("sign the upload of an object", err)
+	}
+	return signed.URL, nil
+}
+
+// SignDownload signs a GET of the object under this key, valid for this long,
+// which the browser sends to the public host name of the storage: an image
+// shows from there, and its bytes never pass through the API.
+func (s *Storage) SignDownload(ctx context.Context, key domain.ObjectKey, validity time.Duration) (string, error) {
+	signed, err := s.signer.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(string(key)),
+	}, s3.WithPresignExpires(validity))
+	if err != nil {
+		return "", failed("sign the download of an object", err)
 	}
 	return signed.URL, nil
 }

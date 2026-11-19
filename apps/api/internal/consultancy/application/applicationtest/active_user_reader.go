@@ -43,22 +43,29 @@ func NewActiveUserReader(users *UserRepository) *ActiveUserReader {
 // and fictitious data for the rest, for a test of another area that needs a
 // user who can log in. It returns the identifier of the user.
 func (r *UserRepository) RegisterUser(email, preferredLanguage string) (domain.UserID, error) {
-	return r.register("Someone Of The Tests", email, preferredLanguage, developerRole)
+	return r.register("Someone Of The Tests", email, preferredLanguage, 0, developerRole)
 }
 
 // RegisterAdministrator stores an administrator with this name, e-mail and
 // preferred language, as RegisterUser stores a developer.
 func (r *UserRepository) RegisterAdministrator(name, email, preferredLanguage string) (domain.UserID, error) {
-	return r.register(name, email, preferredLanguage, administratorRole)
+	return r.register(name, email, preferredLanguage, 0, administratorRole)
 }
 
-func (r *UserRepository) register(name, email, preferredLanguage string, role domain.RoleID) (domain.UserID, error) {
+// RegisterAdministratorWithPhoto stores an administrator as
+// RegisterAdministrator does, with the file of their photo.
+func (r *UserRepository) RegisterAdministratorWithPhoto(name, email, preferredLanguage string, photo domain.FileID) (domain.UserID, error) {
+	return r.register(name, email, preferredLanguage, photo, administratorRole)
+}
+
+func (r *UserRepository) register(name, email, preferredLanguage string, photo domain.FileID, role domain.RoleID) (domain.UserID, error) {
 	details, err := domain.NewUserDetails(domain.TypedUser{
 		Name:              name,
 		Email:             email,
 		Country:           "BR",
 		NationalID:        "000.000.000-00",
 		PreferredLanguage: preferredLanguage,
+		PhotoFileID:       photo,
 	})
 	if err != nil {
 		return 0, err
@@ -109,11 +116,13 @@ func (r *ActiveUserReader) activeUser(wanted func(domain.User) bool) (applicatio
 		roles = append(roles, r.roles[role])
 	}
 	slices.Sort(roles)
+	photo, _ := found.Details().PhotoFileID()
 	return application.ActiveUser{
 		ID:                found.ID(),
 		Name:              found.Details().Name(),
 		Email:             found.Details().Email(),
 		PreferredLanguage: found.Details().PreferredLanguage(),
+		PhotoFileID:       photo,
 		Roles:             roles,
 	}, true, nil
 }

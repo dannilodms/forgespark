@@ -108,6 +108,19 @@ func (r *FileRepository) ConfirmedKeys(ctx context.Context, among []domain.Objec
 	return confirmed, nil
 }
 
+// ConfirmedKey returns the key of the file with this identifier when it was
+// confirmed, and locks nothing.
+func (r *FileRepository) ConfirmedKey(ctx context.Context, id domain.FileID) (domain.ObjectKey, bool, error) {
+	key, err := r.queries(ctx).ConfirmedObjectKeyOf(ctx, int64(id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("read the key of a confirmed file: %w", err)
+	}
+	return domain.ObjectKey(key), true, nil
+}
+
 // inUTC gives an instant PostgreSQL answered in the time zone of the session
 // in UTC, and nothing when there is none.
 func inUTC(at *time.Time) *time.Time {

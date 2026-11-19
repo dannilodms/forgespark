@@ -2,6 +2,7 @@ package applicationtest
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"time"
 
@@ -21,7 +22,7 @@ func NewFileRepository() *FileRepository {
 	return &FileRepository{}
 }
 
-// FailWith makes every later Save, removal and read of keys fail with this
+// FailWith makes every later Save, removal and read of a key fail with this
 // error, as a database that refuses the write or does not answer.
 func (r *FileRepository) FailWith(failure error) {
 	r.failure = failure
@@ -80,6 +81,30 @@ func (r *FileRepository) ConfirmedKeys(_ context.Context, among []domain.ObjectK
 		confirmed = append(confirmed, keyIfConfirmed(stored, among)...)
 	}
 	return confirmed, nil
+}
+
+// ConfirmedKey returns the key of the file with this identifier, when it was
+// confirmed.
+func (r *FileRepository) ConfirmedKey(_ context.Context, id domain.FileID) (domain.ObjectKey, bool, error) {
+	if r.failure != nil {
+		return "", false, r.failure
+	}
+	file, found := r.Find(id)
+	if !found || !file.IsConfirmed() {
+		return "", false, nil
+	}
+	return file.ObjectKey(), true, nil
+}
+
+// SaveConfirmed stores a file of this purpose whose upload was confirmed at
+// this time, under a key made from its identifier, for a test of another area
+// that shows a file. It returns the identifier and the key.
+func (r *FileRepository) SaveConfirmed(purpose domain.Purpose, at time.Time) (domain.FileID, domain.ObjectKey) {
+	r.lastIdentifier++
+	id := domain.FileID(r.lastIdentifier)
+	key := domain.ObjectKey(fmt.Sprintf("%032x", r.lastIdentifier))
+	r.files = append(r.files, *domain.RestoreFile(id, key, purpose, domain.PNG, 1024, at, &at))
+	return id, key
 }
 
 func keyIfConfirmed(file domain.File, among []domain.ObjectKey) []domain.ObjectKey {

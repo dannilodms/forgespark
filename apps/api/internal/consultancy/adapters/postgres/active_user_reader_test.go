@@ -72,6 +72,7 @@ func TestAUserWhoCanLogInIsFoundByTheirIdentifierWithTheKeysOfTheirRoles(t *test
 		Name:              "Ana Souza",
 		Email:             ana.Details().Email(),
 		PreferredLanguage: ana.Details().PreferredLanguage(),
+		PhotoFileID:       0,
 		Roles:             []domain.RoleKey{domain.AdministratorRoleKey, domain.DeveloperRoleKey},
 		Scopes:            nil,
 	}, foundAna)
@@ -79,6 +80,23 @@ func TestAUserWhoCanLogInIsFoundByTheirIdentifierWithTheKeysOfTheirRoles(t *test
 	assert.Equal(t, "Bruno Lima", foundBruno.Name)
 	assert.Equal(t, "es", foundBruno.PreferredLanguage.String())
 	assert.Equal(t, []domain.RoleKey{domain.DeveloperRoleKey}, foundBruno.Roles)
+}
+
+// The app shows the photo of the user logged in, which the files area keeps.
+func TestAUserWhoCanLogInIsFoundWithTheFileOfTheirPhoto(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	administrator, _ := temporary.createRoles(t)
+	typed := administratorAna
+	typed.PhotoFileID = temporary.aFile(t, "user_photo")
+	user, err := temporary.registerUser(t, typed, administrator.ID())
+	require.NoError(t, err)
+
+	byIdentifier, _ := temporary.activeUserOf(t, user.ID())
+	byEmail, _ := temporary.activeUserWith(t, typed.Email)
+
+	assert.Equal(t, typed.PhotoFileID, byIdentifier.PhotoFileID)
+	assert.Equal(t, typed.PhotoFileID, byEmail.PhotoFileID)
 }
 
 func TestNoUserIsFoundForAnIdentifierNobodyHasOrForADeactivatedUser(t *testing.T) {

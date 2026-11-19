@@ -216,16 +216,20 @@ func TestEveryOperationOfTheLoginCodeDeclaresTheLimitOfCaddy(t *testing.T) {
 	assert.NotContains(t, paths["/api/session"].Get.Responses, "429")
 }
 
-// Who is logged in needs a session, and its spec says so: 401 with the code
-// the app reads as a session that ended.
-func TestWhoIsLoggedInDeclaresThe401OfNoSession(t *testing.T) {
+// Who is logged in and the consultancy need a session, and their spec says
+// so: 401 with the code the app reads as a session that ended.
+func TestWhoIsLoggedInAndTheConsultancyDeclareThe401OfNoSession(t *testing.T) {
 	t.Parallel()
-	who := generatedSpec(t).Paths["/api/session"].Get
-	require.NotNil(t, who)
+	paths := generatedSpec(t).Paths
+	for path, operationID := range map[string]string{"/api/session": "tell_logged_in_user", "/api/consultancy": "tell_consultancy"} {
+		require.Contains(t, paths, path)
+		read := paths[path].Get
+		require.NotNil(t, read, "GET %s", path)
 
-	require.Contains(t, who.Responses, "401")
-	assert.Contains(t, who.Responses["401"].Description, "`unauthorized`")
-	assert.Equal(t, "tell_logged_in_user", who.OperationID)
+		require.Contains(t, read.Responses, "401", "GET %s", path)
+		assert.Contains(t, read.Responses["401"].Description, "`unauthorized`", "GET %s", path)
+		assert.Equal(t, operationID, read.OperationID)
+	}
 }
 
 func TestEveryFailureOfAnOperationIsDescribedByTheErrorFormat(t *testing.T) {

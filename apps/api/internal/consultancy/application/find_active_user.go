@@ -8,26 +8,31 @@ import (
 )
 
 // The login of the access area holds a user by identifier, and answers the
-// keys of their roles. An adapter of another area reaches this area only
-// through this package, so the words it needs are named here.
+// keys of their roles and their photo. An adapter of another area reaches
+// this area only through this package, so the words it needs are named here.
 type (
 	// UserID identifies a user.
 	UserID = domain.UserID
 	// RoleKey is the fixed key of a role the setup creates.
 	RoleKey = domain.RoleKey
+	// FileID identifies a file of the files area, such as the photo of a
+	// user.
+	FileID = domain.FileID
 )
 
 // ActiveUser is a user who can log in, as the login and the session of a
 // browser need them: who they are, the e-mail a login code goes to and the
-// language it is written in, the name the app shows, the keys of their roles
-// and the scopes those roles grant (ADR-0026).
+// language it is written in, the name and the photo the app shows, the keys
+// of their roles and the scopes those roles grant (ADR-0026).
 type ActiveUser struct {
 	ID                domain.UserID
 	Name              string
 	Email             kernel.Email
 	PreferredLanguage kernel.Language
-	Roles             []domain.RoleKey
-	Scopes            []kernel.Scope
+	// PhotoFileID is the file of their photo, the file 0 when they have none.
+	PhotoFileID domain.FileID
+	Roles       []domain.RoleKey
+	Scopes      []kernel.Scope
 }
 
 // withScopes gives the user the scopes of their roles.

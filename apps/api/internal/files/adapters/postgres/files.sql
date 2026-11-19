@@ -27,6 +27,14 @@ DELETE FROM files
 WHERE confirmed_at IS NULL
   AND started_at < @started_before;
 
+-- name: ConfirmedObjectKeyOf :one
+-- The key the bytes of a confirmed file are kept under, for a read: it locks
+-- nothing.
+SELECT object_key
+FROM files
+WHERE id = @id
+  AND confirmed_at IS NOT NULL;
+
 -- name: ConfirmedObjectKeys :many
 SELECT object_key
 FROM files

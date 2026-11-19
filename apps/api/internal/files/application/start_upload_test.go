@@ -43,6 +43,7 @@ type storage struct {
 	startUpload    *application.StartUpload
 	confirmUpload  *application.ConfirmUpload
 	cleanUpStorage *application.CleanUpStorage
+	signDownload   *application.SignDownload
 }
 
 func newStorage() storage {
@@ -60,6 +61,7 @@ func newStorage() storage {
 		startUpload:    application.NewStartUpload(transactions, files, objects, clock, random),
 		confirmUpload:  application.NewConfirmUpload(transactions, files, objects, clock, random),
 		cleanUpStorage: application.NewCleanUpStorage(transactions, files, objects, clock),
+		signDownload:   application.NewSignDownload(files, objects),
 	}
 }
 

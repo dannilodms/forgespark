@@ -237,6 +237,78 @@ func TestASignedURLThatExpiredIsRefused(t *testing.T) {
 	assert.False(t, found, "the storage kept what was sent to an expired URL")
 }
 
+// get fetches the URL with a GET, as the browser does for an image, and
+// returns the status and the body.
+func get(t *testing.T, client *http.Client, signedURL string) (int, []byte) {
+	t.Helper()
+	response, err := client.Get(signedURL)
+	require.NoError(t, err)
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	return response.StatusCode, body
+}
+
+// The browser reads an image from the storage itself, through a URL the API
+// signs for the public host name of the storage, which expires in minutes.
+func TestADownloadIsSignedForThePublicHostNameOfTheStorageAndReadsTheObject(t *testing.T) {
+	t.Parallel()
+	settings := settingsOf(t)
+	storage := s3.NewStorage(settings)
+	key := aKey(t, storage)
+	storedPast(t, settings, key, aPNG(2048))
+
+	signed, err := storage.SignDownload(context.Background(), key, 15*time.Minute)
+
+	require.NoError(t, err)
+	parsed, err := url.Parse(signed)
+	require.NoError(t, err)
+	public, err := url.Parse(settings.PublicURL)
+	require.NoError(t, err)
+	assert.Equal(t, public.Scheme, parsed.Scheme)
+	assert.Equal(t, public.Host, parsed.Host)
+	assert.Equal(t, "/"+settings.Bucket+"/"+string(key), parsed.Path)
+	assert.Equal(t, "900", parsed.Query().Get("X-Amz-Expires"), "the URL does not expire in fifteen minutes")
+	status, body := get(t, browser(t, settings), signed)
+	require.Equal(t, http.StatusOK, status, string(body))
+	assert.Equal(t, aPNG(2048), body)
+}
+
+// A download signed for one object reads that object alone: the signature
+// covers its key.
+func TestADownloadSignedForOneObjectReadsNoOther(t *testing.T) {
+	t.Parallel()
+	settings := settingsOf(t)
+	storage := s3.NewStorage(settings)
+	key := aKey(t, storage)
+	other := aKey(t, storage)
+	storedPast(t, settings, key, aPNG(64))
+	storedPast(t, settings, other, aPNGFilledWith(64, 0x43))
+	signed, err := storage.SignDownload(context.Background(), key, 15*time.Minute)
+	require.NoError(t, err)
+
+	status, body := get(t, browser(t, settings), strings.Replace(signed, string(key), string(other), 1))
+
+	assert.Equal(t, http.StatusForbidden, status, string(body))
+}
+
+func TestADownloadThatExpiredIsRefused(t *testing.T) {
+	t.Parallel()
+	settings := settingsOf(t)
+	storage := s3.NewStorage(settings)
+	key := aKey(t, storage)
+	storedPast(t, settings, key, aPNG(64))
+	signed, err := storage.SignDownload(context.Background(), key, time.Second)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second)
+
+	status, body := get(t, browser(t, settings), signed)
+
+	// Garage answers 400, "Date is too old", where AWS answers 403.
+	assert.True(t, status >= 400 && status < 500, "an expired URL was answered %d: %s", status, body)
+	assert.NotEqual(t, aPNG(64), body)
+}
+
 // preflight asks the storage, as a browser does before it sends a PUT to
 // another origin, whether a page of this origin may send one.
 func preflight(t *testing.T, client *http.Client, signedURL, origin string) *http.Response {
@@ -636,6 +708,27 @@ func TestTheSpansOfACallThatFailsCarryNoKeyOfAnObject(t *testing.T) {
 			assert.NotContains(t, recorded, string(key))
 		})
 	}
+}
+
+// Signing a URL reaches nothing, and the SDK traces it as a call: the URL it
+// signs holds the key, which no span records.
+func TestTheSpansOfSigningAURLCarryNoKeyOfAnObject(t *testing.T) {
+	t.Parallel()
+	key := domain.ObjectKey("0123456789abcdef0123456789abcdef")
+	spans := tracetest.NewInMemoryExporter()
+	settings := settingsOf(t)
+	settings.TracerProvider = sdktrace.NewTracerProvider(sdktrace.WithSyncer(spans))
+	storage := s3.NewStorage(settings)
+
+	download, err := storage.SignDownload(context.Background(), key, 15*time.Minute)
+	require.NoError(t, err)
+	upload, err := storage.SignUpload(context.Background(), key, declared(t, "image/png", 1024), 5*time.Minute)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, spans.GetSpans(), "the SDK traced no call, so this test proves nothing")
+	require.Contains(t, download, string(key))
+	require.Contains(t, upload, string(key))
+	assert.NotContains(t, fmt.Sprint(spans.GetSpans().Snapshots()), string(key))
 }
 
 func TestAStorageThatDoesNotAnswerFailsWithinItsTimeout(t *testing.T) {

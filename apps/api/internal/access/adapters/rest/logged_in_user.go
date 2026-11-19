@@ -40,9 +40,11 @@ func registerSession(api *restapi.API, useCases UseCases) {
 		Method:      http.MethodGet,
 		Path:        sessionPath,
 		Summary:     "Tell who is logged in",
-		Description: "Answers the user logged in to the session of this browser, as the app shows them, and the " +
-			"keys of their roles. It asks for no scope. With no user logged in, the session missing, ended, or of a " +
-			"user deactivated since, it answers 401; the session of a deactivated user is ended.",
+		Description: "Answers the user logged in to the session of this browser, as the app shows them, with a URL " +
+			"that reads their photo from the file storage for fifteen minutes, and the keys of their roles. The app " +
+			"reads it again sooner than that, so the photo never breaks. It asks for no scope. With no user logged in, " +
+			"the session missing, ended, or of a user deactivated since, it answers 401; the session of a deactivated " +
+			"user is ended.",
 		Tags: []string{loginTag},
 	}, nil, tellLoggedInUser{useCase: useCases.TellLoggedInUser}.handle)
 
@@ -72,6 +74,7 @@ type tellLoggedInUserOutput struct {
 type LoggedInUser struct {
 	Name              string   `json:"name" doc:"The name of the user."`
 	Email             string   `json:"email" format:"email" doc:"The e-mail the user logs in with, in lowercase."`
+	PhotoURL          string   `json:"photo_url,omitempty" format:"uri" doc:"A URL that reads the photo of the user from the file storage, signed for its public host name and valid for fifteen minutes. Left out when the user has no photo."`
 	PreferredLanguage language `json:"preferred_language" doc:"The supported language the user reads the system in."`
 	RoleKeys          []string `json:"role_keys" enum:"administrator,developer" nullable:"false" doc:"The keys of the roles of the user, sorted, which the app translates."`
 }
@@ -87,6 +90,7 @@ func (o tellLoggedInUser) handle(ctx context.Context, actor kernel.Actor, _ *str
 	return &tellLoggedInUserOutput{Body: LoggedInUser{
 		Name:              user.Name,
 		Email:             user.Email.String(),
+		PhotoURL:          user.PhotoURL,
 		PreferredLanguage: language(user.PreferredLanguage.String()),
 		RoleKeys:          user.Roles,
 	}}, nil

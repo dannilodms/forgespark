@@ -17,12 +17,13 @@ const listPageSize = 2
 
 // Storage keeps objects in memory, as the file storage does under their keys,
 // each with the time it was written by the clock it was given, and remembers
-// each URL it signed.
+// each URL it signed, to send an object or to read one.
 type Storage struct {
-	clock   interface{ Now() time.Time }
-	objects map[domain.ObjectKey]storedObject
-	signed  map[domain.ObjectKey]SignedUpload
-	failure error
+	clock     interface{ Now() time.Time }
+	objects   map[domain.ObjectKey]storedObject
+	signed    map[domain.ObjectKey]SignedUpload
+	downloads map[domain.ObjectKey]SignedDownload
+	failure   error
 	// Failures of one kind of call only.
 	copyFailure   error
 	removeFailure error
@@ -42,10 +43,21 @@ type SignedUpload struct {
 	Validity time.Duration
 }
 
+// SignedDownload is a URL the storage signed to read an object.
+type SignedDownload struct {
+	URL      string
+	Validity time.Duration
+}
+
 // NewStorage returns a storage with no object, which writes each object at
 // the time of this clock.
 func NewStorage(clock interface{ Now() time.Time }) *Storage {
-	return &Storage{clock: clock, objects: map[domain.ObjectKey]storedObject{}, signed: map[domain.ObjectKey]SignedUpload{}}
+	return &Storage{
+		clock:     clock,
+		objects:   map[domain.ObjectKey]storedObject{},
+		signed:    map[domain.ObjectKey]SignedUpload{},
+		downloads: map[domain.ObjectKey]SignedDownload{},
+	}
 }
 
 // FailWith makes every later call fail with this error, as a storage that
@@ -80,6 +92,28 @@ func (s *Storage) SignUpload(_ context.Context, key domain.ObjectKey, declared d
 	url := "https://files.example/bucket/" + string(key) + "?signature=in-memory"
 	s.signed[key] = SignedUpload{URL: url, Declared: declared, Validity: validity}
 	return url, nil
+}
+
+// SignDownload signs a URL that reads the object under this key.
+func (s *Storage) SignDownload(_ context.Context, key domain.ObjectKey, validity time.Duration) (string, error) {
+	if s.failure != nil {
+		return "", s.failure
+	}
+	url := "https://files.example/bucket/" + string(key) + "?signature=in-memory-download"
+	s.downloads[key] = SignedDownload{URL: url, Validity: validity}
+	return url, nil
+}
+
+// SignedDownload returns the last URL signed to read the object under the
+// key.
+func (s *Storage) SignedDownload(key domain.ObjectKey) (SignedDownload, bool) {
+	signed, found := s.downloads[key]
+	return signed, found
+}
+
+// SignedDownloadKeys lists the keys a URL to read was signed for.
+func (s *Storage) SignedDownloadKeys() []domain.ObjectKey {
+	return slices.Collect(maps.Keys(s.downloads))
 }
 
 // Put stores the bytes under the key, now, as the browser does with the
