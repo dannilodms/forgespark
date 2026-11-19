@@ -1,6 +1,11 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"slices"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+)
 
 // RoleID identifies a role.
 type RoleID int64
@@ -26,6 +31,28 @@ const (
 	// creates with no scope.
 	DeveloperRoleKey RoleKey = "developer"
 )
+
+// Scopes returns the scopes the role with this key grants: every scope the
+// system knows for the administrator role, by rule, and none for the
+// developer role, which gets scopes as the areas of work are built.
+func (k RoleKey) Scopes() []kernel.Scope {
+	if k == AdministratorRoleKey {
+		return kernel.EveryScope()
+	}
+	return []kernel.Scope{}
+}
+
+// ScopesOf returns the scopes a user with these roles acts with: those of
+// every role, each once (ADR-0026). They are read on every request, so a
+// change of role shows on the next one.
+func ScopesOf(roles []RoleKey) []kernel.Scope {
+	scopes := []kernel.Scope{}
+	for _, role := range roles {
+		scopes = append(scopes, role.Scopes()...)
+	}
+	slices.Sort(scopes)
+	return slices.Compact(scopes)
+}
 
 // Role is a named set of scopes given to users. No scope exists yet, so a
 // role holds its key only.

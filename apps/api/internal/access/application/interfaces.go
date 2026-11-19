@@ -1,7 +1,9 @@
 // Package application holds the use cases of the access area and the
-// interfaces they need: asking for a login code, and the content of its
-// e-mail, which the delivery of the e-mail area asks for. A use case is a
-// type built once, with what it needs, and run with Execute.
+// interfaces they need: asking for a login code and the content of its
+// e-mail, which the delivery of the e-mail area asks for; checking the code,
+// which logs the user in; who acts in a request, who is logged in, and
+// logging out. A use case is a type built once, with what it needs, and run
+// with Execute.
 package application
 
 import (
@@ -43,16 +45,42 @@ type LoginCodeRequestRepository interface {
 	// when there is none. It locks nothing: it serves the delivery of the
 	// e-mail of the code, which saves nothing of the request.
 	Find(ctx context.Context, id domain.LoginCodeRequestID) (*domain.LoginCodeRequest, bool, error)
+	// Load loads the request with this identifier, ended or not, and false
+	// when there is none, and locks it until the transaction ends, so two
+	// checks of its code count their attempts one after the other.
+	Load(ctx context.Context, id domain.LoginCodeRequestID) (*domain.LoginCodeRequest, bool, error)
 	// Save stores a request whole, whether it is new or changed.
 	Save(ctx context.Context, request *domain.LoginCodeRequest) error
 }
 
 // Session is the session of the browser that sent the request, which exists
 // before the login: what the login keeps there between two requests of that
-// browser. The context of the request carries it.
+// browser, and, once it logs in, its user. The context of the request carries
+// it. It takes no part in a transaction: what a use case writes in it stays.
 type Session interface {
 	// RememberLoginCodeRequest keeps the login code request this browser
-	// asked for, in place of any earlier one. domain.NoLoginCodeRequest is
-	// kept for an e-mail of no active user, the same way.
+	// asked for, in place of any earlier one, and forgets the attempts made
+	// with no request. domain.NoLoginCodeRequest is kept for an e-mail of no
+	// active user, the same way.
 	RememberLoginCodeRequest(ctx context.Context, id domain.LoginCodeRequestID) error
+	// LoginCodeRequest returns the login code request this browser asked for
+	// last, and domain.NoLoginCodeRequest when it asked for none, or asked for
+	// an e-mail of no active user.
+	LoginCodeRequest(ctx context.Context) (domain.LoginCodeRequestID, error)
+	// AttemptsWithoutRequest returns how many codes this browser typed with no
+	// request to check them against since it last asked for one.
+	AttemptsWithoutRequest(ctx context.Context) (int, error)
+	// RememberAttemptsWithoutRequest keeps how many codes this browser typed
+	// with no request.
+	RememberAttemptsWithoutRequest(ctx context.Context, attempts int) error
+	// LogIn renews the token of the session, so a token known before the
+	// login opens nothing, keeps the user in it, and forgets what the login
+	// kept: the login code request and the attempts.
+	LogIn(ctx context.Context, user domain.UserID) error
+	// User returns the user logged in to the session, and false when nobody
+	// is.
+	User(ctx context.Context) (domain.UserID, bool, error)
+	// End ends the session: what it kept is removed, and its cookie opens
+	// nothing.
+	End(ctx context.Context) error
 }

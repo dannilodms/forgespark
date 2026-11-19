@@ -197,6 +197,62 @@ func (s stored) loadWithoutWaiting(t *testing.T, user domain.UserID) error {
 	})
 }
 
+// A check loads its request with a lock, so two checks of one code count
+// their attempts one after the other. The attempts are saved with the request.
+func TestARequestLoadedForItsCheckIsLockedAndKeepsItsAttempts(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	saved := temporary.ask(t, temporary.aUser(t, "ana@fabrica.example"), noon)
+	key, err := domain.NewLoginCodeKey(bytes.Repeat([]byte{7}, 32))
+	require.NoError(t, err)
+	const lockNotAvailable = "55P03"
+
+	var whileLocked error
+	err = temporary.transactions.Run(context.Background(), func(ctx context.Context) error {
+		loaded, found, err := temporary.requests.Load(ctx, saved.ID())
+		require.True(t, found)
+		require.Equal(t, saved, loaded)
+		whileLocked = temporary.loadOneWithoutWaiting(t, saved.ID())
+		_ = loaded.Check("not the code", key, noon.Add(time.Minute))
+		return errors.Join(err, temporary.requests.Save(ctx, loaded))
+	})
+
+	require.NoError(t, err)
+	var failure *pgconn.PgError
+	require.ErrorAs(t, whileLocked, &failure)
+	assert.Equal(t, lockNotAvailable, failure.Code)
+	assert.NoError(t, temporary.loadOneWithoutWaiting(t, saved.ID()))
+	found, _ := temporary.find(t, saved.ID())
+	assert.Equal(t, 1, found.Attempts())
+}
+
+func TestNoRequestIsLoadedForAnIdentifierThatWasNeverSaved(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+
+	for _, id := range []domain.LoginCodeRequestID{domain.NoLoginCodeRequest, 987654} {
+		err := temporary.transactions.Run(context.Background(), func(ctx context.Context) error {
+			loaded, found, err := temporary.requests.Load(ctx, id)
+			assert.False(t, found, "the request %d", id)
+			assert.Nil(t, loaded)
+			return err
+		})
+		require.NoError(t, err)
+	}
+}
+
+// loadOneWithoutWaiting loads the request in a second transaction that gives
+// up at once when its row is locked.
+func (s stored) loadOneWithoutWaiting(t *testing.T, id domain.LoginCodeRequestID) error {
+	t.Helper()
+	return s.transactions.Run(context.Background(), func(ctx context.Context) error {
+		_, err := database.Within(ctx, s.pool).Exec(ctx, "SET LOCAL lock_timeout = '100ms'")
+		require.NoError(t, err)
+		_, _, err = s.requests.Load(ctx, id)
+		return err
+	})
+}
+
 func TestTheDatabaseRefusesASecondRequestOfAUserThatWasNotEnded(t *testing.T) {
 	t.Parallel()
 	temporary := newStored(t)

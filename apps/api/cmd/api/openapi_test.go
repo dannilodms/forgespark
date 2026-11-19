@@ -25,10 +25,13 @@ const committedSpec = "../../openapi.yaml"
 var writeSpec = flag.Bool("write-spec", false, "write the OpenAPI spec generated from the code to "+committedSpec)
 
 // generatedSpec builds the REST adapter as the command that serves does,
-// with no database behind it, and returns the spec of what it registered.
+// with no database behind it and a key of the login code of zeros, and
+// returns the spec of what it registered.
 func generatedSpec(t *testing.T) *huma.OpenAPI {
 	t.Helper()
-	return mountREST(http.NewServeMux(), served{}).OpenAPI()
+	api, err := mountREST(http.NewServeMux(), served{loginCodeKey: make([]byte, 32)})
+	require.NoError(t, err)
+	return api.OpenAPI()
 }
 
 func TestTheCommittedSpecMatchesTheCode(t *testing.T) {
@@ -76,26 +79,28 @@ func TestTheSpecIsTheSameEachTimeItIsGenerated(t *testing.T) {
 	}
 }
 
-// The setup code travels in the body of each operation of the setup, and the
-// e-mail and the login code in the body of each operation of the login code.
-// An operation that took one any other way would write it to the address,
-// which the browser history, the logs and the spans keep.
-func TestNoSetupCodeEmailOrLoginCodeIsInAPathQueryParameterOrHeaderOfTheSpec(t *testing.T) {
+// The setup code travels in the body of each operation of the setup, the
+// e-mail and the login code in the body of each operation of the login code,
+// and the token of the session in its cookie alone. An operation that took
+// one any other way would write it to the address, which the browser history,
+// the logs and the spans keep, or to a header the contract names.
+func TestNoSetupCodeEmailLoginCodeOrTokenIsInAPathQueryParameterOrHeaderOfTheSpec(t *testing.T) {
 	t.Parallel()
 	paths := generatedSpec(t).Paths
-	require.Contains(t, paths, "/api/setup/open")
-	require.Contains(t, paths, "/api/session/login_code")
+	for _, path := range []string{"/api/setup/open", "/api/session", "/api/session/login_code", "/api/session/login_code/check", "/api/session/log_out"} {
+		require.Contains(t, paths, path)
+	}
 
 	for path, item := range paths {
 		assertTakesNothingOutsideTheBody(t, path, item)
 	}
 }
 
-// assertTakesNothingOutsideTheBody checks a path of the setup or of the login
-// code: it has no variable, and its operations take no parameter.
+// assertTakesNothingOutsideTheBody checks a path of the setup or of the
+// session: it has no variable, and its operations take no parameter.
 func assertTakesNothingOutsideTheBody(t *testing.T, path string, item *huma.PathItem) {
 	t.Helper()
-	if !strings.HasPrefix(path, "/api/setup") && !strings.HasPrefix(path, "/api/session/login_code") {
+	if !strings.HasPrefix(path, "/api/setup") && !strings.HasPrefix(path, "/api/session") {
 		return
 	}
 	assert.NotContains(t, path, "{", "a path takes a value: %s", path)
@@ -133,8 +138,9 @@ func TestEveryPostOperationOfTheSetupDeclaresTheLimitOfCaddy(t *testing.T) {
 	assert.NotContains(t, paths["/api/setup"].Get.Responses, "429", "Caddy does not limit reading the state of the setup")
 }
 
-// Caddy limits the operations of the login code for each IP address, in a
-// zone of their own. Checking a code joins asking for one with its ticket.
+// Caddy limits the two operations of the login code for each IP address, in
+// a zone of their own: asking for a code and checking it. The other
+// operations of the session have no limit.
 func TestEveryOperationOfTheLoginCodeDeclaresTheLimitOfCaddy(t *testing.T) {
 	t.Parallel()
 	paths := generatedSpec(t).Paths
@@ -143,12 +149,26 @@ func TestEveryOperationOfTheLoginCodeDeclaresTheLimitOfCaddy(t *testing.T) {
 		return !strings.HasPrefix(path, "/api/session/login_code") || item.Post == nil
 	})
 
-	require.Len(t, posts, 1, "the POST operations of the login code")
+	require.Len(t, posts, 2, "the POST operations of the login code")
 	for path, item := range posts {
 		limited := item.Post.Responses["429"]
 		require.NotNil(t, limited, "POST %s does not declare the 429 of Caddy", path)
 		assert.Contains(t, limited.Description, "`too_many_requests`", "the 429 of POST %s", path)
 	}
+	assert.NotContains(t, paths["/api/session/log_out"].Post.Responses, "429")
+	assert.NotContains(t, paths["/api/session"].Get.Responses, "429")
+}
+
+// Who is logged in needs a session, and its spec says so: 401 with the code
+// the app reads as a session that ended.
+func TestWhoIsLoggedInDeclaresThe401OfNoSession(t *testing.T) {
+	t.Parallel()
+	who := generatedSpec(t).Paths["/api/session"].Get
+	require.NotNil(t, who)
+
+	require.Contains(t, who.Responses, "401")
+	assert.Contains(t, who.Responses["401"].Description, "`unauthorized`")
+	assert.Equal(t, "tell_logged_in_user", who.OperationID)
 }
 
 func TestEveryFailureOfAnOperationIsDescribedByTheErrorFormat(t *testing.T) {

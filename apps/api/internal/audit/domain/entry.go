@@ -5,6 +5,7 @@ package domain
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 )
 
@@ -22,6 +23,8 @@ const (
 	// AdministratorRegistered is recorded when a setup code issued after the
 	// setup registers a new administrator: the way back in.
 	AdministratorRegistered Operation = "administrator_registered"
+	// LoggedIn is recorded when a user logs in, with the way in.
+	LoggedIn Operation = "logged_in"
 )
 
 // ActorKind tells what kind of thing acted.
@@ -34,6 +37,8 @@ const (
 	// SetupCodeUsedKind is the setup code that allowed an operation. The
 	// setup code is not a user, so the operation is recorded as its own.
 	SetupCodeUsedKind ActorKind = "setup_code"
+	// ActingUserKind is a user who acted.
+	ActingUserKind ActorKind = "user"
 )
 
 // Actor is who performed an operation.
@@ -51,6 +56,11 @@ func Installer() Actor {
 // SetupCodeUsed is the setup code with this identifier, as who acted.
 func SetupCodeUsed(identifier int64) Actor {
 	return Actor{kind: SetupCodeUsedKind, identifier: identifier, identified: true}
+}
+
+// ActingUser is the user with this identifier, as who acted.
+func ActingUser(identifier int64) Actor {
+	return Actor{kind: ActingUserKind, identifier: identifier, identified: true}
 }
 
 // Kind tells what kind of thing acted.
@@ -100,31 +110,58 @@ func (s Subject) Identifier() int64 {
 	return s.identifier
 }
 
+// WayIn is how a user logged in: with a login code, or through the login
+// provider with this key. It is a key, never an e-mail or an account. A login
+// provider is configured, so the audit log takes the key of any provider and
+// checks only its form.
+type WayIn string
+
+const (
+	// NoWayIn is the way in of every operation that is not a login.
+	NoWayIn WayIn = ""
+	// LoginCodeWayIn is a login with a login code.
+	LoginCodeWayIn WayIn = "login_code"
+)
+
+// wayInForm is the form of a way in: a key in snake_case, as long as a key
+// of a login provider may be.
+var wayInForm = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
+
+// wayInMaxLength is the longest way in.
+const wayInMaxLength = 64
+
 // Entry is one record of the audit log.
 type Entry struct {
 	occurredAt time.Time
 	operation  Operation
 	actor      Actor
 	subject    Subject
+	wayIn      WayIn
 }
 
 // recorded lists, for each operation the audit log records, the kind of its
-// actor and the kind of its subject. A new sensitive operation is a new line
-// here, and a new value in the CHECK constraints of the audit log table.
+// actor and the kind of its subject, whether the actor acted on themselves,
+// and whether it has a way in. A new sensitive operation is a new line here,
+// and a new value in the CHECK constraints of the audit log table.
 var recorded = map[Operation]struct {
-	actor   ActorKind
-	subject SubjectKind
+	actor    ActorKind
+	subject  SubjectKind
+	onItself bool
+	wayIn    bool
 }{
 	SetupCodeIssued:         {actor: InstallerKind, subject: SetupCodeKind},
 	SetupConcluded:          {actor: SetupCodeUsedKind, subject: UserKind},
 	AdministratorRegistered: {actor: SetupCodeUsedKind, subject: UserKind},
+	LoggedIn:                {actor: ActingUserKind, subject: UserKind, onItself: true, wayIn: true},
 }
 
 // NewEntry builds the entry of an operation. It refuses an operation the
 // audit log does not record, an actor or a subject of another kind than the
 // operation has, an actor or a subject with no identifier (whoever installs
-// the system has none) and a missing time.
-func NewEntry(occurredAt time.Time, operation Operation, actor Actor, subject Subject) (Entry, error) {
+// the system has none), a missing time, a login whose subject is not the user
+// who logged in, and a way in that is missing from a login, given to another
+// operation, or not a key.
+func NewEntry(occurredAt time.Time, operation Operation, actor Actor, subject Subject, wayIn WayIn) (Entry, error) {
 	expected, known := recorded[operation]
 	if !known {
 		return Entry{}, fmt.Errorf("the audit log does not record the operation %q", operation)
@@ -141,10 +178,31 @@ func NewEntry(occurredAt time.Time, operation Operation, actor Actor, subject Su
 	if subject.identifier <= 0 {
 		return Entry{}, fmt.Errorf("the subject of %q has no identifier", operation)
 	}
+	if expected.onItself && subject.identifier != actor.identifier {
+		return Entry{}, fmt.Errorf("the subject of %q is the user who acted", operation)
+	}
+	if err := checkWayIn(operation, expected.wayIn, wayIn); err != nil {
+		return Entry{}, err
+	}
 	if occurredAt.IsZero() {
 		return Entry{}, fmt.Errorf("the entry of %q has no time", operation)
 	}
-	return Entry{occurredAt: occurredAt, operation: operation, actor: actor, subject: subject}, nil
+	return Entry{occurredAt: occurredAt, operation: operation, actor: actor, subject: subject, wayIn: wayIn}, nil
+}
+
+// checkWayIn checks that an operation that has a way in was given one, in
+// the form of a key, and that any other was given none.
+func checkWayIn(operation Operation, expected bool, wayIn WayIn) error {
+	if !expected && wayIn != NoWayIn {
+		return fmt.Errorf("%q has no way in", operation)
+	}
+	if !expected {
+		return nil
+	}
+	if len(wayIn) > wayInMaxLength || !wayInForm.MatchString(string(wayIn)) {
+		return fmt.Errorf("the way in of %q is not a key of at most %d letters, digits and underscores", operation, wayInMaxLength)
+	}
+	return nil
 }
 
 // OccurredAt returns when the operation happened.
@@ -165,4 +223,10 @@ func (e Entry) Actor() Actor {
 // Subject returns what the operation acted on.
 func (e Entry) Subject() Subject {
 	return e.subject
+}
+
+// WayIn returns how the user logged in, and false for an operation that is
+// not a login.
+func (e Entry) WayIn() (WayIn, bool) {
+	return e.wayIn, e.wayIn != NoWayIn
 }

@@ -49,6 +49,30 @@ func (q *Queries) FindLoginCodeRequest(ctx context.Context, id int64) (LoginCode
 	return i, err
 }
 
+const loadLoginCodeRequest = `-- name: LoadLoginCodeRequest :one
+SELECT id, user_id, random_value, asked_at, expires_at, attempts, ended_at
+FROM login_code_requests
+WHERE id = $1
+FOR UPDATE
+`
+
+// Locks the request until the transaction ends, so two checks of its code
+// count their attempts one after the other.
+func (q *Queries) LoadLoginCodeRequest(ctx context.Context, id int64) (LoginCodeRequest, error) {
+	row := q.db.QueryRow(ctx, loadLoginCodeRequest, id)
+	var i LoginCodeRequest
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.RandomValue,
+		&i.AskedAt,
+		&i.ExpiresAt,
+		&i.Attempts,
+		&i.EndedAt,
+	)
+	return i, err
+}
+
 const loadNotEndedLoginCodeRequestsOf = `-- name: LoadNotEndedLoginCodeRequestsOf :many
 SELECT id, user_id, random_value, asked_at, expires_at, attempts, ended_at
 FROM login_code_requests

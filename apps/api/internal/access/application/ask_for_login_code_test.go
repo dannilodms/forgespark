@@ -13,6 +13,8 @@ import (
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application/applicationtest"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
+	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
+	auditapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application/applicationtest"
 	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
 	consultancyapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application/applicationtest"
 	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
@@ -51,17 +53,22 @@ func theKey() []byte {
 const theBrowser = "the browser of Ana"
 
 // system is the login built on the in-memory implementations of this area,
-// of the consultancy area and of the e-mail area, with the clock stopped at
-// noon.
+// of the consultancy area, of the e-mail area and of the audit log, with the
+// clock stopped at noon.
 type system struct {
-	clock           *applicationtest.Clock
-	requests        *applicationtest.LoginCodeRequestRepository
-	sessions        *applicationtest.Sessions
-	users           *consultancyapplicationtest.UserRepository
-	emails          *emailapplicationtest.EmailRepository
-	deliveries      *emailapplicationtest.DeliveryJobs
-	askForLoginCode *application.AskForLoginCode
-	loginCodes      *application.LoginCodeContents
+	clock            *applicationtest.Clock
+	requests         *applicationtest.LoginCodeRequestRepository
+	sessions         *applicationtest.Sessions
+	users            *consultancyapplicationtest.UserRepository
+	emails           *emailapplicationtest.EmailRepository
+	deliveries       *emailapplicationtest.DeliveryJobs
+	auditLog         *auditapplicationtest.AuditLog
+	askForLoginCode  *application.AskForLoginCode
+	loginCodes       *application.LoginCodeContents
+	checkLoginCode   *application.CheckLoginCode
+	findActor        *application.FindActor
+	tellLoggedInUser *application.TellLoggedInUser
+	logOut           *application.LogOut
 }
 
 func newSystem(t *testing.T) system {
@@ -72,7 +79,8 @@ func newSystem(t *testing.T) system {
 	users := consultancyapplicationtest.NewUserRepository()
 	emails := emailapplicationtest.NewEmailRepository()
 	deliveries := emailapplicationtest.NewDeliveryJobs()
-	transactions := applicationtest.NewTransactions(requests, emails, deliveries)
+	auditLog := auditapplicationtest.NewAuditLog()
+	transactions := applicationtest.NewTransactions(requests, emails, deliveries, auditLog)
 	loginCodes, err := application.NewLoginCodeContents(requests, theKey())
 	require.NoError(t, err)
 	login := application.LoginCodeDependencies{
@@ -81,6 +89,17 @@ func newSystem(t *testing.T) system {
 		Session:      sessions,
 		Clock:        clock,
 	}
+	activeUsers := consultancyapplicationtest.NewActiveUserReader(users)
+	findActiveUserByID := consultancyapplication.NewFindActiveUserByID(activeUsers)
+	logIn := application.NewLogIn(application.LogInDependencies{
+		Transactions:       transactions,
+		Session:            sessions,
+		FindActiveUserByID: findActiveUserByID,
+		RecordEntry:        auditapplication.NewRecordEntry(auditLog),
+		Clock:              clock,
+	})
+	checkLoginCode, err := application.NewCheckLoginCode(login, logIn, theKey())
+	require.NoError(t, err)
 	return system{
 		clock:      clock,
 		requests:   requests,
@@ -88,13 +107,18 @@ func newSystem(t *testing.T) system {
 		users:      users,
 		emails:     emails,
 		deliveries: deliveries,
+		auditLog:   auditLog,
 		askForLoginCode: application.NewAskForLoginCode(
 			login,
-			consultancyapplication.NewFindActiveUser(consultancyapplicationtest.NewActiveUserReader(users)),
+			consultancyapplication.NewFindActiveUser(activeUsers),
 			emailapplication.NewQueueEmail(transactions, emails, deliveries, clock),
 			&countingBytes{next: 100},
 		),
-		loginCodes: loginCodes,
+		loginCodes:       loginCodes,
+		checkLoginCode:   checkLoginCode,
+		findActor:        application.NewFindActor(sessions, findActiveUserByID),
+		tellLoggedInUser: application.NewTellLoggedInUser(findActiveUserByID),
+		logOut:           application.NewLogOut(sessions),
 	}
 }
 

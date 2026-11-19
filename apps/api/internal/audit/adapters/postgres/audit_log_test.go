@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,7 +36,7 @@ func apiPool(t *testing.T) *pgxpool.Pool {
 
 func setupCodeIssued(t *testing.T) domain.Entry {
 	t.Helper()
-	entry, err := domain.NewEntry(noon, domain.SetupCodeIssued, domain.Installer(), domain.SetupCode(7))
+	entry, err := domain.NewEntry(noon, domain.SetupCodeIssued, domain.Installer(), domain.SetupCode(7), domain.NoWayIn)
 	require.NoError(t, err)
 	return entry
 }
@@ -81,13 +83,16 @@ func TestTheTableTakesEveryOperationTheAuditLogRecords(t *testing.T) {
 	auditLog := postgres.NewAuditLog(pool)
 	entries := map[domain.Operation]func() (domain.Entry, error){
 		domain.SetupCodeIssued: func() (domain.Entry, error) {
-			return domain.NewEntry(noon, domain.SetupCodeIssued, domain.Installer(), domain.SetupCode(7))
+			return domain.NewEntry(noon, domain.SetupCodeIssued, domain.Installer(), domain.SetupCode(7), domain.NoWayIn)
 		},
 		domain.SetupConcluded: func() (domain.Entry, error) {
-			return domain.NewEntry(noon, domain.SetupConcluded, domain.SetupCodeUsed(7), domain.User(3))
+			return domain.NewEntry(noon, domain.SetupConcluded, domain.SetupCodeUsed(7), domain.User(3), domain.NoWayIn)
 		},
 		domain.AdministratorRegistered: func() (domain.Entry, error) {
-			return domain.NewEntry(noon, domain.AdministratorRegistered, domain.SetupCodeUsed(8), domain.User(4))
+			return domain.NewEntry(noon, domain.AdministratorRegistered, domain.SetupCodeUsed(8), domain.User(4), domain.NoWayIn)
+		},
+		domain.LoggedIn: func() (domain.Entry, error) {
+			return domain.NewEntry(noon, domain.LoggedIn, domain.ActingUser(4), domain.User(4), domain.LoginCodeWayIn)
 		},
 	}
 
@@ -97,6 +102,54 @@ func TestTheTableTakesEveryOperationTheAuditLogRecords(t *testing.T) {
 		assert.NoError(t, auditLog.Append(context.Background(), entry), "the operation %s", operation)
 	}
 	assert.Equal(t, len(entries), entriesIn(t, pool))
+}
+
+// A login keeps the user who logged in and the way in: the login code, or the
+// key of a login provider. Any other operation keeps no way in.
+func TestALoginIsARowWithTheUserAndTheWayIn(t *testing.T) {
+	t.Parallel()
+	pool := apiPool(t)
+	auditLog := postgres.NewAuditLog(pool)
+	for _, way := range []domain.WayIn{domain.LoginCodeWayIn, "local"} {
+		entry, err := domain.NewEntry(noon, domain.LoggedIn, domain.ActingUser(4), domain.User(4), way)
+		require.NoError(t, err)
+		require.NoError(t, auditLog.Append(context.Background(), entry))
+	}
+	require.NoError(t, auditLog.Append(context.Background(), setupCodeIssued(t)))
+
+	rows, err := pool.Query(context.Background(), `
+		SELECT concat_ws(' ', operation, actor_kind, coalesce(actor_id::text, 'none'), subject_kind, subject_id,
+		                 coalesce(way_in, '(none)'))
+		FROM audit_log ORDER BY id`)
+	require.NoError(t, err)
+	found, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"logged_in user 4 user 4 login_code",
+		"logged_in user 4 user 4 local",
+		"setup_code_issued installer none setup_code 7 (none)",
+	}, found)
+}
+
+// The table holds a way in for every login and for nothing else, whoever
+// writes the row.
+func TestTheTableRefusesALoginWithNoWayInAndAWayInForAnotherOperation(t *testing.T) {
+	t.Parallel()
+	pool := apiPool(t)
+
+	statements := []string{
+		`INSERT INTO audit_log (occurred_at, operation, actor_kind, actor_id, subject_kind, subject_id)
+		 VALUES (now(), 'logged_in', 'user', 4, 'user', 4)`,
+		`INSERT INTO audit_log (occurred_at, operation, actor_kind, subject_kind, subject_id, way_in)
+		 VALUES (now(), 'setup_code_issued', 'installer', 'setup_code', 7, 'login_code')`,
+	}
+	for _, statement := range statements {
+		_, err := pool.Exec(context.Background(), statement)
+		var failure *pgconn.PgError
+		require.ErrorAs(t, err, &failure, statement)
+		assert.Equal(t, "23514", failure.Code, "a CHECK constraint: %s", statement)
+	}
+	assert.Zero(t, entriesIn(t, pool))
 }
 
 func TestAnEntryAppendedInATransactionThatFailsIsNotKept(t *testing.T) {

@@ -2,6 +2,7 @@ package application_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,6 +78,97 @@ func TestTheRegistrationOfAnAdministratorIsRecordedWithTheSetupCodeUsedAndTheUse
 	assert.Equal(t, "administrator_registered", string(entries[0].Operation()))
 	assert.Equal(t, application.SetupCodeUsed(9), entries[0].Actor())
 	assert.Equal(t, application.User(4), entries[0].Subject())
+}
+
+func TestALoginIsRecordedWithTheUserWhoLoggedInAndTheWayIn(t *testing.T) {
+	for _, way := range []application.WayIn{application.LoginCodeWayIn, "local"} {
+		t.Run(string(way), func(t *testing.T) {
+			auditLog := applicationtest.NewAuditLog()
+			recordEntry := application.NewRecordEntry(auditLog)
+
+			err := recordEntry.Execute(context.Background(), application.RecordEntryInput{
+				OccurredAt: noon,
+				Operation:  application.LoggedIn,
+				Actor:      application.ActingUser(5),
+				Subject:    application.User(5),
+				WayIn:      way,
+			})
+
+			require.NoError(t, err)
+			entries := auditLog.Entries()
+			require.Len(t, entries, 1)
+			assert.Equal(t, "logged_in", string(entries[0].Operation()))
+			assert.Equal(t, "user", string(entries[0].Actor().Kind()))
+			actorID, identified := entries[0].Actor().Identifier()
+			assert.True(t, identified)
+			assert.Equal(t, int64(5), actorID)
+			assert.Equal(t, application.User(5), entries[0].Subject())
+			wayIn, has := entries[0].WayIn()
+			assert.True(t, has)
+			assert.Equal(t, way, wayIn)
+		})
+	}
+	assert.Equal(t, "login_code", string(application.LoginCodeWayIn))
+}
+
+func TestAnOperationOtherThanALoginHasNoWayIn(t *testing.T) {
+	auditLog := applicationtest.NewAuditLog()
+	recordEntry := application.NewRecordEntry(auditLog)
+
+	err := recordEntry.Execute(context.Background(), application.RecordEntryInput{
+		OccurredAt: noon,
+		Operation:  application.SetupCodeIssued,
+		Actor:      application.Installer(),
+		Subject:    application.SetupCode(7),
+	})
+
+	require.NoError(t, err)
+	_, has := auditLog.Entries()[0].WayIn()
+	assert.False(t, has)
+}
+
+func TestALoginWhoseEntryDoesNotFitIsRefusedAndNotRecorded(t *testing.T) {
+	fitting := application.RecordEntryInput{
+		OccurredAt: noon,
+		Operation:  application.LoggedIn,
+		Actor:      application.ActingUser(5),
+		Subject:    application.User(5),
+		WayIn:      application.LoginCodeWayIn,
+	}
+	cases := map[string]func(input *application.RecordEntryInput){
+		"no way in": func(input *application.RecordEntryInput) {
+			input.WayIn = ""
+		},
+		"a way in that is not a key": func(input *application.RecordEntryInput) {
+			input.WayIn = "Login Code"
+		},
+		"a way in longer than a key": func(input *application.RecordEntryInput) {
+			input.WayIn = application.WayIn("provider_" + strings.Repeat("a", 64))
+		},
+		"a user with no identifier": func(input *application.RecordEntryInput) {
+			input.Actor = application.ActingUser(0)
+		},
+		"another user than the one who logged in": func(input *application.RecordEntryInput) {
+			input.Subject = application.User(6)
+		},
+		"a way in for another operation": func(input *application.RecordEntryInput) {
+			input.Operation = application.AdministratorRegistered
+			input.Actor = application.SetupCodeUsed(9)
+		},
+	}
+	for name, change := range cases {
+		t.Run(name, func(t *testing.T) {
+			auditLog := applicationtest.NewAuditLog()
+			recordEntry := application.NewRecordEntry(auditLog)
+			input := fitting
+			change(&input)
+
+			err := recordEntry.Execute(context.Background(), input)
+
+			assert.Error(t, err)
+			assert.Empty(t, auditLog.Entries())
+		})
+	}
 }
 
 func TestAnEntryWhoseActorIsASetupCodeWithNoIdentifierIsRefused(t *testing.T) {

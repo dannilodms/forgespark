@@ -76,7 +76,10 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 		return err
 	}
 	// Deferred after the pool, so its cleanup stops before the pool closes.
-	sessions := session.New(pool, session.Settings{Secure: settings.AppOrigin.IsHTTPS()})
+	sessions := session.New(pool, session.Settings{
+		Secure:    settings.AppOrigin.IsHTTPS(),
+		AppOrigin: settings.AppOrigin.String(),
+	})
 	defer sessions.Stop()
 
 	mux := http.NewServeMux()
@@ -87,12 +90,16 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 		return database.CheckSchema(ctx, pool, migrations.Files)
 	}
 	health.Mount(mux, ready, settings.HealthCheckTimeout)
-	mountREST(mux, served{
-		pool:     pool,
-		storage:  fileStorageOf(settings, tracing.Provider),
-		saver:    saver,
-		sessions: sessions,
+	_, err = mountREST(mux, served{
+		pool:         pool,
+		storage:      fileStorageOf(settings, tracing.Provider),
+		saver:        saver,
+		sessions:     sessions,
+		loginCodeKey: settings.LoginCodeKey.Reveal(),
 	})
+	if err != nil {
+		return err
+	}
 	mountBounceWebhook(mux, pool, settings)
 
 	listener, err := net.Listen("tcp", settings.ListenAddress.String())
@@ -101,9 +108,10 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 	}
 	logger.Info("the API started", slog.String("address", listener.Addr().String()))
 
-	// Every request under the API carries the session of its browser.
-	// Liveness and readiness carry none, and record no span: a probe every
-	// few seconds would fill the traces.
+	// Every request under the API carries the session of its browser, and
+	// one that would change state with its cookie from another site is
+	// refused before the session is read. Liveness and readiness carry none,
+	// and record no span: a probe every few seconds would fill the traces.
 	handler := telemetry.Requests(sessions.Under(restapi.Prefix, mux), logger, tracing.Provider, health.Paths()...)
 	return lifecycle.Serve(shutdown, listener, handler, settings.ShutdownDrainDeadline, logger)
 }

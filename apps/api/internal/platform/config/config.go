@@ -72,8 +72,11 @@ var requiredBy = map[Command][]string{
 		"API_LISTEN_ADDRESS", "DATABASE_URL",
 		"FILE_STORAGE_URL", "FILE_STORAGE_PUBLIC_URL", "FILE_STORAGE_REGION", "FILE_STORAGE_BUCKET",
 		"FILE_STORAGE_ACCESS_KEY_ID", "FILE_STORAGE_SECRET_ACCESS_KEY",
-		// The cookie of the session goes over HTTPS only when the app does.
+		// The cookie of the session goes over HTTPS only when the app does,
+		// and a request that changes state with it comes from the app.
 		"APP_ORIGIN",
+		// The check of a login code computes the code with its key.
+		"LOGIN_CODE_KEY",
 	},
 	Migrate:        {"MIGRATION_DATABASE_URL"},
 	IssueSetupCode: {"DATABASE_URL", "APP_ORIGIN"},

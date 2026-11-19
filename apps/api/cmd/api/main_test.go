@@ -42,6 +42,7 @@ func environmentOf(temporary databasetest.Database) map[string]string {
 	return withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS":     "127.0.0.1:0",
 		"APP_ORIGIN":             appOrigin(),
+		"LOGIN_CODE_KEY":         theLoginCodeKey,
 		"DATABASE_URL":           temporary.APIURL,
 		"MIGRATION_DATABASE_URL": temporary.MigrationURL,
 	})
@@ -77,7 +78,11 @@ func statusOf(t *testing.T, url string) int {
 func TestTheAPIRefusesToStartWithARequiredVariableMissing(t *testing.T) {
 	var stdout, stderr output
 
-	environment := withFileStorage(map[string]string{"API_LISTEN_ADDRESS": "127.0.0.1:0", "APP_ORIGIN": appOrigin()})
+	environment := withFileStorage(map[string]string{
+		"API_LISTEN_ADDRESS": "127.0.0.1:0",
+		"APP_ORIGIN":         appOrigin(),
+		"LOGIN_CODE_KEY":     theLoginCodeKey,
+	})
 
 	status := run(context.Background(), nil, environment, &stdout, &stderr)
 
@@ -91,6 +96,7 @@ func TestTheAPIRefusesToStartWithAnInvalidVariableAndNeverShowsItsValue(t *testi
 	environment := withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS": "127.0.0.1:0",
 		"APP_ORIGIN":         appOrigin(),
+		"LOGIN_CODE_KEY":     theLoginCodeKey,
 		"DATABASE_URL":       "postgres://api:hunter2@localhost:5432/software_factory?sslmode=sometimes",
 	})
 
@@ -106,6 +112,7 @@ func TestTheAPIRefusesToStartWithoutTheFileStorage(t *testing.T) {
 	environment := map[string]string{
 		"API_LISTEN_ADDRESS": "127.0.0.1:0",
 		"APP_ORIGIN":         appOrigin(),
+		"LOGIN_CODE_KEY":     theLoginCodeKey,
 		"DATABASE_URL":       "postgres://api:api@localhost:5432/software_factory",
 	}
 
@@ -189,6 +196,7 @@ func TestTheAPIIsAliveAndNotReadyWhilePostgreSQLIsDown(t *testing.T) {
 	environment := withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS": "127.0.0.1:0",
 		"APP_ORIGIN":         appOrigin(),
+		"LOGIN_CODE_KEY":     theLoginCodeKey,
 		// Port 1 of the machine has no PostgreSQL behind it.
 		"DATABASE_URL": "postgres://api:api@127.0.0.1:1/software_factory?sslmode=disable",
 	})

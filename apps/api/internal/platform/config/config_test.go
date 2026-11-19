@@ -176,6 +176,7 @@ func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
 		{config.ServeAPI, "FILE_STORAGE_ACCESS_KEY_ID"},
 		{config.ServeAPI, "FILE_STORAGE_SECRET_ACCESS_KEY"},
 		{config.ServeAPI, "APP_ORIGIN"},
+		{config.ServeAPI, "LOGIN_CODE_KEY"},
 		{config.Migrate, "MIGRATION_DATABASE_URL"},
 		{config.IssueSetupCode, "DATABASE_URL"},
 		{config.IssueSetupCode, "APP_ORIGIN"},

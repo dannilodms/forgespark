@@ -11,8 +11,8 @@ import (
 )
 
 const appendAuditLogEntry = `-- name: AppendAuditLogEntry :exec
-INSERT INTO audit_log (occurred_at, operation, actor_kind, actor_id, subject_kind, subject_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO audit_log (occurred_at, operation, actor_kind, actor_id, subject_kind, subject_id, way_in)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type AppendAuditLogEntryParams struct {
@@ -22,6 +22,7 @@ type AppendAuditLogEntryParams struct {
 	ActorID     *int64
 	SubjectKind string
 	SubjectID   int64
+	WayIn       *string
 }
 
 func (q *Queries) AppendAuditLogEntry(ctx context.Context, arg AppendAuditLogEntryParams) error {
@@ -32,6 +33,7 @@ func (q *Queries) AppendAuditLogEntry(ctx context.Context, arg AppendAuditLogEnt
 		arg.ActorID,
 		arg.SubjectKind,
 		arg.SubjectID,
+		arg.WayIn,
 	)
 	return err
 }
