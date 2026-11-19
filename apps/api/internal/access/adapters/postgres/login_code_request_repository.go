@@ -79,6 +79,19 @@ func (r *LoginCodeRequestRepository) Find(ctx context.Context, id domain.LoginCo
 	return restored(row), true, nil
 }
 
+// Load returns the request with this identifier, and locks its row until the
+// transaction ends.
+func (r *LoginCodeRequestRepository) Load(ctx context.Context, id domain.LoginCodeRequestID) (*domain.LoginCodeRequest, bool, error) {
+	row, err := r.queries(ctx).LoadLoginCodeRequest(ctx, int64(id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("load a login code request: %w", err)
+	}
+	return restored(row), true, nil
+}
+
 // Save writes the request whole: a new row, or every column of the row it
 // already has.
 func (r *LoginCodeRequestRepository) Save(ctx context.Context, request *domain.LoginCodeRequest) error {

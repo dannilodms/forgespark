@@ -430,6 +430,7 @@ func TestUpAnswersTheStatusOfReadinessWithNoBody(t *testing.T) {
 				return withFileStorage(map[string]string{
 					"API_LISTEN_ADDRESS": net.JoinHostPort(machineHost(t), "0"),
 					"APP_ORIGIN":         appOrigin(),
+					"LOGIN_CODE_KEY":     theLoginCodeKey,
 					// Port 1 of the machine has no PostgreSQL behind it.
 					"DATABASE_URL": "postgres://api:api@127.0.0.1:1/software_factory?sslmode=disable",
 				})

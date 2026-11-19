@@ -34,17 +34,19 @@ func NewRecordEntry(auditLog AuditLog) *RecordEntry {
 }
 
 // RecordEntryInput describes the operation to record. OccurredAt is the time
-// the use case of the operation took from its clock.
+// the use case of the operation took from its clock. WayIn is set for a login
+// only.
 type RecordEntryInput struct {
 	OccurredAt time.Time
 	Operation  Operation
 	Actor      Actor
 	Subject    Subject
+	WayIn      WayIn
 }
 
 // Execute records the entry.
 func (u *RecordEntry) Execute(ctx context.Context, input RecordEntryInput) error {
-	entry, err := domain.NewEntry(input.OccurredAt, input.Operation, input.Actor, input.Subject)
+	entry, err := domain.NewEntry(input.OccurredAt, input.Operation, input.Actor, input.Subject, input.WayIn)
 	if err != nil {
 		return err
 	}

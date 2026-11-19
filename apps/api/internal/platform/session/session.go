@@ -12,6 +12,7 @@ package session
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -40,13 +41,17 @@ type Settings struct {
 	// Secure sends the cookie over HTTPS only. It is on wherever the app is
 	// served over HTTPS, and off in development, which has no certificate.
 	Secure bool
+	// AppOrigin is the origin the app is served from, as APP_ORIGIN names
+	// it: a request that changes state with the cookie must come from it.
+	AppOrigin string
 }
 
 // Sessions are the sessions of the browsers, kept in the sessions table.
 type Sessions struct {
 	*scs.SessionManager
 
-	store *pgxstore.PostgresStore
+	store     *pgxstore.PostgresStore
+	appOrigin string
 }
 
 // New builds the sessions on the pool, and starts the cleanup of the ones
@@ -72,21 +77,54 @@ func New(pool *pgxpool.Pool, settings Settings) *Sessions {
 	// A session that cannot be read or saved fails the request in the error
 	// format, with its raw error in the logs.
 	manager.ErrorFunc = restapi.WriteFailure
-	return &Sessions{SessionManager: manager, store: store}
+	return &Sessions{SessionManager: manager, store: store, appOrigin: settings.AppOrigin}
 }
 
 // Under loads the session of each request whose path is under the prefix,
 // and saves it, with its cookie, before the answer leaves. The other paths,
 // liveness and readiness, touch no session, so they never wait on the
 // database.
+//
+// Before that, it refuses a request from another site that would change
+// state with the cookie (fromAnotherSite), with 403 in the error format: the
+// session is not read, and no handler runs.
 func (s *Sessions) Under(prefix string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != prefix && !strings.HasPrefix(r.URL.Path, prefix+"/") {
 			next.ServeHTTP(w, r)
 			return
 		}
+		if s.fromAnotherSite(r) {
+			restapi.WriteRefusal(w, r, http.StatusForbidden,
+				"a request that changes state with the cookie of a session must come from the origin of the app")
+			return
+		}
 		s.LoadAndSave(routeWrittenBack(r, next)).ServeHTTP(w, r)
 	})
+}
+
+// readOnly are the methods that change no state, which are not checked.
+var readOnly = []string{http.MethodGet, http.MethodHead, http.MethodOptions}
+
+// fromAnotherSite tells a request that changes state with the cookie of a
+// session and does not come from the app (Sessions in API conventions,
+// ADR-0011): its Origin header names another origin, or it has none and its
+// Sec-Fetch-Site header says `cross-site`. A request with no cookie is not
+// checked: the bounce webhook carries none, nor will an access token. A
+// client that sends neither header, such as curl, is not a browser another
+// site can drive, and passes.
+func (s *Sessions) fromAnotherSite(r *http.Request) bool {
+	if slices.Contains(readOnly, r.Method) {
+		return false
+	}
+	if _, err := r.Cookie(CookieName); err != nil {
+		return false
+	}
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		return origin != s.appOrigin
+	}
+	return r.Header.Get("Sec-Fetch-Site") == "cross-site"
 }
 
 // routeWrittenBack passes on the request that carries the session, and

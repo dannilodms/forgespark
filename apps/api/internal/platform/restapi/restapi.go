@@ -46,6 +46,7 @@ type Limits struct {
 type API struct {
 	huma.API
 	limits Limits
+	actors Actors
 }
 
 // New builds the REST adapter on the mux. It serves no documentation page, no

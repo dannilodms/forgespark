@@ -11,7 +11,9 @@
  */
 import type {
   AskForLoginCodeRequest,
+  CheckLoginCodeRequest,
   ConcludeSetupRequest,
+  LoggedInUser,
   OpenSetupRequest,
   OpenedSetup,
   RegisterAdministratorRequest,
@@ -42,6 +44,56 @@ const getHeaders = (...sources: (RequestInit['headers'] | Record<string, string 
   return Object.fromEntries(layers.reverse().flat()) as Extract<RequestInit['headers'], Record<string, unknown>>;
 };
 
+export const getTellLoggedInUserUrl = () => {
+
+
+
+
+  return `/api/session`
+}
+
+/**
+ * Answers the user logged in to the session of this browser, as the app shows them, and the keys of their roles. It asks for no scope. With no user logged in, the session missing, ended, or of a user deactivated since, it answers 401; the session of a deactivated user is ended.
+ * @summary Tell who is logged in
+ */
+export const tellLoggedInUser = async ( options?: Parameters<typeof request>[1]): Promise<LoggedInUser> => {
+
+  return request<LoggedInUser>(getTellLoggedInUserUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getLogOutUrl = () => {
+
+
+
+
+  return `/api/session/log_out`
+}
+
+/**
+ * Ends the session of this browser, whether a user is logged in to it or not: the answer expires its cookie, and the session opens nothing any more.
+ * @summary Log out
+ */
+export const logOut = async ( options?: Parameters<typeof request>[1]): Promise<void> => {
+
+  return request<void>(getLogOutUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
 export const getAskForLoginCodeUrl = () => {
 
 
@@ -62,6 +114,31 @@ export const askForLoginCode = async (askForLoginCodeRequest: AskForLoginCodeReq
     method: 'POST',
     headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(askForLoginCodeRequest)
+  }
+);}
+
+
+
+export const getCheckLoginCodeUrl = () => {
+
+
+
+
+  return `/api/session/login_code/check`
+}
+
+/**
+ * Checks the six digits against the login code this browser asked for last, which the session remembers. The right code, within 10 minutes, logs the user in: the answer sets the cookie of the session again, with a new token, and the logged-in user is read with `tell_logged_in_user`. A wrong code, the code of a request that no longer works, or a code typed in a browser that asked for none, answers `login_code_invalid` with the attempts left; the third answers `login_code_ended`, and a new code has to be asked for.
+ * @summary Check a login code
+ */
+export const checkLoginCode = async (checkLoginCodeRequest: CheckLoginCodeRequest, options?: Parameters<typeof request>[1]): Promise<void> => {
+
+  return request<void>(getCheckLoginCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+    body: JSON.stringify(checkLoginCodeRequest)
   }
 );}
 

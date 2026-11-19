@@ -48,6 +48,9 @@ A person logs in through an external provider or with a login code sent to their
 - The key of the login code is one more secret in the deploy configuration. Changing it only ends the codes not yet used.
 - The cookie is `Secure` wherever the app is served over HTTPS, which the API reads from the origin of the app in its configuration; development, on plain HTTP, sends it without. The session table keeps the SHA-256 of each token, so a dump of the database opens no session either.
 - The session exists before the login, so asking for a code writes it for every e-mail, an unknown one included: an answer that set a cookie only for a user would tell who is a user.
+- Checking a code answers the same way for every cause of a refusal, with the attempts left, and the third ends the code. A browser that asked for an unknown e-mail has no request to check against, so its attempts are counted in its session and it is answered as a request that no longer works: typing a code tells nothing of the e-mail either.
+- The refusal of a cross-site request lives with the session, in front of every path under `/api`, and covers every method but `GET`, `HEAD` and `OPTIONS`: a request without the cookie, a webhook or an agent with an access token, is not checked, and a client that sends neither `Origin` nor `Sec-Fetch-Site` passes.
+- Every way in ends in one step that records the login in the audit log, with the way in, in the transaction that ends the code or links the provider, and renews the session token only after it commits.
 - Rate limiting, which ADR-0009 had left out, exists for the login code.
 - Staging does not use the local provider. It is public, so it logs in through the real providers, or with a login code read from a Mailpit that sits behind a password (ADR-0019).
 - How each provider states that an e-mail is verified has to be checked when the login is built. Microsoft is the known hard case: its e-mail claim is not always verified.

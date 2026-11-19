@@ -85,11 +85,16 @@ type RoleRepository interface {
 	Save(ctx context.Context, role *domain.Role) error
 }
 
-// ActiveUserReader reads the users who can log in, shaped for the login.
+// ActiveUserReader reads the users who can log in, shaped for the login and
+// the session, with the keys of their roles, sorted. It leaves the scopes to
+// the use case, which reads them from the roles.
 type ActiveUserReader interface {
 	// ActiveUserWith returns the user who has this e-mail and is not
 	// deactivated, and false when there is none. It locks nothing.
 	ActiveUserWith(ctx context.Context, email kernel.Email) (ActiveUser, bool, error)
+	// ActiveUserOf returns the user with this identifier when they are not
+	// deactivated, and false when there is none. It locks nothing.
+	ActiveUserOf(ctx context.Context, id domain.UserID) (ActiveUser, bool, error)
 }
 
 // SetupStateReader reads the state of the setup, shaped for whoever asks.

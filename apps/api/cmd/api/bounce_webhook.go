@@ -20,8 +20,9 @@ import (
 //
 // The webhook is a handler of its own on the mux, beside the REST adapter and
 // not in it: the OpenAPI spec, which mountREST gives, leaves it out, and no
-// middleware of the REST adapter runs on it, the check of the origin
-// included. It carries no cookie: its signature is what authenticates it.
+// middleware of the REST adapter runs on it. It carries no cookie, so the
+// check of the origin of the sessions lets it through: its signature is what
+// authenticates it.
 func mountBounceWebhook(mux *http.ServeMux, pool *pgxpool.Pool, settings config.Config) {
 	if !settings.ResendWebhookSecret.IsSet() {
 		return

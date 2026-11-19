@@ -73,6 +73,12 @@ func (r *LoginCodeRequestRepository) Find(_ context.Context, id domain.LoginCode
 	return &found, true, nil
 }
 
+// Load returns a copy of the request with this identifier. Memory has no
+// lock: the tests run one request at a time.
+func (r *LoginCodeRequestRepository) Load(ctx context.Context, id domain.LoginCodeRequestID) (*domain.LoginCodeRequest, bool, error) {
+	return r.Find(ctx, id)
+}
+
 // Save stores the request, in place of the one with the same identifier when
 // there is one.
 func (r *LoginCodeRequestRepository) Save(_ context.Context, request *domain.LoginCodeRequest) error {

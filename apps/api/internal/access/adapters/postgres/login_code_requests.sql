@@ -20,6 +20,14 @@ SELECT id, user_id, random_value, asked_at, expires_at, attempts, ended_at
 FROM login_code_requests
 WHERE id = @id;
 
+-- name: LoadLoginCodeRequest :one
+-- Locks the request until the transaction ends, so two checks of its code
+-- count their attempts one after the other.
+SELECT id, user_id, random_value, asked_at, expires_at, attempts, ended_at
+FROM login_code_requests
+WHERE id = @id
+FOR UPDATE;
+
 -- name: SaveLoginCodeRequest :exec
 INSERT INTO login_code_requests (id, user_id, random_value, asked_at, expires_at, attempts, ended_at)
 VALUES (@id, @user_id, @random_value, @asked_at, @expires_at, @attempts, @ended_at)

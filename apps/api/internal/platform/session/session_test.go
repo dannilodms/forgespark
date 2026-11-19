@@ -167,17 +167,7 @@ func TestTheStoreKeepsTheHashOfTheTokenAndBothLivesOfTheSession(t *testing.T) {
 
 func TestAPathOutsideThePrefixTouchesNoSession(t *testing.T) {
 	t.Parallel()
-	// Port 1 of the machine has no PostgreSQL behind it: a session that is
-	// read fails.
-	pool, err := database.NewPool(database.PoolSettings{
-		ConnectionURL:            unreachable(t),
-		MaxSize:                  1,
-		StatementTimeout:         time.Second,
-		IdleInTransactionTimeout: time.Second,
-	})
-	require.NoError(t, err)
-	t.Cleanup(pool.Close)
-	served := newSite(t, pool, session.Settings{Secure: false})
+	served := newSite(t, unreachablePool(t), session.Settings{Secure: false})
 	withACookie := browser(t)
 	withACookie.Jar.SetCookies(mustParse(t, served.server.URL), []*http.Cookie{{Name: session.CookieName, Value: "a-token"}})
 
@@ -191,6 +181,113 @@ func TestAPathOutsideThePrefixTouchesNoSession(t *testing.T) {
 	require.NoError(t, json.NewDecoder(underTheAPI.Body).Decode(&problem))
 	assert.Equal(t, "internal_server_error", problem["code"])
 	assert.Nil(t, problem["detail"], "the answer repeats the raw error")
+}
+
+// theAppOrigin is the origin the app of these tests is served from.
+const theAppOrigin = "http://localhost"
+
+// sendWith sends a request that carries a cookie of a session, or none, with
+// these headers.
+func sendWith(t *testing.T, method, url string, cookie bool, headers map[string]string) *http.Response {
+	t.Helper()
+	request, err := http.NewRequest(method, url, nil)
+	require.NoError(t, err)
+	for name, value := range headers {
+		request.Header.Set(name, value)
+	}
+	if cookie {
+		request.AddCookie(&http.Cookie{Name: session.CookieName, Value: "a-token"})
+	}
+	response, err := http.DefaultClient.Do(request)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = response.Body.Close() })
+	return response
+}
+
+// A request that changes state with the cookie of a session must come from
+// the app (Sessions in API conventions, ADR-0011). It is refused before the
+// session is read: the store behind this site cannot be reached.
+func TestARequestThatChangesStateWithTheCookieFromAnotherSiteIsRefused(t *testing.T) {
+	t.Parallel()
+	served := newSite(t, unreachablePool(t), session.Settings{Secure: false, AppOrigin: theAppOrigin})
+	cases := map[string]struct {
+		method  string
+		headers map[string]string
+	}{
+		"a POST from another origin":            {method: http.MethodPost, headers: map[string]string{"Origin": "https://elsewhere.example"}},
+		"a PUT from another origin":             {method: http.MethodPut, headers: map[string]string{"Origin": "http://localhost:5173"}},
+		"a DELETE from another origin":          {method: http.MethodDelete, headers: map[string]string{"Origin": "https://elsewhere.example"}},
+		"a POST from an opaque origin":          {method: http.MethodPost, headers: map[string]string{"Origin": "null"}},
+		"a POST from another site, no Origin":   {method: http.MethodPost, headers: map[string]string{"Sec-Fetch-Site": "cross-site"}},
+		"a POST from another origin, same site": {method: http.MethodPost, headers: map[string]string{"Origin": "https://elsewhere.example", "Sec-Fetch-Site": "same-origin"}},
+	}
+	for name, example := range cases {
+		t.Run(name, func(t *testing.T) {
+			refused := sendWith(t, example.method, served.server.URL+"/api/numbers?number=37", true, example.headers)
+
+			assert.Equal(t, http.StatusForbidden, refused.StatusCode)
+			assert.Equal(t, "application/problem+json", refused.Header.Get("Content-Type"))
+			var problem map[string]any
+			require.NoError(t, json.NewDecoder(refused.Body).Decode(&problem))
+			assert.Equal(t, "forbidden", problem["code"])
+			assert.Equal(t, float64(http.StatusForbidden), problem["status"])
+			assert.Empty(t, refused.Header.Values("Set-Cookie"))
+		})
+	}
+}
+
+// What is not checked: a request with no cookie of a session, such as the
+// bounce webhook, a read, and a request from the app itself.
+func TestARequestWithNoCookieAReadAndARequestFromTheAppAreNotRefused(t *testing.T) {
+	t.Parallel()
+	served := newSite(t, migratedPool(t), session.Settings{Secure: false, AppOrigin: theAppOrigin})
+	cases := map[string]struct {
+		method  string
+		cookie  bool
+		headers map[string]string
+		status  int
+	}{
+		"a POST with no cookie from another origin": {
+			method: http.MethodPost, headers: map[string]string{"Origin": "https://elsewhere.example", "Sec-Fetch-Site": "cross-site"},
+			status: http.StatusAccepted,
+		},
+		"a GET with the cookie from another origin": {
+			method: http.MethodGet, cookie: true, headers: map[string]string{"Origin": "https://elsewhere.example", "Sec-Fetch-Site": "cross-site"},
+			status: http.StatusOK,
+		},
+		"a POST with the cookie from the app": {
+			method: http.MethodPost, cookie: true, headers: map[string]string{"Origin": theAppOrigin, "Sec-Fetch-Site": "same-origin"},
+			status: http.StatusAccepted,
+		},
+		"a POST with the cookie and no header, as a command-line client sends": {
+			method: http.MethodPost, cookie: true, status: http.StatusAccepted,
+		},
+		"a POST with the cookie, no Origin, from the same site": {
+			method: http.MethodPost, cookie: true, headers: map[string]string{"Sec-Fetch-Site": "same-site"}, status: http.StatusAccepted,
+		},
+	}
+	for name, example := range cases {
+		t.Run(name, func(t *testing.T) {
+			answer := sendWith(t, example.method, served.server.URL+"/api/numbers?number=37", example.cookie, example.headers)
+
+			assert.Equal(t, example.status, answer.StatusCode)
+		})
+	}
+}
+
+// unreachablePool is a pool on a PostgreSQL that cannot be reached: a session
+// read through it fails.
+func unreachablePool(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	pool, err := database.NewPool(database.PoolSettings{
+		ConnectionURL:            unreachable(t),
+		MaxSize:                  1,
+		StatementTimeout:         time.Second,
+		IdleInTransactionTimeout: time.Second,
+	})
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+	return pool
 }
 
 // unreachable is a connection to port 1 of the machine, where no PostgreSQL

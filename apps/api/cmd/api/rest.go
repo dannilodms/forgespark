@@ -33,22 +33,25 @@ import (
 var bodyLimits = restapi.Limits{BodyBytes: 1 << 20, BodyReadTimeout: 5 * time.Second}
 
 // served are what the operations reach outside the process: the database,
-// the file storage, the saving of jobs and the sessions of the browsers.
-// Generating the spec passes none of them: the use cases are built and never
+// the file storage, the saving of jobs and the sessions of the browsers; and
+// the key the login codes are computed with. Generating the spec passes none
+// of the first four, and a key of its own: the use cases are built and never
 // run.
 type served struct {
-	pool     *pgxpool.Pool
-	storage  *filess3.Storage
-	saver    *jobs.Saver
-	sessions *session.Sessions
+	pool         *pgxpool.Pool
+	storage      *filess3.Storage
+	saver        *jobs.Saver
+	sessions     *session.Sessions
+	loginCodeKey []byte
 }
 
 // mountREST builds the REST adapter on the mux and registers every operation
-// of every domain area: it wires each use case to its adapters, by hand.
+// of every domain area: it wires each use case to its adapters, by hand. It
+// fails on a key of the login code too short.
 //
 // The OpenAPI spec is generated from what this function registers, so an
 // operation that is served is in the spec.
-func mountREST(mux *http.ServeMux, with served) *restapi.API {
+func mountREST(mux *http.ServeMux, with served) (*restapi.API, error) {
 	api := restapi.New(mux, bodyLimits)
 
 	transactions := database.NewTransactions(with.pool)
@@ -78,16 +81,32 @@ func mountREST(mux *http.ServeMux, with served) *restapi.API {
 		RegisterAdministrator: consultancyapplication.NewRegisterAdministrator(setup),
 	})
 
+	browser := accessrest.NewSession(with.sessions)
 	login := accessapplication.LoginCodeDependencies{
 		Transactions: transactions,
 		Requests:     accesspostgres.NewLoginCodeRequestRepository(with.pool),
-		Session:      accessrest.NewSession(with.sessions),
+		Session:      browser,
 		Clock:        clock.System{},
 	}
+	activeUsers := consultancypostgres.NewActiveUserReader(with.pool)
+	findActiveUserByID := consultancyapplication.NewFindActiveUserByID(activeUsers)
+	logIn := accessapplication.NewLogIn(accessapplication.LogInDependencies{
+		Transactions:       transactions,
+		Session:            browser,
+		FindActiveUserByID: findActiveUserByID,
+		RecordEntry:        setup.RecordEntry,
+		Clock:              clock.System{},
+	})
+	checkLoginCode, err := accessapplication.NewCheckLoginCode(login, logIn, with.loginCodeKey)
+	if err != nil {
+		return nil, err
+	}
+	// Every operation that needs a user finds who acts through the session.
+	api.AuthenticateWith(accessrest.NewActors(accessapplication.NewFindActor(browser, findActiveUserByID)))
 	accessrest.Register(api, accessrest.UseCases{
 		AskForLoginCode: accessapplication.NewAskForLoginCode(
 			login,
-			consultancyapplication.NewFindActiveUser(consultancypostgres.NewActiveUserReader(with.pool)),
+			consultancyapplication.NewFindActiveUser(activeUsers),
 			emailapplication.NewQueueEmail(
 				transactions,
 				emailpostgres.NewEmailRepository(with.pool),
@@ -96,7 +115,10 @@ func mountREST(mux *http.ServeMux, with served) *restapi.API {
 			),
 			rand.Reader,
 		),
+		CheckLoginCode:   checkLoginCode,
+		TellLoggedInUser: accessapplication.NewTellLoggedInUser(findActiveUserByID),
+		LogOut:           accessapplication.NewLogOut(browser),
 	})
 
-	return api
+	return api, nil
 }

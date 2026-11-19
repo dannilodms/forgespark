@@ -156,21 +156,25 @@ func TestTheAPIRoleAddsAndReadsEntriesOfTheAuditLogAndCannotChangeOrRemoveOne(t 
 	defer connection.Close(ctx)
 
 	_, err = connection.Exec(ctx, `
-		INSERT INTO audit_log (occurred_at, operation, actor_kind, subject_kind, subject_id)
-		VALUES (now(), 'setup_code_issued', 'installer', 'setup_code', 1)`)
+		INSERT INTO audit_log (occurred_at, operation, actor_kind, actor_id, subject_kind, subject_id, way_in)
+		VALUES (now(), 'setup_code_issued', 'installer', NULL, 'setup_code', 1, NULL),
+		       (now(), 'logged_in', 'user', 1, 'user', 1, 'login_code')`)
 	require.NoError(t, err)
 	var entries int
 	require.NoError(t, connection.QueryRow(ctx, "SELECT count(*) FROM audit_log").Scan(&entries))
-	assert.Equal(t, 1, entries)
+	assert.Equal(t, 2, entries)
 
 	statements := []string{
 		"UPDATE audit_log SET subject_id = 2",
+		"UPDATE audit_log SET way_in = 'local' WHERE operation = 'logged_in'",
 		"DELETE FROM audit_log",
+		"DELETE FROM audit_log WHERE operation = 'logged_in'",
 		"TRUNCATE audit_log",
 	}
 	for _, statement := range statements {
 		assert.Equal(t, insufficientPrivilege, refusal(t, temporary, statement), statement)
 	}
-	require.NoError(t, connection.QueryRow(ctx, "SELECT count(*) FROM audit_log WHERE subject_id = 1").Scan(&entries))
-	assert.Equal(t, 1, entries, "the entry was changed or removed")
+	require.NoError(t, connection.QueryRow(ctx,
+		"SELECT count(*) FROM audit_log WHERE subject_id = 1 AND way_in IS NOT DISTINCT FROM CASE operation WHEN 'logged_in' THEN 'login_code' END").Scan(&entries))
+	assert.Equal(t, 2, entries, "an entry was changed or removed")
 }

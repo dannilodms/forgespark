@@ -13,7 +13,13 @@ type (
 	Subject = domain.Subject
 	// Entry is one record of the audit log.
 	Entry = domain.Entry
+	// WayIn is how a user logged in: LoginCodeWayIn, or the key of a login
+	// provider.
+	WayIn = domain.WayIn
 )
+
+// LoginCodeWayIn is a login with a login code.
+const LoginCodeWayIn = domain.LoginCodeWayIn
 
 const (
 	// SetupCodeIssued is recorded when whoever installs the system issues a
@@ -28,6 +34,9 @@ const (
 	// setup registers a new administrator. Its actor is the SetupCodeUsed and
 	// its subject is the User created.
 	AdministratorRegistered = domain.AdministratorRegistered
+	// LoggedIn is recorded when a user logs in. Its actor is the ActingUser
+	// who logged in, its subject is the same User, and it has a WayIn.
+	LoggedIn = domain.LoggedIn
 )
 
 // Installer is whoever installs the system, who has no identifier.
@@ -38,6 +47,11 @@ func Installer() Actor {
 // SetupCodeUsed is the setup code with this identifier, as who acted.
 func SetupCodeUsed(identifier int64) Actor {
 	return domain.SetupCodeUsed(identifier)
+}
+
+// ActingUser is the user with this identifier, as who acted.
+func ActingUser(identifier int64) Actor {
+	return domain.ActingUser(identifier)
 }
 
 // SetupCode is the setup code with this identifier, as what was acted on.

@@ -35,11 +35,22 @@ func (l *AuditLog) Append(ctx context.Context, entry domain.Entry) error {
 		ActorID:     actorIDOf(entry.Actor()),
 		SubjectKind: string(entry.Subject().Kind()),
 		SubjectID:   entry.Subject().Identifier(),
+		WayIn:       wayInOf(entry),
 	})
 	if err != nil {
 		return fmt.Errorf("append the entry to the audit log: %w", err)
 	}
 	return nil
+}
+
+// wayInOf is the way in of a login, and nil for any other operation.
+func wayInOf(entry domain.Entry) *string {
+	wayIn, has := entry.WayIn()
+	if !has {
+		return nil
+	}
+	text := string(wayIn)
+	return &text
 }
 
 func actorIDOf(actor domain.Actor) *int64 {

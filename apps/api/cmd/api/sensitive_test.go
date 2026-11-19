@@ -122,6 +122,7 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	environment := withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS":          "127.0.0.1:0",
 		"APP_ORIGIN":                  appOrigin(),
+		"LOGIN_CODE_KEY":              theLoginCodeKey,
 		"LOG_LEVEL":                   "debug",
 		"OTEL_EXPORTER_OTLP_ENDPOINT": collector.URL,
 		"DATABASE_URL": "postgres://api:" + guarded.add("the password of the API role", "guarded-password-of-the-api-role") +
@@ -805,6 +806,85 @@ func TestTheLogsTheSpansAndTheJobsOfALoginCodeNeverCarryTheEmailTheCodeOrTheCook
 	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(jobsKept), "a job carries a sensitive value")
+	for _, answer := range answers {
+		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats a sensitive value: %s", answer.body)
+	}
+}
+
+// The login itself: a wrong code and the right one typed, the cookie the login
+// sets, who is logged in, a refusal from another site, two failures of the
+// database with the cookie in the request, and the logout. The answer of who
+// is logged in is meant to carry the name and the e-mail of the user, and is
+// not searched.
+func TestTheLogsAndTheSpansOfALoginNeverCarryTheCodeTheEmailOrTheCookie(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	environment := environmentOf(temporary)
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	api := launchAPI(t, environment)
+	owner := asOwner(t, temporary)
+	_, setupCode := issueSetupCodeIn(t, temporary)
+	guarded.add("the setup code", setupCode)
+	setup := setupBody(setupCode)
+	object(setup, "administrator")["email"] = guarded.add("the e-mail of the user, as typed in the setup", "Guarded.Session@Fabrica.example")
+	guarded.add("the e-mail of the user, as stored", "guarded.session@fabrica.example")
+	require.Equal(t, http.StatusNoContent, concludeSetup(t, api.url, setup).status)
+	browser := aBrowser(t)
+	asking := askForLoginCode(t, browser, api.url, guarded.add("the e-mail of the user, as typed at the login", "GUARDED.Session@fabrica.example"))
+	require.Equal(t, http.StatusAccepted, asking.status, asking.body)
+	guarded.add("the cookie of the session before the login", sessionCookie(t, asking).Value)
+	right := guarded.addWholeNumber("the login code", codeOfTheRequest(t, temporary))
+	wrong := guarded.addWholeNumber("a wrong code, as typed", strings.Repeat(string('0'+(right[0]-'0'+1)%10), 6))
+
+	answers := []asked{}
+	expect := func(answer asked, status int) asked {
+		t.Helper()
+		require.Equal(t, status, answer.status, answer.body)
+		answers = append(answers, answer)
+		return answer
+	}
+	expect(checkCode(t, browser, api.url, wrong), http.StatusUnprocessableEntity)
+	// A 5xx with the cookie and the code in the request: the API role may
+	// not lock the requests.
+	_, err := owner.Exec(context.Background(), "REVOKE UPDATE ON login_code_requests FROM api")
+	require.NoError(t, err)
+	expect(checkCode(t, browser, api.url, right), http.StatusInternalServerError)
+	_, err = owner.Exec(context.Background(), "GRANT UPDATE ON login_code_requests TO api")
+	require.NoError(t, err)
+	checked := expect(checkCode(t, browser, api.url, right), http.StatusNoContent)
+	guarded.add("the cookie of the session after the login", sessionCookie(t, checked).Value)
+	require.Equal(t, http.StatusOK, whoIsLoggedIn(t, browser, api.url).status)
+	expect(sendFrom(t, browser, http.MethodPost, api.url+logOutPath, "", map[string]string{"Origin": "https://elsewhere.example"}), http.StatusForbidden)
+	// A 5xx in the session store, with the cookie in the request.
+	_, err = owner.Exec(context.Background(), "REVOKE SELECT ON sessions FROM api")
+	require.NoError(t, err)
+	expect(whoIsLoggedIn(t, browser, api.url), http.StatusInternalServerError)
+	_, err = owner.Exec(context.Background(), "GRANT SELECT ON sessions TO api")
+	require.NoError(t, err)
+	expect(sendFrom(t, browser, http.MethodPost, api.url+logOutPath, "", nil), http.StatusNoContent)
+	expect(whoIsLoggedIn(t, browser, api.url), http.StatusUnauthorized)
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	var auditLog, sessionsKept string
+	require.NoError(t, owner.QueryRow(context.Background(),
+		"SELECT string_agg(row_to_json(audit_log)::text, E'\n') FROM audit_log").Scan(&auditLog))
+	require.NoError(t, owner.QueryRow(context.Background(),
+		"SELECT coalesce(string_agg(token, E'\n'), '') FROM sessions").Scan(&sessionsKept))
+	logs := api.logs.String()
+	require.Contains(t, logs, "permission denied for table login_code_requests", "the scenario logged no raw error of the check")
+	require.Contains(t, logs, "permission denied for table sessions", "the scenario logged no raw error of the session store")
+	require.Contains(t, auditLog, `"operation":"logged_in"`, "the scenario recorded no login")
+	require.Contains(t, collector.Text(), "POST /api/session/login_code/check", "the scenario exported no span of the check")
+	require.Contains(t, collector.Text(), "GET /api/session", "the scenario exported no span of who is logged in")
+	require.Contains(t, collector.Text(), "SELECT id, user_id, random_value", "the scenario exported no span of the query that loads a request")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(auditLog), "the audit log carries a sensitive value")
+	assert.Empty(t, guarded.foundIn(sessionsKept), "the sessions table keeps a token as the cookie carries it")
 	for _, answer := range answers {
 		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats a sensitive value: %s", answer.body)
 	}
