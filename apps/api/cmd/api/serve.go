@@ -9,6 +9,8 @@ import (
 	"net"
 	"net/http"
 
+	"go.opentelemetry.io/otel/trace"
+
 	filess3 "github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/s3"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
@@ -20,6 +22,20 @@ import (
 
 // errShuttingDown is why readiness fails from the signal on.
 var errShuttingDown = errors.New("the API is shutting down")
+
+// fileStorageOf is the file storage the configuration names, whose calls are
+// traced. The API and the worker reach it the same way.
+func fileStorageOf(settings config.Config, provider trace.TracerProvider) *filess3.Storage {
+	return filess3.NewStorage(filess3.Settings{
+		URL:             settings.FileStorageURL.String(),
+		PublicURL:       settings.FileStoragePublicURL.String(),
+		Region:          settings.FileStorageRegion,
+		Bucket:          settings.FileStorageBucket,
+		AccessKeyID:     settings.FileStorageAccessKeyID,
+		SecretAccessKey: settings.FileStorageSecretAccessKey,
+		TracerProvider:  provider,
+	})
+}
 
 // serveAPI serves the API until the shutdown notice, then stops without
 // cutting a request short. Its logs are JSON lines on the error output: the
@@ -61,16 +77,7 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 		return database.CheckSchema(ctx, pool, migrations.Files)
 	}
 	health.Mount(mux, ready, settings.HealthCheckTimeout)
-	storage := filess3.NewStorage(filess3.Settings{
-		URL:             settings.FileStorageURL.String(),
-		PublicURL:       settings.FileStoragePublicURL.String(),
-		Region:          settings.FileStorageRegion,
-		Bucket:          settings.FileStorageBucket,
-		AccessKeyID:     settings.FileStorageAccessKeyID,
-		SecretAccessKey: settings.FileStorageSecretAccessKey,
-		TracerProvider:  tracing.Provider,
-	})
-	mountREST(mux, pool, storage)
+	mountREST(mux, pool, fileStorageOf(settings, tracing.Provider))
 
 	listener, err := net.Listen("tcp", settings.ListenAddress.String())
 	if err != nil {

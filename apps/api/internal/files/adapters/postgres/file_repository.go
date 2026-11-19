@@ -80,6 +80,34 @@ func (r *FileRepository) Save(ctx context.Context, file *domain.File) error {
 	return nil
 }
 
+// RemoveAbandoned deletes the files whose upload started before this instant
+// and was never confirmed. A row a confirmation holds is deleted, or not,
+// once the confirmation ends: PostgreSQL then reads it again.
+func (r *FileRepository) RemoveAbandoned(ctx context.Context, startedBefore time.Time) error {
+	if err := r.queries(ctx).RemoveAbandonedFiles(ctx, startedBefore); err != nil {
+		return fmt.Errorf("remove the abandoned files: %w", err)
+	}
+	return nil
+}
+
+// ConfirmedKeys returns those of the keys a confirmed file names, in their
+// order.
+func (r *FileRepository) ConfirmedKeys(ctx context.Context, among []domain.ObjectKey) ([]domain.ObjectKey, error) {
+	keys := make([]string, 0, len(among))
+	for _, key := range among {
+		keys = append(keys, string(key))
+	}
+	rows, err := r.queries(ctx).ConfirmedObjectKeys(ctx, keys)
+	if err != nil {
+		return nil, fmt.Errorf("read the keys of the confirmed files: %w", err)
+	}
+	confirmed := make([]domain.ObjectKey, 0, len(rows))
+	for _, key := range rows {
+		confirmed = append(confirmed, domain.ObjectKey(key))
+	}
+	return confirmed, nil
+}
+
 // inUTC gives an instant PostgreSQL answered in the time zone of the session
 // in UTC, and nothing when there is none.
 func inUTC(at *time.Time) *time.Time {

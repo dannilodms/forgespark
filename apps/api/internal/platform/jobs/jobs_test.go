@@ -113,6 +113,24 @@ func (w *slowWorker) Work(ctx context.Context, _ *river.Job[slowArgs]) error {
 	}
 }
 
+// periodicArgs are the arguments of a periodic job, which name nothing.
+type periodicArgs struct{}
+
+func (periodicArgs) Kind() string { return "periodic_proof" }
+
+func (periodicArgs) InsertOpts() river.InsertOpts { return river.InsertOpts{Queue: jobs.QueueLight} }
+
+// periodicWorker tells each time it runs.
+type periodicWorker struct {
+	river.WorkerDefaults[periodicArgs]
+	runs chan struct{}
+}
+
+func (w *periodicWorker) Work(context.Context, *river.Job[periodicArgs]) error {
+	w.runs <- struct{}{}
+	return nil
+}
+
 // poolOf opens the pool of the API role on a temporary database with every
 // migration applied.
 func poolOf(t *testing.T, provider trace.TracerProvider) (databasetest.Database, *pgxpool.Pool) {
@@ -140,7 +158,6 @@ func settingsOf(kinds *jobs.Kinds, deadline time.Duration, provider trace.Tracer
 		HeavyQueueMaxJobs: 1,
 		ShutdownDeadline:  deadline,
 		Kinds:             kinds,
-		PeriodicJobs:      nil,
 		TracerProvider:    provider,
 		Logger:            logger,
 	}
@@ -353,4 +370,44 @@ func TestTheShutdownTakesNoNewJobCutsTheRunningOneAtTheDeadlineAndBothRunAgainLa
 		return completed == 2
 	}, 30*time.Second, 50*time.Millisecond, "the two jobs completed on the next worker")
 	require.NoError(t, stopNext())
+}
+
+// River keeps the schedule of a periodic job in the memory of the worker it
+// elects, so a restart or a new election starts it over. The job runs when the
+// worker starts, so a worker restarted more often than the interval still
+// runs it, and then at its interval, in the queue its arguments name.
+func TestAPeriodicJobRunsWhenTheWorkerStartsAndThenAtItsInterval(t *testing.T) {
+	t.Parallel()
+	_, pool := poolOf(t, nil)
+	worker := &periodicWorker{runs: make(chan struct{}, 8)}
+	kinds := jobs.NewKinds()
+	jobs.AddPeriodic(kinds, worker, 2*time.Second)
+	runner, err := jobs.NewRunner(pool, settingsOf(kinds, 10*time.Second, nil, quietLogger()))
+	require.NoError(t, err)
+
+	stop := runUntilSignalled(t, runner)
+	receive(t, worker.runs, "the run at the start")
+	receive(t, worker.runs, "the run after the interval")
+	require.NoError(t, stop())
+
+	// When River saved each job, which the schedule decides: when a job ran
+	// also depends on how soon a busy worker fetched it.
+	type saved struct {
+		at    time.Time
+		queue string
+	}
+	var jobsSaved []saved
+	rows, err := pool.Query(context.Background(), "SELECT created_at, queue FROM river_job WHERE kind = $1 ORDER BY id", periodicArgs{}.Kind())
+	require.NoError(t, err)
+	for rows.Next() {
+		var job saved
+		require.NoError(t, rows.Scan(&job.at, &job.queue))
+		jobsSaved = append(jobsSaved, job)
+	}
+	require.NoError(t, rows.Err())
+	require.GreaterOrEqual(t, len(jobsSaved), 2)
+	assert.GreaterOrEqual(t, jobsSaved[1].at.Sub(jobsSaved[0].at), 1500*time.Millisecond, "the second job did not wait for the interval")
+	for _, job := range jobsSaved {
+		assert.Equal(t, jobs.QueueLight, job.queue)
+	}
 }

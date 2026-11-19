@@ -36,6 +36,12 @@ type FileRepository interface {
 	Load(ctx context.Context, id domain.FileID) (*domain.File, bool, error)
 	// Save stores a file whole, whether it is new or changed.
 	Save(ctx context.Context, file *domain.File) error
+	// RemoveAbandoned removes the files whose upload started before this
+	// instant and was never confirmed. A file being confirmed is removed, or
+	// not, once its confirmation ends.
+	RemoveAbandoned(ctx context.Context, startedBefore time.Time) error
+	// ConfirmedKeys returns those of the keys a confirmed file names.
+	ConfirmedKeys(ctx context.Context, among []domain.ObjectKey) ([]domain.ObjectKey, error)
 }
 
 // Storage is the file storage, which holds the bytes of each file under its
@@ -56,4 +62,8 @@ type Storage interface {
 	// Remove removes the object under this key. Removing one that does not
 	// exist is no failure.
 	Remove(ctx context.Context, key domain.ObjectKey) error
+	// List lists every object of the bucket, with the time it was last
+	// written, and calls each with them a page at a time. It stops at the
+	// first failure, of the storage or of each.
+	List(ctx context.Context, each func(objects []domain.ListedObject) error) error
 }

@@ -42,6 +42,13 @@ func workerEnvironment() map[string]string {
 		"EMAIL_SMTP_ADDRESS": "mailpit:1025",
 		"EMAIL_FROM_ADDRESS": "no-reply@fabrica.example",
 		"EMAIL_FROM_NAME":    "Fábrica Exemplo",
+		// The worker cleans up the file storage.
+		"FILE_STORAGE_URL":               "http://localhost:3900",
+		"FILE_STORAGE_PUBLIC_URL":        "http://files.localhost",
+		"FILE_STORAGE_REGION":            "garage",
+		"FILE_STORAGE_BUCKET":            "software-factory-files",
+		"FILE_STORAGE_ACCESS_KEY_ID":     "GK0123",
+		"FILE_STORAGE_SECRET_ACCESS_KEY": "a-secret-key",
 	}
 }
 
@@ -174,6 +181,12 @@ func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
 		{config.Worker, "EMAIL_SMTP_ADDRESS"},
 		{config.Worker, "EMAIL_FROM_ADDRESS"},
 		{config.Worker, "EMAIL_FROM_NAME"},
+		{config.Worker, "FILE_STORAGE_URL"},
+		{config.Worker, "FILE_STORAGE_PUBLIC_URL"},
+		{config.Worker, "FILE_STORAGE_REGION"},
+		{config.Worker, "FILE_STORAGE_BUCKET"},
+		{config.Worker, "FILE_STORAGE_ACCESS_KEY_ID"},
+		{config.Worker, "FILE_STORAGE_SECRET_ACCESS_KEY"},
 	}
 	for _, c := range cases {
 		t.Run(string(c.command)+" without "+c.variable, func(t *testing.T) {
@@ -303,7 +316,7 @@ func TestIssueSetupCodeNeedsNeitherTheListenAddressNorTheMigrationRole(t *testin
 	require.NoError(t, err)
 }
 
-func TestTheWorkerNeedsTheDatabaseAndTheSenderOfEmailAndNothingOfTheListeningOfTheAPI(t *testing.T) {
+func TestTheWorkerNeedsTheDatabaseTheSenderOfEmailAndTheFileStorageAndNothingOfTheListeningOfTheAPI(t *testing.T) {
 	loaded, err := config.Load(config.Worker, workerEnvironment())
 
 	require.NoError(t, err)

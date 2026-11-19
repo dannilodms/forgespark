@@ -51,6 +51,34 @@ func NewObjectKey(random io.Reader) (ObjectKey, error) {
 	return ObjectKey(hex.EncodeToString(read)), nil
 }
 
+// ListedObject is an object the listing of the storage found: its key, and
+// when it was last written. A copy is written when it is made.
+type ListedObject struct {
+	Key          ObjectKey
+	LastModified time.Time
+}
+
+// abandonment is how long an upload waits for its confirmation. An upload
+// never confirmed this long after it started is abandoned, and an object no
+// confirmed file names is left behind once it is this old: a failed removal
+// or a confirmation that did not commit leaves such an object.
+const abandonment = 24 * time.Hour
+
+// AbandonedBefore is the instant, a day before now, before which an upload
+// never confirmed is abandoned and an object no confirmed file names is left
+// behind. Both are removed from then on.
+func AbandonedBefore(now time.Time) time.Time {
+	return now.Add(-abandonment)
+}
+
+// IsLeftBehind tells whether the object was last written before the instant
+// an object no confirmed file names is left behind. The object of a file
+// confirmed is never older than its confirmation, because the confirmation
+// writes a copy of it.
+func (o ListedObject) IsLeftBehind(abandonedBefore time.Time) bool {
+	return o.LastModified.Before(abandonedBefore)
+}
+
 // File is a file whose bytes are in the storage. Its upload starts with what
 // the sender declares, and the file can be used once its upload is confirmed:
 // once the object was checked.
