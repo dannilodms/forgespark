@@ -126,6 +126,20 @@ services:
       DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD:?Set POSTGRES_API_PASSWORD, as .env.example does}@postgres:5432/software_factory?sslmode=disable
       SEED_MAILBOX: ${SEED_MAILBOX:?Set SEED_MAILBOX, as .env.example does}
 
+  # The River panel, in development only: it reads and manages the jobs of
+  # the development database as the API role, on a port of the machine.
+  riverui:
+    extends:
+      file: deploy/compose.base.yaml
+      service: riverui
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - 127.0.0.1:${RIVER_PANEL_PORT:?Set RIVER_PANEL_PORT, as .env.example does}:8080
+    environment:
+      DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD}@postgres:5432/software_factory?sslmode=disable
+
 volumes:
   postgres-data:
   garage-data:

@@ -26,6 +26,8 @@ const (
 	IssueSetupCode Command = "issue-setup-code"
 	// Seed is the seed, a binary of its own that fills an empty database.
 	Seed Command = "seed"
+	// Worker is the command that runs the jobs.
+	Worker Command = "worker"
 )
 
 // Config holds every value the binary takes from the environment. Each
@@ -49,6 +51,9 @@ type Config struct {
 	FileStorageAccessKeyID           string        `env:"FILE_STORAGE_ACCESS_KEY_ID"`
 	FileStorageSecretAccessKey       Secret        `env:"FILE_STORAGE_SECRET_ACCESS_KEY"`
 	SeedMailbox                      Mailbox       `env:"SEED_MAILBOX"`
+	WorkerLightQueueMaxJobs          int           `env:"WORKER_LIGHT_QUEUE_MAX_JOBS" envDefault:"10"`
+	WorkerHeavyQueueMaxJobs          int           `env:"WORKER_HEAVY_QUEUE_MAX_JOBS" envDefault:"2"`
+	WorkerShutdownDeadline           time.Duration `env:"WORKER_SHUTDOWN_DEADLINE" envDefault:"20s"`
 }
 
 // requiredBy lists the variables with no default that each command needs. The
@@ -63,6 +68,7 @@ var requiredBy = map[Command][]string{
 	Migrate:        {"MIGRATION_DATABASE_URL"},
 	IssueSetupCode: {"DATABASE_URL", "APP_ORIGIN"},
 	Seed:           {"DATABASE_URL", "SEED_MAILBOX"},
+	Worker:         {"DATABASE_URL"},
 }
 
 // Load reads the environment into a Config for one command. A variable that
@@ -81,6 +87,9 @@ func Load(command Command, environment map[string]string) (Config, error) {
 	found.addWhen(loaded.DatabaseStatementTimeout <= 0, "DATABASE_STATEMENT_TIMEOUT", "is not valid: expected more than zero")
 	found.addWhen(loaded.DatabaseIdleInTransactionTimeout <= 0, "DATABASE_IDLE_IN_TRANSACTION_TIMEOUT", "is not valid: expected more than zero")
 	found.addWhen(loaded.HealthCheckTimeout <= 0, "HEALTH_CHECK_TIMEOUT", "is not valid: expected more than zero")
+	found.addWhen(loaded.WorkerLightQueueMaxJobs < 1, "WORKER_LIGHT_QUEUE_MAX_JOBS", "is not valid: expected at least 1")
+	found.addWhen(loaded.WorkerHeavyQueueMaxJobs < 1, "WORKER_HEAVY_QUEUE_MAX_JOBS", "is not valid: expected at least 1")
+	found.addWhen(loaded.WorkerShutdownDeadline <= 0, "WORKER_SHUTDOWN_DEADLINE", "is not valid: expected more than zero")
 
 	if len(found) > 0 {
 		return Config{}, errors.New("configuration: " + found.line())
@@ -175,7 +184,7 @@ func expectationOf(valueType reflect.Type) string {
 		return "a mailbox such as name@example.com"
 	case reflect.TypeFor[time.Duration]():
 		return "a duration such as 30s"
-	case reflect.TypeFor[int32]():
+	case reflect.TypeFor[int32](), reflect.TypeFor[int]():
 		return "a whole number"
 	}
 	return "another kind of value"

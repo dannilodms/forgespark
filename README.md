@@ -306,7 +306,7 @@ A command of the binary requires only the variables it uses. The ones the binary
 | `SHUTDOWN_DRAIN_DEADLINE` | How long the requests in flight have to finish once the API is told to stop | `20s` |
 | `LOG_LEVEL` | The lowest level the binary logs: `debug`, `info`, `warn` or `error` | `info` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Base URL of the OTLP/HTTP receiver the traces are exported to, such as `http://localhost:4318`. Empty exports nothing | Empty |
-| `DATABASE_URL` | Connection URL of the API role, which reads and writes rows | None: the API and `issue-setup-code` require it |
+| `DATABASE_URL` | Connection URL of the API role, which reads and writes rows | None: the API, `issue-setup-code` and `worker` require it |
 | `MIGRATION_DATABASE_URL` | Connection URL of the migration role, which owns the tables | None: `migrate` requires it |
 | `DATABASE_POOL_MAX_SIZE` | The most connections the pool of the API opens | `10` |
 | `DATABASE_STATEMENT_TIMEOUT` | How long one statement may run | `30s` |
@@ -320,8 +320,11 @@ A command of the binary requires only the variables it uses. The ones the binary
 | `FILE_STORAGE_ACCESS_KEY_ID` | The key the API signs with for the file storage | None: the API requires it |
 | `FILE_STORAGE_SECRET_ACCESS_KEY` | The secret of that key. It is a secret, and never printed | None: the API requires it |
 | `SEED_MAILBOX` | The mailbox the e-mail addresses of the seed are derived from: the administrator is its address tagged `+admin`, the developer `+developer`. Read by the seed binary, not by the API | None: `seed` requires it. `.env.example` holds a fictitious one |
+| `WORKER_LIGHT_QUEUE_MAX_JOBS` | The most jobs of the light queue, such as sending an e-mail, that one worker runs at once | `10` |
+| `WORKER_HEAVY_QUEUE_MAX_JOBS` | The most jobs of the heavy queue, such as converting a file, that one worker runs at once | `2` |
+| `WORKER_SHUTDOWN_DEADLINE` | How long the running jobs have to finish once the worker is told to stop, before they are cancelled and left for the next worker | `20s` |
 
-`.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, the port of Caddy, the port of Garage and the secret its nodes share, the interface Vite listens on, and the connection with which the Go tests create their temporary databases. Garage creates its bucket and its key from the `FILE_STORAGE_` variables.
+`.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, the port of Caddy, the port of Garage and the secret its nodes share, the port of the River panel, the interface Vite listens on, and the connection with which the Go tests create their temporary databases. Garage creates its bucket and its key from the `FILE_STORAGE_` variables.
 
 The variables of what is not built yet (the e-mail server and the rest) are _TBD_, each added with the code that reads it.
 
@@ -334,6 +337,7 @@ Go, Vite+ and Task run on the machine, so a test runs without going through Dock
 | Reverse proxy | Caddy |
 | Database | PostgreSQL |
 | File storage | Garage |
+| Background jobs | The River panel, which shows the jobs and their queues |
 | E-mail | Mailpit, which captures what is sent |
 | Login | Dex as the local provider, or a login code read from Mailpit |
 | LLM provider | A stand-in written in this repository, with fixed answers |
@@ -343,13 +347,13 @@ The seed fills the database with fictitious data, the same on every run. To work
 
 The pipeline calls the same Task targets, so a check that fails there fails the same way on the machine.
 
-Of the table above, PostgreSQL, Garage and Caddy are what run today, beside the API and the app. From a clean machine to a concluded setup, with the prerequisites installed and Docker running:
+Of the table above, PostgreSQL, Garage, the River panel and Caddy are what run today, beside the API, the worker and the app. From a clean machine to a concluded setup, with the prerequisites installed and Docker running:
 
 1. Clone the repository with Git and open a terminal at its root. Every command below runs there.
 2. `task install`. The first time, it downloads Node.js, pnpm, the JavaScript dependencies and the Chromium of the tests, about 330 MB.
 3. `task services`. The first time, it builds the Caddy image, which takes a few minutes.
 4. `task migrate`. The first time, Go downloads the modules of the API and builds it.
-5. `task dev`, which starts the API and the app together. Leave it running.
+5. `task dev`, which starts the API, the worker and the app together. Leave it running.
 6. In a second terminal, `task issue-setup-code`. It prints the setup code and the address of the setup, `http://localhost/setup`.
 7. Open that address. The first load takes a while, because Vite bundles the dependencies of the app. Type the code, fill in the consultancy and its first administrator, a logo and a photo if you have them, review what you typed and conclude.
 
@@ -358,6 +362,8 @@ The app then leads to the login screen, which says the setup is concluded. The l
 To skip the setup, run `task seed` in place of steps 6 and 7. It registers a fictitious consultancy, Fábrica Exemplo, and its administrator, Ana Exemplo, through the same use cases the setup runs, so the data obeys every rule, and the app opens on the login screen. Every run on an empty database creates the same data with the same identifiers, and a run on a database whose setup is concluded changes nothing. The administrator's e-mail is the mailbox of `SEED_MAILBOX` tagged `+admin`: `seed+admin@fabrica.example` with the value of `.env.example`. Nothing in the seed is real.
 
 The browser reaches everything through Caddy, at one address, `http://localhost`: the app, and the API under `/api`. The file storage has a host name of its own, `http://files.localhost`, where the browser sends an image to a URL the API signed; Garage accepts it from the origin of the app only. Nothing is configured by hand: the values of `.env.example` work as they are with Docker Desktop. With Docker Engine on Linux, Caddy reaches the API and Vite only when they listen on every interface: write `API_LISTEN_ADDRESS=0.0.0.0:8080` and `WEB_LISTEN_HOST=0.0.0.0` in a `.env`. When port 80 is taken, change `CADDY_PORT` there and add the port to `APP_ORIGIN` and to `FILE_STORAGE_PUBLIC_URL`.
+
+The worker runs the jobs the API saves, in a light queue and a heavy queue. No job exists yet: until the first one arrives, the worker logs that it has no job kind to run and waits. The River panel shows the jobs of the development database at `http://localhost:8081` (`RIVER_PANEL_PORT`); it runs in development only, until the API serves it to administrators.
 
 `http://localhost/up` answers with the status of the readiness of the API and no body: 503 until the migrations are applied, and 502 while the API is not running. The API itself answers liveness at `http://127.0.0.1:8080/livez` and readiness at `http://127.0.0.1:8080/readyz`, which Caddy does not forward.
 
@@ -368,13 +374,14 @@ The commands, run from the repository root:
 | Command | What it does |
 | --- | --- |
 | `task install` | Installs the JavaScript dependencies, and the Chromium the screen tests run in. Vite+ downloads the versions of Node.js and pnpm that `apps/web/package.json` names |
-| `task services` | Builds the Caddy image, starts the services of development in Docker (PostgreSQL, Garage with its bucket, its key and its cross-origin rule, and Caddy) and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
+| `task services` | Builds the Caddy image, starts the services of development in Docker (PostgreSQL, Garage with its bucket, its key and its cross-origin rule, the River panel and Caddy) and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
 | `task services:stop` | Stops the services of development and keeps their data |
 | `task migrate` | Applies the pending migrations to the development database. A second run applies nothing |
 | `task issue-setup-code` | Issues a setup code in the development database and prints it, with when it stops working, what it opens and the address of the setup |
 | `task seed` | Fills the development database with the fictitious consultancy and its administrator, through the use cases of the setup, so the app opens on the login screen. On a database whose setup is concluded it changes nothing |
-| `task dev` | Starts the API and Vite together. The app opens at `http://localhost`, through Caddy |
+| `task dev` | Starts the API, the worker and Vite together. The app opens at `http://localhost`, through Caddy |
 | `task api` | Starts the API alone, at `http://127.0.0.1:8080` |
+| `task worker` | Starts the worker alone, which runs the jobs of the development database. It stops at once when a migration is pending |
 | `task web` | Starts Vite alone, at port 5173, behind Caddy |
 | `task api:build` | Builds the API binary into `apps/api/bin` |
 | `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there; a test of the file storage writes objects of its own to the bucket of Garage and removes them. Arguments after `--` replace the list of packages |
@@ -400,9 +407,7 @@ The commands, run from the repository root:
 | `task check:quick` | Runs everything `task check` runs except the end-to-end test, for daily use. It needs no free port and does not restart Caddy, so it runs beside `task dev`. Before a pull request, run `task check` |
 | `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
 
-The commands of what is not built yet (the worker) are _TBD_, each written with its code.
-
-sqlc runs with `go tool`, from a module file of its own, `apps/api/sqlc.mod`. The first time on a machine, Go downloads and builds sqlc, which takes several minutes: one of its dependencies has more than a hundred thousand files, and extracting them on Windows can take half an hour. The command looks idle meanwhile. Do not interrupt it, because the extraction starts over. vacuum and oasdiff run the same way, from `apps/api/vacuum.mod` and `apps/api/oasdiff.mod`, and each is built in a few minutes the first time.
+sqlc runs with `go tool`, from a module file of its own, `apps/api/sqlc.mod`. The first time on a machine, Go downloads and builds sqlc, which takes several minutes: one of its dependencies has more than a hundred thousand files, and extracting them on Windows can take half an hour. The command looks idle meanwhile. Do not interrupt it, because the extraction starts over. vacuum and oasdiff run the same way, from `apps/api/vacuum.mod` and `apps/api/oasdiff.mod`, and each is built in a few minutes the first time. So does River's CLI, from `apps/api/river.mod`, which exports the SQL of River's tables for a migration: `go tool -modfile=river.mod river migrate-get --line main --version <n> --up`, run in `apps/api` (see Jobs in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
 The REST contract is `apps/api/openapi.yaml`. It is generated from the operations the API serves, so after changing one, run `task api:spec` and commit the file with the code.
 

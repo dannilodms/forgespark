@@ -86,6 +86,12 @@ tasks:
     cmds:
       - go run ./cmd/api
 
+  worker:
+    desc: Start the worker, which runs the jobs of the development database
+    dir: apps/api
+    cmds:
+      - go run ./cmd/api worker
+
   web:
     desc: Start Vite, which serves the app. Open it through Caddy, at APP_ORIGIN
     dir: apps/web
@@ -95,8 +101,8 @@ tasks:
       - vp dev --host "$WEB_LISTEN_HOST" --port 5173 --strictPort
 
   dev:
-    desc: Start the API and Vite together. The app opens at APP_ORIGIN, through Caddy
-    deps: [api, web, dev:address]
+    desc: Start the API, the worker and Vite together. The app opens at APP_ORIGIN, through Caddy
+    deps: [api, worker, web, dev:address]
 
   dev:address:
     internal: true
