@@ -135,8 +135,9 @@ export function CodeStep({
                     aria-describedby={
                       problem ? "setup-code-problem" : undefined
                     }
+                    // No `onBlur`, as the fields of `shared`: leaving the
+                    // field keeps the answer of the API under it.
                     onChange={(event) => field.handleChange(event.target.value)}
-                    onBlur={field.handleBlur}
                   />
                   {problem ? (
                     <FieldProblemMessage

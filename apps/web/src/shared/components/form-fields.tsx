@@ -26,7 +26,6 @@ type TextFieldApi = {
   name: string
   state: { value: string; meta: { errors: unknown[] } }
   handleChange: (value: string) => void
-  handleBlur: () => void
 }
 
 type FieldTexts = {
@@ -65,7 +64,10 @@ function useFieldParts(
       "aria-required": optional ? undefined : true,
       "aria-describedby":
         describedBy.length > 0 ? describedBy.join(" ") : undefined,
-      onBlur: field.handleBlur,
+      // No `onBlur`: TanStack Form drops the answer of the API on a field
+      // when the field is left, and the line under it with it, which moves
+      // the buttons under the pointer as it presses one. The answer stays
+      // until the value changes or the form is sent again.
     },
     wrap: (control: ReactNode) => (
       <Field data-invalid={problem ? true : undefined}>

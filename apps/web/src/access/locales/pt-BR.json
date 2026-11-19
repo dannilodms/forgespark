@@ -37,6 +37,10 @@
       "noActiveUser": {
         "title": "Nenhum usuário ativo tem este e-mail",
         "todo": "O provedor de login informou o e-mail <email>{{email}}</email>, e nenhum usuário ativo do sistema tem esse e-mail. Peça acesso a um administrador."
+      },
+      "anotherAccountLinked": {
+        "title": "Esta não é a conta vinculada ao seu usuário",
+        "todo": "Seu usuário está vinculado a outra conta deste provedor de login. Entre com essa conta ou com um código de login enviado ao seu e-mail."
       }
     },
     "providers": {

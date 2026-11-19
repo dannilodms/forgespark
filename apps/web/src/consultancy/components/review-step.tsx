@@ -412,7 +412,7 @@ function AdministratorReview({
         // locks the administrator out.
         <p className="rounded-lg border border-border bg-muted px-3 py-2">
           {t(mode.texts.logsInWith)}
-          <span className="block type-title break-all">{typed.email}</span>
+          <span className="block type-title wrap-anywhere">{typed.email}</span>
         </p>
       }
     >

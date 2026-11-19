@@ -561,6 +561,39 @@ describe("concluding the setup", () => {
       )
   })
 
+  // TanStack Form drops the answer of the API on a field when the field is
+  // validated for another cause, blur included: the line under it would
+  // vanish when the person leaves it, and move a button under the pointer
+  // between its press and its release (ticket 05).
+  it("keeps a field the API refused shown when the person leaves the field", async () => {
+    const { screen } = await reachTheReview()
+    api.use(
+      getConcludeSetupMockHandler422(
+        problem(422, "validation_failed", {
+          errors: [
+            {
+              location: "body.administrator.email",
+              code: "email_invalid",
+              params: {},
+              message: "the e-mail is not an address",
+            },
+          ],
+        })
+      )
+    )
+    await screen.getByRole("button", { name: "Conclude the setup" }).click()
+    const email = textField(screen, "E-mail")
+    await expect.element(email).toHaveFocus()
+
+    await userEvent.tab()
+
+    await expect.element(email).not.toHaveFocus()
+    await expect
+      .element(email)
+      .toHaveAccessibleDescription(/Type an e-mail address/)
+    await expect.element(email).toHaveAttribute("aria-invalid", "true")
+  })
+
   it("leads to the first of the steps that hold a refused field, then to the next", async () => {
     const { screen } = await reachTheReview()
     api.use(
@@ -586,9 +619,16 @@ describe("concluding the setup", () => {
 
     await screen.getByRole("button", { name: "Conclude the setup" }).click()
 
+    const city = textField(screen, "City (optional)")
     await expect
-      .element(textField(screen, "City (optional)"))
+      .element(city)
       .toHaveAccessibleDescription(/^Type at most 100 characters\./)
+    // The answer of the API stays on the field until its value changes.
+    await screen.getByRole("button", { name: "Continue" }).click()
+    await expect
+      .element(city)
+      .toHaveAccessibleDescription(/^Type at most 100 characters\./)
+    await city.fill("Campinas")
     await screen.getByRole("button", { name: "Continue" }).click()
     await expect
       .element(listField(screen, "Country"))

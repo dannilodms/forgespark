@@ -65,13 +65,51 @@ function forgetTheSession(queryClient: QueryClient) {
   queryClient.setQueryData(loggedInUserQuery.queryKey, null)
 }
 
+/** The longest path to return to, as the API keeps it. */
+const returnPathMaxLength = 2048
+
 /**
- * Whether a path is a path of the app, which the login may open afterwards:
- * it starts with one slash, so it cannot lead to another origin
- * (`//elsewhere.example`, or a backslash that browsers read as a slash).
+ * Whether a path is a path of the app, which the login may open afterwards,
+ * by the rule the API keeps one by (`NewReturnPath` of `access`): it starts
+ * with one slash, so it cannot lead to another origin (`//elsewhere.example`),
+ * holds no backslash, which browsers read as a slash, no space and no
+ * control character, and is no path under `/api`, which is no screen.
  */
 function isPathOfTheApp(path: string) {
-  return /^\/(?![/\\])/.test(path)
+  if (
+    path.length > returnPathMaxLength ||
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    holdsACharacterNoPathHas(path)
+  ) {
+    return false
+  }
+  const pathname = decodedPathOf(path)
+  return (
+    pathname !== undefined &&
+    pathname !== "/api" &&
+    !pathname.startsWith("/api/")
+  )
+}
+
+/** Whether the text holds a backslash, a space or a control character. */
+function holdsACharacterNoPathHas(text: string) {
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index)
+    if (code < 0x20 || code === 0x7f || code === 0x20 || code === 0x5c) {
+      return true
+    }
+  }
+  return false
+}
+
+/** The path of an address of the app, its escapes read, or none. */
+function decodedPathOf(path: string) {
+  try {
+    return decodeURIComponent(new URL(path, "http://app.invalid").pathname)
+  } catch {
+    return undefined
+  }
 }
 
 /**

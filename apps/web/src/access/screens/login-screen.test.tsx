@@ -181,6 +181,40 @@ describe("the step of the e-mail", () => {
       .toHaveValue("ana@consultancy.example")
   })
 
+  // TanStack Form drops the answer of the API on a field when the field is
+  // left; the line under it would vanish, and move the button under the
+  // pointer between its press and its release (ticket 05).
+  it("keeps the e-mail the API refused shown when the person leaves the field", async () => {
+    api.use(
+      getAskForLoginCodeMockHandler422(
+        problem(422, "validation_failed", {
+          errors: [
+            {
+              location: "body.email",
+              code: "email_invalid",
+              params: {},
+              message: "the e-mail is not an address",
+            },
+          ],
+        })
+      )
+    )
+    const { screen } = await openTheLogin()
+    const field = emailField(screen)
+    await field.fill("ana@consultancy.example")
+    await screen.getByRole("button", { name: "Send a code" }).click()
+    await expect
+      .element(field)
+      .toHaveAccessibleDescription(/Type an e-mail address/)
+
+    await userEvent.tab()
+
+    await expect.element(field).not.toHaveFocus()
+    await expect
+      .element(field)
+      .toHaveAccessibleDescription(/Type an e-mail address/)
+  })
+
   it("shows the limit of Caddy as the setup does", async () => {
     api.use(getAskForLoginCodeMockHandler429(problem(429, "too_many_requests")))
     const { screen } = await openTheLogin()
@@ -483,7 +517,20 @@ describe("the login providers", () => {
       )
   })
 
-  it.for(["//elsewhere.example/", "https://elsewhere.example/", "/"])(
+  // The rule of the API for a path to return to (NewReturnPath): one slash
+  // and no other origin, no backslash, no space or control character, and
+  // no path under /api, which is no screen of the app.
+  it.for([
+    "//elsewhere.example/",
+    "https://elsewhere.example/",
+    "/",
+    "/\\elsewhere.example/",
+    "/api/session/log_out",
+    "/api",
+    "/%61pi/river",
+    "/projects with a space",
+    "/projects\tnew",
+  ])(
     "passes no address to return to for %s, which leads to the root",
     async (returnTo) => {
       const { screen } = await openTheLogin(
@@ -640,6 +687,48 @@ describe("the notices of the login screen", () => {
       )
       .toBeVisible()
   })
+
+  // Trying again with the account of the provider can never work: the user
+  // is known there by another account (story 17).
+  it.each([
+    [
+      "en-US",
+      "This is not the account linked to your user",
+      "Your user is linked to another account of this login provider. Log in with that account, or with a login code sent to your e-mail.",
+    ],
+    [
+      "pt-BR",
+      "Esta não é a conta vinculada ao seu usuário",
+      "Seu usuário está vinculado a outra conta deste provedor de login. Entre com essa conta ou com um código de login enviado ao seu e-mail.",
+    ],
+    [
+      "es",
+      "Esta no es la cuenta vinculada a tu usuario",
+      "Tu usuario está vinculado a otra cuenta de este proveedor de inicio de sesión. Inicia sesión con esa cuenta o con un código de inicio de sesión enviado a tu correo electrónico.",
+    ],
+  ] as const)(
+    "shows another_account_linked, and to use that account or a login code, in %s",
+    async (language, title, todo) => {
+      api.use(
+        getTellSetupStateMockHandler({
+          concluded: true,
+          setup_code_waiting: false,
+        }),
+        nobodyIsLoggedIn(),
+        getTellLoginStateMockHandler({ login_providers: [local] })
+      )
+
+      const { screen } = await renderApp({
+        at: "/login?notice=another_account_linked&return_to=%2Fprojects",
+        languages: [language],
+      })
+
+      const alert = screen.getByRole("alert")
+      await expect.element(alert).toMatchTextContent(title)
+      await expect.element(alert).toMatchTextContent(todo)
+      await expect.element(alert).not.toMatchTextContent(/try again/i)
+    }
+  )
 
   it("shows no notice for no_active_user when no login was refused in this browser", async () => {
     const { screen } = await openTheLogin("/login?notice=no_active_user", {
