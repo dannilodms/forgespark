@@ -100,6 +100,53 @@ func TestTheMigrationsApplyNothingOnASecondRun(t *testing.T) {
 	assert.Empty(t, applied)
 }
 
+// River's tables are written by the API, which saves jobs, and by the worker,
+// which runs them and elects a leader, both as the API role (Jobs in
+// CODING_STANDARDS.md). The reindexer of River rebuilds the indexes of the
+// jobs table, which asks for MAINTAIN on it.
+func TestTheAPIRoleReadsWritesAndReindexesTheTablesOfRiver(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+	ctx := context.Background()
+	connection, err := pgx.Connect(ctx, temporary.APIURL)
+	require.NoError(t, err)
+	defer connection.Close(ctx)
+
+	statements := []string{
+		`INSERT INTO river_job (kind, args, max_attempts, queue) VALUES ('proof', '{"id": 1}', 5, 'light')`,
+		"UPDATE river_job SET state = 'running', attempt = 1, attempted_at = now() WHERE kind = 'proof'",
+		"SELECT count(*) FROM river_job WHERE state = 'running'",
+		"DELETE FROM river_job WHERE kind = 'proof'",
+		"INSERT INTO river_leader (elected_at, expires_at, leader_id) VALUES (now(), now() + interval '10 seconds', 'worker-1')",
+		"DELETE FROM river_leader",
+		"INSERT INTO river_queue (name) VALUES ('light')",
+		"UPDATE river_queue SET paused_at = now() WHERE name = 'light'",
+		"DELETE FROM river_queue",
+		"INSERT INTO river_notification (payload, topic) VALUES ('{}', 'proof')",
+		"DELETE FROM river_notification",
+		"REINDEX INDEX CONCURRENTLY river_job_kind",
+	}
+	for _, statement := range statements {
+		_, err := connection.Exec(ctx, statement)
+		assert.NoError(t, err, statement)
+	}
+}
+
+func TestTheAPIRoleCannotChangeTheTablesOfRiver(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+
+	statements := []string{
+		"ALTER TABLE river_job ADD COLUMN intruder text",
+		"DROP TABLE river_job",
+		"TRUNCATE river_job",
+		"ALTER TYPE river_job_state ADD VALUE 'intruder'",
+	}
+	for _, statement := range statements {
+		assert.Equal(t, insufficientPrivilege, refusal(t, temporary, statement), statement)
+	}
+}
+
 func TestTheAPIRoleAddsAndReadsEntriesOfTheAuditLogAndCannotChangeOrRemoveOne(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.Migrated(t)

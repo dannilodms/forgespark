@@ -154,6 +154,7 @@ func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
 		{config.IssueSetupCode, "APP_ORIGIN"},
 		{config.Seed, "DATABASE_URL"},
 		{config.Seed, "SEED_MAILBOX"},
+		{config.Worker, "DATABASE_URL"},
 	}
 	for _, c := range cases {
 		t.Run(string(c.command)+" without "+c.variable, func(t *testing.T) {
@@ -214,6 +215,11 @@ func TestLoadNamesAnInvalidVariableAndNeverShowsItsValue(t *testing.T) {
 		{"SEED_MAILBOX", "Seed <seed@fabrica.example>", "configuration: SEED_MAILBOX is not valid: expected a mailbox such as name@example.com"},
 		{"SEED_MAILBOX", "seed@fabrica.example, other@fabrica.example", "configuration: SEED_MAILBOX is not valid: expected a mailbox such as name@example.com"},
 		{"SEED_MAILBOX", "@fabrica.example", "configuration: SEED_MAILBOX is not valid: expected a mailbox such as name@example.com"},
+		{"WORKER_LIGHT_QUEUE_MAX_JOBS", "many", "configuration: WORKER_LIGHT_QUEUE_MAX_JOBS is not valid: expected a whole number"},
+		{"WORKER_LIGHT_QUEUE_MAX_JOBS", "0", "configuration: WORKER_LIGHT_QUEUE_MAX_JOBS is not valid: expected at least 1"},
+		{"WORKER_HEAVY_QUEUE_MAX_JOBS", "-1", "configuration: WORKER_HEAVY_QUEUE_MAX_JOBS is not valid: expected at least 1"},
+		{"WORKER_SHUTDOWN_DEADLINE", "soon", "configuration: WORKER_SHUTDOWN_DEADLINE is not valid: expected a duration such as 30s"},
+		{"WORKER_SHUTDOWN_DEADLINE", "0s", "configuration: WORKER_SHUTDOWN_DEADLINE is not valid: expected more than zero"},
 	}
 	for _, c := range cases {
 		t.Run(c.variable+"="+c.value, func(t *testing.T) {
@@ -269,6 +275,31 @@ func TestIssueSetupCodeNeedsNeitherTheListenAddressNorTheMigrationRole(t *testin
 	})
 
 	require.NoError(t, err)
+}
+
+func TestTheWorkerNeedsTheDatabaseAndNothingOfTheListeningOfTheAPI(t *testing.T) {
+	loaded, err := config.Load(config.Worker, map[string]string{
+		"DATABASE_URL": "postgres://api:api-password@localhost:5432/software_factory",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, 10, loaded.WorkerLightQueueMaxJobs)
+	assert.Equal(t, 2, loaded.WorkerHeavyQueueMaxJobs)
+	assert.Equal(t, 20*time.Second, loaded.WorkerShutdownDeadline)
+}
+
+func TestLoadReadsTheVariablesOfTheWorker(t *testing.T) {
+	environment := validEnvironment()
+	environment["WORKER_LIGHT_QUEUE_MAX_JOBS"] = "4"
+	environment["WORKER_HEAVY_QUEUE_MAX_JOBS"] = "1"
+	environment["WORKER_SHUTDOWN_DEADLINE"] = "45s"
+
+	loaded, err := config.Load(config.Worker, environment)
+
+	require.NoError(t, err)
+	assert.Equal(t, 4, loaded.WorkerLightQueueMaxJobs)
+	assert.Equal(t, 1, loaded.WorkerHeavyQueueMaxJobs)
+	assert.Equal(t, 45*time.Second, loaded.WorkerShutdownDeadline)
 }
 
 // The configuration is the one package that reads the environment: the

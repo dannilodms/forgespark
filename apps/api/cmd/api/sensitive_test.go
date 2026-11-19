@@ -96,6 +96,10 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	var migrateOutput, migrateLogs output
 	require.Equal(t, 1, run(context.Background(), []string{"migrate"}, environment, &migrateOutput, &migrateLogs))
 
+	// The worker fails to reach PostgreSQL when it starts.
+	var workerOutput, workerLogs output
+	require.Equal(t, 1, run(context.Background(), []string{"worker"}, environment, &workerOutput, &workerLogs))
+
 	// Two requests carry a sensitive value in each place a request has one:
 	// readiness, which fails and writes its line but opens no span, and an
 	// operation under /api, which opens its span and refuses the unknown
@@ -122,8 +126,9 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	api.signal()
 	require.Equal(t, 0, <-api.status)
 
-	logs := migrateLogs.String() + api.logs.String()
+	logs := migrateLogs.String() + workerLogs.String() + api.logs.String()
 	require.Contains(t, logs, "api: apply the migrations", "the scenario logged nothing about the migrations")
+	require.Contains(t, logs, "the worker stopped", "the scenario logged nothing about the worker")
 	require.Contains(t, logs, "request failed", "the scenario logged no failed request")
 	require.Contains(t, logs, "/api/setup/conclude", "the scenario logged no failed conclusion of the setup")
 	require.Contains(t, collector.Text(), "GET /api/setup", "the scenario exported no span")

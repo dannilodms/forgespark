@@ -47,6 +47,14 @@ type Querier interface {
 	QueryRow(ctx context.Context, sql string, arguments ...any) pgx.Row
 }
 
+// TransactionOf returns the transaction a use case opened with Run, for what
+// needs the transaction itself and not only something to run SQL on, such as
+// saving a job with River. It is false when the context carries none.
+func TransactionOf(ctx context.Context) (pgx.Tx, bool) {
+	transaction, open := ctx.Value(transactionKey{}).(pgx.Tx)
+	return transaction, open
+}
+
 // Within returns where an adapter runs its SQL for this context: the
 // transaction a use case opened with Run, or the pool when there is none, as
 // for a query use case. An adapter calls it in every method and keeps no

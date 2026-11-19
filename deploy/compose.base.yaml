@@ -71,3 +71,11 @@ services:
   garage-cors:
     image: curlimages/curl:8.23.0
     logging: *logging
+
+  # The River panel (ADR-0016), which shows the jobs. Development alone runs
+  # it, until the API serves it behind the session (Jobs in
+  # CODING_STANDARDS.md). Its release is built with a River of its own: it is
+  # updated with the River of go.mod.
+  riverui:
+    image: ghcr.io/riverqueue/riverui:0.22.0
+    logging: *logging
