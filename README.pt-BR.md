@@ -306,7 +306,7 @@ Cada comando do binário exige apenas as variáveis que usa. As que o binário l
 | `SHUTDOWN_DRAIN_DEADLINE` | Quanto tempo as requisições em andamento têm para terminar depois que a API recebe a ordem de parar | `20s` |
 | `LOG_LEVEL` | O menor nível que o binário registra nos logs: `debug`, `info`, `warn` ou `error` | `info` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | URL base do receptor OTLP/HTTP para onde os traces são exportados, como `http://localhost:4318`. Vazia, nada é exportado | Vazio |
-| `DATABASE_URL` | URL de conexão do papel da API, que lê e grava linhas | Nenhum: a API e o `issue-setup-code` exigem |
+| `DATABASE_URL` | URL de conexão do papel da API, que lê e grava linhas | Nenhum: a API, o `issue-setup-code` e o `worker` exigem |
 | `MIGRATION_DATABASE_URL` | URL de conexão do papel de migração, que é dono das tabelas | Nenhum: o `migrate` exige |
 | `DATABASE_POOL_MAX_SIZE` | O máximo de conexões que o pool da API abre | `10` |
 | `DATABASE_STATEMENT_TIMEOUT` | Por quanto tempo um comando SQL pode rodar | `30s` |
@@ -320,8 +320,11 @@ Cada comando do binário exige apenas as variáveis que usa. As que o binário l
 | `FILE_STORAGE_ACCESS_KEY_ID` | A chave com que a API assina para o armazenamento de arquivos | Nenhum: a API exige |
 | `FILE_STORAGE_SECRET_ACCESS_KEY` | O segredo dessa chave. É um segredo e nunca é impresso | Nenhum: a API exige |
 | `SEED_MAILBOX` | A caixa de e-mail de que os endereços do seed derivam: o administrador é o endereço dela com a etiqueta `+admin`, o desenvolvedor com `+developer`. Lida pelo binário do seed, não pela API | Nenhum: o `seed` exige. O `.env.example` traz uma fictícia |
+| `WORKER_LIGHT_QUEUE_MAX_JOBS` | O máximo de trabalhos da fila leve, como enviar um e-mail, que um worker executa ao mesmo tempo | `10` |
+| `WORKER_HEAVY_QUEUE_MAX_JOBS` | O máximo de trabalhos da fila pesada, como converter um arquivo, que um worker executa ao mesmo tempo | `2` |
+| `WORKER_SHUTDOWN_DEADLINE` | Quanto tempo os trabalhos em execução têm para terminar depois que o worker recebe a ordem de parar, antes de serem cancelados e deixados para o próximo worker | `20s` |
 
-O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, a porta do Caddy, a porta do Garage e o segredo que os nós dele compartilham, a interface em que o Vite escuta e a conexão com que os testes em Go criam seus bancos temporários. O Garage cria o seu bucket e a sua chave a partir das variáveis `FILE_STORAGE_`.
+O `.env.example` também guarda o que só o desenvolvimento usa: a porta e as senhas do container do PostgreSQL, a porta do Caddy, a porta do Garage e o segredo que os nós dele compartilham, a porta do painel do River, a interface em que o Vite escuta e a conexão com que os testes em Go criam seus bancos temporários. O Garage cria o seu bucket e a sua chave a partir das variáveis `FILE_STORAGE_`.
 
 As variáveis do que ainda não foi construído (o servidor de e-mail e as demais) estão _A definir_, e cada uma entra com o código que a lê.
 
@@ -334,6 +337,7 @@ Go, Vite+ e Task rodam na máquina, então um teste roda sem passar pelo Docker.
 | Proxy reverso | Caddy |
 | Banco de dados | PostgreSQL |
 | Armazenamento de arquivos | Garage |
+| Trabalhos em segundo plano | O painel do River, que mostra os trabalhos e as suas filas |
 | E-mail | Mailpit, que captura o que é enviado |
 | Login | Dex como provedor local, ou um código de login lido no Mailpit |
 | Provedor de LLM | Um substituto escrito neste repositório, com respostas fixas |
@@ -343,13 +347,13 @@ O seed preenche o banco com dados fictícios, os mesmos a cada execução. Para 
 
 A pipeline chama os mesmos alvos do Task, então uma verificação que falha nela falha do mesmo jeito na máquina.
 
-Da tabela acima, o PostgreSQL, o Garage e o Caddy são o que roda hoje, ao lado da API e do app. De uma máquina limpa até a configuração inicial concluída, com os pré-requisitos instalados e o Docker em execução:
+Da tabela acima, o PostgreSQL, o Garage, o painel do River e o Caddy são o que roda hoje, ao lado da API, do worker e do app. De uma máquina limpa até a configuração inicial concluída, com os pré-requisitos instalados e o Docker em execução:
 
 1. Clone o repositório com o Git e abra um terminal na raiz dele. Todos os comandos abaixo rodam ali.
 2. `task install`. Na primeira vez, ele baixa o Node.js, o pnpm, as dependências JavaScript e o Chromium dos testes, cerca de 330 MB.
 3. `task services`. Na primeira vez, ele gera a imagem do Caddy, o que leva alguns minutos.
 4. `task migrate`. Na primeira vez, o Go baixa os módulos da API e a compila.
-5. `task dev`, que inicia a API e o app juntos. Deixe-o rodando.
+5. `task dev`, que inicia a API, o worker e o app juntos. Deixe-o rodando.
 6. Em um segundo terminal, `task issue-setup-code`. Ele mostra o código de configuração e o endereço da configuração inicial, `http://localhost/setup`.
 7. Abra esse endereço. A primeira carga demora, porque o Vite empacota as dependências do app. Digite o código, preencha a consultoria e o seu primeiro administrador, um logotipo e uma foto se você os tiver, revise o que digitou e conclua.
 
@@ -358,6 +362,8 @@ O app então leva à tela de login, que diz que a configuração inicial foi con
 Para pular a configuração inicial, rode `task seed` no lugar dos passos 6 e 7. Ele cadastra uma consultoria fictícia, a Fábrica Exemplo, e a sua administradora, Ana Exemplo, pelos mesmos casos de uso que a configuração inicial roda, então os dados obedecem a todas as regras, e o app abre na tela de login. Toda execução em um banco vazio cria os mesmos dados com os mesmos identificadores, e uma execução em um banco cuja configuração inicial foi concluída não altera nada. O e-mail da administradora é a caixa de `SEED_MAILBOX` com a etiqueta `+admin`: `seed+admin@fabrica.example` com o valor do `.env.example`. Nada no seed é real.
 
 O navegador chega a tudo pelo Caddy, em um único endereço, `http://localhost`: o app, e a API em `/api`. O armazenamento de arquivos tem um nome de host próprio, `http://files.localhost`, onde o navegador envia uma imagem para uma URL que a API assinou; o Garage só a aceita vinda da origem do app. Nada é configurado à mão: os valores do `.env.example` funcionam como estão com o Docker Desktop. Com o Docker Engine no Linux, o Caddy só alcança a API e o Vite quando eles escutam em todas as interfaces: escreva `API_LISTEN_ADDRESS=0.0.0.0:8080` e `WEB_LISTEN_HOST=0.0.0.0` em um `.env`. Quando a porta 80 estiver ocupada, mude ali o `CADDY_PORT` e acrescente a porta ao `APP_ORIGIN` e ao `FILE_STORAGE_PUBLIC_URL`.
+
+O worker executa os trabalhos que a API grava, em uma fila leve e uma fila pesada. Ainda não existe nenhum trabalho: até o primeiro chegar, o worker registra no log que não tem tipo de trabalho para executar e espera. O painel do River mostra os trabalhos do banco de desenvolvimento em `http://localhost:8081` (`RIVER_PANEL_PORT`); ele roda só em desenvolvimento, até a API servi-lo aos administradores.
 
 `http://localhost/up` responde com o status da prontidão da API e sem corpo: 503 até as migrations serem aplicadas, e 502 enquanto a API não estiver rodando. A própria API responde à verificação de atividade em `http://127.0.0.1:8080/livez` e à de prontidão em `http://127.0.0.1:8080/readyz`, que o Caddy não encaminha.
 
@@ -368,13 +374,14 @@ Os comandos, executados na raiz do repositório:
 | Comando | O que faz |
 | --- | --- |
 | `task install` | Instala as dependências JavaScript e o Chromium em que rodam os testes de tela. O Vite+ baixa as versões de Node.js e pnpm que o `apps/web/package.json` indica |
-| `task services` | Gera a imagem do Caddy, inicia os serviços de desenvolvimento no Docker (o PostgreSQL, o Garage com o seu bucket, a sua chave e a sua regra de origem cruzada, e o Caddy) e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
+| `task services` | Gera a imagem do Caddy, inicia os serviços de desenvolvimento no Docker (o PostgreSQL, o Garage com o seu bucket, a sua chave e a sua regra de origem cruzada, o painel do River e o Caddy) e espera até ficarem saudáveis. Toda cópia de trabalho do repositório, inclusive um worktree do Git, usa os mesmos containers |
 | `task services:stop` | Para os serviços de desenvolvimento e mantém os dados |
 | `task migrate` | Aplica as migrations pendentes no banco de desenvolvimento. Uma segunda execução não aplica nada |
 | `task issue-setup-code` | Emite um código de configuração no banco de desenvolvimento e o mostra, com quando deixa de funcionar, o que abre e o endereço da configuração inicial |
 | `task seed` | Preenche o banco de desenvolvimento com a consultoria fictícia e a sua administradora, pelos casos de uso da configuração inicial, para o app abrir na tela de login. Em um banco cuja configuração inicial foi concluída, não altera nada |
-| `task dev` | Inicia a API e o Vite juntos. O app abre em `http://localhost`, pelo Caddy |
+| `task dev` | Inicia a API, o worker e o Vite juntos. O app abre em `http://localhost`, pelo Caddy |
 | `task api` | Inicia só a API, em `http://127.0.0.1:8080` |
+| `task worker` | Inicia só o worker, que executa os trabalhos do banco de desenvolvimento. Ele para na hora quando há uma migration pendente |
 | `task web` | Inicia só o Vite, na porta 5173, atrás do Caddy |
 | `task api:build` | Gera o binário da API em `apps/api/bin` |
 | `task api:test` | Inicia os serviços e roda os testes em Go. Um teste que precisa do PostgreSQL cria nele o próprio banco temporário; um teste do armazenamento de arquivos grava objetos próprios no bucket do Garage e os remove. Os argumentos depois de `--` substituem a lista de pacotes |
@@ -400,9 +407,7 @@ Os comandos, executados na raiz do repositório:
 | `task check:quick` | Roda tudo o que o `task check` roda, menos o teste de ponta a ponta, para o uso do dia a dia. Não precisa de porta livre nem reinicia o Caddy, então roda ao lado do `task dev`. Antes de um pull request, rode o `task check` |
 | `task check:fix` | Roda as verificações de formato, lint e tipos de `apps/web` e corrige o que for possível |
 
-Os comandos do que ainda não foi construído (o worker) estão _A definir_, e cada um será escrito com o seu código.
-
-O sqlc roda com `go tool`, a partir de um arquivo de módulo só dele, `apps/api/sqlc.mod`. Na primeira vez em uma máquina, o Go baixa e compila o sqlc, o que leva vários minutos: uma das dependências dele tem mais de cem mil arquivos, e extraí-los no Windows chega a levar meia hora. O comando parece parado nesse tempo. Não o interrompa, porque a extração recomeça do zero. O vacuum e o oasdiff rodam do mesmo jeito, a partir de `apps/api/vacuum.mod` e `apps/api/oasdiff.mod`, e cada um é compilado em alguns minutos na primeira vez.
+O sqlc roda com `go tool`, a partir de um arquivo de módulo só dele, `apps/api/sqlc.mod`. Na primeira vez em uma máquina, o Go baixa e compila o sqlc, o que leva vários minutos: uma das dependências dele tem mais de cem mil arquivos, e extraí-los no Windows chega a levar meia hora. O comando parece parado nesse tempo. Não o interrompa, porque a extração recomeça do zero. O vacuum e o oasdiff rodam do mesmo jeito, a partir de `apps/api/vacuum.mod` e `apps/api/oasdiff.mod`, e cada um é compilado em alguns minutos na primeira vez. O mesmo vale para a CLI do River, a partir de `apps/api/river.mod`, que exporta o SQL das tabelas do River para uma migration: `go tool -modfile=river.mod river migrate-get --line main --version <n> --up`, rodado em `apps/api` (veja Jobs no [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
 O contrato REST é o arquivo `apps/api/openapi.yaml`. Ele é gerado a partir das operações que a API serve; por isso, depois de alterar uma delas, rode `task api:spec` e inclua o arquivo no commit junto com o código.
 
