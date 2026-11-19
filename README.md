@@ -313,12 +313,12 @@ A command of the binary requires only the variables it uses. The ones the binary
 | `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT` | How long a transaction may sit idle | `1m` |
 | `HEALTH_CHECK_TIMEOUT` | How long the check of a part may take, readiness included | `2s` |
 | `APP_ORIGIN` | The address people open the app at: a scheme, a host and maybe a port, with nothing after them. `issue-setup-code` builds the address of the setup from it | None: `issue-setup-code` requires it |
-| `FILE_STORAGE_URL` | The origin where the API reaches the S3 API of the file storage | None: the API requires it |
-| `FILE_STORAGE_PUBLIC_URL` | The origin where the browser reaches the file storage. A signed URL is signed for its host name | None: the API requires it |
-| `FILE_STORAGE_REGION` | The region the file storage signs with | None: the API requires it |
-| `FILE_STORAGE_BUCKET` | The one private bucket of the files | None: the API requires it |
-| `FILE_STORAGE_ACCESS_KEY_ID` | The key the API signs with for the file storage | None: the API requires it |
-| `FILE_STORAGE_SECRET_ACCESS_KEY` | The secret of that key. It is a secret, and never printed | None: the API requires it |
+| `FILE_STORAGE_URL` | The origin where the API reaches the S3 API of the file storage | None: the API and `worker` require it |
+| `FILE_STORAGE_PUBLIC_URL` | The origin where the browser reaches the file storage. A signed URL is signed for its host name | None: the API and `worker` require it |
+| `FILE_STORAGE_REGION` | The region the file storage signs with | None: the API and `worker` require it |
+| `FILE_STORAGE_BUCKET` | The one private bucket of the files | None: the API and `worker` require it |
+| `FILE_STORAGE_ACCESS_KEY_ID` | The key the API signs with for the file storage | None: the API and `worker` require it |
+| `FILE_STORAGE_SECRET_ACCESS_KEY` | The secret of that key. It is a secret, and never printed | None: the API and `worker` require it |
 | `SEED_MAILBOX` | The mailbox the e-mail addresses of the seed are derived from: the administrator is its address tagged `+admin`, the developer `+developer`. Read by the seed binary, not by the API | None: `seed` requires it. `.env.example` holds a fictitious one |
 | `WORKER_LIGHT_QUEUE_MAX_JOBS` | The most jobs of the light queue, such as sending an e-mail, that one worker runs at once | `10` |
 | `WORKER_HEAVY_QUEUE_MAX_JOBS` | The most jobs of the heavy queue, such as converting a file, that one worker runs at once | `2` |
@@ -367,7 +367,7 @@ To skip the setup, run `task seed` in place of steps 6 and 7. It registers a fic
 
 The browser reaches everything through Caddy, at one address, `http://localhost`: the app, and the API under `/api`. The file storage has a host name of its own, `http://files.localhost`, where the browser sends an image to a URL the API signed; Garage accepts it from the origin of the app only. Nothing is configured by hand: the values of `.env.example` work as they are with Docker Desktop. With Docker Engine on Linux, Caddy reaches the API and Vite only when they listen on every interface: write `API_LISTEN_ADDRESS=0.0.0.0:8080` and `WEB_LISTEN_HOST=0.0.0.0` in a `.env`. When port 80 is taken, change `CADDY_PORT` there and add the port to `APP_ORIGIN` and to `FILE_STORAGE_PUBLIC_URL`.
 
-The worker runs the jobs the API saves, in a light queue and a heavy queue. Its first job delivers an e-mail: every e-mail the system sends is a record, and its job writes it in the language of the recipient and sends it through SMTP. In development the e-mail goes to Mailpit, which keeps it and delivers nothing: its screen, at `http://localhost:8025` (`MAILPIT_PORT`), shows every e-mail sent. No part of the system asks for an e-mail yet; the login code is the first. The River panel shows the jobs of the development database at `http://localhost:8081` (`RIVER_PANEL_PORT`); it runs in development only, until the API serves it to administrators.
+The worker runs the jobs the API saves, in a light queue and a heavy queue. Its first job delivers an e-mail: every e-mail the system sends is a record, and its job writes it in the language of the recipient and sends it through SMTP. In development the e-mail goes to Mailpit, which keeps it and delivers nothing: its screen, at `http://localhost:8025` (`MAILPIT_PORT`), shows every e-mail sent. No part of the system asks for an e-mail yet; the login code is the first. Every hour, and once when it starts, the worker also cleans up the file storage: it removes the uploads never confirmed a day after they started, and the objects more than a day old that no confirmed file names. The River panel shows the jobs of the development database at `http://localhost:8081` (`RIVER_PANEL_PORT`); it runs in development only, until the API serves it to administrators.
 
 `http://localhost/up` answers with the status of the readiness of the API and no body: 503 until the migrations are applied, and 502 while the API is not running. The API itself answers liveness at `http://127.0.0.1:8080/livez` and readiness at `http://127.0.0.1:8080/readyz`, which Caddy does not forward.
 

@@ -41,7 +41,7 @@ The system runs as one instance of the API, on Docker Compose. Running more than
 - The worker has no readiness to tell, so it checks the schema version when it starts and stops when a migration is pending, as `issue-setup-code` does.
 - Workflows, a concurrency limit across processes and a dead-letter queue are in River's paid edition. A limit here is per worker process, and chaining steps is our code.
 - River deletes a finished job after a day and a discarded one after a week. What must be kept is a domain record.
-- A periodic schedule lives in the memory of the leader. A run can be missed when the leader changes, so a periodic job tolerates it.
+- A periodic schedule lives in the memory of the leader. A run can be missed when the leader changes, so a periodic job tolerates it. Each periodic job also runs when a worker starts (River's `RunOnStart`), so a worker restarted more often than the interval still runs it; the first one, the cleanup of the file storage, runs every hour.
 - A job cut by a shutdown runs again later, so a long job tolerates being restarted. River (v0.51) makes a cut job available again at once and gives its attempt back, provided the job returned the error of its context, so a cut uses up no attempt.
 - A job whose worker died is picked up again only after River's rescue period, one hour by default.
 - The API keeps one connection to PostgreSQL that only listens. An announcement made while the API is not listening is lost, so a screen reads the resource when its stream opens and each time it opens again. The listening connection and the announcement inside the transaction were not tried.
