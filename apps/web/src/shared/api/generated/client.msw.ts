@@ -28,6 +28,7 @@ import type {
   CheckLoginCodeRequest,
   ConcludeSetupRequest,
   LoggedInUser,
+  LoginState,
   OpenSetupRequest,
   OpenedSetup,
   Problem,
@@ -60,6 +61,18 @@ export const getTellLoggedInUserResponseMock500 = (overrideResponse: Partial<Ext
 
 
 export const getLogOutResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+export const getTellLoginStateResponseMock = (overrideResponse: Partial<Extract<LoginState, object>> = {}): LoginState => ({login_providers: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({display_name: faker.string.alpha({length: {min: 10, max: 20}}), key: faker.string.alpha({length: {min: 10, max: 20}})})), refused_email: faker.helpers.arrayElement([faker.internet.email(), undefined]), ...overrideResponse})
+
+
+export const getTellLoginStateResponseMock200 = (overrideResponse: Partial<Extract<LoginState, object>> = {}): LoginState => ({login_providers: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({display_name: faker.string.alpha({length: {min: 10, max: 20}}), key: faker.string.alpha({length: {min: 10, max: 20}})})), refused_email: faker.helpers.arrayElement([faker.internet.email(), undefined]), ...overrideResponse})
+
+
+export const getTellLoginStateResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
         [faker.string.alphanumeric(5)]: {}
       }})), undefined]), params: {
         [faker.string.alphanumeric(5)]: {}
@@ -104,6 +117,50 @@ export const getCheckLoginCodeResponseMock429 = (overrideResponse: Partial<Extra
 
 
 export const getCheckLoginCodeResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+
+export const getConcludeProviderLoginResponseMock404 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getConcludeProviderLoginResponseMock422 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getConcludeProviderLoginResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+
+export const getStartProviderLoginResponseMock404 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getStartProviderLoginResponseMock422 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getStartProviderLoginResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
         [faker.string.alphanumeric(5)]: {}
       }})), undefined]), params: {
         [faker.string.alphanumeric(5)]: {}
@@ -324,6 +381,44 @@ export const getLogOutMockHandler500 = (overrideResponse?: Problem | ((info: Par
   }, options)
 }
 
+export const getTellLoginStateMockHandler = (overrideResponse?: LoginState | ((info: Parameters<HttpResponseResolver>[0]) => Promise<LoginState> | LoginState), options?: RequestHandlerOptions) => {
+  return http.get('*/api/session/login', async (info: Parameters<HttpResponseResolver>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getTellLoginStateResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+
+export const getTellLoginStateMockHandler200 = (overrideResponse?: LoginState | ((info: Parameters<HttpResponseResolver>[0]) => Promise<LoginState> | LoginState), options?: RequestHandlerOptions) => {
+  return http.get('*/api/session/login', async (info: Parameters<HttpResponseResolver>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getTellLoginStateResponseMock200(),
+      { status: 200
+      })
+  }, options)
+}
+
+
+export const getTellLoginStateMockHandler500 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.get('*/api/session/login', async (info: Parameters<HttpResponseResolver>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getTellLoginStateResponseMock500(),
+      { status: 500, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
 export const getAskForLoginCodeMockHandler = (overrideResponse?: void | ((info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
   return http.post<PathParams, AskForLoginCodeRequest>('*/api/session/login_code', async (info: Parameters<HttpResponseResolver<PathParams, AskForLoginCodeRequest>>[0]) => {
   if (typeof overrideResponse === 'function') {await overrideResponse(info); }
@@ -439,6 +534,126 @@ export const getCheckLoginCodeMockHandler500 = (overrideResponse?: Problem | ((i
     return HttpResponse.json(overrideResponse !== undefined
     ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
     : getCheckLoginCodeResponseMock500(),
+      { status: 500, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+export const getConcludeProviderLoginMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get<{ key: string }>('*/api/session/login_providers/:key/callback', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+
+export const getConcludeProviderLoginMockHandler303 = (overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.get<{ key: string }>('*/api/session/login_providers/:key/callback', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 303
+      })
+  }, options)
+}
+
+
+export const getConcludeProviderLoginMockHandler404 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.get<{ key: string }>('*/api/session/login_providers/:key/callback', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getConcludeProviderLoginResponseMock404(),
+      { status: 404, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getConcludeProviderLoginMockHandler422 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.get<{ key: string }>('*/api/session/login_providers/:key/callback', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getConcludeProviderLoginResponseMock422(),
+      { status: 422, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getConcludeProviderLoginMockHandler500 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.get<{ key: string }>('*/api/session/login_providers/:key/callback', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getConcludeProviderLoginResponseMock500(),
+      { status: 500, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+export const getStartProviderLoginMockHandler = (overrideResponse?: unknown | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get<{ key: string }>('*/api/session/login_providers/:key/start', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+
+export const getStartProviderLoginMockHandler302 = (overrideResponse?: void | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.get<{ key: string }>('*/api/session/login_providers/:key/start', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 302
+      })
+  }, options)
+}
+
+
+export const getStartProviderLoginMockHandler404 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.get<{ key: string }>('*/api/session/login_providers/:key/start', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getStartProviderLoginResponseMock404(),
+      { status: 404, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getStartProviderLoginMockHandler422 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.get<{ key: string }>('*/api/session/login_providers/:key/start', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getStartProviderLoginResponseMock422(),
+      { status: 422, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getStartProviderLoginMockHandler500 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.get<{ key: string }>('*/api/session/login_providers/:key/start', async (info: Parameters<HttpResponseResolver<{ key: string }>>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getStartProviderLoginResponseMock500(),
       { status: 500, headers: { 'Content-Type': 'application/problem+json' }
       })
   }, options)
@@ -771,8 +986,11 @@ export const getStartSetupUploadMockHandler500 = (overrideResponse?: Problem | (
 export const getMySoftwareFactoryManagerMock = () => [
   getTellLoggedInUserMockHandler(),
   getLogOutMockHandler(),
+  getTellLoginStateMockHandler(),
   getAskForLoginCodeMockHandler(),
   getCheckLoginCodeMockHandler(),
+  getConcludeProviderLoginMockHandler(),
+  getStartProviderLoginMockHandler(),
   getTellSetupStateMockHandler(),
   getRegisterAdministratorMockHandler(),
   getConcludeSetupMockHandler(),

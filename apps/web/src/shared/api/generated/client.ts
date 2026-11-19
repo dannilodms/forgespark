@@ -12,13 +12,16 @@
 import type {
   AskForLoginCodeRequest,
   CheckLoginCodeRequest,
+  ConcludeProviderLoginParams,
   ConcludeSetupRequest,
   LoggedInUser,
+  LoginState,
   OpenSetupRequest,
   OpenedSetup,
   RegisterAdministratorRequest,
   SetupState,
   SetupUpload,
+  StartProviderLoginParams,
   StartSetupUploadRequest
 } from './model';
 
@@ -94,6 +97,31 @@ export const logOut = async ( options?: Parameters<typeof request>[1]): Promise<
 
 
 
+export const getTellLoginStateUrl = () => {
+
+
+
+
+  return `/api/session/login`
+}
+
+/**
+ * Answers what the login screen needs before anyone is logged in: the login providers turned on, one button each, and the e-mail the last login through a provider in this browser was refused for, because no active user has it, which the screen shows with the notice `no_active_user`: the e-mail travels in this answer and in no address. It needs no session, and reading it forgets nothing.
+ * @summary Tell the state of the login
+ */
+export const tellLoginState = async ( options?: Parameters<typeof request>[1]): Promise<LoginState> => {
+
+  return request<LoginState>(getTellLoginStateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getAskForLoginCodeUrl = () => {
 
 
@@ -139,6 +167,74 @@ export const checkLoginCode = async (checkLoginCodeRequest: CheckLoginCodeReques
     method: 'POST',
     headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     body: JSON.stringify(checkLoginCodeRequest)
+  }
+);}
+
+
+
+export const getConcludeProviderLoginUrl = (key: string,
+    params?: ConcludeProviderLoginParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/session/login_providers/${key}/callback?${stringifiedParams}` : `/api/session/login_providers/${key}/callback`
+}
+
+/**
+ * The login provider sends the browser back here; the generated client does not call it. The state must be the one of the login this browser started, which is used once. The code is exchanged with the verifier, and the ID token validated with its nonce; the user is found by the provider link of the account, or else by the e-mail the token says is verified, and the account is linked. It redirects to the path to return to, logged in, with the cookie of the session set again with a new token. A verified e-mail of no active user redirects to the login screen with the notice `no_active_user`, the e-mail kept for `tell_login_state`; a cancel or an error at the provider, a code it refuses, an e-mail it does not say is verified, or a state that is not the one of this browser redirects with `login_not_concluded`. The query parameters are the ones OAuth defines, and any other the provider adds is not refused. A key of no provider turned on answers `not_found`.
+ * @summary Conclude a login through a login provider
+ */
+export const concludeProviderLogin = async (key: string,
+    params?: ConcludeProviderLoginParams, options?: Parameters<typeof request>[1]): Promise<unknown> => {
+
+  return request<unknown>(getConcludeProviderLoginUrl(key,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getStartProviderLoginUrl = (key: string,
+    params?: StartProviderLoginParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/session/login_providers/${key}/start?${stringifiedParams}` : `/api/session/login_providers/${key}/start`
+}
+
+/**
+ * The browser navigates here from the button of a login provider; the generated client does not call it. It answers a redirect to the provider, with a state, a nonce and the challenge of a PKCE verifier, which the session of this browser keeps, with the path to return to: the answer sets its cookie. When the provider cannot be reached, it redirects to the login screen with the notice `login_not_concluded`. A key of no provider turned on answers `not_found`.
+ * @summary Start a login through a login provider
+ */
+export const startProviderLogin = async (key: string,
+    params?: StartProviderLoginParams, options?: Parameters<typeof request>[1]): Promise<unknown> => {
+
+  return request<unknown>(getStartProviderLoginUrl(key,params),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 
