@@ -22,4 +22,5 @@ type Email struct {
 	SentAt        *time.Time
 	FailedAt      *time.Time
 	FailureCode   *string
+	BouncedAt     *time.Time
 }

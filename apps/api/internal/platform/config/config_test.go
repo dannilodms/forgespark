@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -252,13 +253,15 @@ func TestLoadNamesAnInvalidVariableAndNeverShowsItsValue(t *testing.T) {
 		{"WORKER_HEAVY_QUEUE_MAX_JOBS", "-1", "configuration: WORKER_HEAVY_QUEUE_MAX_JOBS is not valid: expected at least 1"},
 		{"WORKER_SHUTDOWN_DEADLINE", "soon", "configuration: WORKER_SHUTDOWN_DEADLINE is not valid: expected a duration such as 30s"},
 		{"WORKER_SHUTDOWN_DEADLINE", "0s", "configuration: WORKER_SHUTDOWN_DEADLINE is not valid: expected more than zero"},
-		{"EMAIL_SENDER", "postfix", "configuration: EMAIL_SENDER is not valid: expected smtp"},
+		{"EMAIL_SENDER", "postfix", "configuration: EMAIL_SENDER is not valid: expected smtp or resend"},
 		{"EMAIL_SMTP_ADDRESS", "mailpit", "configuration: EMAIL_SMTP_ADDRESS is not valid: expected host:port, with a host"},
 		{"EMAIL_SMTP_ADDRESS", ":1025", "configuration: EMAIL_SMTP_ADDRESS is not valid: expected host:port, with a host"},
 		{"EMAIL_SMTP_ADDRESS", "mailpit:0", "configuration: EMAIL_SMTP_ADDRESS is not valid: expected host:port, with a host"},
 		{"EMAIL_SMTP_ADDRESS", "mailpit:smtp", "configuration: EMAIL_SMTP_ADDRESS is not valid: expected host:port, with a host"},
 		{"EMAIL_FROM_ADDRESS", "no-reply.fabrica.example", "configuration: EMAIL_FROM_ADDRESS is not valid: expected an e-mail address such as name@example.com"},
 		{"EMAIL_FROM_ADDRESS", "Fabrica <no-reply@fabrica.example>", "configuration: EMAIL_FROM_ADDRESS is not valid: expected an e-mail address such as name@example.com"},
+		{"RESEND_WEBHOOK_SECRET", "c2lnbmluZy1rZXk=", "configuration: RESEND_WEBHOOK_SECRET is not valid: expected whsec_ followed by the key in base64"},
+		{"RESEND_WEBHOOK_SECRET", "whsec_not base64!", "configuration: RESEND_WEBHOOK_SECRET is not valid: expected whsec_ followed by the key in base64"},
 	}
 	for _, c := range cases {
 		t.Run(c.variable+"="+c.value, func(t *testing.T) {
@@ -374,4 +377,101 @@ func TestTheEnvironmentIsTheVariablesOfTheProcess(t *testing.T) {
 	read := config.Environment()
 
 	assert.Equal(t, "a value=with an equals sign", read["CONFIG_TEST_VARIABLE"])
+}
+
+// The sender of e-mail chooses the variables the worker needs besides the
+// sender's address and name: the SMTP server, or the key of Resend.
+
+// resendWorkerEnvironment is what the worker needs to send through Resend,
+// and nothing else: no SMTP server.
+func resendWorkerEnvironment() map[string]string {
+	environment := without(workerEnvironment(), "EMAIL_SMTP_ADDRESS")
+	environment["EMAIL_SENDER"] = "resend"
+	environment["RESEND_API_KEY"] = "re_api_key_of_the_tests"
+	return environment
+}
+
+func TestTheWorkerSendsThroughResendWithItsKeyAndNoSMTPServer(t *testing.T) {
+	loaded, err := config.Load(config.Worker, resendWorkerEnvironment())
+
+	require.NoError(t, err)
+	assert.Equal(t, config.ResendSender, loaded.EmailSender)
+	assert.Equal(t, "re_api_key_of_the_tests", loaded.ResendAPIKey.Reveal())
+	assert.Equal(t, "no-reply@fabrica.example", loaded.EmailFromAddress.String())
+}
+
+func TestTheWorkerNeedsTheKeyOfResendOnlyWhenItSendsThroughResend(t *testing.T) {
+	_, throughResend := config.Load(config.Worker, without(resendWorkerEnvironment(), "RESEND_API_KEY"))
+	_, throughSMTP := config.Load(config.Worker, workerEnvironment())
+
+	require.EqualError(t, throughResend, "configuration: RESEND_API_KEY is required")
+	assert.NoError(t, throughSMTP)
+}
+
+func TestTheWorkerNeedsTheSMTPServerOnlyWhenItSendsThroughSMTP(t *testing.T) {
+	_, throughSMTP := config.Load(config.Worker, without(workerEnvironment(), "EMAIL_SMTP_ADDRESS"))
+
+	require.EqualError(t, throughSMTP, "configuration: EMAIL_SMTP_ADDRESS is required")
+}
+
+func TestAWorkerWithNoSenderOfEmailIsToldToChooseOne(t *testing.T) {
+	_, err := config.Load(config.Worker, without(without(workerEnvironment(), "EMAIL_SENDER"), "EMAIL_SMTP_ADDRESS"))
+
+	require.EqualError(t, err, "configuration: EMAIL_SENDER is required")
+}
+
+func TestOnlyTheWorkerNeedsTheKeyOfResend(t *testing.T) {
+	environment := with(validEnvironment(), "EMAIL_SENDER", "resend")
+
+	_, serve := config.Load(config.ServeAPI, environment)
+	_, migrate := config.Load(config.Migrate, environment)
+	_, issue := config.Load(config.IssueSetupCode, environment)
+	_, seed := config.Load(config.Seed, environment)
+
+	assert.NoError(t, serve)
+	assert.NoError(t, migrate)
+	assert.NoError(t, issue)
+	assert.NoError(t, seed)
+}
+
+// The secret of the webhook is optional: with none, the API takes no notice
+// of a bounce.
+func TestTheAPIReadsTheSecretOfTheWebhookOfResendWhenItIsSet(t *testing.T) {
+	key := []byte("the signing key of the webhook!!")
+	withSecret, err := config.Load(config.ServeAPI,
+		with(validEnvironment(), "RESEND_WEBHOOK_SECRET", "whsec_"+base64.StdEncoding.EncodeToString(key)))
+	require.NoError(t, err)
+	withoutSecret, err := config.Load(config.ServeAPI, validEnvironment())
+	require.NoError(t, err)
+	empty, err := config.Load(config.ServeAPI, with(validEnvironment(), "RESEND_WEBHOOK_SECRET", ""))
+	require.NoError(t, err)
+
+	assert.True(t, withSecret.ResendWebhookSecret.IsSet())
+	assert.Equal(t, key, withSecret.ResendWebhookSecret.Key())
+	assert.False(t, withoutSecret.ResendWebhookSecret.IsSet())
+	assert.False(t, empty.ResendWebhookSecret.IsSet())
+}
+
+func TestALoadedConfigurationNeverPrintsTheSecretsOfResend(t *testing.T) {
+	environment := validEnvironment()
+	environment["RESEND_API_KEY"] = "re_printed_key_of_resend"
+	environment["RESEND_WEBHOOK_SECRET"] = "whsec_" + base64.StdEncoding.EncodeToString([]byte("printed-signing-key"))
+	loaded, err := config.Load(config.ServeAPI, environment)
+	require.NoError(t, err)
+
+	for _, printed := range []string{
+		fmt.Sprint(loaded), fmt.Sprintf("%+v", loaded), fmt.Sprintf("%#v", loaded),
+		loaded.ResendAPIKey.String(), loaded.ResendWebhookSecret.String(),
+	} {
+		assert.NotContains(t, printed, "re_printed_key_of_resend")
+		assert.NotContains(t, printed, "printed-signing-key")
+		assert.NotContains(t, printed, base64.StdEncoding.EncodeToString([]byte("printed-signing-key")))
+		assert.NotContains(t, printed, "112 114 105 110 116", "the key as bytes")
+	}
+}
+
+func TestASecretOfAWebhookHasAKey(t *testing.T) {
+	_, err := config.NewWebhookSecret("whsec_")
+
+	require.Error(t, err)
 }

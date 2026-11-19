@@ -78,6 +78,7 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 	}
 	health.Mount(mux, ready, settings.HealthCheckTimeout)
 	mountREST(mux, pool, fileStorageOf(settings, tracing.Provider))
+	mountBounceWebhook(mux, pool, settings)
 
 	listener, err := net.Listen("tcp", settings.ListenAddress.String())
 	if err != nil {

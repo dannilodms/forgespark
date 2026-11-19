@@ -128,6 +128,30 @@ func TestASentEmailIsLoadedWithTheIdentifierTheSenderGaveIt(t *testing.T) {
 	assert.False(t, failed)
 }
 
+func TestABouncedEmailIsLoadedWithWhenItBounced(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+	saved := temporary.queue(t)
+	bouncedAt := noon.Add(4 * time.Minute)
+	temporary.change(t, saved.ID(), func(email *domain.Email) error {
+		return email.MarkSent("4ef8a1c2-0b7d-4f3e-9a51-6d2c8e0f1b37", noon)
+	})
+
+	temporary.change(t, saved.ID(), func(email *domain.Email) error {
+		return email.MarkBounced("4ef8a1c2-0b7d-4f3e-9a51-6d2c8e0f1b37", bouncedAt)
+	})
+
+	loaded, _ := temporary.load(t, saved.ID())
+	assert.Equal(t, domain.Bounced, loaded.Status())
+	loadedAt, bounced := loaded.BouncedAt()
+	assert.True(t, bounced)
+	assert.Equal(t, bouncedAt, loadedAt)
+	messageID, _ := loaded.MessageID()
+	assert.Equal(t, "4ef8a1c2-0b7d-4f3e-9a51-6d2c8e0f1b37", messageID)
+	sentAt, _ := loaded.SentAt()
+	assert.Equal(t, noon, sentAt)
+}
+
 func TestTheTableTakesEveryCodeOfAFailedEmail(t *testing.T) {
 	t.Parallel()
 	temporary := newStored(t)

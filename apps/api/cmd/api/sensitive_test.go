@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	emailpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/postgres"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/resend/resendtest"
 	emailriver "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/river"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/smtp/smtptest"
 	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
@@ -105,14 +106,21 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	})
 	environment["FILE_STORAGE_SECRET_ACCESS_KEY"] = guarded.add("the secret key of the file storage", "guarded-secret-key-of-the-file-storage")
 	withEmailSender(environment)
+	environment["RESEND_API_KEY"] = guarded.add("the key of Resend", "re_guarded-key-of-resend")
+	// The key `guarded-key-of-the-resend-hook`, in base64.
+	environment["RESEND_WEBHOOK_SECRET"] = "whsec_" + guarded.add("the signing secret of the webhook of Resend", "Z3VhcmRlZC1rZXktb2YtdGhlLXJlc2VuZC1ob29r")
 
 	// The migrations fail to apply.
 	var migrateOutput, migrateLogs output
 	require.Equal(t, 1, run(context.Background(), []string{"migrate"}, environment, &migrateOutput, &migrateLogs))
 
-	// The worker fails to reach PostgreSQL when it starts.
+	// The worker fails to reach PostgreSQL when it starts, with each sender
+	// of e-mail.
 	var workerOutput, workerLogs output
 	require.Equal(t, 1, run(context.Background(), []string{"worker"}, environment, &workerOutput, &workerLogs))
+	throughResend := maps.Clone(environment)
+	throughResend["EMAIL_SENDER"] = "resend"
+	require.Equal(t, 1, run(context.Background(), []string{"worker"}, throughResend, &workerOutput, &workerLogs))
 
 	// Two requests carry a sensitive value in each place a request has one:
 	// readiness, which fails and writes its line but opens no span, and an
@@ -137,6 +145,11 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	object(setup, "administrator")["national_id"] = guarded.add("the national ID of a person", "GUARDED-NATIONAL-ID")
 	unreachable := concludeSetup(t, api.url, setup)
 	require.Equal(t, http.StatusInternalServerError, unreachable.status, unreachable.body)
+	// A bounce notice of Resend carries the address of the recipient, and
+	// its signature is checked before the use case fails to reach PostgreSQL.
+	bounce := resendtest.Bounce("4ef8a1c2-resend", 37, guarded.add("the address of a bounced recipient", "Guarded.Bounced@Fabrica.example"))
+	notice := deliverNotice(t, api.url, resendtest.Headers(environment["RESEND_WEBHOOK_SECRET"], "msg_2fKq8bX1", time.Now(), bounce), bounce)
+	require.Equal(t, http.StatusInternalServerError, notice.status, notice.body)
 	api.signal()
 	require.Equal(t, 0, <-api.status)
 
@@ -145,6 +158,7 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	require.Contains(t, logs, "the worker stopped", "the scenario logged nothing about the worker")
 	require.Contains(t, logs, "request failed", "the scenario logged no failed request")
 	require.Contains(t, logs, "/api/setup/conclude", "the scenario logged no failed conclusion of the setup")
+	require.Contains(t, logs, "/api/resend/bounces", "the scenario logged no failed bounce notice")
 	require.Contains(t, collector.Text(), "GET /api/setup", "the scenario exported no span")
 	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")

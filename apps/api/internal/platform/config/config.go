@@ -58,6 +58,8 @@ type Config struct {
 	EmailSMTPAddress                 ServerAddress `env:"EMAIL_SMTP_ADDRESS"`
 	EmailFromAddress                 EmailAddress  `env:"EMAIL_FROM_ADDRESS"`
 	EmailFromName                    string        `env:"EMAIL_FROM_NAME"`
+	ResendAPIKey                     Secret        `env:"RESEND_API_KEY"`
+	ResendWebhookSecret              WebhookSecret `env:"RESEND_WEBHOOK_SECRET"`
 }
 
 // requiredBy lists the variables with no default that each command needs. The
@@ -72,13 +74,30 @@ var requiredBy = map[Command][]string{
 	Migrate:        {"MIGRATION_DATABASE_URL"},
 	IssueSetupCode: {"DATABASE_URL", "APP_ORIGIN"},
 	Seed:           {"DATABASE_URL", "SEED_MAILBOX"},
-	// The worker delivers the e-mails, through SMTP, the only sender so far,
-	// and cleans up the file storage.
+	// The worker delivers the e-mails, through the sender EMAIL_SENDER names,
+	// which needs variables of its own (requiredBySender), and cleans up the
+	// file storage.
 	Worker: {
-		"DATABASE_URL", "EMAIL_SENDER", "EMAIL_SMTP_ADDRESS", "EMAIL_FROM_ADDRESS", "EMAIL_FROM_NAME",
+		"DATABASE_URL", "EMAIL_SENDER", "EMAIL_FROM_ADDRESS", "EMAIL_FROM_NAME",
 		"FILE_STORAGE_URL", "FILE_STORAGE_PUBLIC_URL", "FILE_STORAGE_REGION", "FILE_STORAGE_BUCKET",
 		"FILE_STORAGE_ACCESS_KEY_ID", "FILE_STORAGE_SECRET_ACCESS_KEY",
 	},
+}
+
+// requiredBySender lists the variables each sender of e-mail needs, for a
+// command that requires EMAIL_SENDER: the SMTP server, or the key of Resend.
+var requiredBySender = map[EmailSender][]string{
+	SMTPSender:   {"EMAIL_SMTP_ADDRESS"},
+	ResendSender: {"RESEND_API_KEY"},
+}
+
+// requiredForEmail gives the variables the sender of e-mail the environment
+// names needs, when the command sends e-mail.
+func requiredForEmail(command Command, environment map[string]string) []string {
+	if !slices.Contains(requiredBy[command], "EMAIL_SENDER") {
+		return nil
+	}
+	return requiredBySender[EmailSender(environment["EMAIL_SENDER"])]
 }
 
 // Load reads the environment into a Config for one command. A variable that
@@ -88,7 +107,7 @@ func Load(command Command, environment map[string]string) (Config, error) {
 	var loaded Config
 	found := problems{}
 
-	for _, variable := range requiredBy[command] {
+	for _, variable := range slices.Concat(requiredBy[command], requiredForEmail(command, environment)) {
 		found.addWhen(environment[variable] == "", variable, "is required")
 	}
 	found.addUnparsed(env.ParseWithOptions(&loaded, env.Options{Environment: environment}))
@@ -195,7 +214,9 @@ func expectationOf(valueType reflect.Type) string {
 	case reflect.TypeFor[EmailAddress]():
 		return "an e-mail address such as name@example.com"
 	case reflect.TypeFor[EmailSender]():
-		return "smtp"
+		return "smtp or resend"
+	case reflect.TypeFor[WebhookSecret]():
+		return "whsec_ followed by the key in base64"
 	case reflect.TypeFor[ServerAddress]():
 		return "host:port, with a host"
 	case reflect.TypeFor[time.Duration]():

@@ -33,3 +33,17 @@ func (OperationNotAllowedError) Code() string {
 func (e OperationNotAllowedError) Params() map[string]any {
 	return map[string]any{"operation": string(e.Operation), "status": string(e.Status)}
 }
+
+// BounceOfAnotherMessageError is a bounce reported for a message the e-mail
+// was not sent as, such as one sent by another installation that told the
+// sender the same identifier of an e-mail.
+type BounceOfAnotherMessageError struct{}
+
+func (BounceOfAnotherMessageError) Error() string {
+	return "the bounce is of a message the e-mail was not sent as"
+}
+
+// Code returns the stable code an inbound adapter answers with.
+func (BounceOfAnotherMessageError) Code() string {
+	return "bounce_of_another_message"
+}

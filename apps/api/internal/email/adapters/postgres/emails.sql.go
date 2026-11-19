@@ -12,7 +12,7 @@ import (
 
 const loadEmail = `-- name: LoadEmail :one
 SELECT id, recipient, subject, template, language, reference_kind, reference_id, status,
-       queued_at, message_id, sent_at, failed_at, failure_code
+       queued_at, message_id, sent_at, failed_at, failure_code, bounced_at
 FROM emails
 WHERE id = $1
 FOR UPDATE
@@ -37,6 +37,7 @@ func (q *Queries) LoadEmail(ctx context.Context, id int64) (Email, error) {
 		&i.SentAt,
 		&i.FailedAt,
 		&i.FailureCode,
+		&i.BouncedAt,
 	)
 	return i, err
 }
@@ -55,11 +56,11 @@ func (q *Queries) NextEmailID(ctx context.Context) (int64, error) {
 const saveEmail = `-- name: SaveEmail :exec
 INSERT INTO emails (
     id, recipient, subject, template, language, reference_kind, reference_id, status,
-    queued_at, message_id, sent_at, failed_at, failure_code
+    queued_at, message_id, sent_at, failed_at, failure_code, bounced_at
 )
 VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8,
-    $9, $10, $11, $12, $13
+    $9, $10, $11, $12, $13, $14
 )
 ON CONFLICT (id) DO UPDATE
 SET recipient = excluded.recipient,
@@ -73,7 +74,8 @@ SET recipient = excluded.recipient,
     message_id = excluded.message_id,
     sent_at = excluded.sent_at,
     failed_at = excluded.failed_at,
-    failure_code = excluded.failure_code
+    failure_code = excluded.failure_code,
+    bounced_at = excluded.bounced_at
 `
 
 type SaveEmailParams struct {
@@ -90,6 +92,7 @@ type SaveEmailParams struct {
 	SentAt        *time.Time
 	FailedAt      *time.Time
 	FailureCode   *string
+	BouncedAt     *time.Time
 }
 
 func (q *Queries) SaveEmail(ctx context.Context, arg SaveEmailParams) error {
@@ -107,6 +110,7 @@ func (q *Queries) SaveEmail(ctx context.Context, arg SaveEmailParams) error {
 		arg.SentAt,
 		arg.FailedAt,
 		arg.FailureCode,
+		arg.BouncedAt,
 	)
 	return err
 }

@@ -197,8 +197,43 @@ func TestTheWorkerRefusesToStartWithoutTheDatabaseTheSenderOfEmailOrTheFileStora
 	assert.Equal(t, "api: configuration: DATABASE_URL is required; "+
 		"FILE_STORAGE_URL is required; FILE_STORAGE_PUBLIC_URL is required; FILE_STORAGE_REGION is required; "+
 		"FILE_STORAGE_BUCKET is required; FILE_STORAGE_ACCESS_KEY_ID is required; FILE_STORAGE_SECRET_ACCESS_KEY is required; "+
-		"EMAIL_SENDER is required; EMAIL_SMTP_ADDRESS is required; EMAIL_FROM_ADDRESS is required; EMAIL_FROM_NAME is required\n",
+		"EMAIL_SENDER is required; EMAIL_FROM_ADDRESS is required; EMAIL_FROM_NAME is required\n",
 		stderr.String())
+}
+
+// withResend makes the worker send through Resend, with a key that no
+// account has: the worker calls Resend only when it delivers an e-mail.
+func withResend(environment map[string]string) map[string]string {
+	environment["EMAIL_SENDER"] = "resend"
+	delete(environment, "EMAIL_SMTP_ADDRESS")
+	environment["RESEND_API_KEY"] = "re_no_account_has_this_key"
+	return environment
+}
+
+func TestTheWorkerStartsWithResendAsTheSenderAndNoSMTPServer(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.New(t)
+	_, err := database.Migrate(context.Background(), temporary.MigrationConnection(t), migrations.Files)
+	require.NoError(t, err)
+	worker := launchWorker(t, withResend(workerEnvironmentOf(t, temporary)))
+
+	worker.signal()
+
+	assert.Equal(t, 0, <-worker.status, "%s", worker.logs)
+	assert.NotContains(t, worker.logs.String(), "re_no_account_has_this_key")
+}
+
+func TestTheWorkerRefusesToSendThroughResendWithoutItsKey(t *testing.T) {
+	var stdout, stderr output
+	environment := newStandInStorage(map[string]time.Time{}, false).environment(t, withResend(withEmailSender(map[string]string{
+		"DATABASE_URL": "postgres://api:api@localhost:5432/software_factory",
+	})))
+	delete(environment, "RESEND_API_KEY")
+
+	status := run(context.Background(), []string{"worker"}, environment, &stdout, &stderr)
+
+	assert.Equal(t, 1, status)
+	assert.Equal(t, "api: configuration: RESEND_API_KEY is required\n", stderr.String())
 }
 
 func TestTheWorkerRefusesToStartWithAnInvalidQueueLimit(t *testing.T) {

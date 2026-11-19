@@ -88,8 +88,8 @@ func (r Reference) valid() bool {
 }
 
 // Status is where an e-mail is in its life: queued until the job delivers
-// it, then sent, or failed when the attempts run out. A bounce reported for a
-// sent e-mail makes it bounced.
+// it, then sent, or failed when the attempts run out. A bounce its sender
+// reports for a sent e-mail makes it bounced.
 type Status string
 
 // The statuses of an e-mail.
@@ -110,6 +110,9 @@ const (
 	// MarkFailedOperation records that the last attempt to deliver the e-mail
 	// failed.
 	MarkFailedOperation Operation = "mark_failed"
+	// MarkBouncedOperation records that the server of the recipient refused
+	// for good an e-mail the sender took, as the sender reported.
+	MarkBouncedOperation Operation = "mark_bounced"
 )
 
 // transitions is the transition table of an e-mail (ADR-0022): for each
@@ -118,8 +121,9 @@ var transitions = map[Operation]struct {
 	from []Status
 	to   Status
 }{
-	MarkSentOperation:   {from: []Status{Queued}, to: Sent},
-	MarkFailedOperation: {from: []Status{Queued}, to: Failed},
+	MarkSentOperation:    {from: []Status{Queued}, to: Sent},
+	MarkFailedOperation:  {from: []Status{Queued}, to: Failed},
+	MarkBouncedOperation: {from: []Status{Sent}, to: Bounced},
 }
 
 func (s Status) after(operation Operation) (Status, error) {
@@ -161,6 +165,7 @@ type Email struct {
 	sentAt    *time.Time
 	failedAt  *time.Time
 	failure   FailureCode
+	bouncedAt *time.Time
 }
 
 // Queue creates the record of an e-mail about to be delivered, in the
@@ -201,6 +206,7 @@ type StoredEmail struct {
 	SentAt    *time.Time
 	FailedAt  *time.Time
 	Failure   FailureCode
+	BouncedAt *time.Time
 }
 
 // RestoreEmail rebuilds an e-mail from what an adapter stored. It checks
@@ -219,6 +225,7 @@ func RestoreEmail(stored StoredEmail) *Email {
 		sentAt:    stored.SentAt,
 		failedAt:  stored.FailedAt,
 		failure:   stored.Failure,
+		bouncedAt: stored.BouncedAt,
 	}
 }
 
@@ -267,6 +274,22 @@ func (e *Email) MarkFailed(failure FailureCode, at time.Time) error {
 	return nil
 }
 
+// MarkBounced records that the e-mail sent as this message bounced, as its
+// sender reported. A report of another message, one the e-mail was not sent
+// as, is refused with BounceOfAnotherMessageError.
+func (e *Email) MarkBounced(messageID string, at time.Time) error {
+	next, err := e.status.after(MarkBouncedOperation)
+	if err != nil {
+		return err
+	}
+	if messageID != e.messageID {
+		return BounceOfAnotherMessageError{}
+	}
+	e.status = next
+	e.bouncedAt = &at
+	return nil
+}
+
 // ID returns the identifier of the e-mail.
 func (e *Email) ID() EmailID { return e.id }
 
@@ -311,6 +334,15 @@ func (e *Email) Failure() (FailureCode, time.Time, bool) {
 		return "", time.Time{}, false
 	}
 	return e.failure, *e.failedAt, true
+}
+
+// BouncedAt returns when the sender reported that the e-mail bounced, and
+// false while it did not.
+func (e *Email) BouncedAt() (time.Time, bool) {
+	if e.bouncedAt == nil {
+		return time.Time{}, false
+	}
+	return *e.bouncedAt, true
 }
 
 // Message is an e-mail ready to leave: its recipient, its subject and its two
