@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // Transactions opens and closes the transaction of a use case that writes.
@@ -65,7 +66,7 @@ type UserRepository interface {
 	// EmailInUse tells whether a user, deactivated or not, has this e-mail.
 	// It locks nothing: the use cases that register a user run under the
 	// lock of the one setup code that works, so two of them do not overlap.
-	EmailInUse(ctx context.Context, email domain.Email) (bool, error)
+	EmailInUse(ctx context.Context, email kernel.Email) (bool, error)
 	// Save stores a user whole, with their roles, whether they are new or
 	// changed.
 	Save(ctx context.Context, user *domain.User) error
@@ -82,6 +83,32 @@ type RoleRepository interface {
 	FindByKey(ctx context.Context, key domain.RoleKey) (*domain.Role, bool, error)
 	// Save stores a role whole, whether it is new or changed.
 	Save(ctx context.Context, role *domain.Role) error
+}
+
+// ActiveUserReader reads the users who can log in, shaped for the login and
+// the session, with the keys of their roles, sorted. It leaves the scopes to
+// the use case, which reads them from the roles.
+type ActiveUserReader interface {
+	// ActiveUserWith returns the user who has this e-mail and is not
+	// deactivated, and false when there is none. It locks nothing.
+	ActiveUserWith(ctx context.Context, email kernel.Email) (ActiveUser, bool, error)
+	// ActiveUserOf returns the user with this identifier when they are not
+	// deactivated, and false when there is none. It locks nothing.
+	ActiveUserOf(ctx context.Context, id domain.UserID) (ActiveUser, bool, error)
+}
+
+// ConsultancyReader reads the consultancy as the shell of the app shows it.
+type ConsultancyReader interface {
+	// Read returns the name of the consultancy and the file of its logo, and
+	// false while no consultancy is registered. It locks nothing.
+	Read(ctx context.Context) (ConsultancyNameAndLogo, bool, error)
+}
+
+// ConsultancyNameAndLogo is the name of the consultancy and the file of its
+// logo, which is nil when it has none.
+type ConsultancyNameAndLogo struct {
+	Name       string
+	LogoFileID *domain.FileID
 }
 
 // SetupStateReader reads the state of the setup, shaped for whoever asks.

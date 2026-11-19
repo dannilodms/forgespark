@@ -59,3 +59,15 @@ rules:
         singular:
           - /api/setup
           - /api/health
+          # The consultancy the system is run for: there is one.
+          - /api/consultancy
+          # The session of the browser that calls, its login code and the
+          # state of its login: one each, before the login and after it.
+          - /api/session
+          - /api/session/login_code
+          - /api/session/login
+          # The two navigations of a login through each login provider,
+          # which the browser follows and no client calls: GET, because the
+          # browser is sent there, and named after what they do.
+          - /api/session/login_providers/{key}/start
+          - /api/session/login_providers/{key}/callback

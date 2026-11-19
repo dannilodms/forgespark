@@ -1,26 +1,72 @@
 {
   "login": {
     "heading": "Iniciar sesión",
-    "notBuilt": "El inicio de sesión aún no está construido. Llega con la próxima parte del trabajo en el sistema.",
-    "setupConcluded": {
-      "title": "La configuración inicial está concluida",
-      "todo": "La consultora y su primer administrador están registrados. El administrador inicia sesión aquí cuando exista el inicio de sesión."
+    "notices": {
+      "setupConcluded": {
+        "title": "La configuración inicial está concluida",
+        "todo": "La consultora y su primer administrador están registrados. El administrador inicia sesión aquí abajo."
+      },
+      "setupAlreadyConcluded": {
+        "title": "La configuración inicial ya estaba concluida",
+        "todo": "Alguien la concluyó antes que tú, así que no se guardó nada de lo que escribiste. El administrador registrado entonces inicia sesión aquí abajo."
+      },
+      "setupConcludedWithoutAnswer": {
+        "title": "La configuración inicial está concluida",
+        "todo": "Un intento anterior de concluirla quedó sin respuesta: puede haber concluido la configuración con lo que escribiste, o alguien puede haberla concluido antes que tú. El administrador registrado entonces inicia sesión aquí abajo."
+      },
+      "administratorRegistered": {
+        "title": "El administrador está registrado",
+        "todo": "El nuevo administrador inicia sesión aquí abajo. Los usuarios que ya existían no se modificaron."
+      },
+      "administratorRegisteredWithoutAnswer": {
+        "title": "Puede que el administrador esté registrado",
+        "todo": "Un intento anterior de registrar al administrador quedó sin respuesta: puede haberlo registrado con el correo electrónico escrito entonces. Intenta iniciar sesión aquí abajo con ese correo electrónico. Los usuarios que ya existían no se modificaron."
+      },
+      "sessionEnded": {
+        "title": "Tu sesión terminó",
+        "todo": "Inicia sesión de nuevo para volver a donde estabas."
+      },
+      "loggedOut": {
+        "title": "Cerraste la sesión",
+        "todo": "Para volver a usar el sistema, inicia sesión aquí abajo."
+      },
+      "loginNotConcluded": {
+        "title": "El inicio de sesión no se concluyó",
+        "todo": "Se canceló en el proveedor de inicio de sesión, o falló allí. Puedes intentarlo de nuevo aquí abajo."
+      },
+      "noActiveUser": {
+        "title": "Ningún usuario activo tiene este correo electrónico",
+        "todo": "El proveedor de inicio de sesión dio el correo electrónico <email>{{email}}</email>, y ningún usuario activo del sistema lo tiene. Pide acceso a un administrador."
+      },
+      "anotherAccountLinked": {
+        "title": "Esta no es la cuenta vinculada a tu usuario",
+        "todo": "Tu usuario está vinculado a otra cuenta de este proveedor de inicio de sesión. Inicia sesión con esa cuenta o con un código de inicio de sesión enviado a tu correo electrónico."
+      }
     },
-    "setupAlreadyConcluded": {
-      "title": "La configuración inicial ya estaba concluida",
-      "todo": "Alguien la concluyó antes que tú, así que no se guardó nada de lo que escribiste. El administrador registrado entonces inicia sesión aquí cuando exista el inicio de sesión."
+    "providers": {
+      "logInWith": "Iniciar sesión con {{name}}",
+      "or": "o"
     },
-    "setupConcludedWithoutAnswer": {
-      "title": "La configuración inicial está concluida",
-      "todo": "Un intento anterior de concluirla quedó sin respuesta: puede haber concluido la configuración con lo que escribiste, o alguien puede haberla concluido antes que tú. El administrador registrado entonces inicia sesión aquí cuando exista el inicio de sesión."
+    "email": {
+      "intro": "Escribe el correo electrónico con el que inicias sesión, y se le envía un código de inicio de sesión.",
+      "label": "Correo electrónico",
+      "submit": "Enviar un código",
+      "codeEnded": {
+        "title": "Este código ya no funciona",
+        "todo": "Pide un código nuevo y escribe el del nuevo correo electrónico."
+      }
     },
-    "administratorRegistered": {
-      "title": "El administrador está registrado",
-      "todo": "El nuevo administrador inicia sesión aquí cuando exista el inicio de sesión. Los usuarios que ya existían no se modificaron."
-    },
-    "administratorRegisteredWithoutAnswer": {
-      "title": "Puede que el administrador esté registrado",
-      "todo": "Un intento anterior de registrar al administrador quedó sin respuesta: puede haberlo registrado con el correo electrónico escrito entonces. Cuando exista el inicio de sesión, intenta iniciar sesión aquí con ese correo electrónico. Los usuarios que ya existían no se modificaron."
+    "code": {
+      "intro": "Si <email>{{email}}</email> pertenece a un usuario, se le envió un código de inicio de sesión. Escribe sus seis dígitos.",
+      "label": "Código de inicio de sesión",
+      "submit": "Iniciar sesión",
+      "back": "Usar otro correo electrónico",
+      "newCode": "Enviar un código nuevo",
+      "newCodeIn": "Puedes pedir un código nuevo en {{wait, seconds}}."
     }
+  },
+  "userMenu": {
+    "open": "Menú de {{name}}",
+    "logOut": "Cerrar sesión"
   }
 }

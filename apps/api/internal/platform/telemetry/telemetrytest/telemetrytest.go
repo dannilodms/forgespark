@@ -43,6 +43,15 @@ type Span struct {
 	ParentSpanID string
 	// Attributes holds the attributes whose value is a text.
 	Attributes map[string]string
+	// Links are the spans this span points at without descending from them,
+	// as the span that runs a job points at the one that saved it.
+	Links []SpanLink
+}
+
+// SpanLink names a span another span points at, in hexadecimal.
+type SpanLink struct {
+	TraceID string
+	SpanID  string
 }
 
 // NewCollector starts a collector that lives until the test ends and answers
@@ -142,9 +151,21 @@ func spansOfScope(service string, scope *tracepb.ScopeSpans) []Span {
 			SpanID:       hex.EncodeToString(span.GetSpanId()),
 			ParentSpanID: hex.EncodeToString(span.GetParentSpanId()),
 			Attributes:   textAttributes(span.GetAttributes()),
+			Links:        linksOf(span.GetLinks()),
 		})
 	}
 	return spans
+}
+
+func linksOf(links []*tracepb.Span_Link) []SpanLink {
+	var read []SpanLink
+	for _, link := range links {
+		read = append(read, SpanLink{
+			TraceID: hex.EncodeToString(link.GetTraceId()),
+			SpanID:  hex.EncodeToString(link.GetSpanId()),
+		})
+	}
+	return read
 }
 
 func textAttributes(attributes []*commonpb.KeyValue) map[string]string {

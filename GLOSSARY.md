@@ -38,6 +38,10 @@ _Avoid_: Super admin, root user, initial password, bootstrap token
 Whoever installs the system and runs its commands on the server, acting as no user. The audit log names the installer as the one who issued a setup code.
 _Avoid_: Operator, system administrator, root, admin
 
+**Seed**:
+The command that fills an empty database with a fictitious consultancy and its users, through the use cases of the setup, the same on every run, so that development and staging open on the login screen. Production never runs it.
+_Avoid_: Fixtures, sample data, demo data, bootstrap
+
 **Tax ID**:
 The identifier a country's tax authority gives a company, such as the CNPJ in Brazil. It is read together with the country of the company.
 _Avoid_: CNPJ, VAT number, company number
@@ -60,9 +64,25 @@ _Avoid_: API key, personal access token
 A six-digit code the system sends to a user's e-mail so that they can log in without a login provider. It works once, for a short time, and stops working after three wrong attempts.
 _Avoid_: Token, OTP, PIN, verification code
 
+**Login code request**:
+The record that a login code was asked for a user, from which the code is computed whenever it is needed; the code itself is kept nowhere. A new one ends the one before.
+_Avoid_: OTP request, code record, challenge
+
 **Login provider**:
 An outside service through which a user proves who they are in order to log in, such as Google, Microsoft or GitHub.
 _Avoid_: Identity provider, SSO, social login, external provider
+
+**Local login provider**:
+A login provider that exists only in development and tests, turned on by configuration and backed by an identity container with a fixed list of people. Production and staging never have one.
+_Avoid_: Dex, mock provider, dev login, fake login
+
+**Provider link**:
+The record that a user is the holder of one account at a login provider, kept from the first login through it. A user can have several, one per provider.
+_Avoid_: Linked account, identity, connection
+
+**Session**:
+A user's presence in the system from a login to a logout, kept by the system and known to the browser only by an opaque cookie. It ends after 7 days without use, 30 days after the login, or when the user is deactivated.
+_Avoid_: Token, auth state, logged-in state
 
 **Scope**:
 What a role or an access token allows: read or write in one area of the system. Reading the value of a credential is a scope of its own. An access token never allows more than the roles of its user do.

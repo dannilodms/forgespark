@@ -1,6 +1,6 @@
 // Command api is the binary of the backend. With no command it serves the
-// API, `migrate` applies the pending migrations and `issue-setup-code` issues
-// the setup code that opens the setup.
+// API, `migrate` applies the pending migrations, `issue-setup-code` issues
+// the setup code that opens the setup and `worker` runs the jobs.
 //
 // Each command wires its own dependencies by hand, in its own file: it reads
 // the configuration, builds what the command needs and passes each part to
@@ -31,6 +31,7 @@ Commands:
   (none)              Serve the API
   migrate             Apply the pending migrations
   issue-setup-code    Issue the setup code that opens the setup
+  worker              Run the jobs
 
 The configuration comes from environment variables: see .env.example.
 `
@@ -84,6 +85,7 @@ var commands = map[string]func(ctx context.Context, environment map[string]strin
 	"":                 serveAPI,
 	"migrate":          migrate,
 	"issue-setup-code": issueSetupCode,
+	"worker":           workJobs,
 }
 
 // tracedDatabase starts the tracing of a command, under the service "api",

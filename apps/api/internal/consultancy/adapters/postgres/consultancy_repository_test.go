@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
 )
 
@@ -187,6 +188,38 @@ func TestAConsultancySavedInATransactionThatFailsIsNotKept(t *testing.T) {
 	exists, err := temporary.consultancies.Exists(context.Background())
 	require.NoError(t, err)
 	assert.False(t, exists)
+}
+
+// The shell of the app reads the name of the consultancy and the file of its
+// logo.
+func TestTheConsultancyIsReadWithItsNameAndTheFileOfItsLogo(t *testing.T) {
+	t.Parallel()
+	withLogo := newStored(t)
+	withoutLogo := newStored(t)
+	typed := fullConsultancy
+	typed.LogoFileID = withLogo.aFile(t, "consultancy_logo")
+	require.NoError(t, withLogo.register(t, typed))
+	require.NoError(t, withoutLogo.register(t, fullConsultancy))
+
+	read, found, err := withLogo.consultancy.Read(context.Background())
+	require.NoError(t, err)
+	readWithout, foundWithout, err := withoutLogo.consultancy.Read(context.Background())
+	require.NoError(t, err)
+
+	require.True(t, found)
+	assert.Equal(t, application.ConsultancyNameAndLogo{Name: "Fábrica de Software", LogoFileID: &typed.LogoFileID}, read)
+	require.True(t, foundWithout)
+	assert.Equal(t, application.ConsultancyNameAndLogo{Name: "Fábrica de Software", LogoFileID: nil}, readWithout)
+}
+
+func TestNoConsultancyIsReadBeforeTheSetupIsConcluded(t *testing.T) {
+	t.Parallel()
+	temporary := newStored(t)
+
+	_, found, err := temporary.consultancy.Read(context.Background())
+
+	require.NoError(t, err)
+	assert.False(t, found)
 }
 
 func TestTheStateOfTheSetupFollowsTheSetupCodesAndTheConsultancy(t *testing.T) {

@@ -200,6 +200,22 @@ func (limitedByCaddy) Code() string {
 	return codeOfStatus(http.StatusTooManyRequests)
 }
 
+// NotFound is the answer, 404, of an operation whose path names nothing that
+// exists, such as a login provider that is not turned on. Its code is the
+// one of its status, `not_found`. An operation that answers it lists it under
+// 404, and its handler returns it.
+var NotFound kernel.BrokenRule = notFound{}
+
+type notFound struct{}
+
+func (notFound) Error() string {
+	return "the path names nothing that exists"
+}
+
+func (notFound) Code() string {
+	return codeOfStatus(http.StatusNotFound)
+}
+
 // fieldRule is a rule an operation declares about one field.
 type fieldRule struct {
 	kernel.BrokenRule

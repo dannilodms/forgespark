@@ -22,6 +22,77 @@ func (q *Queries) EmailInUse(ctx context.Context, email string) (bool, error) {
 	return exists, err
 }
 
+const findActiveUser = `-- name: FindActiveUser :one
+SELECT users.id, users.name, users.email, users.preferred_language, users.photo_file_id,
+       coalesce(array_agg(roles.key ORDER BY roles.key) FILTER (WHERE roles.key IS NOT NULL), '{}')::text[] AS role_keys
+FROM users
+LEFT JOIN user_roles ON user_roles.user_id = users.id
+LEFT JOIN roles ON roles.id = user_roles.role_id
+WHERE users.email = $1 AND NOT users.deactivated
+GROUP BY users.id
+`
+
+type FindActiveUserRow struct {
+	ID                int64
+	Name              string
+	Email             string
+	PreferredLanguage string
+	PhotoFileID       *int64
+	RoleKeys          []string
+}
+
+// The user who logs in with the e-mail, when they can: a deactivated user is
+// not found. The e-mail is stored in lowercase, and the parameter is too.
+// The keys of their roles come sorted.
+func (q *Queries) FindActiveUser(ctx context.Context, email string) (FindActiveUserRow, error) {
+	row := q.db.QueryRow(ctx, findActiveUser, email)
+	var i FindActiveUserRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PreferredLanguage,
+		&i.PhotoFileID,
+		&i.RoleKeys,
+	)
+	return i, err
+}
+
+const findActiveUserByID = `-- name: FindActiveUserByID :one
+SELECT users.id, users.name, users.email, users.preferred_language, users.photo_file_id,
+       coalesce(array_agg(roles.key ORDER BY roles.key) FILTER (WHERE roles.key IS NOT NULL), '{}')::text[] AS role_keys
+FROM users
+LEFT JOIN user_roles ON user_roles.user_id = users.id
+LEFT JOIN roles ON roles.id = user_roles.role_id
+WHERE users.id = $1 AND NOT users.deactivated
+GROUP BY users.id
+`
+
+type FindActiveUserByIDRow struct {
+	ID                int64
+	Name              string
+	Email             string
+	PreferredLanguage string
+	PhotoFileID       *int64
+	RoleKeys          []string
+}
+
+// The user of a session, read on every request with the keys of their roles,
+// sorted: a deactivated user is not found.
+func (q *Queries) FindActiveUserByID(ctx context.Context, id int64) (FindActiveUserByIDRow, error) {
+	row := q.db.QueryRow(ctx, findActiveUserByID, id)
+	var i FindActiveUserByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PreferredLanguage,
+		&i.PhotoFileID,
+		&i.RoleKeys,
+	)
+	return i, err
+}
+
 const giveUserRoles = `-- name: GiveUserRoles :exec
 INSERT INTO user_roles (user_id, role_id)
 SELECT $1, unnest($2::bigint[])

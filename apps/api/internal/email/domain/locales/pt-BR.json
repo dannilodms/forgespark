@@ -1,0 +1,9 @@
+{
+  "login_code": {
+    "subject": "Seu código de login",
+    "heading": "Seu código de login",
+    "instruction": "Digite este código na tela de login para entrar:",
+    "lifetime": "Ele funciona por {{.Minutes}} minutos, uma única vez, no navegador em que você o pediu.",
+    "ignore": "Se você não pediu este código, ignore este e-mail. Ninguém entra com o seu e-mail sem ele."
+  }
+}

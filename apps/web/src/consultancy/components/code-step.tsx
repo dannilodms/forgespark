@@ -22,7 +22,7 @@ import {
   setupCodeContract,
   useOpenSetup,
 } from "../data/setup"
-import { StepActions } from "./step-actions"
+import { StepActions } from "../../shared/components/step-actions"
 
 /**
  * The step of the setup code: one field and one primary button. A code that
@@ -135,8 +135,9 @@ export function CodeStep({
                     aria-describedby={
                       problem ? "setup-code-problem" : undefined
                     }
+                    // No `onBlur`, as the fields of `shared`: leaving the
+                    // field keeps the answer of the API under it.
                     onChange={(event) => field.handleChange(event.target.value)}
-                    onBlur={field.handleBlur}
                   />
                   {problem ? (
                     <FieldProblemMessage

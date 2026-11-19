@@ -11,7 +11,7 @@
 
 Client and project manager: a centralized platform for managing clients, projects and software development requests.
 
-> **Status:** the foundation is built. A new install runs in development and can be set up, with its consultancy and its first administrator (see [Local development](#local-development)). The login and everything after it are not built yet; sections marked _TBD_ are filled in as the project evolves.
+> **Status:** the foundation, the setup and the login are built. A new install runs in development and can be set up, with its consultancy and its first administrator, who then logs in, through a login provider or with a login code sent by e-mail, and lands in the shell of the app (see [Local development](#local-development)). The areas of work, such as clients and projects, and everything after them are not built yet; sections marked _TBD_ are filled in as the project evolves.
 
 ## Contents
 
@@ -96,7 +96,7 @@ An agent enters with an access token that a user created for it, limited by scop
 
 Data is read from and written to PostgreSQL. Files travel straight between the browser and the storage, through signed URLs that the API issues. Work that nobody waits for on a screen is saved as a job and run by the worker: sending e-mail, processing files, calls to LLM providers.
 
-The kinds of user, and what each one may do, are not modelled yet.
+A user holds roles: the administrator and the developer exist from the setup on (see [ADR-0026](docs/adr/0026-a-role-is-a-record-that-grants-scopes-fixed-in-the-code.md)). What each role may do, its scopes, arrives with the areas that check them.
 
 ## Architecture
 
@@ -138,6 +138,7 @@ flowchart TB
     api -->|"login"| idp
     binary --> llm
     worker --> mail
+    mail -->|"bounces"| caddy
     binary -->|"files"| storage
     db -->|"backups,<br/>pgBackRest"| storage
     spa -->|"files, through<br/>signed URLs"| storage
@@ -281,7 +282,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 
 Each minimum is the version in use on the maintainer's machine, recorded in [`docs/machine-tools.yaml`](docs/machine-tools.yaml). No earlier version has been tried. Git clones the repository.
 
-Development takes five ports of the machine: 80 (Caddy), 5432 (PostgreSQL), 3900 (Garage), 8080 (the API) and 5173 (Vite). A `.env` moves the first three (see below); Caddy forwards to the last two.
+Development takes nine ports of the machine: 80 (Caddy), 5432 (PostgreSQL), 3900 (Garage), 1025 and 8025 (Mailpit), 5556 (Dex), 8081 (the River panel), 8080 (the API) and 5173 (Vite). A `.env` moves all but the last two (see below); Caddy forwards to those two.
 
 The installed Go only downloads the toolchain that `go.mod` names. Every other version the build uses is pinned in the repository (see Versions in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
@@ -306,23 +307,41 @@ A command of the binary requires only the variables it uses. The ones the binary
 | `SHUTDOWN_DRAIN_DEADLINE` | How long the requests in flight have to finish once the API is told to stop | `20s` |
 | `LOG_LEVEL` | The lowest level the binary logs: `debug`, `info`, `warn` or `error` | `info` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Base URL of the OTLP/HTTP receiver the traces are exported to, such as `http://localhost:4318`. Empty exports nothing | Empty |
-| `DATABASE_URL` | Connection URL of the API role, which reads and writes rows | None: the API and `issue-setup-code` require it |
+| `DATABASE_URL` | Connection URL of the API role, which reads and writes rows | None: the API, `issue-setup-code` and `worker` require it |
 | `MIGRATION_DATABASE_URL` | Connection URL of the migration role, which owns the tables | None: `migrate` requires it |
 | `DATABASE_POOL_MAX_SIZE` | The most connections the pool of the API opens | `10` |
 | `DATABASE_STATEMENT_TIMEOUT` | How long one statement may run | `30s` |
 | `DATABASE_IDLE_IN_TRANSACTION_TIMEOUT` | How long a transaction may sit idle | `1m` |
 | `HEALTH_CHECK_TIMEOUT` | How long the check of a part may take, readiness included | `2s` |
-| `APP_ORIGIN` | The address people open the app at: a scheme, a host and maybe a port, with nothing after them. `issue-setup-code` builds the address of the setup from it | None: `issue-setup-code` requires it |
-| `FILE_STORAGE_URL` | The origin where the API reaches the S3 API of the file storage | None: the API requires it |
-| `FILE_STORAGE_PUBLIC_URL` | The origin where the browser reaches the file storage. A signed URL is signed for its host name | None: the API requires it |
-| `FILE_STORAGE_REGION` | The region the file storage signs with | None: the API requires it |
-| `FILE_STORAGE_BUCKET` | The one private bucket of the files | None: the API requires it |
-| `FILE_STORAGE_ACCESS_KEY_ID` | The key the API signs with for the file storage | None: the API requires it |
-| `FILE_STORAGE_SECRET_ACCESS_KEY` | The secret of that key. It is a secret, and never printed | None: the API requires it |
+| `APP_ORIGIN` | The address people open the app at: a scheme, a host and maybe a port, with nothing after them. `issue-setup-code` builds the address of the setup from it, and the API sends the cookie of the session over HTTPS only when it is `https`, and refuses a request that changes state with that cookie from any other origin | None: the API and `issue-setup-code` require it |
+| `FILE_STORAGE_URL` | The origin where the API reaches the S3 API of the file storage | None: the API and `worker` require it |
+| `FILE_STORAGE_PUBLIC_URL` | The origin where the browser reaches the file storage. A signed URL is signed for its host name | None: the API and `worker` require it |
+| `FILE_STORAGE_REGION` | The region the file storage signs with | None: the API and `worker` require it |
+| `FILE_STORAGE_BUCKET` | The one private bucket of the files | None: the API and `worker` require it |
+| `FILE_STORAGE_ACCESS_KEY_ID` | The key the API signs with for the file storage | None: the API and `worker` require it |
+| `FILE_STORAGE_SECRET_ACCESS_KEY` | The secret of that key. It is a secret, and never printed | None: the API and `worker` require it |
+| `LOGIN_CODE_KEY` | The key the login codes are computed with: at least 32 bytes in hexadecimal, as `openssl rand -hex 32` writes them. It is a secret, and never printed. Changing it ends only the codes not yet used | None: the API and `worker` require it. `.env.example` holds one for development |
+| `SEED_MAILBOX` | The mailbox the e-mail addresses of the seed are derived from: the administrator is its address tagged `+admin`, the developer `+developer`. Read by the seed binary, not by the API | None: `seed` requires it. `.env.example` holds a fictitious one |
+| `WORKER_LIGHT_QUEUE_MAX_JOBS` | The most jobs of the light queue, such as sending an e-mail, that one worker runs at once | `10` |
+| `WORKER_HEAVY_QUEUE_MAX_JOBS` | The most jobs of the heavy queue, such as converting a file, that one worker runs at once | `2` |
+| `WORKER_SHUTDOWN_DEADLINE` | How long the running jobs have to finish once the worker is told to stop, before they are cancelled and left for the next worker | `20s` |
+| `EMAIL_SENDER` | What the worker sends e-mail through: `smtp`, an SMTP server, or `resend`, the API of Resend, in production | None: `worker` requires it |
+| `EMAIL_SMTP_ADDRESS` | The SMTP server, as `host:port` with a host: Mailpit outside production | None: `worker` requires it while `EMAIL_SENDER` is `smtp` |
+| `EMAIL_FROM_ADDRESS` | The address every e-mail is sent from | None: `worker` requires it. `.env.example` holds a fictitious one |
+| `EMAIL_FROM_NAME` | The name every e-mail is sent from | None: `worker` requires it. `.env.example` holds a fictitious one |
+| `RESEND_API_KEY` | The key of the Resend account. It is a secret, and never printed | None: `worker` requires it while `EMAIL_SENDER` is `resend` |
+| `RESEND_WEBHOOK_SECRET` | The signing secret of the webhook through which Resend reports a bounce, as Resend shows it: `whsec_` followed by the key in base64. With it, the API takes the notices at `/api/resend/bounces`, the address to register in Resend for the event `email.bounced`; without it, that path is unknown | Empty: no webhook |
+| `LOCAL_LOGIN_PROVIDER_KEY` | The key of the local login provider, an OpenID Connect provider for development and the tests: it names the provider in the paths of its login (`/api/session/login_providers/<key>/...`), in its provider links and, as the way in, in the audit log. Lowercase letters, digits and underscores, starting with a letter, 64 at most | Empty: the local login provider is off |
+| `LOCAL_LOGIN_PROVIDER_DISPLAY_NAME` | The name the login screen shows on the button of the local login provider | Empty: off |
+| `LOCAL_LOGIN_PROVIDER_ISSUER_URL` | The issuer of the local login provider, whose discovery document the API reads at the first login through it. The browser and the API reach it at that same address | Empty: off |
+| `LOCAL_LOGIN_PROVIDER_CLIENT_ID` | The client the system is at the local login provider | Empty: off |
+| `LOCAL_LOGIN_PROVIDER_CLIENT_SECRET` | The secret of that client. It is a secret, and never printed | Empty: off |
 
-`.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, the port of Caddy, the port of Garage and the secret its nodes share, the interface Vite listens on, and the connection with which the Go tests create their temporary databases. Garage creates its bucket and its key from the `FILE_STORAGE_` variables.
+The five `LOCAL_LOGIN_PROVIDER_` variables turn the local login provider on together, and the API refuses to start with some of them set and others empty; when it is on, a line of its log names it at the start. The client its redirect URL is registered for is the origin of the app followed by `/api/session/login_providers/<key>/callback`. `.env.example` turns it on, pointed at the Dex container of development; staging and production leave the five empty, and log in through the real login providers.
 
-The variables of what is not built yet (the e-mail server and the rest) are _TBD_, each added with the code that reads it.
+`.env.example` also holds what only development uses: the port and the passwords of the PostgreSQL container, the port of Caddy, the port of Garage and the secret its nodes share, the two ports of Mailpit, the port of Dex, the port of the River panel, the interface Vite listens on, the connection with which the Go tests create their temporary databases, and `RESEND_TEST_API_KEY`, the key of the tests against Resend, empty there. Garage creates its bucket and its key from the `FILE_STORAGE_` variables.
+
+The variables of what is not built yet (Google, Microsoft and GitHub as login providers, and the rest) are _TBD_, each added with the code that reads it.
 
 ### Local development
 
@@ -333,6 +352,7 @@ Go, Vite+ and Task run on the machine, so a test runs without going through Dock
 | Reverse proxy | Caddy |
 | Database | PostgreSQL |
 | File storage | Garage |
+| Background jobs | The River panel, which shows the jobs and their queues |
 | E-mail | Mailpit, which captures what is sent |
 | Login | Dex as the local provider, or a login code read from Mailpit |
 | LLM provider | A stand-in written in this repository, with fixed answers |
@@ -342,19 +362,32 @@ The seed fills the database with fictitious data, the same on every run. To work
 
 The pipeline calls the same Task targets, so a check that fails there fails the same way on the machine.
 
-Of the table above, PostgreSQL, Garage and Caddy are what run today, beside the API and the app. From a clean machine to a concluded setup, with the prerequisites installed and Docker running:
+Of the table above, PostgreSQL, Garage, Mailpit, Dex, the River panel and Caddy are what run today, beside the API, the worker and the app. From a clean machine to a concluded setup, with the prerequisites installed and Docker running:
 
 1. Clone the repository with Git and open a terminal at its root. Every command below runs there.
 2. `task install`. The first time, it downloads Node.js, pnpm, the JavaScript dependencies and the Chromium of the tests, about 330 MB.
 3. `task services`. The first time, it builds the Caddy image, which takes a few minutes.
 4. `task migrate`. The first time, Go downloads the modules of the API and builds it.
-5. `task dev`, which starts the API and the app together. Leave it running.
+5. `task dev`, which starts the API, the worker and the app together. Leave it running.
 6. In a second terminal, `task issue-setup-code`. It prints the setup code and the address of the setup, `http://localhost/setup`.
 7. Open that address. The first load takes a while, because Vite bundles the dependencies of the app. Type the code, fill in the consultancy and its first administrator, a logo and a photo if you have them, review what you typed and conclude.
 
-The app then leads to the login screen, which says the setup is concluded. The login itself comes with the next part of the work. `task e2e` runs the same path in a browser, on a database of its own.
+The app then leads to the login screen, which says the setup is concluded and that the administrator logs in below: with a login code, which Mailpit shows (see below), or through Dex when the e-mail of the administrator is one Dex knows. After the login the app opens its shell, in the preferred language of the user: the header with their menu, which logs out, the sidebar with the name and the logo of the consultancy, and a work surface that says the areas of work come next. `task e2e` runs the same path in a browser, on a database and a bucket of its own: the setup, a login through Dex, the logout, a login with a code read from Mailpit, and a person Dex knows who is no user.
+
+To skip the setup, run `task seed` in place of steps 6 and 7. It registers a fictitious consultancy, Fábrica Exemplo, and its administrator, Ana Exemplo, through the same use cases the setup runs, so the data obeys every rule, and the app opens on the login screen. Every run on an empty database creates the same data with the same identifiers, and a run on a database whose setup is concluded changes nothing. The administrator's e-mail is the mailbox of `SEED_MAILBOX` tagged `+admin`: `seed+admin@fabrica.example` with the value of `.env.example`. Nothing in the seed is real.
 
 The browser reaches everything through Caddy, at one address, `http://localhost`: the app, and the API under `/api`. The file storage has a host name of its own, `http://files.localhost`, where the browser sends an image to a URL the API signed; Garage accepts it from the origin of the app only. Nothing is configured by hand: the values of `.env.example` work as they are with Docker Desktop. With Docker Engine on Linux, Caddy reaches the API and Vite only when they listen on every interface: write `API_LISTEN_ADDRESS=0.0.0.0:8080` and `WEB_LISTEN_HOST=0.0.0.0` in a `.env`. When port 80 is taken, change `CADDY_PORT` there and add the port to `APP_ORIGIN` and to `FILE_STORAGE_PUBLIC_URL`.
+
+The worker runs the jobs the API saves, in a light queue and a heavy queue. Its first job delivers an e-mail: every e-mail the system sends is a record, and its job writes it in the language of the recipient and sends it through SMTP, or through Resend in production, which reports a bounce back to the API. In development the e-mail goes to Mailpit, which keeps it and delivers nothing: its screen, at `http://localhost:8025` (`MAILPIT_PORT`), shows every e-mail sent. The login code is the first e-mail the system asks for: on the login screen, type the e-mail of a user and "Send a code", and Mailpit shows the code a moment later, in the preferred language of the user; type its six digits on the screen. Without the screen, `curl -i -c cookies.txt -X POST http://localhost/api/session/login_code -H "Content-Type: application/json" -d '{"email":"<the e-mail of a user>"}'` answers 202 for every e-mail, and sends the code only when the e-mail belongs to an active user. With the same cookie, `curl -i -b cookies.txt -c cookies.txt -X POST http://localhost/api/session/login_code/check -H "Content-Type: application/json" -d '{"code":"<the six digits>"}'` logs the user in (204), `curl -b cookies.txt http://localhost/api/session` tells who is logged in, and `curl -i -b cookies.txt -X POST http://localhost/api/session/log_out` logs out. Every hour, and once when it starts, the worker also cleans up the file storage: it removes the uploads never confirmed a day after they started, and the objects more than a day old that no confirmed file names. The River panel shows the jobs of the development database at `http://localhost:8081` (`RIVER_PANEL_PORT`); it runs in development only, until the API serves it to administrators.
+
+The local login provider is Dex, at `http://localhost:5556` (`DEX_PORT`), which knows two people of the seed, with fixed passwords that are fictitious too:
+
+| E-mail | Password | In the system |
+| --- | --- | --- |
+| `seed+admin@fabrica.example` | `local-provider-admin` | Ana Exemplo, the administrator the seed creates |
+| `seed+developer@fabrica.example` | `local-provider-developer` | No user yet: the login is refused with the notice of an e-mail of no active user |
+
+The login screen shows a button for it, "Log in with Local login provider", above the login with a code; the button, like opening `http://localhost/api/session/login_providers/local/start` in the browser, sends the browser to the login page of Dex; once the person logs in there, Dex sends the browser back to the API, which logs the administrator in and returns to the root of the app, or to the path of the app in `?return_to=`. The first login through Dex finds the user by the e-mail Dex says is verified and links the account; the later ones find the user by that link. `http://localhost/api/session/login` tells the providers turned on and, after a refused login, its e-mail. Dex keeps what it needs in memory, so a login in flight does not survive its restart; the people it knows are in its configuration, in `compose.yaml`. Logging in as the developer brings the login screen back with the notice and the e-mail.
 
 `http://localhost/up` answers with the status of the readiness of the API and no body: 503 until the migrations are applied, and 502 while the API is not running. The API itself answers liveness at `http://127.0.0.1:8080/livez` and readiness at `http://127.0.0.1:8080/readyz`, which Caddy does not forward.
 
@@ -365,15 +398,19 @@ The commands, run from the repository root:
 | Command | What it does |
 | --- | --- |
 | `task install` | Installs the JavaScript dependencies, and the Chromium the screen tests run in. Vite+ downloads the versions of Node.js and pnpm that `apps/web/package.json` names |
-| `task services` | Builds the Caddy image, starts the services of development in Docker (PostgreSQL, Garage with its bucket, its key and its cross-origin rule, and Caddy) and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
+| `task services` | Builds the Caddy image, starts the services of development in Docker (PostgreSQL, Garage with its bucket, its key and its cross-origin rule, Mailpit, Dex, the River panel and Caddy) and waits until they are healthy. Every checkout of the repository, a Git worktree included, drives the same containers |
 | `task services:stop` | Stops the services of development and keeps their data |
 | `task migrate` | Applies the pending migrations to the development database. A second run applies nothing |
 | `task issue-setup-code` | Issues a setup code in the development database and prints it, with when it stops working, what it opens and the address of the setup |
-| `task dev` | Starts the API and Vite together. The app opens at `http://localhost`, through Caddy |
+| `task seed` | Fills the development database with the fictitious consultancy and its administrator, through the use cases of the setup, so the app opens on the login screen. On a database whose setup is concluded it changes nothing |
+| `task seed:image` | Builds the image of the seed, the `seed` service of `compose.yaml`, which staging runs, and publishes nothing. The pipeline runs it on every pull request |
+| `task dev` | Starts the API, the worker and Vite together. The app opens at `http://localhost`, through Caddy |
 | `task api` | Starts the API alone, at `http://127.0.0.1:8080` |
+| `task worker` | Starts the worker alone, which runs the jobs of the development database. It stops at once when a migration is pending |
 | `task web` | Starts Vite alone, at port 5173, behind Caddy |
 | `task api:build` | Builds the API binary into `apps/api/bin` |
-| `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there; a test of the file storage writes objects of its own to the bucket of Garage and removes them. Arguments after `--` replace the list of packages |
+| `task api:test` | Starts the services and runs the Go tests. A test that needs PostgreSQL creates its own temporary database there; a test of the file storage writes objects of its own to the bucket of Garage and removes them; a test of the SMTP adapter sends to Mailpit, to an address of its own, and reads the e-mail back through its API; a test of the login through a provider logs in at Dex, driving its login page over HTTP. Arguments after `--` replace the list of packages |
+| `task api:test:resend` | Runs the tests of the Resend adapter against Resend itself, sending to its test addresses, which deliver nothing, with the key in `RESEND_TEST_API_KEY`. Without the key they skip. The scheduled workflow `resend.yml` runs them every day, never a pull request |
 | `task db:clean` | Drops the databases the Go tests leave in the development PostgreSQL, the ones named `test_...` and `testdb_...`: the database of a test that failed or was killed, and a template of pgtestdb for each state the migrations had. No other database is touched, neither `software_factory` nor `software_factory_e2e`. Run it when no test runs, now and then or when the list of databases grows: a database still in use is not dropped, and the command stops on it |
 | `task api:lint` | Lints the Go code and checks its format, the imports between layers and between domain areas, `else` and the level of nesting |
 | `task api:format` | Rewrites the Go files as the formatter asks |
@@ -391,14 +428,12 @@ The commands, run from the repository root:
 | `task web:generate:check` | Fails when the committed client that orval generated is stale |
 | `task web:imports` | Fails when an import of the app breaks its dependency rule, with dependency-cruiser |
 | `task web:knip` | Fails on a file, an export or a dependency of the app that nothing uses, with Knip |
-| `task e2e` | Runs the end-to-end test of the setup in Chromium, through Caddy, with Playwright. It starts the services, builds the API, restarts Caddy so that its limit starts empty, creates the database `software_factory_e2e` empty and applies the migrations; Playwright starts the API and Vite, and stops them at the end. The development database is not touched. Ports 8080 and 5173 must be free: stop `task dev` first. A failed test leaves its trace in `apps/web/test-results`, which `vp exec playwright show-trace <file>`, run in `apps/web`, opens |
+| `task e2e` | Runs the end-to-end test of the setup and the login in Chromium, through Caddy, with Playwright: the setup, a login through Dex, the shell and the logout, a login with a code read from Mailpit, and the limits of Caddy. It starts the services, Mailpit and Dex among them, builds the API, restarts Caddy so that its limits start empty, creates the database `software_factory_e2e` empty and applies the migrations, and creates the bucket `software-factory-e2e-files` in Garage on its first run; Playwright starts the API, the worker and Vite on that database and that bucket, and stops them at the end. The development database and its bucket are not touched. Ports 8080 and 5173 must be free: stop `task dev` first. A failed test leaves its trace in `apps/web/test-results`, which `vp exec playwright show-trace <file>`, run in `apps/web`, opens |
 | `task check` | Runs every check of a pull request: the exact versions, the check of the workflow files, the check of the generated client, the format, lint and type checks of `apps/web`, its dependency rule, its unused code, its missing translation keys and its tests, then the lint of the API, the check of the generated code, the check of the OpenAPI spec, the check of the lists of the app, the lint and the breaking-change report of the spec, the build and the tests of the API, and the end-to-end test. Because of the end-to-end test it needs ports 8080 and 5173 free and restarts Caddy: stop `task dev` first |
 | `task check:quick` | Runs everything `task check` runs except the end-to-end test, for daily use. It needs no free port and does not restart Caddy, so it runs beside `task dev`. Before a pull request, run `task check` |
 | `task check:fix` | Runs the format, lint and type checks of `apps/web` and fixes what can be fixed |
 
-The commands of what is not built yet (the worker and the seed) are _TBD_, each written with its code.
-
-sqlc runs with `go tool`, from a module file of its own, `apps/api/sqlc.mod`. The first time on a machine, Go downloads and builds sqlc, which takes several minutes: one of its dependencies has more than a hundred thousand files, and extracting them on Windows can take half an hour. The command looks idle meanwhile. Do not interrupt it, because the extraction starts over. vacuum and oasdiff run the same way, from `apps/api/vacuum.mod` and `apps/api/oasdiff.mod`, and each is built in a few minutes the first time.
+sqlc runs with `go tool`, from a module file of its own, `apps/api/sqlc.mod`. The first time on a machine, Go downloads and builds sqlc, which takes several minutes: one of its dependencies has more than a hundred thousand files, and extracting them on Windows can take half an hour. The command looks idle meanwhile. Do not interrupt it, because the extraction starts over. vacuum and oasdiff run the same way, from `apps/api/vacuum.mod` and `apps/api/oasdiff.mod`, and each is built in a few minutes the first time. So does River's CLI, from `apps/api/river.mod`, which exports the SQL of River's tables for a migration: `go tool -modfile=river.mod river migrate-get --line main --version <n> --up`, run in `apps/api` (see Jobs in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)).
 
 The REST contract is `apps/api/openapi.yaml`. It is generated from the operations the API serves, so after changing one, run `task api:spec` and commit the file with the code.
 
@@ -412,7 +447,7 @@ The REST contract is `apps/api/openapi.yaml`. It is generated from the operation
 - **Versions.** The build installs from `go.sum` and `pnpm-lock.yaml` and fails when they would change.
 - **Images.** GitHub Actions builds them, tags each with the hash of its commit and pushes it to the GitHub container registry. Production runs only an image built from `main`. The images of a release also carry its number.
 
-`task api:build` builds the API binary into `apps/api/bin`. The other commands are _TBD_, each written with what it builds.
+`task api:build` builds the API binary into `apps/api/bin`. The image of the seed is built from `apps/api/cmd/seed/Dockerfile` by the `seed` service of `compose.yaml`, which lives in a Compose profile of its own so that `task services` does not start it: `docker compose --profile seed run --rm --build seed` builds it and runs it on the development database. The other commands are _TBD_, each written with what it builds.
 
 ### Deploy
 

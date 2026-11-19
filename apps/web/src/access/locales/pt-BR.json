@@ -1,26 +1,72 @@
 {
   "login": {
     "heading": "Entrar",
-    "notBuilt": "O login ainda não foi construído. Ele vem com a próxima parte do trabalho no sistema.",
-    "setupConcluded": {
-      "title": "A configuração inicial foi concluída",
-      "todo": "A consultoria e o primeiro administrador estão cadastrados. O administrador entra por aqui quando o login existir."
+    "notices": {
+      "setupConcluded": {
+        "title": "A configuração inicial foi concluída",
+        "todo": "A consultoria e o primeiro administrador estão cadastrados. O administrador entra logo abaixo."
+      },
+      "setupAlreadyConcluded": {
+        "title": "A configuração inicial já tinha sido concluída",
+        "todo": "Alguém a concluiu antes de você, então nada do que você digitou foi salvo. O administrador cadastrado nela entra logo abaixo."
+      },
+      "setupConcludedWithoutAnswer": {
+        "title": "A configuração inicial foi concluída",
+        "todo": "Uma tentativa anterior de concluí-la ficou sem resposta: ela pode ter concluído a configuração com o que você digitou, ou alguém pode tê-la concluído antes de você. O administrador cadastrado nela entra logo abaixo."
+      },
+      "administratorRegistered": {
+        "title": "O administrador foi cadastrado",
+        "todo": "O novo administrador entra logo abaixo. Os usuários que já existiam não foram alterados."
+      },
+      "administratorRegisteredWithoutAnswer": {
+        "title": "O administrador pode ter sido cadastrado",
+        "todo": "Uma tentativa anterior de cadastrar o administrador ficou sem resposta: ela pode tê-lo cadastrado com o e-mail digitado então. Tente entrar logo abaixo com esse e-mail. Os usuários que já existiam não foram alterados."
+      },
+      "sessionEnded": {
+        "title": "Sua sessão terminou",
+        "todo": "Entre de novo para voltar aonde você estava."
+      },
+      "loggedOut": {
+        "title": "Você saiu",
+        "todo": "Para usar o sistema de novo, entre logo abaixo."
+      },
+      "loginNotConcluded": {
+        "title": "O login não foi concluído",
+        "todo": "Ele foi cancelado no provedor de login, ou falhou lá. Você pode tentar de novo logo abaixo."
+      },
+      "noActiveUser": {
+        "title": "Nenhum usuário ativo tem este e-mail",
+        "todo": "O provedor de login informou o e-mail <email>{{email}}</email>, e nenhum usuário ativo do sistema tem esse e-mail. Peça acesso a um administrador."
+      },
+      "anotherAccountLinked": {
+        "title": "Esta não é a conta vinculada ao seu usuário",
+        "todo": "Seu usuário está vinculado a outra conta deste provedor de login. Entre com essa conta ou com um código de login enviado ao seu e-mail."
+      }
     },
-    "setupAlreadyConcluded": {
-      "title": "A configuração inicial já tinha sido concluída",
-      "todo": "Alguém a concluiu antes de você, então nada do que você digitou foi salvo. O administrador cadastrado nela entra por aqui quando o login existir."
+    "providers": {
+      "logInWith": "Entrar com {{name}}",
+      "or": "ou"
     },
-    "setupConcludedWithoutAnswer": {
-      "title": "A configuração inicial foi concluída",
-      "todo": "Uma tentativa anterior de concluí-la ficou sem resposta: ela pode ter concluído a configuração com o que você digitou, ou alguém pode tê-la concluído antes de você. O administrador cadastrado nela entra por aqui quando o login existir."
+    "email": {
+      "intro": "Digite o e-mail com que você entra, e um código de login é enviado a ele.",
+      "label": "E-mail",
+      "submit": "Enviar um código",
+      "codeEnded": {
+        "title": "Este código não funciona mais",
+        "todo": "Peça um novo código e digite o que vier no novo e-mail."
+      }
     },
-    "administratorRegistered": {
-      "title": "O administrador foi cadastrado",
-      "todo": "O novo administrador entra por aqui quando o login existir. Os usuários que já existiam não foram alterados."
-    },
-    "administratorRegisteredWithoutAnswer": {
-      "title": "O administrador pode ter sido cadastrado",
-      "todo": "Uma tentativa anterior de cadastrar o administrador ficou sem resposta: ela pode tê-lo cadastrado com o e-mail digitado então. Quando o login existir, tente entrar por aqui com esse e-mail. Os usuários que já existiam não foram alterados."
+    "code": {
+      "intro": "Se <email>{{email}}</email> pertence a um usuário, um código de login foi enviado a ele. Digite os seis dígitos.",
+      "label": "Código de login",
+      "submit": "Entrar",
+      "back": "Usar outro e-mail",
+      "newCode": "Enviar um novo código",
+      "newCodeIn": "Você pode pedir um novo código em {{wait, seconds}}."
     }
+  },
+  "userMenu": {
+    "open": "Menu de {{name}}",
+    "logOut": "Sair"
   }
 }

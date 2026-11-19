@@ -1,9 +1,8 @@
 import type { ReactNode } from "react"
-import { useTranslation } from "react-i18next"
 
 import { cn } from "#ui/lib/utils"
 
-import { BrandMark } from "./brand-mark"
+import { ProductLogo } from "./brand-mark"
 import { LanguageSelect } from "./language-select"
 
 /**
@@ -21,15 +20,10 @@ export function FramedPane({
   width?: "narrow" | "wide"
   children: ReactNode
 }) {
-  const { t } = useTranslation()
-
   return (
     <div className="flex min-h-svh flex-col bg-background">
       <header className="flex h-14 shrink-0 items-center gap-2.5 px-4">
-        <BrandMark className="size-7 shrink-0 text-brand" />
-        <span className="font-heading text-lg font-semibold">
-          {t("productName")}
-        </span>
+        <ProductLogo />
       </header>
 
       <main className="flex flex-1 items-center justify-center px-4 py-2">

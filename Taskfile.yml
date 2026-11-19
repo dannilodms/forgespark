@@ -72,11 +72,33 @@ tasks:
     cmds:
       - go run ./cmd/api issue-setup-code
 
+  seed:
+    desc: Fill the development database with the fictitious consultancy and its administrator, through the use cases of the setup, so the app opens on the login screen. On a database whose setup is concluded it changes nothing
+    dir: apps/api
+    cmds:
+      # The Go package, on the machine, as `migrate` runs. The image of the
+      # seed, which staging runs, is the `seed` service of compose.yaml.
+      - go run ./cmd/seed
+
+  seed:image:
+    desc: Build the image of the seed, the `seed` service of compose.yaml, and publish nothing
+    cmds:
+      # The image staging runs on every publish (Seed in Environments in
+      # CODING_STANDARDS.md); the pipeline builds it on every pull request,
+      # so a change that breaks its build fails before it is published.
+      - docker compose --profile seed build seed
+
   api:
     desc: Start the API
     dir: apps/api
     cmds:
       - go run ./cmd/api
+
+  worker:
+    desc: Start the worker, which runs the jobs of the development database
+    dir: apps/api
+    cmds:
+      - go run ./cmd/api worker
 
   web:
     desc: Start Vite, which serves the app. Open it through Caddy, at APP_ORIGIN
@@ -87,8 +109,8 @@ tasks:
       - vp dev --host "$WEB_LISTEN_HOST" --port 5173 --strictPort
 
   dev:
-    desc: Start the API and Vite together. The app opens at APP_ORIGIN, through Caddy
-    deps: [api, web, dev:address]
+    desc: Start the API, the worker and Vite together. The app opens at APP_ORIGIN, through Caddy
+    deps: [api, worker, web, dev:address]
 
   dev:address:
     internal: true
@@ -175,6 +197,14 @@ tasks:
       # Never from the cache: a test that reaches a service can fail with no file changed.
       - go test -count=1 {{.CLI_ARGS | default "./..."}}
 
+  api:test:resend:
+    desc: Run the tests of the Resend adapter against Resend itself, with the key in RESEND_TEST_API_KEY; they skip without it
+    dir: apps/api
+    cmds:
+      # The scheduled workflow resend.yml runs them, never a pull request.
+      # They need no service of development.
+      - go test -count=1 -v -run '^TestAgainstResend' ./internal/email/adapters/resend/
+
   db:clean:
     desc: Drop the databases the Go tests left in the PostgreSQL of development, test_... and testdb_..., and no other. Run it when no test runs
     cmds:
@@ -229,7 +259,7 @@ tasks:
       - vp test run
 
   e2e:
-    desc: Run the end-to-end test of the setup through Caddy, on a database of its own that starts empty. Restarts Caddy, and needs ports 8080 and 5173 free
+    desc: Run the end-to-end test of the setup and the login through Caddy, on a database and a bucket of its own, with the API, the worker, Vite, Mailpit and Dex. Restarts Caddy, and needs ports 8080 and 5173 free
     deps: [services, api:build]
     vars:
       # Created empty for each run, and kept after it so that a failure can
@@ -237,6 +267,12 @@ tasks:
       # never touched.
       E2E_DATABASE: software_factory_e2e
       E2E_DATABASE_ADDRESS: localhost:{{.POSTGRES_PORT}}/{{.E2E_DATABASE}}?sslmode=disable
+      # The bucket of the test, in the Garage of development. The worker
+      # cleans up the bucket it is given, and on the database of the test it
+      # would remove what only the development database names, so the test
+      # has a bucket of its own. Kept from one run to the next: the worker of
+      # each run removes what the runs before it left there a day ago.
+      E2E_FILE_STORAGE_BUCKET: software-factory-e2e-files
     cmds:
       # The limit of Caddy counts every request of the machine together, and
       # keeps them in its memory only. A restart empties it, so the test never
@@ -247,16 +283,31 @@ tasks:
         psql --username postgres --no-psqlrc --quiet --set ON_ERROR_STOP=1
         --command "DROP DATABASE IF EXISTS {{.E2E_DATABASE}} WITH (FORCE)"
         --command "CREATE DATABASE {{.E2E_DATABASE}} OWNER migration"
+      # The bucket, created on the first run, with the key of the API and the
+      # cross-origin rule of the bucket of development. Garage, which has no
+      # shell, runs each command of its own.
+      - >-
+        docker compose exec --no-TTY garage /garage bucket info {{.E2E_FILE_STORAGE_BUCKET}} > /dev/null 2>&1 ||
+        docker compose exec --no-TTY garage /garage bucket create {{.E2E_FILE_STORAGE_BUCKET}}
+      - >-
+        docker compose exec --no-TTY garage
+        /garage bucket allow --read --write --owner {{.E2E_FILE_STORAGE_BUCKET}} --key {{.FILE_STORAGE_ACCESS_KEY_ID}}
+      - >-
+        docker compose run --rm --no-deps --no-TTY --env FILE_STORAGE_BUCKET={{.E2E_FILE_STORAGE_BUCKET}} garage-cors
       # Each connection is named on its command, where no variable of the
       # shell replaces it.
       - >-
         MIGRATION_DATABASE_URL="postgres://migration:{{.POSTGRES_MIGRATION_PASSWORD}}@{{.E2E_DATABASE_ADDRESS}}"
         apps/api/bin/api migrate
-      # Playwright starts the API and Vite where Caddy reaches them, hands the
-      # API this connection as DATABASE_URL, and stops both at the end.
+      # Playwright starts the API, the worker and Vite where Caddy reaches
+      # them, hands the API and the worker this connection as DATABASE_URL and
+      # the bucket as FILE_STORAGE_BUCKET, and stops them at the end. The
+      # worker sends the login code to Mailpit, and the login through a
+      # provider goes to Dex, both started by `task services`.
       - >-
         cd apps/web &&
         E2E_DATABASE_URL="postgres://api:{{.POSTGRES_API_PASSWORD}}@{{.E2E_DATABASE_ADDRESS}}"
+        E2E_FILE_STORAGE_BUCKET={{.E2E_FILE_STORAGE_BUCKET}}
         vp exec playwright test
 
   api:lint:

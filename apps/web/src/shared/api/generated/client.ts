@@ -10,12 +10,19 @@
  * OpenAPI spec version: unversioned
  */
 import type {
+  AskForLoginCodeRequest,
+  CheckLoginCodeRequest,
+  ConcludeProviderLoginParams,
   ConcludeSetupRequest,
+  Consultancy,
+  LoggedInUser,
+  LoginState,
   OpenSetupRequest,
   OpenedSetup,
   RegisterAdministratorRequest,
   SetupState,
   SetupUpload,
+  StartProviderLoginParams,
   StartSetupUploadRequest
 } from './model';
 
@@ -40,6 +47,224 @@ const getHeaders = (...sources: (RequestInit['headers'] | Record<string, string 
   }
   return Object.fromEntries(layers.reverse().flat()) as Extract<RequestInit['headers'], Record<string, unknown>>;
 };
+
+export const getTellConsultancyUrl = () => {
+
+
+
+
+  return `/api/consultancy`
+}
+
+/**
+ * Answers the consultancy as the shell of the app shows it: its name, and a URL that reads its logo from the file storage for fifteen minutes. The app reads it again sooner than that, so the logo never breaks. Any logged-in user reads it: it asks for no scope.
+ * @summary Tell the consultancy
+ */
+export const tellConsultancy = async ( options?: Parameters<typeof request>[1]): Promise<Consultancy> => {
+
+  return request<Consultancy>(getTellConsultancyUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getTellLoggedInUserUrl = () => {
+
+
+
+
+  return `/api/session`
+}
+
+/**
+ * Answers the user logged in to the session of this browser, as the app shows them, with a URL that reads their photo from the file storage for fifteen minutes, and the keys of their roles. The app reads it again sooner than that, so the photo never breaks. It asks for no scope. With no user logged in, the session missing, ended, or of a user deactivated since, it answers 401; the session of a deactivated user is ended.
+ * @summary Tell who is logged in
+ */
+export const tellLoggedInUser = async ( options?: Parameters<typeof request>[1]): Promise<LoggedInUser> => {
+
+  return request<LoggedInUser>(getTellLoggedInUserUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getLogOutUrl = () => {
+
+
+
+
+  return `/api/session/log_out`
+}
+
+/**
+ * Ends the session of this browser, whether a user is logged in to it or not: the answer expires its cookie, and the session opens nothing any more.
+ * @summary Log out
+ */
+export const logOut = async ( options?: Parameters<typeof request>[1]): Promise<void> => {
+
+  return request<void>(getLogOutUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getTellLoginStateUrl = () => {
+
+
+
+
+  return `/api/session/login`
+}
+
+/**
+ * Answers what the login screen needs before anyone is logged in: the login providers turned on, one button each, and the e-mail the last login through a provider in this browser was refused for, because no active user has it, which the screen shows with the notice `no_active_user`: the e-mail travels in this answer and in no address. It needs no session, and reading it forgets nothing.
+ * @summary Tell the state of the login
+ */
+export const tellLoginState = async ( options?: Parameters<typeof request>[1]): Promise<LoginState> => {
+
+  return request<LoginState>(getTellLoginStateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getAskForLoginCodeUrl = () => {
+
+
+
+
+  return `/api/session/login_code`
+}
+
+/**
+ * Sends a login code to the e-mail when it belongs to an active user, and answers the same way, with no body, for every e-mail, so that nobody learns from it who is a user. The code is six digits, works for 10 minutes, once, and only in the browser that asked for it, which the session remembers: the answer sets its cookie. A new code ends the one before. One code a minute and five an hour are sent to each e-mail; past them the operation answers `login_code_limit_reached`.
+ * @summary Ask for a login code
+ */
+export const askForLoginCode = async (askForLoginCodeRequest: AskForLoginCodeRequest, options?: Parameters<typeof request>[1]): Promise<void> => {
+
+  return request<void>(getAskForLoginCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+    body: JSON.stringify(askForLoginCodeRequest)
+  }
+);}
+
+
+
+export const getCheckLoginCodeUrl = () => {
+
+
+
+
+  return `/api/session/login_code/check`
+}
+
+/**
+ * Checks the six digits against the login code this browser asked for last, which the session remembers. The right code, within 10 minutes, logs the user in: the answer sets the cookie of the session again, with a new token, and the logged-in user is read with `tell_logged_in_user`. A wrong code, the code of a request that no longer works, or a code typed in a browser that asked for none, answers `login_code_invalid` with the attempts left; the third answers `login_code_ended`, and a new code has to be asked for.
+ * @summary Check a login code
+ */
+export const checkLoginCode = async (checkLoginCodeRequest: CheckLoginCodeRequest, options?: Parameters<typeof request>[1]): Promise<void> => {
+
+  return request<void>(getCheckLoginCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: getHeaders({ 'Content-Type': 'application/json' }, options?.headers),
+    body: JSON.stringify(checkLoginCodeRequest)
+  }
+);}
+
+
+
+export const getConcludeProviderLoginUrl = (key: string,
+    params?: ConcludeProviderLoginParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/session/login_providers/${key}/callback?${stringifiedParams}` : `/api/session/login_providers/${key}/callback`
+}
+
+/**
+ * The login provider sends the browser back here; the generated client does not call it. The state must be the one of the login this browser started, which is used once. The code is exchanged with the verifier, and the ID token validated with its nonce; the user is found by the provider link of the account, or else by the e-mail the token says is verified, and the account is linked. It redirects to the path to return to, logged in, with the cookie of the session set again with a new token. A verified e-mail of no active user redirects to the login screen with the notice `no_active_user`, the e-mail kept for `tell_login_state`; an account that is not linked, whose verified e-mail is the one of a user who has another account of the provider linked, redirects with `another_account_linked`; a cancel or an error at the provider, a code it refuses, an e-mail it does not say is verified, or a state that is not the one of this browser redirects with `login_not_concluded`. The query parameters are the ones OAuth defines, and any other the provider adds is not refused. A key of no provider turned on answers `not_found`.
+ * @summary Conclude a login through a login provider
+ */
+export const concludeProviderLogin = async (key: string,
+    params?: ConcludeProviderLoginParams, options?: Parameters<typeof request>[1]): Promise<unknown> => {
+
+  return request<unknown>(getConcludeProviderLoginUrl(key,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getStartProviderLoginUrl = (key: string,
+    params?: StartProviderLoginParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/session/login_providers/${key}/start?${stringifiedParams}` : `/api/session/login_providers/${key}/start`
+}
+
+/**
+ * The browser navigates here from the button of a login provider; the generated client does not call it. It answers a redirect to the provider, with a state, a nonce and the challenge of a PKCE verifier, which the session of this browser keeps, with the path to return to: the answer sets its cookie. When the provider cannot be reached, it redirects to the login screen with the notice `login_not_concluded`. A key of no provider turned on answers `not_found`.
+ * @summary Start a login through a login provider
+ */
+export const startProviderLogin = async (key: string,
+    params?: StartProviderLoginParams, options?: Parameters<typeof request>[1]): Promise<unknown> => {
+
+  return request<unknown>(getStartProviderLoginUrl(key,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
 
 export const getTellSetupStateUrl = () => {
 

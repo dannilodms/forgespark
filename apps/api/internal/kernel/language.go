@@ -6,8 +6,9 @@ package kernel
 // reads it from the client generated from the contract.
 //
 // Adding a language is a tag here, `task api:spec` and `task web:generate`,
-// its name in `apps/web/src/shared/locales/languages.ts` and its file in
-// every `locales` folder of the app; `task check` fails until each is done.
+// its name in `apps/web/src/shared/locales/languages.ts`, its file in every
+// `locales` folder of the app and its texts of e-mail in
+// `internal/email/domain/locales`; `task check` fails until each is done.
 // It is never a change to the database.
 var supportedLanguages = []string{"en-US", "es", "pt-BR"}
 

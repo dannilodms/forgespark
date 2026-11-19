@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as ShellIndexRouteImport } from './routes/_shell/index'
 
+const ShellRoute = ShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -22,35 +28,52 @@ const SetupRoute = SetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShellIndexRoute = ShellIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShellRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof ShellIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/': typeof ShellIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/_shell': typeof ShellRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/_shell/': typeof ShellIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/login' | '/setup'
+  fullPaths: '/' | '/login' | '/setup'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/setup'
-  id: '__root__' | '/login' | '/setup'
+  to: '/login' | '/setup' | '/'
+  id: '__root__' | '/_shell' | '/login' | '/setup' | '/_shell/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  ShellRoute: typeof ShellRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_shell': {
+      id: '/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -65,10 +88,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_shell/': {
+      id: '/_shell/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof ShellIndexRouteImport
+      parentRoute: typeof ShellRoute
+    }
   }
 }
 
+interface ShellRouteChildren {
+  ShellIndexRoute: typeof ShellIndexRoute
+}
+
+const ShellRouteChildren: ShellRouteChildren = {
+  ShellIndexRoute: ShellIndexRoute,
+}
+
+const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
+  ShellRoute: ShellRouteWithChildren,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
 }

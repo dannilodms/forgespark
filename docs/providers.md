@@ -12,7 +12,7 @@ Prices were read on the providers' own pages on 2026-11-16, without tax. Only th
 
 | Provider | Used for | Environments | Approximate cost | State |
 | --- | --- | --- | --- | --- |
-| [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; environments not created yet |
+| [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; environments and the secret `RESEND_TEST_API_KEY` not created yet |
 | [Hetzner Cloud](#hetzner-cloud) | The servers | staging, production | € 5.99 a month, plus cents for staging | Decided, not created |
 | [Backblaze B2](#backblaze-b2) | Production files, database backups | production, staging (certificates only) | Free under 10 GB, about US$ 0.63 a month at 100 GB | Decided, not created |
 | [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | _not known_ | Registrar not chosen |
@@ -48,6 +48,7 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 | Container registry (GHCR) | Public images, tagged with the commit hash. The images of a release also carry its number |
 | Label that creates the staging server | `staging` |
 | Commit address | The maintainer's `noreply` address |
+| Repository secret `RESEND_TEST_API_KEY` | The key of Resend's test account that the scheduled workflow `resend.yml` gives the tests that call Resend (see Resend). _Not created_: until it exists those tests skip and the run passes |
 
 ## Hetzner Cloud
 
@@ -131,7 +132,9 @@ Nothing is configured there. The certificates are for the host names listed in D
 | Account | _not created_ |
 | Sending domain | _not created_; verified by the DNS records above |
 | Sender address | _not chosen_ |
-| Webhook for bounces | An operation under `/api` on the production address |
+| API key of production | One, which the worker sends with (`RESEND_API_KEY`; the value is a secret) |
+| Webhook for bounces | `POST /api/resend/bounces` on the production address, for the event `email.bounced` only. Resend signs it with Svix, and the API checks the signature with the signing secret of the webhook (`RESEND_WEBHOOK_SECRET`; the value is a secret). _Not created_ |
+| Test API key | A key of its own, apart from the one of production, which only the scheduled workflow `resend.yml` uses, from the repository secret `RESEND_TEST_API_KEY` (see GitHub); its tests send to Resend's test addresses (`delivered@resend.dev`, `bounced@resend.dev`), which deliver nothing. Which Resend account holds it is decided with the deploy. _Not created_ |
 | Used by Grafana for alerts | Not tried (ADR-0012) |
 
 ## Login providers
@@ -140,7 +143,7 @@ Nothing is configured there. The certificates are for the host names listed in D
 
 **Cost.** Free.
 
-Each provider needs two registered applications, because staging and production have different addresses. Development and the pipeline use Dex and register nothing.
+Each provider needs two registered applications, because staging and production have different addresses. Development and the pipeline use Dex and register nothing. The redirect address each application registers is the origin of the app followed by the callback of the provider, `<APP_ORIGIN>/api/session/login_providers/<key>/callback`, where the key names the provider in the configuration (such as `google`).
 
 | Provider | Application for | Redirect address |
 | --- | --- | --- |

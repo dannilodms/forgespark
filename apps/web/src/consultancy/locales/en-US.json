@@ -97,5 +97,8 @@
         "register": "Register the administrator"
       }
     }
+  },
+  "start": {
+    "areasOfWorkComeNext": "The areas of work, such as clients and projects, arrive in the next versions of the system."
   }
 }

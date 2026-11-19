@@ -35,7 +35,7 @@ type TypedUser struct {
 // NewUserDetails builds them.
 type UserDetails struct {
 	name              string
-	email             Email
+	email             kernel.Email
 	country           kernel.Country
 	nationalID        string
 	telephone         optional[Telephone]
@@ -54,7 +54,7 @@ func NewUserDetails(typed TypedUser) (UserDetails, error) {
 
 	details.name, err = RequiredText(typed.Name, NameMaxLength)
 	invalid.AddField("name", err)
-	details.email, err = NewEmail(typed.Email)
+	details.email, err = kernel.NewEmail(typed.Email)
 	invalid.AddField("email", err)
 	details.country, err = kernel.NewCountry(typed.Country)
 	invalid.AddField("country", err)
@@ -76,7 +76,7 @@ func NewUserDetails(typed TypedUser) (UserDetails, error) {
 func (d UserDetails) Name() string { return d.name }
 
 // Email returns the e-mail the user logs in with, in lowercase.
-func (d UserDetails) Email() Email { return d.email }
+func (d UserDetails) Email() kernel.Email { return d.email }
 
 // Country returns the country of the user, which the national ID is read
 // with.

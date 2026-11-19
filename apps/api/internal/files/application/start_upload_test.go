@@ -36,28 +36,32 @@ func (c *countingBytes) Read(buffer []byte) (int, error) {
 // storage is the files area with nothing in it, built on the in-memory
 // implementations, with the clock stopped at noon.
 type storage struct {
-	clock         *applicationtest.Clock
-	files         *applicationtest.FileRepository
-	objects       *applicationtest.Storage
-	transactions  *applicationtest.Transactions
-	startUpload   *application.StartUpload
-	confirmUpload *application.ConfirmUpload
+	clock          *applicationtest.Clock
+	files          *applicationtest.FileRepository
+	objects        *applicationtest.Storage
+	transactions   *applicationtest.Transactions
+	startUpload    *application.StartUpload
+	confirmUpload  *application.ConfirmUpload
+	cleanUpStorage *application.CleanUpStorage
+	signDownload   *application.SignDownload
 }
 
 func newStorage() storage {
 	clock := applicationtest.NewClock(noon)
 	files := applicationtest.NewFileRepository()
-	objects := applicationtest.NewStorage()
+	objects := applicationtest.NewStorage(clock)
 	transactions := applicationtest.NewTransactions(files)
 	// One source for every key, as crypto/rand is, so no two keys are the same.
 	random := &countingBytes{}
 	return storage{
-		clock:         clock,
-		files:         files,
-		objects:       objects,
-		transactions:  transactions,
-		startUpload:   application.NewStartUpload(transactions, files, objects, clock, random),
-		confirmUpload: application.NewConfirmUpload(transactions, files, objects, clock, random),
+		clock:          clock,
+		files:          files,
+		objects:        objects,
+		transactions:   transactions,
+		startUpload:    application.NewStartUpload(transactions, files, objects, clock, random),
+		confirmUpload:  application.NewConfirmUpload(transactions, files, objects, clock, random),
+		cleanUpStorage: application.NewCleanUpStorage(transactions, files, objects, clock),
+		signDownload:   application.NewSignDownload(files, objects),
 	}
 }
 

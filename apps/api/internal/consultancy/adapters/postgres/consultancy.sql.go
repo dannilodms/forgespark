@@ -31,6 +31,23 @@ func (q *Queries) NextConsultancyID(ctx context.Context) (int64, error) {
 	return column_1, err
 }
 
+const readConsultancyNameAndLogo = `-- name: ReadConsultancyNameAndLogo :one
+SELECT name, logo_file_id FROM consultancy
+`
+
+type ReadConsultancyNameAndLogoRow struct {
+	Name       string
+	LogoFileID *int64
+}
+
+// The consultancy as the shell of the app shows it. There is one at most.
+func (q *Queries) ReadConsultancyNameAndLogo(ctx context.Context) (ReadConsultancyNameAndLogoRow, error) {
+	row := q.db.QueryRow(ctx, readConsultancyNameAndLogo)
+	var i ReadConsultancyNameAndLogoRow
+	err := row.Scan(&i.Name, &i.LogoFileID)
+	return i, err
+}
+
 const saveConsultancy = `-- name: SaveConsultancy :exec
 INSERT INTO consultancy (
     id, name, legal_name, country, tax_id, time_zone, currency, email, telephone, website,

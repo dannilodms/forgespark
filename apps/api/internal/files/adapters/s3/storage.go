@@ -1,9 +1,10 @@
 // Package s3 keeps the bytes of the files in an S3 storage, through the AWS
 // SDK for Go v2 and only what the S3 API defines (Files in
 // CODING_STANDARDS.md): Garage in development and staging, a provider in
-// production. The browser sends the bytes itself, to a URL this adapter signs
-// for the public host name of the storage; the API only reads the start of an
-// object, copies one inside the storage and removes one.
+// production. The browser sends the bytes itself, and reads them, through URLs
+// this adapter signs for the public host name of the storage; the API only
+// reads the start of an object, copies one inside the storage and removes
+// one, and the worker lists the bucket to clean it up.
 package s3
 
 import (
@@ -54,15 +55,19 @@ type Storage struct {
 	client *s3.Client
 	signer *s3.PresignClient
 	bucket string
+	// listPageSize is how many keys a page of the listing asks for. Zero
+	// leaves it to the storage, which gives a thousand at most.
+	listPageSize int32
 }
 
 // NewStorage returns the storage these settings name. It reaches nothing
 // until it is used.
 func NewStorage(settings Settings) *Storage {
 	return &Storage{
-		client: s3.New(optionsFor(settings, settings.URL)),
-		signer: s3.NewPresignClient(s3.New(optionsFor(settings, settings.PublicURL))),
-		bucket: settings.Bucket,
+		client:       s3.New(optionsFor(settings, settings.URL)),
+		signer:       s3.NewPresignClient(s3.New(optionsFor(settings, settings.PublicURL))),
+		bucket:       settings.Bucket,
+		listPageSize: 0,
 	}
 }
 
@@ -79,8 +84,8 @@ func optionsFor(settings Settings, endpoint string) s3.Options {
 	}
 	if settings.TracerProvider != nil {
 		// The spans of the SDK carry the method, the endpoint, the status and
-		// the error of a call: never a signature or a key.
-		options.TracerProvider = smithyoteltracing.Adapt(settings.TracerProvider)
+		// the error of a call: never a signature, nor the key of an object.
+		options.TracerProvider = keylessTracing{TracerProvider: smithyoteltracing.Adapt(settings.TracerProvider)}
 	}
 	return options
 }
@@ -96,7 +101,21 @@ func (s *Storage) SignUpload(ctx context.Context, key domain.ObjectKey, declared
 		ContentLength: aws.Int64(declared.Size()),
 	}, s3.WithPresignExpires(validity))
 	if err != nil {
-		return "", fmt.Errorf("sign the upload of an object: %w", err)
+		return "", failed("sign the upload of an object", err)
+	}
+	return signed.URL, nil
+}
+
+// SignDownload signs a GET of the object under this key, valid for this long,
+// which the browser sends to the public host name of the storage: an image
+// shows from there, and its bytes never pass through the API.
+func (s *Storage) SignDownload(ctx context.Context, key domain.ObjectKey, validity time.Duration) (string, error) {
+	signed, err := s.signer.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(string(key)),
+	}, s3.WithPresignExpires(validity))
+	if err != nil {
+		return "", failed("sign the download of an object", err)
 	}
 	return signed.URL, nil
 }
@@ -109,7 +128,7 @@ func (s *Storage) Inspect(ctx context.Context, key domain.ObjectKey) (domain.Sto
 		return domain.StoredObject{}, false, nil
 	}
 	if err != nil {
-		return domain.StoredObject{}, false, fmt.Errorf("read the size of an object: %w", err)
+		return domain.StoredObject{}, false, failed("read the size of an object", err)
 	}
 	size := aws.ToInt64(head.ContentLength)
 	if size == 0 {
@@ -133,12 +152,12 @@ func (s *Storage) firstBytes(ctx context.Context, key domain.ObjectKey) ([]byte,
 		return nil, false, nil
 	}
 	if err != nil {
-		return nil, false, fmt.Errorf("read the first bytes of an object: %w", err)
+		return nil, false, failed("read the first bytes of an object", err)
 	}
 	defer object.Body.Close()
 	first, err := io.ReadAll(io.LimitReader(object.Body, domain.FirstBytesRead))
 	if err != nil {
-		return nil, false, fmt.Errorf("read the first bytes of an object: %w", err)
+		return nil, false, failed("read the first bytes of an object", err)
 	}
 	return first, true, nil
 }
@@ -153,7 +172,7 @@ func (s *Storage) Copy(ctx context.Context, from, to domain.ObjectKey) error {
 		CopySource: aws.String(url.PathEscape(s.bucket) + "/" + url.PathEscape(string(from))),
 	})
 	if err != nil {
-		return fmt.Errorf("copy an object: %w", err)
+		return failed("copy an object", err)
 	}
 	return nil
 }
@@ -163,9 +182,37 @@ func (s *Storage) Copy(ctx context.Context, from, to domain.ObjectKey) error {
 func (s *Storage) Remove(ctx context.Context, key domain.ObjectKey) error {
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(string(key))})
 	if err != nil {
-		return fmt.Errorf("remove an object: %w", err)
+		return failed("remove an object", err)
 	}
 	return nil
+}
+
+// List lists the bucket with ListObjectsV2 and calls each with the objects of
+// every page, in the order of their keys, each with the time it was last
+// written. It stops at the first failure, of the storage or of each.
+func (s *Storage) List(ctx context.Context, each func(objects []domain.ListedObject) error) error {
+	pages := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{Bucket: aws.String(s.bucket)},
+		func(options *s3.ListObjectsV2PaginatorOptions) { options.Limit = s.listPageSize })
+	var err error
+	for err == nil && pages.HasMorePages() {
+		err = nextPage(ctx, pages, each)
+	}
+	return err
+}
+
+func nextPage(ctx context.Context, pages *s3.ListObjectsV2Paginator, each func(objects []domain.ListedObject) error) error {
+	page, err := pages.NextPage(ctx)
+	if err != nil {
+		return failed("list the objects of the bucket", err)
+	}
+	objects := make([]domain.ListedObject, 0, len(page.Contents))
+	for _, object := range page.Contents {
+		objects = append(objects, domain.ListedObject{
+			Key:          domain.ObjectKey(aws.ToString(object.Key)),
+			LastModified: aws.ToTime(object.LastModified).UTC(),
+		})
+	}
+	return each(objects)
 }
 
 // isNotFound tells whether the storage answered that there is no such object.

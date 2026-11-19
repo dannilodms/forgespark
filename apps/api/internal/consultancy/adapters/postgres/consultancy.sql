@@ -4,6 +4,10 @@ SELECT nextval('consultancy_id_seq')::bigint;
 -- name: ConsultancyExists :one
 SELECT EXISTS (SELECT FROM consultancy);
 
+-- name: ReadConsultancyNameAndLogo :one
+-- The consultancy as the shell of the app shows it. There is one at most.
+SELECT name, logo_file_id FROM consultancy;
+
 -- name: SaveConsultancy :exec
 -- The table holds one row at most: a second consultancy breaks the unique
 -- index consultancy_only_one.

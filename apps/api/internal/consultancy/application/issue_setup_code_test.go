@@ -65,6 +65,7 @@ type installation struct {
 	concludeSetup         *application.ConcludeSetup
 	registerAdministrator *application.RegisterAdministrator
 	tellSetupState        *application.TellSetupState
+	tellConsultancy       *application.TellConsultancy
 }
 
 func newInstallation() installation {
@@ -75,7 +76,7 @@ func newInstallation() installation {
 	roles := applicationtest.NewRoleRepository()
 	auditLog := auditapplicationtest.NewAuditLog()
 	files := filesapplicationtest.NewFileRepository()
-	objects := filesapplicationtest.NewStorage()
+	objects := filesapplicationtest.NewStorage(clock)
 	transactions := applicationtest.NewTransactions(setupCodes, consultancies, users, roles, auditLog, files)
 	recordEntry := auditapplication.NewRecordEntry(auditLog)
 	// One source for the keys of the storage, so no two keys are the same.
@@ -108,6 +109,10 @@ func newInstallation() installation {
 		concludeSetup:         application.NewConcludeSetup(setup),
 		registerAdministrator: application.NewRegisterAdministrator(setup),
 		tellSetupState:        application.NewTellSetupState(applicationtest.NewSetupStateReader(consultancies, setupCodes), clock),
+		tellConsultancy: application.NewTellConsultancy(
+			applicationtest.NewConsultancyReader(consultancies),
+			filesapplication.NewSignDownload(files, objects),
+		),
 	}
 }
 

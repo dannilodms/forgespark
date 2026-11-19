@@ -100,6 +100,53 @@ func TestTheMigrationsApplyNothingOnASecondRun(t *testing.T) {
 	assert.Empty(t, applied)
 }
 
+// River's tables are written by the API, which saves jobs, and by the worker,
+// which runs them and elects a leader, both as the API role (Jobs in
+// CODING_STANDARDS.md). The reindexer of River rebuilds the indexes of the
+// jobs table, which asks for MAINTAIN on it.
+func TestTheAPIRoleReadsWritesAndReindexesTheTablesOfRiver(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+	ctx := context.Background()
+	connection, err := pgx.Connect(ctx, temporary.APIURL)
+	require.NoError(t, err)
+	defer connection.Close(ctx)
+
+	statements := []string{
+		`INSERT INTO river_job (kind, args, max_attempts, queue) VALUES ('proof', '{"id": 1}', 5, 'light')`,
+		"UPDATE river_job SET state = 'running', attempt = 1, attempted_at = now() WHERE kind = 'proof'",
+		"SELECT count(*) FROM river_job WHERE state = 'running'",
+		"DELETE FROM river_job WHERE kind = 'proof'",
+		"INSERT INTO river_leader (elected_at, expires_at, leader_id) VALUES (now(), now() + interval '10 seconds', 'worker-1')",
+		"DELETE FROM river_leader",
+		"INSERT INTO river_queue (name) VALUES ('light')",
+		"UPDATE river_queue SET paused_at = now() WHERE name = 'light'",
+		"DELETE FROM river_queue",
+		"INSERT INTO river_notification (payload, topic) VALUES ('{}', 'proof')",
+		"DELETE FROM river_notification",
+		"REINDEX INDEX CONCURRENTLY river_job_kind",
+	}
+	for _, statement := range statements {
+		_, err := connection.Exec(ctx, statement)
+		assert.NoError(t, err, statement)
+	}
+}
+
+func TestTheAPIRoleCannotChangeTheTablesOfRiver(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+
+	statements := []string{
+		"ALTER TABLE river_job ADD COLUMN intruder text",
+		"DROP TABLE river_job",
+		"TRUNCATE river_job",
+		"ALTER TYPE river_job_state ADD VALUE 'intruder'",
+	}
+	for _, statement := range statements {
+		assert.Equal(t, insufficientPrivilege, refusal(t, temporary, statement), statement)
+	}
+}
+
 func TestTheAPIRoleAddsAndReadsEntriesOfTheAuditLogAndCannotChangeOrRemoveOne(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.Migrated(t)
@@ -109,21 +156,25 @@ func TestTheAPIRoleAddsAndReadsEntriesOfTheAuditLogAndCannotChangeOrRemoveOne(t 
 	defer connection.Close(ctx)
 
 	_, err = connection.Exec(ctx, `
-		INSERT INTO audit_log (occurred_at, operation, actor_kind, subject_kind, subject_id)
-		VALUES (now(), 'setup_code_issued', 'installer', 'setup_code', 1)`)
+		INSERT INTO audit_log (occurred_at, operation, actor_kind, actor_id, subject_kind, subject_id, way_in)
+		VALUES (now(), 'setup_code_issued', 'installer', NULL, 'setup_code', 1, NULL),
+		       (now(), 'logged_in', 'user', 1, 'user', 1, 'login_code')`)
 	require.NoError(t, err)
 	var entries int
 	require.NoError(t, connection.QueryRow(ctx, "SELECT count(*) FROM audit_log").Scan(&entries))
-	assert.Equal(t, 1, entries)
+	assert.Equal(t, 2, entries)
 
 	statements := []string{
 		"UPDATE audit_log SET subject_id = 2",
+		"UPDATE audit_log SET way_in = 'local' WHERE operation = 'logged_in'",
 		"DELETE FROM audit_log",
+		"DELETE FROM audit_log WHERE operation = 'logged_in'",
 		"TRUNCATE audit_log",
 	}
 	for _, statement := range statements {
 		assert.Equal(t, insufficientPrivilege, refusal(t, temporary, statement), statement)
 	}
-	require.NoError(t, connection.QueryRow(ctx, "SELECT count(*) FROM audit_log WHERE subject_id = 1").Scan(&entries))
-	assert.Equal(t, 1, entries, "the entry was changed or removed")
+	require.NoError(t, connection.QueryRow(ctx,
+		"SELECT count(*) FROM audit_log WHERE subject_id = 1 AND way_in IS NOT DISTINCT FROM CASE operation WHEN 'logged_in' THEN 'login_code' END").Scan(&entries))
+	assert.Equal(t, 2, entries, "an entry was changed or removed")
 }

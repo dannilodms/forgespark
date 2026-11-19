@@ -53,6 +53,13 @@ services:
     # plugin. Development builds it; each environment names it in its file.
     logging: *logging
 
+  # The seed of development and staging (ADR-0019). The image is built in this
+  # repository from apps/api/cmd/seed/Dockerfile, which holds the versions of
+  # what it is built on. Development builds it; staging names the published
+  # image. Production declares no seed.
+  seed:
+    logging: *logging
+
   # The file storage of development and staging (ADR-0017). Production keeps
   # its files at a provider and declares no Garage.
   garage:
@@ -63,4 +70,27 @@ services:
   # the S3 API, signed by curl. It runs once and exits.
   garage-cors:
     image: curlimages/curl:8.23.0
+    logging: *logging
+
+  # The e-mail server of development and staging (ADR-0019): it takes every
+  # e-mail over SMTP and keeps it, to read on its screen or through its API.
+  # Production sends through Resend and declares no Mailpit. The image checks
+  # its own health.
+  mailpit:
+    image: axllent/mailpit:v1.34.0
+    logging: *logging
+
+  # The identity container behind the local login provider (ADR-0011), with a
+  # fixed list of people. Development alone declares it: staging and
+  # production log in through the real login providers.
+  dex:
+    image: ghcr.io/dexidp/dex:v2.46.1
+    logging: *logging
+
+  # The River panel (ADR-0016), which shows the jobs. Development alone runs
+  # it, until the API serves it behind the session (Jobs in
+  # CODING_STANDARDS.md). Its release is built with a River of its own: it is
+  # updated with the River of go.mod.
+  riverui:
+    image: ghcr.io/riverqueue/riverui:0.22.0
     logging: *logging

@@ -79,7 +79,7 @@ type ConsultancyDetails struct {
 	taxID     string
 	timeZone  TimeZone
 	currency  Currency
-	email     optional[Email]
+	email     optional[kernel.Email]
 	telephone optional[Telephone]
 	website   optional[Website]
 	address   optional[Address]
@@ -107,7 +107,7 @@ func NewConsultancyDetails(typed TypedConsultancy) (ConsultancyDetails, error) {
 	invalid.AddField("time_zone", err)
 	details.currency, err = NewCurrency(typed.Currency)
 	invalid.AddField("currency", err)
-	details.email, err = readOptional(typed.Email, NewEmail)
+	details.email, err = readOptional(typed.Email, kernel.NewEmail)
 	invalid.AddField("email", err)
 	details.telephone, err = readOptional(typed.Telephone, NewTelephone)
 	invalid.AddField("telephone", err)
@@ -147,7 +147,7 @@ func (d ConsultancyDetails) TimeZone() TimeZone { return d.timeZone }
 func (d ConsultancyDetails) Currency() Currency { return d.currency }
 
 // Email returns the e-mail of the consultancy, and false when it has none.
-func (d ConsultancyDetails) Email() (Email, bool) { return d.email.get() }
+func (d ConsultancyDetails) Email() (kernel.Email, bool) { return d.email.get() }
 
 // Telephone returns the telephone of the consultancy, and false when it has
 // none.

@@ -1,5 +1,28 @@
 components:
   schemas:
+    AskForLoginCodeRequest:
+      additionalProperties: false
+      properties:
+        email:
+          description: The e-mail the person logs in with, in any case.
+          format: email
+          maxLength: 254
+          minLength: 1
+          type: string
+      required:
+        - email
+      type: object
+    CheckLoginCodeRequest:
+      additionalProperties: false
+      properties:
+        code:
+          description: The six digits of the login code, as the e-mail wrote them.
+          minLength: 1
+          pattern: ^[0-9]{6}$
+          type: string
+      required:
+        - code
+      type: object
     ConcludeSetupRequest:
       additionalProperties: false
       properties:
@@ -18,6 +41,19 @@ components:
         - code
         - consultancy
         - administrator
+      type: object
+    Consultancy:
+      additionalProperties: false
+      properties:
+        logo_url:
+          description: A URL that reads the logo of the consultancy from the file storage, signed for its public host name and valid for fifteen minutes. Left out when the consultancy has no logo.
+          format: uri
+          type: string
+        name:
+          description: The name of the consultancy.
+          type: string
+      required:
+        - name
       type: object
     FieldError:
       additionalProperties: false
@@ -40,6 +76,57 @@ components:
         - code
         - params
         - message
+      type: object
+    LoggedInUser:
+      additionalProperties: false
+      properties:
+        email:
+          description: The e-mail the user logs in with, in lowercase.
+          format: email
+          type: string
+        name:
+          description: The name of the user.
+          type: string
+        photo_url:
+          description: A URL that reads the photo of the user from the file storage, signed for its public host name and valid for fifteen minutes. Left out when the user has no photo.
+          format: uri
+          type: string
+        preferred_language:
+          description: The supported language the user reads the system in.
+          enum:
+            - en-US
+            - es
+            - pt-BR
+          minLength: 1
+          type: string
+        role_keys:
+          description: The keys of the roles of the user, sorted, which the app translates.
+          items:
+            enum:
+              - administrator
+              - developer
+            type: string
+          type: array
+      required:
+        - name
+        - email
+        - preferred_language
+        - role_keys
+      type: object
+    LoginState:
+      additionalProperties: false
+      properties:
+        login_providers:
+          description: The login providers turned on, in the order the screen shows them, none included.
+          items:
+            $ref: "#/components/schemas/TurnedOnLoginProvider"
+          type: array
+        refused_email:
+          description: The e-mail the last login through a provider in this browser was refused for, because no active user has it. Absent when it was not refused.
+          format: email
+          type: string
+      required:
+        - login_providers
       type: object
     OpenSetupRequest:
       additionalProperties: false
@@ -314,6 +401,19 @@ components:
         - media_type
         - size
       type: object
+    TurnedOnLoginProvider:
+      additionalProperties: false
+      properties:
+        display_name:
+          description: The name the button shows.
+          type: string
+        key:
+          description: The key of the provider, which names it in the path of its login.
+          type: string
+      required:
+        - key
+        - display_name
+      type: object
 info:
   description: |-
     The REST contract of the system, generated from the Go code and committed.
@@ -325,6 +425,274 @@ info:
   version: unversioned
 openapi: 3.1.0
 paths:
+  /api/consultancy:
+    get:
+      description: "Answers the consultancy as the shell of the app shows it: its name, and a URL that reads its logo from the file storage for fifteen minutes. The app reads it again sooner than that, so the logo never breaks. Any logged-in user reads it: it asks for no scope."
+      operationId: tell_consultancy
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Consultancy"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unauthorized. `unauthorized`: no user is logged in to the session of the request: it has none, it ended, or its user was deactivated."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Tell the consultancy
+      tags:
+        - Consultancy
+  /api/session:
+    get:
+      description: Answers the user logged in to the session of this browser, as the app shows them, with a URL that reads their photo from the file storage for fifteen minutes, and the keys of their roles. The app reads it again sooner than that, so the photo never breaks. It asks for no scope. With no user logged in, the session missing, ended, or of a user deactivated since, it answers 401; the session of a deactivated user is ended.
+      operationId: tell_logged_in_user
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoggedInUser"
+          description: OK
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unauthorized. `unauthorized`: no user is logged in to the session of the request: it has none, it ended, or its user was deactivated."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Tell who is logged in
+      tags:
+        - Login
+  /api/session/log_out:
+    post:
+      description: "Ends the session of this browser, whether a user is logged in to it or not: the answer expires its cookie, and the session opens nothing any more."
+      operationId: log_out
+      responses:
+        "204":
+          description: No Content
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Log out
+      tags:
+        - Login
+  /api/session/login:
+    get:
+      description: "Answers what the login screen needs before anyone is logged in: the login providers turned on, one button each, and the e-mail the last login through a provider in this browser was refused for, because no active user has it, which the screen shows with the notice `no_active_user`: the e-mail travels in this answer and in no address. It needs no session, and reading it forgets nothing."
+      operationId: tell_login_state
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginState"
+          description: OK
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Tell the state of the login
+      tags:
+        - Login
+  /api/session/login_code:
+    post:
+      description: "Sends a login code to the e-mail when it belongs to an active user, and answers the same way, with no body, for every e-mail, so that nobody learns from it who is a user. The code is six digits, works for 10 minutes, once, and only in the browser that asked for it, which the session remembers: the answer sets its cookie. A new code ends the one before. One code a minute and five an hour are sent to each e-mail; past them the operation answers `login_code_limit_reached`."
+      operationId: ask_for_login_code
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AskForLoginCodeRequest"
+        required: true
+      responses:
+        "202":
+          description: Accepted
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unprocessable Entity. `login_code_limit_reached`: too many login codes were asked for this e-mail: one a minute and five an hour are allowed, so wait before asking for another. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule. The rules of a field: `required`: the field is required. `too_long`: the text is longer than the field allows. `email_invalid`: the text is not an e-mail address."
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Too Many Requests. `too_many_requests`: too many requests from this address, answered by Caddy before the API; the header Retry-After says how many seconds to wait."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Ask for a login code
+      tags:
+        - Login
+  /api/session/login_code/check:
+    post:
+      description: "Checks the six digits against the login code this browser asked for last, which the session remembers. The right code, within 10 minutes, logs the user in: the answer sets the cookie of the session again, with a new token, and the logged-in user is read with `tell_logged_in_user`. A wrong code, the code of a request that no longer works, or a code typed in a browser that asked for none, answers `login_code_invalid` with the attempts left; the third answers `login_code_ended`, and a new code has to be asked for."
+      operationId: check_login_code
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckLoginCodeRequest"
+        required: true
+      responses:
+        "204":
+          description: No Content
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unprocessable Entity. `login_code_invalid`: the login code is not valid; another may be typed while attempts are left, which `attempts_left` counts. `login_code_ended`: the login code ended after three wrong attempts: ask for a new one. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule."
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Too Many Requests. `too_many_requests`: too many requests from this address, answered by Caddy before the API; the header Retry-After says how many seconds to wait."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Check a login code
+      tags:
+        - Login
+  /api/session/login_providers/{key}/callback:
+    get:
+      description: The login provider sends the browser back here; the generated client does not call it. The state must be the one of the login this browser started, which is used once. The code is exchanged with the verifier, and the ID token validated with its nonce; the user is found by the provider link of the account, or else by the e-mail the token says is verified, and the account is linked. It redirects to the path to return to, logged in, with the cookie of the session set again with a new token. A verified e-mail of no active user redirects to the login screen with the notice `no_active_user`, the e-mail kept for `tell_login_state`; an account that is not linked, whose verified e-mail is the one of a user who has another account of the provider linked, redirects with `another_account_linked`; a cancel or an error at the provider, a code it refuses, an e-mail it does not say is verified, or a state that is not the one of this browser redirects with `login_not_concluded`. The query parameters are the ones OAuth defines, and any other the provider adds is not refused. A key of no provider turned on answers `not_found`.
+      operationId: conclude_provider_login
+      parameters:
+        - description: The key of the login provider.
+          in: path
+          name: key
+          required: true
+          schema:
+            description: The key of the login provider.
+            type: string
+        - description: The authorization code the provider gives, used once and with the verifier the session keeps.
+          explode: false
+          in: query
+          name: code
+          schema:
+            description: The authorization code the provider gives, used once and with the verifier the session keeps.
+            type: string
+        - description: The state the login was started with.
+          explode: false
+          in: query
+          name: state
+          schema:
+            description: The state the login was started with.
+            type: string
+        - description: The code of the failure the provider answers, when the person cancelled or the provider failed.
+          explode: false
+          in: query
+          name: error
+          schema:
+            description: The code of the failure the provider answers, when the person cancelled or the provider failed.
+            type: string
+        - description: What the provider says of its failure. It is not read.
+          explode: false
+          in: query
+          name: error_description
+          schema:
+            description: What the provider says of its failure. It is not read.
+            type: string
+      responses:
+        "303":
+          description: See Other
+          headers:
+            Location:
+              schema:
+                description: Where the browser goes next.
+                type: string
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Not Found. `not_found`: the path names nothing that exists."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Conclude a login through a login provider
+      tags:
+        - Login
+  /api/session/login_providers/{key}/start:
+    get:
+      description: "The browser navigates here from the button of a login provider; the generated client does not call it. It answers a redirect to the provider, with a state, a nonce and the challenge of a PKCE verifier, which the session of this browser keeps, with the path to return to: the answer sets its cookie. When the provider cannot be reached, it redirects to the login screen with the notice `login_not_concluded`. A key of no provider turned on answers `not_found`."
+      operationId: start_provider_login
+      parameters:
+        - description: The key of the login provider, as the login state names it.
+          in: path
+          name: key
+          required: true
+          schema:
+            description: The key of the login provider, as the login state names it.
+            type: string
+        - description: The path of the app to return to once logged in. Anything but a path of the app returns to its root.
+          explode: false
+          in: query
+          name: return_to
+          schema:
+            description: The path of the app to return to once logged in. Anything but a path of the app returns to its root.
+            maxLength: 2048
+            type: string
+      responses:
+        "302":
+          description: Found
+          headers:
+            Location:
+              schema:
+                description: Where the browser goes next.
+                type: string
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Not Found. `not_found`: the path names nothing that exists."
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Unprocessable Entity. `validation_failed`: the request does not follow this contract, or a field breaks a rule, and `errors` names each field with the code `required` or `invalid`, or the code of the rule."
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+          description: "Internal Server Error. `internal_server_error`: the failure is in the logs, under the `trace_id`."
+      summary: Start a login through a login provider
+      tags:
+        - Login
   /api/setup:
     get:
       description: Tells whether the setup is concluded and whether a setup code is waiting. It needs no session.

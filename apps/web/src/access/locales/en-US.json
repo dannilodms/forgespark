@@ -1,26 +1,72 @@
 {
   "login": {
     "heading": "Log in",
-    "notBuilt": "The login is not built yet. It comes with the next part of the work on the system.",
-    "setupConcluded": {
-      "title": "The setup is concluded",
-      "todo": "The consultancy and its first administrator are registered. The administrator logs in here once the login exists."
+    "notices": {
+      "setupConcluded": {
+        "title": "The setup is concluded",
+        "todo": "The consultancy and its first administrator are registered. The administrator logs in below."
+      },
+      "setupAlreadyConcluded": {
+        "title": "The setup was already concluded",
+        "todo": "Someone concluded it before you did, so nothing of what you typed was saved. The administrator registered then logs in below."
+      },
+      "setupConcludedWithoutAnswer": {
+        "title": "The setup is concluded",
+        "todo": "An earlier attempt to conclude it got no answer, so it may have concluded the setup with what you typed, or someone may have concluded it before you. The administrator registered then logs in below."
+      },
+      "administratorRegistered": {
+        "title": "The administrator is registered",
+        "todo": "The new administrator logs in below. The users that existed were not changed."
+      },
+      "administratorRegisteredWithoutAnswer": {
+        "title": "The administrator may be registered",
+        "todo": "An earlier attempt to register the administrator got no answer, so it may have registered them with the e-mail typed then. Try logging in below with that e-mail. The users that existed were not changed."
+      },
+      "sessionEnded": {
+        "title": "Your session ended",
+        "todo": "Log in again to go back to where you were."
+      },
+      "loggedOut": {
+        "title": "You logged out",
+        "todo": "To use the system again, log in below."
+      },
+      "loginNotConcluded": {
+        "title": "The login did not conclude",
+        "todo": "It was cancelled at the login provider, or it failed there. You can try again below."
+      },
+      "noActiveUser": {
+        "title": "No active user has this e-mail",
+        "todo": "The login provider gave the e-mail <email>{{email}}</email>, and no active user of the system has it. Ask an administrator for access."
+      },
+      "anotherAccountLinked": {
+        "title": "This is not the account linked to your user",
+        "todo": "Your user is linked to another account of this login provider. Log in with that account, or with a login code sent to your e-mail."
+      }
     },
-    "setupAlreadyConcluded": {
-      "title": "The setup was already concluded",
-      "todo": "Someone concluded it before you did, so nothing of what you typed was saved. The administrator registered then logs in here once the login exists."
+    "providers": {
+      "logInWith": "Log in with {{name}}",
+      "or": "or"
     },
-    "setupConcludedWithoutAnswer": {
-      "title": "The setup is concluded",
-      "todo": "An earlier attempt to conclude it got no answer, so it may have concluded the setup with what you typed, or someone may have concluded it before you. The administrator registered then logs in here once the login exists."
+    "email": {
+      "intro": "Type the e-mail you log in with, and a login code is sent to it.",
+      "label": "E-mail",
+      "submit": "Send a code",
+      "codeEnded": {
+        "title": "This code no longer works",
+        "todo": "Ask for a new code and type the one in the new e-mail."
+      }
     },
-    "administratorRegistered": {
-      "title": "The administrator is registered",
-      "todo": "The new administrator logs in here once the login exists. The users that existed were not changed."
-    },
-    "administratorRegisteredWithoutAnswer": {
-      "title": "The administrator may be registered",
-      "todo": "An earlier attempt to register the administrator got no answer, so it may have registered them with the e-mail typed then. Once the login exists, try logging in here with that e-mail. The users that existed were not changed."
+    "code": {
+      "intro": "If <email>{{email}}</email> belongs to a user, a login code was sent to it. Type its six digits.",
+      "label": "Login code",
+      "submit": "Log in",
+      "back": "Use another e-mail",
+      "newCode": "Send a new code",
+      "newCodeIn": "You can ask for a new code in {{wait, seconds}}."
     }
+  },
+  "userMenu": {
+    "open": "Menu of {{name}}",
+    "logOut": "Log out"
   }
 }

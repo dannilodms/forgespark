@@ -1,53 +1,12 @@
 package domain
 
 import (
-	"net/mail"
 	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
-
-// EmailMaxLength is the longest e-mail address there is (RFC 5321).
-const EmailMaxLength = 254
-
-// Email is an e-mail address, in lowercase, so that the way it was typed
-// does not matter where it is compared.
-type Email struct {
-	address string
-}
-
-// NewEmail reads an e-mail address: one address and nothing around it, no
-// name and no angle brackets.
-func NewEmail(typed string) (Email, error) {
-	address, err := RequiredText(typed, EmailMaxLength)
-	if err != nil {
-		return Email{}, err
-	}
-	parsed, err := mail.ParseAddress(address)
-	if err != nil || parsed.Name != "" || parsed.Address != address {
-		return Email{}, EmailInvalidError{}
-	}
-	return Email{address: strings.ToLower(address)}, nil
-}
-
-// String returns the address.
-func (e Email) String() string {
-	return e.address
-}
-
-// EmailInvalidError is a text that is not an e-mail address.
-type EmailInvalidError struct{}
-
-func (EmailInvalidError) Error() string {
-	return "the text is not an e-mail address"
-}
-
-// Code returns the stable code an inbound adapter answers with.
-func (EmailInvalidError) Code() string {
-	return "email_invalid"
-}
 
 // TelephonePattern is the form of a telephone, as a regular expression: a
 // plus sign and 7 to 15 digits (E.164), with spaces anywhere after the plus.

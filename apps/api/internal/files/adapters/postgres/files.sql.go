@@ -10,6 +10,50 @@ import (
 	"time"
 )
 
+const confirmedObjectKeyOf = `-- name: ConfirmedObjectKeyOf :one
+SELECT object_key
+FROM files
+WHERE id = $1
+  AND confirmed_at IS NOT NULL
+`
+
+// The key the bytes of a confirmed file are kept under, for a read: it locks
+// nothing.
+func (q *Queries) ConfirmedObjectKeyOf(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRow(ctx, confirmedObjectKeyOf, id)
+	var object_key string
+	err := row.Scan(&object_key)
+	return object_key, err
+}
+
+const confirmedObjectKeys = `-- name: ConfirmedObjectKeys :many
+SELECT object_key
+FROM files
+WHERE confirmed_at IS NOT NULL
+  AND object_key = ANY ($1::text[])
+ORDER BY object_key
+`
+
+func (q *Queries) ConfirmedObjectKeys(ctx context.Context, objectKeys []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, confirmedObjectKeys, objectKeys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var object_key string
+		if err := rows.Scan(&object_key); err != nil {
+			return nil, err
+		}
+		items = append(items, object_key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const loadFile = `-- name: LoadFile :one
 SELECT id, object_key, purpose, media_type, size, started_at, confirmed_at
 FROM files
@@ -43,6 +87,19 @@ func (q *Queries) NextFileID(ctx context.Context) (int64, error) {
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const removeAbandonedFiles = `-- name: RemoveAbandonedFiles :exec
+DELETE FROM files
+WHERE confirmed_at IS NULL
+  AND started_at < $1
+`
+
+// A file a confirmation holds is locked: the removal waits for it, and then
+// finds it confirmed or not.
+func (q *Queries) RemoveAbandonedFiles(ctx context.Context, startedBefore time.Time) error {
+	_, err := q.db.Exec(ctx, removeAbandonedFiles, startedBefore)
+	return err
 }
 
 const saveFile = `-- name: SaveFile :exec

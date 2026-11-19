@@ -214,6 +214,7 @@ The base unit is 4px. Spacing steps are multiples of it.
 | 40px | Default control, item of the sidebar, header of a table |
 | 44px | Row of a table, prominent control |
 | 56px | The header of the app |
+| 960px | `breakpoint-shell`: under it the sidebar of the app shell is a sheet |
 | 16 to 20px | Icon: 20px in the header and the sidebar, 16px in a control, 14px inside a chip or a badge |
 
 Button, input, select and tab heights move together, so a form stays aligned.
@@ -269,7 +270,7 @@ What makes the style recognisable, beyond the values above.
 The mark is a software factory in one solid shape: a building with a sawtooth roof and two chimneys, the code symbol `</>` cut out of its wall, standing on a conveyor belt with three rollers. It is drawn on a 64-unit square.
 
 - The mark has one colour: `brand` on a surface, or `primary-foreground` on a `primary` tile. It follows rule 2.
-- The logo is the mark and the product name. In the app the name is set in Poppins at weight 600, in `foreground`, beside the mark (`BrandMark` in `apps/web/src/shared/components`, a copy of `mark.svg`).
+- The logo is the mark and the product name. In the app the name is set in title type (`type-title`), in `foreground`, beside the mark in `brand`: `ProductLogo` in `apps/web/src/shared/components/brand-mark.tsx`, whose mark is a copy of `mark.svg`, draws both, in the header of the framed pane and of the shell.
 - The smallest size of the mark is 16px. The space around it is at least a quarter of its width.
 - The mark is never stretched, rotated, outlined or given a shadow.
 
@@ -314,7 +315,7 @@ A component holds no text of its own. Every word comes from the screen, in the l
 
 ## Recipes
 
-Seven compositions are described here. The framed pane has code, `FramedPane` in `apps/web/src/shared/components`. The others have none yet: the first screen that needs one writes it in `apps/web`, following the clickable prototype the maintainer approved on 2026-11-18 (ADR-0027).
+Seven compositions are described here. Two have code, in `apps/web/src/shared/components`: the framed pane, `FramedPane`, with `StepActions` for the end of a step, which the setup and the login screen use; and the app shell, `AppShell`, which holds every screen after the login. The others have none yet: the first screen that needs one writes it in `apps/web`, following the clickable prototype the maintainer approved on 2026-11-18 (ADR-0027).
 
 | Recipe | What it is |
 | --- | --- |
@@ -334,6 +335,15 @@ A recipe is added when a second screen needs the same composition.
 - Under 960px the sidebar is a sheet that a button at the start of the header opens, and the search field gives way to its icon.
 - The command palette lists the places to go, the actions of the screen and the items to open.
 
+The code, `AppShell`, draws the recipe cut down to what works, because a control that does nothing is not shown: the header has the mark, the product name and the user menu; the sidebar has the consultancy alone; the work surface holds the screen. The search field and the command palette, the notifications, help, the items of the menu, favourites and the settings are left out until the feature each one opens exists: there is no area of work, no notification and no setting yet. Each arrives with its feature, in the place this recipe gives it.
+
+- The consultancy at the top of the sidebar is its logo, or its initials, in a 32px square with 4px corners, where the whole logo shows, beside its name.
+- The button of the user menu is the photo of the user, or their initials, in a 32px circle. The menu shows them again at 40px, with the name and the e-mail, and one action, logging out, which leads to the login screen with its notice. The menu stays open while the logout is sent, and shows its failure.
+- Initials are the first letters of the first and the last words of the name. They take the `muted` fill for now: the colour of a person's circle comes with the first screen that tells people apart, such as the board table.
+- The photo and the logo come from the file storage, through URLs that work for 15 minutes; the app reads the user and the consultancy again every ten minutes, and keeps showing an image until the picture of its new URL has loaded, so an image never breaks nor blinks to the initials.
+- The sidebar lies on the frame, below the header, with no line of its own. The work surface keeps 12px from the edge of the window on its left too, while the sidebar is a sheet.
+- The width at which the sidebar becomes a sheet is `--breakpoint-shell`, 960px, whose `shell:` classes the Sidebar of `ui` uses in place of shadcn/ui's `md:` (768px), and `useIsMobile` in `ui/hooks` holds the same width.
+
 **Board table.** Each group starts with its title in `type-title`, in the group colour, with a chevron that folds it and its count. Its table has a header of 40px, with the titles of the columns in `type-label`, centred but for the first. Each row is 44px high; the first cell holds the name and starts with a 6px strip in the group colour. A status column is a label that fills its cell. A person is a coloured circle with initials. Numbers align to the right. The last row of a group adds an item. The foot of a group sums its numbers and shows a bar of its labels, each colour as wide as its share. A hovered row takes `muted`, the selected one takes `selected`. Under the toolbar of the screen (the split button that creates an item, the search field, and the tools Person, Filter, Sort and Group), the table scrolls sideways inside its own container when it is wider than the work surface.
 
 **Record page.** A breadcrumb; a header with the logo or the initials of the record, its name in display type, its labels and the chain it belongs to, such as consultancy and client, and its actions at the end; a row of figures, each a small card; then view tabs in the `line` variant, whose content fills the rest of the page.
@@ -342,11 +352,12 @@ A recipe is added when a second screen needs the same composition.
 
 **Form page.** Sections one under the other, each on two columns: its title and a sentence on the left, its fields on the right, in a grid of six columns where a field takes two, three, four or six. A line of `border` ends each section. A choice between few options with a sentence each is a set of option cards rather than a select. The cancel and the primary action stay at the bottom of the work surface while it scrolls. Under 900px a section is one column.
 
-**Framed pane.** The header and the footer are 56px high, on the frame: the header shows the mark in `brand` and the product name in Poppins at weight 600, and the footer holds the language selector at its end. Between them, the pane is on `card`, with a 1px border, 12px corners and 24px of padding, 32px from 640px up, in the centre of the frame; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. The screen has no theme toggle, no version number and no link to the source code.
+**Framed pane.** The header and the footer are 56px high, on the frame: the header shows the logo, the mark in `brand` and the product name in title type (`ProductLogo`), and the footer holds the language selector at its end. Between them, the pane is on `card`, with a 1px border, 12px corners and 24px of padding, 32px from 640px up, in the centre of the frame; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. The screen has no theme toggle, no version number and no link to the source code.
 
 - The pane has two widths. A screen of few controls, such as the login screen, takes the narrow pane, at most 384px wide. A form, such as the setup, takes the wide pane, at most 720px wide, so that its fields go side by side and the form stays short.
 - In the wide pane the fields go in pairs, or in threes when they are short, such as city, region and postal code. A field with a long value, such as a website, takes the whole line. Where the group of fields is narrower than 512px, they go one under the other.
 - A step of a form ends on a line above a 1px `border-subtle`: the way back to the step before at the start, when there is one, and the one primary action at the end. On a narrow screen the primary action takes the rest of the line.
+- The login screen is the narrow pane: its heading, the notice it was given, the buttons of the login providers above a divider, absent while no provider is on, then the step of the e-mail or of the login code. A button of a provider is an outline button the width of the pane, "Log in with" and the display name of the provider, one under the other in the order the API gives them; it is a link, because it leaves the app for the provider, and a long name wraps inside it on a narrow screen. The divider is a 1px line in `border` with "or" in its middle, in caption type, in `muted-foreground`. The primary action stays the one of the step. The six digits of a login code are an InputOTP of six boxes, in mono. The way to a new code is a link button under the field, closed for a minute after the last code, with the seconds left in caption type under it.
 
 **Form dialog.** The fields, then a footer with the cancel action and the primary action. Enter in a field submits. A validation error shows under its field, in the error colour, with a sign and a sentence that says what to do; the field is marked and takes the focus. A dialog that closes keeps nothing of what was typed.
 

@@ -11,7 +11,13 @@ import {
   getTellSetupStateMockHandler,
 } from "../../shared/api/generated/client.msw"
 import type { RegisterAdministratorRequest } from "../../shared/api/generated/model"
-import { api, problem, traceId } from "../../testing/api"
+import {
+  api,
+  noLoginProviderIsOn,
+  nobodyIsLoggedIn,
+  problem,
+  traceId,
+} from "../../testing/api"
 import { renderApp } from "../../testing/render-app"
 
 type Screen = Awaited<ReturnType<typeof renderApp>>["screen"]
@@ -26,7 +32,10 @@ const typedCode = "ABCDE-FGHJK-MNPQR-STVWX"
  */
 async function openTheWayBackIn(languages: readonly string[] = ["en-US"]) {
   api.use(
-    getTellSetupStateMockHandler({ concluded: true, setup_code_waiting: true })
+    getTellSetupStateMockHandler({ concluded: true, setup_code_waiting: true }),
+    // The login screen, where registering leads, finds nobody logged in.
+    nobodyIsLoggedIn(),
+    noLoginProviderIsOn()
   )
   api.use(
     getOpenSetupMockHandler({
@@ -187,6 +196,11 @@ describe("the e-mail of a user that exists", () => {
   it("is changed, and the administrator is registered with the new one", async () => {
     const { screen } = await openTheWayBackIn()
     await fillTheAdministrator(screen)
+    // The handler last given is asked first: the refusal answers the first
+    // attempt, and the registering requests record only the second. Given
+    // after the click, the recording handler could answer the first attempt,
+    // when the request leaves after it, and the setup would conclude.
+    const sent = registeringRequests()
     api.use(
       getRegisterAdministratorMockHandler409(problem(409, "email_in_use"), {
         once: true,
@@ -195,9 +209,12 @@ describe("the e-mail of a user that exists", () => {
     await screen
       .getByRole("button", { name: "Register the administrator" })
       .click()
-    const sent = registeringRequests()
+    const email = textField(screen, "E-mail")
+    await expect
+      .element(email)
+      .toHaveAccessibleDescription(/This e-mail belongs to a user/)
 
-    await textField(screen, "E-mail").fill("bruno.lima@acme.example")
+    await email.fill("bruno.lima@acme.example")
     await screen.getByRole("button", { name: "Continue" }).click()
     await screen
       .getByRole("button", { name: "Register the administrator" })
@@ -367,7 +384,7 @@ describe("a registration whose answer was lost", () => {
       .toMatchTextContent(/The administrator may be registered/)
     await expect
       .element(notice)
-      .toMatchTextContent(/try logging in here with that e-mail/)
+      .toMatchTextContent(/Try logging in below with that e-mail/)
     await expect.element(notice).not.toMatchTextContent(/not saved|nothing/i)
   }
 

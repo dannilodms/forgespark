@@ -10,16 +10,27 @@ import {
   getTellSetupStateMockHandler,
   getTellSetupStateMockHandler500,
 } from "../../shared/api/generated/client.msw"
-import { api, problem, traceId } from "../../testing/api"
+import {
+  api,
+  noLoginProviderIsOn,
+  nobodyIsLoggedIn,
+  problem,
+  traceId,
+} from "../../testing/api"
 import { renderApp } from "../../testing/render-app"
 
-/** The API answers the state of the setup with this. */
+/**
+ * The API answers the state of the setup with this, and that nobody is
+ * logged in, which the gate reads once the setup is concluded.
+ */
 function setupState(concluded: boolean, setupCodeWaiting: boolean) {
   api.use(
     getTellSetupStateMockHandler({
       concluded,
       setup_code_waiting: setupCodeWaiting,
-    })
+    }),
+    nobodyIsLoggedIn(),
+    noLoginProviderIsOn()
   )
 }
 
@@ -41,9 +52,16 @@ describe("the gate of the setup", () => {
   })
 
   describe("after the setup is concluded", () => {
-    it.for(["/", "/setup", "/login", "/projects/42"])(
+    // Without a session. The login keeps an address to return to; the gate
+    // with a session is in access/screens/login-gate.test.tsx.
+    it.for([
+      ["/", "/login"],
+      ["/setup", "/login"],
+      ["/login", "/login"],
+      ["/projects/42", "/login?return_to=%2Fprojects%2F42"],
+    ])(
       "leads %s to the login screen while no setup code is waiting",
-      async (at) => {
+      async ([at, login]) => {
         setupState(true, false)
 
         const { screen, address } = await renderApp({ at })
@@ -51,7 +69,7 @@ describe("the gate of the setup", () => {
         await expect
           .element(screen.getByRole("heading", { name: "Log in" }))
           .toBeVisible()
-        expect(address()).toBe("/login")
+        expect(address()).toBe(login)
       }
     )
 
@@ -66,9 +84,13 @@ describe("the gate of the setup", () => {
       expect(address()).toBe("/setup")
     })
 
-    it.for(["/", "/login", "/projects/42"])(
+    it.for([
+      ["/", "/login"],
+      ["/login", "/login"],
+      ["/projects/42", "/login?return_to=%2Fprojects%2F42"],
+    ])(
       "leads %s to the login screen even while a setup code is waiting",
-      async (at) => {
+      async ([at, login]) => {
         setupState(true, true)
 
         const { screen, address } = await renderApp({ at })
@@ -76,7 +98,7 @@ describe("the gate of the setup", () => {
         await expect
           .element(screen.getByRole("heading", { name: "Log in" }))
           .toBeVisible()
-        expect(address()).toBe("/login")
+        expect(address()).toBe(login)
       }
     )
   })

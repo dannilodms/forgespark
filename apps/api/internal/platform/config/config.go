@@ -5,6 +5,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"reflect"
 	"slices"
@@ -24,6 +25,10 @@ const (
 	Migrate Command = "migrate"
 	// IssueSetupCode is the command that issues a setup code.
 	IssueSetupCode Command = "issue-setup-code"
+	// Seed is the seed, a binary of its own that fills an empty database.
+	Seed Command = "seed"
+	// Worker is the command that runs the jobs.
+	Worker Command = "worker"
 )
 
 // Config holds every value the binary takes from the environment. Each
@@ -46,6 +51,30 @@ type Config struct {
 	FileStorageBucket                string        `env:"FILE_STORAGE_BUCKET"`
 	FileStorageAccessKeyID           string        `env:"FILE_STORAGE_ACCESS_KEY_ID"`
 	FileStorageSecretAccessKey       Secret        `env:"FILE_STORAGE_SECRET_ACCESS_KEY"`
+	SeedMailbox                      Mailbox       `env:"SEED_MAILBOX"`
+	LoginCodeKey                     Key           `env:"LOGIN_CODE_KEY"`
+	WorkerLightQueueMaxJobs          int           `env:"WORKER_LIGHT_QUEUE_MAX_JOBS" envDefault:"10"`
+	WorkerHeavyQueueMaxJobs          int           `env:"WORKER_HEAVY_QUEUE_MAX_JOBS" envDefault:"2"`
+	WorkerShutdownDeadline           time.Duration `env:"WORKER_SHUTDOWN_DEADLINE" envDefault:"20s"`
+	EmailSender                      EmailSender   `env:"EMAIL_SENDER"`
+	EmailSMTPAddress                 ServerAddress `env:"EMAIL_SMTP_ADDRESS"`
+	EmailFromAddress                 EmailAddress  `env:"EMAIL_FROM_ADDRESS"`
+	EmailFromName                    string        `env:"EMAIL_FROM_NAME"`
+	ResendAPIKey                     Secret        `env:"RESEND_API_KEY"`
+	ResendWebhookSecret              WebhookSecret `env:"RESEND_WEBHOOK_SECRET"`
+	// The local login provider, on when its variables are set and off when
+	// they are empty (localLoginProviderVariables).
+	LocalLoginProviderKey          ProviderKey `env:"LOCAL_LOGIN_PROVIDER_KEY"`
+	LocalLoginProviderDisplayName  string      `env:"LOCAL_LOGIN_PROVIDER_DISPLAY_NAME"`
+	LocalLoginProviderIssuerURL    HTTPURL     `env:"LOCAL_LOGIN_PROVIDER_ISSUER_URL"`
+	LocalLoginProviderClientID     string      `env:"LOCAL_LOGIN_PROVIDER_CLIENT_ID"`
+	LocalLoginProviderClientSecret Secret      `env:"LOCAL_LOGIN_PROVIDER_CLIENT_SECRET"`
+}
+
+// LocalLoginProviderIsOn tells whether the local login provider is turned
+// on: its variables are set. Load refuses them half set.
+func (c Config) LocalLoginProviderIsOn() bool {
+	return c.LocalLoginProviderKey != ""
 }
 
 // requiredBy lists the variables with no default that each command needs. The
@@ -56,9 +85,61 @@ var requiredBy = map[Command][]string{
 		"API_LISTEN_ADDRESS", "DATABASE_URL",
 		"FILE_STORAGE_URL", "FILE_STORAGE_PUBLIC_URL", "FILE_STORAGE_REGION", "FILE_STORAGE_BUCKET",
 		"FILE_STORAGE_ACCESS_KEY_ID", "FILE_STORAGE_SECRET_ACCESS_KEY",
+		// The cookie of the session goes over HTTPS only when the app does,
+		// and a request that changes state with it comes from the app.
+		"APP_ORIGIN",
+		// The check of a login code computes the code with its key.
+		"LOGIN_CODE_KEY",
 	},
 	Migrate:        {"MIGRATION_DATABASE_URL"},
 	IssueSetupCode: {"DATABASE_URL", "APP_ORIGIN"},
+	Seed:           {"DATABASE_URL", "SEED_MAILBOX"},
+	// The worker delivers the e-mails, through the sender EMAIL_SENDER names,
+	// which needs variables of its own (requiredBySender), and cleans up the
+	// file storage.
+	Worker: {
+		"DATABASE_URL", "EMAIL_SENDER", "EMAIL_FROM_ADDRESS", "EMAIL_FROM_NAME",
+		"FILE_STORAGE_URL", "FILE_STORAGE_PUBLIC_URL", "FILE_STORAGE_REGION", "FILE_STORAGE_BUCKET",
+		"FILE_STORAGE_ACCESS_KEY_ID", "FILE_STORAGE_SECRET_ACCESS_KEY",
+		// The delivery of a login code computes the code with its key.
+		"LOGIN_CODE_KEY",
+	},
+}
+
+// requiredBySender lists the variables each sender of e-mail needs, for a
+// command that requires EMAIL_SENDER: the SMTP server, or the key of Resend.
+var requiredBySender = map[EmailSender][]string{
+	SMTPSender:   {"EMAIL_SMTP_ADDRESS"},
+	ResendSender: {"RESEND_API_KEY"},
+}
+
+// localLoginProviderVariables turn the local login provider on, all of them
+// together, for the API, which logs in through it.
+var localLoginProviderVariables = []string{
+	"LOCAL_LOGIN_PROVIDER_KEY", "LOCAL_LOGIN_PROVIDER_DISPLAY_NAME", "LOCAL_LOGIN_PROVIDER_ISSUER_URL",
+	"LOCAL_LOGIN_PROVIDER_CLIENT_ID", "LOCAL_LOGIN_PROVIDER_CLIENT_SECRET",
+}
+
+// requiredForLocalLoginProvider gives the variables of the local login
+// provider when the API is told to turn it on: one of them is set.
+func requiredForLocalLoginProvider(command Command, environment map[string]string) []string {
+	if command != ServeAPI {
+		return nil
+	}
+	set := slices.ContainsFunc(localLoginProviderVariables, func(variable string) bool { return environment[variable] != "" })
+	if !set {
+		return nil
+	}
+	return localLoginProviderVariables
+}
+
+// requiredForEmail gives the variables the sender of e-mail the environment
+// names needs, when the command sends e-mail.
+func requiredForEmail(command Command, environment map[string]string) []string {
+	if !slices.Contains(requiredBy[command], "EMAIL_SENDER") {
+		return nil
+	}
+	return requiredBySender[EmailSender(environment["EMAIL_SENDER"])]
 }
 
 // Load reads the environment into a Config for one command. A variable that
@@ -68,7 +149,8 @@ func Load(command Command, environment map[string]string) (Config, error) {
 	var loaded Config
 	found := problems{}
 
-	for _, variable := range requiredBy[command] {
+	required := slices.Concat(requiredBy[command], requiredForEmail(command, environment), requiredForLocalLoginProvider(command, environment))
+	for _, variable := range required {
 		found.addWhen(environment[variable] == "", variable, "is required")
 	}
 	found.addUnparsed(env.ParseWithOptions(&loaded, env.Options{Environment: environment}))
@@ -77,6 +159,9 @@ func Load(command Command, environment map[string]string) (Config, error) {
 	found.addWhen(loaded.DatabaseStatementTimeout <= 0, "DATABASE_STATEMENT_TIMEOUT", "is not valid: expected more than zero")
 	found.addWhen(loaded.DatabaseIdleInTransactionTimeout <= 0, "DATABASE_IDLE_IN_TRANSACTION_TIMEOUT", "is not valid: expected more than zero")
 	found.addWhen(loaded.HealthCheckTimeout <= 0, "HEALTH_CHECK_TIMEOUT", "is not valid: expected more than zero")
+	found.addWhen(loaded.WorkerLightQueueMaxJobs < 1, "WORKER_LIGHT_QUEUE_MAX_JOBS", "is not valid: expected at least 1")
+	found.addWhen(loaded.WorkerHeavyQueueMaxJobs < 1, "WORKER_HEAVY_QUEUE_MAX_JOBS", "is not valid: expected at least 1")
+	found.addWhen(loaded.WorkerShutdownDeadline <= 0, "WORKER_SHUTDOWN_DEADLINE", "is not valid: expected more than zero")
 
 	if len(found) > 0 {
 		return Config{}, errors.New("configuration: " + found.line())
@@ -167,9 +252,23 @@ func expectationOf(valueType reflect.Type) string {
 		return "a PostgreSQL connection URL"
 	case reflect.TypeFor[Origin]():
 		return "an origin such as https://example.com"
+	case reflect.TypeFor[Mailbox]():
+		return "a mailbox such as name@example.com"
+	case reflect.TypeFor[EmailAddress]():
+		return "an e-mail address such as name@example.com"
+	case reflect.TypeFor[EmailSender]():
+		return "smtp or resend"
+	case reflect.TypeFor[WebhookSecret]():
+		return "whsec_ followed by the key in base64"
+	case reflect.TypeFor[ServerAddress]():
+		return "host:port, with a host"
+	case reflect.TypeFor[ProviderKey]():
+		return "lowercase letters, digits and underscores, starting with a letter, 64 at most, other than the way in of the login code"
+	case reflect.TypeFor[Key]():
+		return fmt.Sprintf("at least %d hexadecimal digits (%d bytes)", 2*KeyMinSize, KeyMinSize)
 	case reflect.TypeFor[time.Duration]():
 		return "a duration such as 30s"
-	case reflect.TypeFor[int32]():
+	case reflect.TypeFor[int32](), reflect.TypeFor[int]():
 		return "a whole number"
 	}
 	return "another kind of value"

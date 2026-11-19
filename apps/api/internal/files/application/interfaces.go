@@ -1,7 +1,8 @@
 // Package application holds the use cases of the files area and the
 // interfaces they need. A use case is a type built once, with what it needs,
 // and run with Execute. The area has no REST operation of its own yet: the
-// use cases of the setup call these, after they checked the setup code.
+// use cases of the setup call these, after they checked the setup code, and
+// the reads that show an image sign its download.
 package application
 
 import (
@@ -36,6 +37,16 @@ type FileRepository interface {
 	Load(ctx context.Context, id domain.FileID) (*domain.File, bool, error)
 	// Save stores a file whole, whether it is new or changed.
 	Save(ctx context.Context, file *domain.File) error
+	// RemoveAbandoned removes the files whose upload started before this
+	// instant and was never confirmed. A file being confirmed is removed, or
+	// not, once its confirmation ends.
+	RemoveAbandoned(ctx context.Context, startedBefore time.Time) error
+	// ConfirmedKeys returns those of the keys a confirmed file names.
+	ConfirmedKeys(ctx context.Context, among []domain.ObjectKey) ([]domain.ObjectKey, error)
+	// ConfirmedKey returns the key the bytes of the file with this identifier
+	// are kept under, and false when there is no such file or it was never
+	// confirmed. It locks nothing: it serves a read.
+	ConfirmedKey(ctx context.Context, id domain.FileID) (domain.ObjectKey, bool, error)
 }
 
 // Storage is the file storage, which holds the bytes of each file under its
@@ -45,6 +56,9 @@ type Storage interface {
 	// object with a PUT, valid for this long. The URL accepts what was
 	// declared only: its type and its size.
 	SignUpload(ctx context.Context, key domain.ObjectKey, declared domain.DeclaredImage, validity time.Duration) (string, error)
+	// SignDownload signs a URL from which the browser reads the bytes of the
+	// object under this key with a GET, valid for this long.
+	SignDownload(ctx context.Context, key domain.ObjectKey, validity time.Duration) (string, error)
 	// Inspect reads the size of the object under this key and its first
 	// bytes, at most domain.FirstBytesRead of them, and false when there is no
 	// object.
@@ -56,4 +70,8 @@ type Storage interface {
 	// Remove removes the object under this key. Removing one that does not
 	// exist is no failure.
 	Remove(ctx context.Context, key domain.ObjectKey) error
+	// List lists every object of the bucket, with the time it was last
+	// written, and calls each with them a page at a time. It stops at the
+	// first failure, of the storage or of each.
+	List(ctx context.Context, each func(objects []domain.ListedObject) error) error
 }

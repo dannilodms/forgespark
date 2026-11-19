@@ -25,7 +25,7 @@ import {
 } from "./setup-form"
 import type { SetupImageField } from "./setup-image"
 import type { SetupMode } from "./setup-mode"
-import { StepActions } from "./step-actions"
+import { StepActions } from "../../shared/components/step-actions"
 import { StepHeading } from "./step-heading"
 
 const checkTheAdministrator = checkTheContract(

@@ -1,11 +1,28 @@
 import type { ComponentProps } from "react"
+import { useTranslation } from "react-i18next"
+
+/**
+ * The logo of the product in the header of the framed pane and of the shell:
+ * the mark in `brand` and the product name beside it, in title type (Brand
+ * in DESIGN.md). A long name is cut where the header has no room for it.
+ */
+export function ProductLogo() {
+  const { t } = useTranslation()
+
+  return (
+    <>
+      <BrandMark className="size-7 shrink-0 text-brand" />
+      <span className="min-w-0 truncate type-title">{t("productName")}</span>
+    </>
+  )
+}
 
 /**
  * The mark of the product, a copy of `docs/design/brand/mark.svg` in one
- * colour: the current text colour, which the caller sets to `brand`. It is
+ * colour: the current text colour, which the logo sets to `brand`. It is
  * decoration beside the product name, so assistive technology skips it.
  */
-export function BrandMark(props: ComponentProps<"svg">) {
+function BrandMark(props: ComponentProps<"svg">) {
   return (
     <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false" {...props}>
       <path

@@ -29,6 +29,8 @@ type stored struct {
 	users         *postgres.UserRepository
 	roles         *postgres.RoleRepository
 	setupState    *postgres.SetupStateReader
+	activeUsers   *postgres.ActiveUserReader
+	consultancy   *postgres.ConsultancyReader
 }
 
 func newStored(t *testing.T) stored {
@@ -52,6 +54,8 @@ func newStored(t *testing.T) stored {
 		users:         postgres.NewUserRepository(pool),
 		roles:         postgres.NewRoleRepository(pool),
 		setupState:    postgres.NewSetupStateReader(pool),
+		activeUsers:   postgres.NewActiveUserReader(pool),
+		consultancy:   postgres.NewConsultancyReader(pool),
 	}
 }
 

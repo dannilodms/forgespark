@@ -100,6 +100,83 @@ services:
       FILE_STORAGE_ACCESS_KEY_ID: ${FILE_STORAGE_ACCESS_KEY_ID}
       FILE_STORAGE_SECRET_ACCESS_KEY: ${FILE_STORAGE_SECRET_ACCESS_KEY}
 
+  # The seed (ADR-0019): fills an empty database with a fictitious consultancy
+  # and its administrator, through the use cases of the setup. In development
+  # `task seed` runs the Go package on the machine, as `task migrate` does;
+  # this service is the image staging runs on every publish, declared here so
+  # that development builds and proves it, and in no other environment but
+  # staging. It runs once and exits, so it lives in a profile of its own and
+  # `task services` does not start it:
+  # `docker compose --profile seed run --rm --build seed`.
+  seed:
+    extends:
+      file: deploy/compose.base.yaml
+      service: seed
+    build:
+      context: apps/api
+      dockerfile: cmd/seed/Dockerfile
+    image: software-factory-manager-seed:development
+    profiles: [seed]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # The API role, on the network of Compose. The migrations were applied
+      # from the machine, by `task migrate`.
+      DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD:?Set POSTGRES_API_PASSWORD, as .env.example does}@postgres:5432/software_factory?sslmode=disable
+      SEED_MAILBOX: ${SEED_MAILBOX:?Set SEED_MAILBOX, as .env.example does}
+
+  # The e-mail of development: the worker sends over SMTP to MAILPIT_SMTP_PORT
+  # of the machine, and Mailpit keeps every e-mail, delivering none. Its
+  # screen and its API, through which the tests read an e-mail back, are at
+  # MAILPIT_PORT.
+  mailpit:
+    extends:
+      file: deploy/compose.base.yaml
+      service: mailpit
+    ports:
+      - 127.0.0.1:${MAILPIT_SMTP_PORT:?Set MAILPIT_SMTP_PORT, as .env.example does}:1025
+      - 127.0.0.1:${MAILPIT_PORT:?Set MAILPIT_PORT, as .env.example does}:8025
+
+  # The local login provider: Dex, an OpenID Connect provider with the people
+  # of the seed and their fixed passwords, which the README lists. It is
+  # published on DEX_PORT of the machine, and its issuer names that port, so
+  # the browser and the API, both on the machine, reach the same address. It
+  # keeps what it needs in memory: a login in flight does not survive a
+  # restart. Its configuration is a config written here, so a run of `up`
+  # from another checkout does not create it again.
+  dex:
+    extends:
+      file: deploy/compose.base.yaml
+      service: dex
+    command: [dex, serve, /etc/dex/config.yaml]
+    ports:
+      - 127.0.0.1:${DEX_PORT:?Set DEX_PORT, as .env.example does}:5556
+    configs:
+      - source: dex
+        target: /etc/dex/config.yaml
+    healthcheck:
+      test: [CMD, wget, --quiet, --spider, http://127.0.0.1:5558/healthz/ready]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
+
+  # The River panel, in development only: it reads and manages the jobs of
+  # the development database as the API role, on a port of the machine.
+  riverui:
+    extends:
+      file: deploy/compose.base.yaml
+      service: riverui
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - 127.0.0.1:${RIVER_PANEL_PORT:?Set RIVER_PANEL_PORT, as .env.example does}:8080
+    environment:
+      DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD}@postgres:5432/software_factory?sslmode=disable
+
 volumes:
   postgres-data:
   garage-data:
@@ -121,6 +198,49 @@ configs:
       [s3_api]
       s3_region = "${FILE_STORAGE_REGION}"
       api_bind_addr = "0.0.0.0:3900"
+
+  # Dex with one static client, the API, which may send a person back only to
+  # its callback, and two people, at the addresses the seed derives from its
+  # default mailbox: the administrator, whom the seed creates, and the
+  # developer, who is not a user yet and is refused with the notice of an
+  # e-mail of no active user. Their passwords are fictitious and fixed: the
+  # README gives them, and each hash is bcrypt's, with every dollar sign
+  # doubled for Compose. The approval screen is skipped, as the real providers
+  # skip it once the person accepted.
+  dex:
+    content: |
+      issuer: http://localhost:${DEX_PORT}
+      storage:
+        type: memory
+      web:
+        http: 0.0.0.0:5556
+      telemetry:
+        http: 0.0.0.0:5558
+      # At `info` Dex writes a line for each login with the e-mail and the name
+      # of the person, which no output of a container carries (Privacy in
+      # Observability, CODING_STANDARDS.md). At `warn` it writes its failures.
+      logger:
+        level: warn
+        format: json
+      oauth2:
+        responseTypes: [code]
+        skipApprovalScreen: true
+      staticClients:
+        - id: ${LOCAL_LOGIN_PROVIDER_CLIENT_ID}
+          name: My Software Factory Manager
+          secret: ${LOCAL_LOGIN_PROVIDER_CLIENT_SECRET}
+          redirectURIs:
+            - ${APP_ORIGIN}/api/session/login_providers/${LOCAL_LOGIN_PROVIDER_KEY}/callback
+      enablePasswordDB: true
+      staticPasswords:
+        - email: seed+admin@fabrica.example
+          username: Ana Exemplo
+          userID: 5d0f6a1e-3c2b-4f7a-9e1d-0a1b2c3d4e01
+          hash: "$$2a$$10$$s4PTLnhfLLYA8UHEwsJsbuaGyhQlKw0nRGeqatX7TYm5TPwW53Nyq"
+        - email: seed+developer@fabrica.example
+          username: Developer Exemplo
+          userID: 5d0f6a1e-3c2b-4f7a-9e1d-0a1b2c3d4e02
+          hash: "$$2a$$10$$i8Rjbuj9t11eCK2FjNgi1uzPKNtSLDliuMZxQK17RsKSiD/XdLidm"
 
   # PutBucketCors of the S3 API, signed with the key of the API. A browser
   # asks before it sends a file to another origin; Garage answers 403 to an

@@ -7,13 +7,29 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/oidc/oidctest"
+	emailpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/postgres"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/resend/resendtest"
+	emailriver "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/river"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/smtp/smtptest"
+	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
+	emailapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application/applicationtest"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/jobs"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry/telemetrytest"
 )
@@ -24,7 +40,9 @@ import (
 // then searches the logs and the exported spans for each value.
 //
 // A ticket that brings a new kind of sensitive value (a setup code, an
-// e-mail, a name) adds it to TestTheLogsAndTheSpansCarryNothingSensitive:
+// e-mail, a name, the code and the state of a login through a provider) adds
+// it to TestTheLogsAndTheSpansCarryNothingSensitive, or to a scenario of its
+// own below when the value needs a migrated database or a job to go by:
 //
 //  1. Add to the scenario the step that carries the value: a command of the
 //     binary, or a request to the API. Prefer a step that fails, because a
@@ -49,11 +67,22 @@ type sensitiveValue struct {
 	// the value itself.
 	what  string
 	value string
+	// wholeNumber finds the value only where no digit stands beside it, as a
+	// login code is written: six digits are often part of a longer number,
+	// such as an instant in nanoseconds.
+	wholeNumber bool
 }
 
 // add registers a value and returns it, for the scenario to use.
 func (s *sensitiveValues) add(what, value string) string {
 	s.values = append(s.values, sensitiveValue{what: what, value: value})
+	return value
+}
+
+// addWholeNumber registers a number that is sensitive alone, such as a login
+// code, and returns it.
+func (s *sensitiveValues) addWholeNumber(what, value string) string {
+	s.values = append(s.values, sensitiveValue{what: what, value: value, wholeNumber: true})
 	return value
 }
 
@@ -68,8 +97,19 @@ func (s *sensitiveValues) foundIn(text string) []string {
 }
 
 func (v sensitiveValue) namedWhenIn(lowered string) []string {
+	if v.wholeNumber {
+		return v.namedWhenAlone(lowered)
+	}
 	value := strings.ToLower(v.value)
 	if !strings.Contains(lowered, value) && !strings.Contains(lowered, strings.ToLower(url.QueryEscape(v.value))) {
+		return nil
+	}
+	return []string{v.what}
+}
+
+func (v sensitiveValue) namedWhenAlone(text string) []string {
+	alone := regexp.MustCompile(`(^|[^0-9])` + regexp.QuoteMeta(v.value) + `([^0-9]|$)`)
+	if !alone.MatchString(text) {
 		return nil
 	}
 	return []string{v.what}
@@ -83,6 +123,8 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	// PostgreSQL fails, and its raw error is logged.
 	environment := withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS":          "127.0.0.1:0",
+		"APP_ORIGIN":                  appOrigin(),
+		"LOGIN_CODE_KEY":              theLoginCodeKey,
 		"LOG_LEVEL":                   "debug",
 		"OTEL_EXPORTER_OTLP_ENDPOINT": collector.URL,
 		"DATABASE_URL": "postgres://api:" + guarded.add("the password of the API role", "guarded-password-of-the-api-role") +
@@ -91,25 +133,39 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 			"@127.0.0.1:1/software_factory?sslmode=disable",
 	})
 	environment["FILE_STORAGE_SECRET_ACCESS_KEY"] = guarded.add("the secret key of the file storage", "guarded-secret-key-of-the-file-storage")
+	withEmailSender(environment)
+	environment["RESEND_API_KEY"] = guarded.add("the key of Resend", "re_guarded-key-of-resend")
+	// The key `guarded-key-of-the-resend-hook`, in base64.
+	environment["RESEND_WEBHOOK_SECRET"] = "whsec_" + guarded.add("the signing secret of the webhook of Resend", "Z3VhcmRlZC1rZXktb2YtdGhlLXJlc2VuZC1ob29r")
 
 	// The migrations fail to apply.
 	var migrateOutput, migrateLogs output
 	require.Equal(t, 1, run(context.Background(), []string{"migrate"}, environment, &migrateOutput, &migrateLogs))
 
-	// Two requests carry a sensitive value in each place a request has one:
-	// readiness, which fails and writes its line but opens no span, and an
-	// operation under /api, which opens its span and refuses the unknown
-	// query parameter.
+	// The worker fails to reach PostgreSQL when it starts, with each sender
+	// of e-mail.
+	var workerOutput, workerLogs output
+	require.Equal(t, 1, run(context.Background(), []string{"worker"}, environment, &workerOutput, &workerLogs))
+	throughResend := maps.Clone(environment)
+	throughResend["EMAIL_SENDER"] = "resend"
+	require.Equal(t, 1, run(context.Background(), []string{"worker"}, throughResend, &workerOutput, &workerLogs))
+
+	// Three requests carry a sensitive value in each place a request has one:
+	// readiness, which fails and writes its line but opens no span, an
+	// operation under /api whose session cannot be read, which fails with its
+	// raw error, and the same operation with no cookie, which opens its span
+	// and refuses the unknown query parameter.
 	api := launchAPI(t, environment)
 	query := "?code=" + guarded.add("a value in a query string", "guarded-value-in-a-query-string")
-	headers := []string{
-		"Cookie", "session=" + guarded.add("a session cookie", "guarded-session-cookie"),
-		"Authorization", "Bearer " + guarded.add("an access token", "guarded-access-token"),
-	}
+	cookie := []string{"Cookie", "session=" + guarded.add("a session cookie", "guarded-session-cookie")}
+	token := []string{"Authorization", "Bearer " + guarded.add("an access token", "guarded-access-token")}
+	headers := append(slices.Clone(cookie), token...)
 	body := guarded.add("a value in a body", "guarded-value-in-a-body")
 	failed := newCaller().send(http.MethodGet, api.url+"/readyz"+query, headers, body)
 	require.Equal(t, http.StatusServiceUnavailable, failed.status)
-	refused := newCaller().send(http.MethodGet, api.url+"/api/setup"+query, headers, body)
+	noSession := newCaller().send(http.MethodGet, api.url+"/api/setup"+query, headers, body)
+	require.Equal(t, http.StatusInternalServerError, noSession.status)
+	refused := newCaller().send(http.MethodGet, api.url+"/api/setup"+query, token, body)
 	require.Equal(t, http.StatusUnprocessableEntity, refused.status)
 	// Concluding the setup carries the data of a person in its body, which
 	// the use case checks before it fails to reach PostgreSQL.
@@ -119,13 +175,20 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 	object(setup, "administrator")["national_id"] = guarded.add("the national ID of a person", "GUARDED-NATIONAL-ID")
 	unreachable := concludeSetup(t, api.url, setup)
 	require.Equal(t, http.StatusInternalServerError, unreachable.status, unreachable.body)
+	// A bounce notice of Resend carries the address of the recipient, and
+	// its signature is checked before the use case fails to reach PostgreSQL.
+	bounce := resendtest.Bounce("4ef8a1c2-resend", 37, guarded.add("the address of a bounced recipient", "Guarded.Bounced@Fabrica.example"))
+	notice := deliverNotice(t, api.url, resendtest.Headers(environment["RESEND_WEBHOOK_SECRET"], "msg_2fKq8bX1", time.Now(), bounce), bounce)
+	require.Equal(t, http.StatusInternalServerError, notice.status, notice.body)
 	api.signal()
 	require.Equal(t, 0, <-api.status)
 
-	logs := migrateLogs.String() + api.logs.String()
+	logs := migrateLogs.String() + workerLogs.String() + api.logs.String()
 	require.Contains(t, logs, "api: apply the migrations", "the scenario logged nothing about the migrations")
+	require.Contains(t, logs, "the worker stopped", "the scenario logged nothing about the worker")
 	require.Contains(t, logs, "request failed", "the scenario logged no failed request")
 	require.Contains(t, logs, "/api/setup/conclude", "the scenario logged no failed conclusion of the setup")
+	require.Contains(t, logs, "/api/resend/bounces", "the scenario logged no failed bounce notice")
 	require.Contains(t, collector.Text(), "GET /api/setup", "the scenario exported no span")
 	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
@@ -166,6 +229,39 @@ func TestTheTestOfSensitiveValuesFindsAValueWrittenAsAQueryStringWritesIt(t *tes
 	found := guarded.foundIn(`{"msg":"request","query":"email=ana.souza%40example.com"}`)
 
 	assert.Equal(t, []string{"the e-mail of the administrator"}, found)
+}
+
+// A login code is six digits, which an instant or an identifier may hold
+// beside other digits: it is found where it stands alone.
+func TestTheTestOfSensitiveValuesFindsALoginCodeWhereItStandsAlone(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	guarded.addWholeNumber("the login code", "482915")
+
+	for line, found := range map[string]bool{
+		`{"msg":"code sent","code":"482915"}`:            true,
+		`{"msg":"checked 482915"}`:                       true,
+		`{"query":"code=482915&step=1"}`:                 true,
+		`{"time":"2026-11-18T12:00:00.1482915Z"}`:        false,
+		`{"start_time_unix_nano":"1763467200482915000"}`: false,
+	} {
+		assert.Equal(t, found, len(guarded.foundIn(line)) > 0, line)
+	}
+}
+
+// An SMTP server repeats the address it refuses, in angle brackets and in the
+// case it was sent in, and go-mail lists it after the answer.
+func TestTheTestOfSensitiveValuesFindsAnAddressInTheAnswerOfAnEmailServer(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	guarded.add("the address of a recipient", "ana.souza@fabrica.example")
+
+	for _, line := range []string{
+		`{"msg":"Job errored; retrying","error":"550 5.1.1 <Ana.Souza@Fabrica.example>: Recipient address rejected"}`,
+		`{"msg":"Job errored","error":"sending SMTP RCPT TO command, affected recipient(s): ana.souza@fabrica.example"}`,
+	} {
+		assert.Equal(t, []string{"the address of a recipient"}, guarded.foundIn(line), line)
+	}
 }
 
 // The scenario of the test above runs with PostgreSQL out of reach, and a
@@ -485,4 +581,453 @@ func TestTheLogsTheSpansAndTheAuditLogOfRegisteringAnAdministratorNeverCarryTheD
 		"SELECT string_agg(row_to_json(audit_log)::text, E'\n') FROM audit_log").Scan(&auditLog))
 	require.Contains(t, auditLog, "administrator_registered", "the scenario recorded no registration")
 	assert.Empty(t, guarded.foundIn(auditLog), "the audit log carries a sensitive value")
+}
+
+// An e-mail record carries the address of its recipient, and the job that
+// delivers it the identifier of the record alone. This scenario queues an
+// e-mail on a migrated database, inside the span of a request, and runs its
+// job as the worker does, with the worker's wiring and logs at their lowest
+// level, against an SMTP server that refuses the recipient and repeats the
+// address in its answer, as servers do. It then searches the logs, the spans
+// and the jobs River keeps, their arguments and their errors, for the address
+// and for the code the e-mail carried.
+//
+// The job runs with a source of login codes of the test, on the rest of the
+// wiring of the worker, so the code it carries is known before it runs. The
+// scenario of a login code below runs the whole way through the commands.
+func TestTheLogsTheSpansAndTheJobsOfSendingAnEmailNeverCarryTheAddressOrTheContent(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	recipient := guarded.add("the address of the recipient", "Guarded.Recipient@Fabrica.example")
+	code := guarded.add("the code the e-mail carries", "guarded-login-code-482915")
+	collector := telemetrytest.NewCollector(t)
+	logs := &output{}
+	logger := telemetry.NewLogger(logs, slog.LevelDebug)
+	tracing, err := telemetry.StartTracing("api", collector.URL, logger)
+	require.NoError(t, err)
+	temporary := databasetest.Migrated(t)
+	pool, err := database.NewPool(database.PoolSettings{
+		ConnectionURL:            temporary.APIConnection(t),
+		MaxSize:                  4,
+		StatementTimeout:         10 * time.Second,
+		IdleInTransactionTimeout: time.Minute,
+		TracerProvider:           tracing.Provider,
+	})
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+
+	// Queued inside the span of a request, as the login will.
+	saver, err := jobs.NewSaver(pool, tracing.Provider, logger)
+	require.NoError(t, err)
+	queue := emailapplication.NewQueueEmail(
+		database.NewTransactions(pool), emailpostgres.NewEmailRepository(pool), emailriver.NewDeliveryJobs(saver), clock.System{})
+	english, err := kernel.NewLanguage("en-US")
+	require.NoError(t, err)
+	requestCtx, request := tracing.Provider.Tracer("test").Start(context.Background(), "POST /api/login/codes")
+	err = database.NewTransactions(pool).Run(requestCtx, func(ctx context.Context) error {
+		return queue.Execute(ctx, emailapplication.QueueEmailInput{
+			Recipient: recipient,
+			Template:  emailapplication.LoginCode,
+			Language:  english,
+			Reference: emailapplication.LoginCodeRequest(1),
+		})
+	})
+	require.NoError(t, err)
+	request.End()
+
+	// The job runs on the configuration of the worker, pointed at a server
+	// that refuses the recipient. The worker also requires a file storage,
+	// which this scenario never reaches.
+	server := smtptest.NewRefusingServer(t)
+	environment := newStandInStorage(map[string]time.Time{}, false).environment(t,
+		withEmailSender(map[string]string{"DATABASE_URL": temporary.APIURL}))
+	environment["EMAIL_SMTP_ADDRESS"] = server.Address()
+	settings, err := config.Load(config.Worker, environment)
+	require.NoError(t, err)
+	loginCodes := emailapplicationtest.NewContentSource()
+	loginCodes.Give(emailapplication.LoginCodeRequest(1), emailapplication.LoginCodeContent{Code: code, Lifetime: 10 * time.Minute})
+	kinds := jobs.NewKinds()
+	contents := emailapplication.ContentSources{emailapplication.LoginCode: loginCodes}
+	jobs.Add(kinds, emailriver.NewDeliveryWorker(deliverEmail(pool, emailSender(settings, tracing.Provider), contents)))
+	runner, err := jobs.NewRunner(pool, jobs.RunnerSettings{
+		LightQueueMaxJobs: 1,
+		HeavyQueueMaxJobs: 1,
+		ShutdownDeadline:  2 * time.Second,
+		Kinds:             kinds,
+		TracerProvider:    tracing.Provider,
+		Logger:            logger,
+	})
+	require.NoError(t, err)
+	shutdown, signal := context.WithCancel(context.Background())
+	stopped := make(chan error, 1)
+	go func() { stopped <- runner.Run(shutdown) }()
+	select {
+	case <-server.Refused:
+	case <-time.After(30 * time.Second):
+		t.Fatalf("the job did not reach the SMTP server: %s", logs)
+	}
+	require.Eventually(t, func() bool {
+		var failures int
+		require.NoError(t, pool.QueryRow(context.Background(),
+			"SELECT count(*) FROM river_job WHERE kind = 'deliver_email' AND errors IS NOT NULL").Scan(&failures))
+		return failures > 0
+	}, 30*time.Second, 50*time.Millisecond, "River kept no error of the job")
+	signal()
+	require.NoError(t, <-stopped)
+	tracing.Stop()
+
+	var jobsKept string
+	require.NoError(t, pool.QueryRow(context.Background(),
+		"SELECT string_agg(row_to_json(river_job)::text, E'\n') FROM river_job").Scan(&jobsKept))
+	require.Contains(t, logs.String(), "Job errored", "the scenario logged no failed job")
+	require.Contains(t, logs.String(), "RCPT TO", "the scenario logged no refusal of the SMTP server")
+	require.Contains(t, jobsKept, "RCPT TO", "River kept no error of the job")
+	require.Contains(t, collector.Text(), "river.work/deliver_email", "the scenario exported no span of the job")
+	require.Contains(t, collector.Text(), "SMTP send", "the scenario exported no span of the sending")
+	require.Contains(t, collector.Text(), "INSERT INTO emails", "the scenario exported no span of the query that records the e-mail")
+	assert.Empty(t, guarded.foundIn(logs.String()), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(jobsKept), "a job carries a sensitive value")
+}
+
+// The cleanup of the storage handles the key of every object. This scenario
+// runs the worker on a migrated database with a storage that lists an object
+// left behind and cuts the connection of its removal, whose URL holds the
+// key, so the job fails and River logs the failure. It then searches the logs
+// and the spans for the key.
+func TestTheLogsAndTheSpansOfTheCleanupOfTheStorageNeverCarryTheKeyOfAnObject(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	key := guarded.add("the key of an object", "0f1e2d3c4b5a69788796a5b4c3d2e1f0")
+	collector := telemetrytest.NewCollector(t)
+	storage := newStandInStorage(map[string]time.Time{key: time.Now().Add(-25 * time.Hour)}, true)
+	environment := storage.environment(t, withEmailSender(map[string]string{
+		"DATABASE_URL":                databasetest.Migrated(t).APIURL,
+		"LOG_LEVEL":                   "debug",
+		"OTEL_EXPORTER_OTLP_ENDPOINT": collector.URL,
+	}))
+	worker := launchWorker(t, environment)
+
+	require.Equal(t, key, receiveWithin(t, storage.removals, 30*time.Second, "the removal of the object"))
+	require.Eventually(t, func() bool { return strings.Contains(worker.logs.String(), "Job errored") },
+		30*time.Second, 10*time.Millisecond, "the failed cleanup was not logged: %s", worker.logs)
+	worker.signal()
+	require.Equal(t, 0, <-worker.status, "%s", worker.logs)
+
+	require.Contains(t, worker.logs.String(), "remove an object", "the logs do not say why the cleanup failed")
+	require.Contains(t, collector.Text(), "river.work/clean_up_storage", "the scenario exported no span of the job")
+	assert.Empty(t, guarded.foundIn(worker.logs.String()), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+}
+
+// A login code goes by three places: the e-mail typed to ask for it, the
+// request it is computed from, and the delivery that writes it in the e-mail.
+// This scenario asks for codes through the API on a migrated database, with
+// the logs at their lowest level and the spans collected: for a user, for an
+// e-mail of no user, past the limit, refused by the contract, and failed with
+// a 5xx whose raw error is logged. Then the worker command delivers the code
+// to an SMTP server that refuses the recipient and repeats the address. The
+// test searches the logs and the spans of both commands, the jobs River keeps
+// and the answers for the e-mails, the code, the key it is computed with and
+// the cookie of the session.
+func TestTheLogsTheSpansAndTheJobsOfALoginCodeNeverCarryTheEmailTheCodeOrTheCookie(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	environment := environmentOf(temporary)
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	api := launchAPI(t, environment)
+	owner := asOwner(t, temporary)
+	// A user registered by the setup, and another written past it.
+	_, setupCode := issueSetupCodeIn(t, temporary)
+	guarded.add("the setup code", setupCode)
+	setup := setupBody(setupCode)
+	object(setup, "administrator")["email"] = guarded.add("the e-mail of the user, as typed in the setup", "Guarded.Login@Fabrica.example")
+	stored := guarded.add("the e-mail of the user, as stored", "guarded.login@fabrica.example")
+	require.Equal(t, http.StatusNoContent, concludeSetup(t, api.url, setup).status)
+	other := guarded.add("the e-mail of another user", "guarded.other@fabrica.example")
+	_, err := owner.Exec(context.Background(), `INSERT INTO users (id, name, email, country, national_id, preferred_language, deactivated)
+		VALUES (nextval('users_id_seq'), 'Someone Else', $1, 'BR', '1', 'en-US', false)`, other)
+	require.NoError(t, err)
+
+	answers := []asked{}
+	ask := func(email string, status int) asked {
+		t.Helper()
+		answer := askForLoginCode(t, aBrowser(t), api.url, email)
+		require.Equal(t, status, answer.status, answer.body)
+		answers = append(answers, answer)
+		return answer
+	}
+	first := ask(guarded.add("the e-mail of the user, as typed at the login", "GUARDED.Login@fabrica.EXAMPLE"), http.StatusAccepted)
+	guarded.add("the cookie of the session", sessionCookie(t, first).Value)
+	ask(guarded.add("an e-mail of no user", "guarded.nobody@fabrica.example"), http.StatusAccepted)
+	// Past the limit, and refused by the contract.
+	ask(stored, http.StatusUnprocessableEntity)
+	ask(stored+", "+other, http.StatusUnprocessableEntity)
+	// A 5xx: the API role may not write requests.
+	_, err = owner.Exec(context.Background(), "REVOKE INSERT ON login_code_requests FROM api")
+	require.NoError(t, err)
+	ask(other, http.StatusInternalServerError)
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	// The code exists once its request does: it is computed as the delivery
+	// computes it.
+	guarded.addWholeNumber("the login code", codeOfTheRequest(t, temporary))
+	guarded.add("the key of the login code", theLoginCodeKey)
+	server := smtptest.NewRefusingServer(t)
+	workerEnvironment := newStandInStorage(map[string]time.Time{}, false).environment(t, withEmailSender(map[string]string{
+		"DATABASE_URL":                temporary.APIURL,
+		"LOG_LEVEL":                   "debug",
+		"OTEL_EXPORTER_OTLP_ENDPOINT": collector.URL,
+	}))
+	workerEnvironment["EMAIL_SMTP_ADDRESS"] = server.Address()
+	worker := launchWorker(t, workerEnvironment)
+	receiveWithin(t, server.Refused, 30*time.Second, "the refusal of the recipient")
+	require.Eventually(t, func() bool {
+		var failures int
+		require.NoError(t, owner.QueryRow(context.Background(),
+			"SELECT count(*) FROM river_job WHERE kind = 'deliver_email' AND errors IS NOT NULL").Scan(&failures))
+		return failures > 0
+	}, 30*time.Second, 50*time.Millisecond, "River kept no error of the job")
+	worker.signal()
+	require.Equal(t, 0, <-worker.status, "%s", worker.logs)
+
+	var jobsKept string
+	require.NoError(t, owner.QueryRow(context.Background(),
+		"SELECT string_agg(row_to_json(river_job)::text, E'\n') FROM river_job").Scan(&jobsKept))
+	logs := api.logs.String() + worker.logs.String()
+	require.Contains(t, logs, "permission denied for table login_code_requests", "the scenario logged no raw error")
+	require.Contains(t, logs, "Job errored", "the scenario logged no failed job")
+	require.Contains(t, collector.Text(), "POST /api/session/login_code", "the scenario exported no span of the operation")
+	require.Contains(t, collector.Text(), "INSERT INTO login_code_requests", "the scenario exported no span of the query that saves a request")
+	require.Contains(t, collector.Text(), "INSERT INTO sessions", "the scenario exported no span of the session store")
+	require.Contains(t, collector.Text(), "river.work/deliver_email", "the scenario exported no span of the job")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(jobsKept), "a job carries a sensitive value")
+	for _, answer := range answers {
+		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats a sensitive value: %s", answer.body)
+	}
+}
+
+// The login itself: a wrong code and the right one typed, the cookie the login
+// sets, who is logged in, a refusal from another site, two failures of the
+// database with the cookie in the request, and the logout. The answer of who
+// is logged in is meant to carry the name and the e-mail of the user, and is
+// not searched.
+func TestTheLogsAndTheSpansOfALoginNeverCarryTheCodeTheEmailOrTheCookie(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	environment := environmentOf(temporary)
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	api := launchAPI(t, environment)
+	owner := asOwner(t, temporary)
+	_, setupCode := issueSetupCodeIn(t, temporary)
+	guarded.add("the setup code", setupCode)
+	setup := setupBody(setupCode)
+	object(setup, "administrator")["email"] = guarded.add("the e-mail of the user, as typed in the setup", "Guarded.Session@Fabrica.example")
+	guarded.add("the e-mail of the user, as stored", "guarded.session@fabrica.example")
+	require.Equal(t, http.StatusNoContent, concludeSetup(t, api.url, setup).status)
+	browser := aBrowser(t)
+	asking := askForLoginCode(t, browser, api.url, guarded.add("the e-mail of the user, as typed at the login", "GUARDED.Session@fabrica.example"))
+	require.Equal(t, http.StatusAccepted, asking.status, asking.body)
+	guarded.add("the cookie of the session before the login", sessionCookie(t, asking).Value)
+	right := guarded.addWholeNumber("the login code", codeOfTheRequest(t, temporary))
+	wrong := guarded.addWholeNumber("a wrong code, as typed", strings.Repeat(string('0'+(right[0]-'0'+1)%10), 6))
+
+	answers := []asked{}
+	expect := func(answer asked, status int) asked {
+		t.Helper()
+		require.Equal(t, status, answer.status, answer.body)
+		answers = append(answers, answer)
+		return answer
+	}
+	expect(checkCode(t, browser, api.url, wrong), http.StatusUnprocessableEntity)
+	// A 5xx with the cookie and the code in the request: the API role may
+	// not lock the requests.
+	_, err := owner.Exec(context.Background(), "REVOKE UPDATE ON login_code_requests FROM api")
+	require.NoError(t, err)
+	expect(checkCode(t, browser, api.url, right), http.StatusInternalServerError)
+	_, err = owner.Exec(context.Background(), "GRANT UPDATE ON login_code_requests TO api")
+	require.NoError(t, err)
+	checked := expect(checkCode(t, browser, api.url, right), http.StatusNoContent)
+	guarded.add("the cookie of the session after the login", sessionCookie(t, checked).Value)
+	require.Equal(t, http.StatusOK, whoIsLoggedIn(t, browser, api.url).status)
+	expect(sendFrom(t, browser, http.MethodPost, api.url+logOutPath, "", map[string]string{"Origin": "https://elsewhere.example"}), http.StatusForbidden)
+	// A 5xx in the session store, with the cookie in the request.
+	_, err = owner.Exec(context.Background(), "REVOKE SELECT ON sessions FROM api")
+	require.NoError(t, err)
+	expect(whoIsLoggedIn(t, browser, api.url), http.StatusInternalServerError)
+	_, err = owner.Exec(context.Background(), "GRANT SELECT ON sessions TO api")
+	require.NoError(t, err)
+	expect(sendFrom(t, browser, http.MethodPost, api.url+logOutPath, "", nil), http.StatusNoContent)
+	expect(whoIsLoggedIn(t, browser, api.url), http.StatusUnauthorized)
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	var auditLog, sessionsKept string
+	require.NoError(t, owner.QueryRow(context.Background(),
+		"SELECT string_agg(row_to_json(audit_log)::text, E'\n') FROM audit_log").Scan(&auditLog))
+	require.NoError(t, owner.QueryRow(context.Background(),
+		"SELECT coalesce(string_agg(token, E'\n'), '') FROM sessions").Scan(&sessionsKept))
+	logs := api.logs.String()
+	require.Contains(t, logs, "permission denied for table login_code_requests", "the scenario logged no raw error of the check")
+	require.Contains(t, logs, "permission denied for table sessions", "the scenario logged no raw error of the session store")
+	require.Contains(t, auditLog, `"operation":"logged_in"`, "the scenario recorded no login")
+	require.Contains(t, collector.Text(), "POST /api/session/login_code/check", "the scenario exported no span of the check")
+	require.Contains(t, collector.Text(), "GET /api/session", "the scenario exported no span of who is logged in")
+	require.Contains(t, collector.Text(), "SELECT id, user_id, random_value", "the scenario exported no span of the query that loads a request")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(auditLog), "the audit log carries a sensitive value")
+	assert.Empty(t, guarded.foundIn(sessionsKept), "the sessions table keeps a token as the cookie carries it")
+	for _, answer := range answers {
+		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats a sensitive value: %s", answer.body)
+	}
+}
+
+// The shell reads who is logged in and the consultancy, each with a URL that
+// reads an image from the storage: the URL holds the key of the object and a
+// signature. Neither may reach the logs or the spans, whether the read
+// succeeds or fails with a 5xx whose raw error is logged.
+func TestTheLogsAndTheSpansOfTheImagesOfTheShellNeverCarryTheKeyOrTheSignature(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	environment := environmentOf(temporary)
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	guarded.add("the secret key of the file storage", environment["FILE_STORAGE_SECRET_ACCESS_KEY"])
+	api := launchAPI(t, environment)
+	owner := asOwner(t, temporary)
+	browser := loggedInWithImages(t, temporary, api.url)
+	rows, err := owner.Query(context.Background(), "SELECT object_key FROM files WHERE confirmed_at IS NOT NULL")
+	require.NoError(t, err)
+	keys, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	require.NoError(t, err)
+	require.Len(t, keys, 2, "the logo and the photo")
+	for _, key := range keys {
+		guarded.add("the key of an image", key)
+	}
+
+	for _, read := range []struct{ path, field string }{{sessionPath, "photo_url"}, {consultancyPath, "logo_url"}} {
+		answer := sendFrom(t, browser, http.MethodGet, api.url+read.path, "", nil)
+		require.Equal(t, http.StatusOK, answer.status, answer.body)
+		signed, err := url.Parse(answer.fields[read.field].(string))
+		require.NoError(t, err)
+		guarded.add("the signature of the URL of an image", signed.Query().Get("X-Amz-Signature"))
+	}
+	// A 5xx in each read: the API role may not read the files.
+	_, err = owner.Exec(context.Background(), "REVOKE SELECT ON files FROM api")
+	require.NoError(t, err)
+	for _, path := range []string{sessionPath, consultancyPath} {
+		failed := sendFrom(t, browser, http.MethodGet, api.url+path, "", nil)
+		require.Equal(t, http.StatusInternalServerError, failed.status, failed.body)
+	}
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	logs := api.logs.String()
+	require.Contains(t, logs, "permission denied for table files", "the scenario logged no raw error")
+	require.Contains(t, collector.Text(), "GET /api/consultancy", "the scenario exported no span of the consultancy")
+	require.Contains(t, collector.Text(), "SELECT object_key", "the scenario exported no span of the query of a key")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+}
+
+// A login through the local provider: the code and the state travel in the
+// query of the callback, the secret of the client goes to Dex, and the
+// e-mails of the people Dex knows come back in its ID tokens. None of them
+// may reach the logs or the spans, whether the login succeeds, is refused,
+// is answered a code the provider refuses, or fails with a 5xx.
+func TestTheLogsAndTheSpansOfALoginThroughAProviderNeverCarryTheCodeTheStateTheSecretOrTheEmail(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	environment := withLocalLoginProvider(t, environmentOf(temporary))
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	guarded.add("the secret of the client of the local login provider", environment["LOCAL_LOGIN_PROVIDER_CLIENT_SECRET"])
+	api := launchAPI(t, environment)
+	owner := asOwner(t, temporary)
+	withAUser(t, temporary, api.url, oidctest.Administrator.Email)
+	guarded.add("the e-mail of the administrator", oidctest.Administrator.Email)
+	guarded.add("the e-mail of the developer", oidctest.Developer.Email)
+	key := requiredVariable(t, "LOCAL_LOGIN_PROVIDER_KEY")
+	start := api.url + startPathOf(key) + "?return_to=%2Fprojects"
+	// guardedCallback logs the person in at Dex from the browser and guards
+	// the code, the state and the nonce of that login.
+	guardedCallback := func(browser *http.Client, person oidctest.Person) *url.URL {
+		started := sendFrom(t, stayingPut(browser), http.MethodGet, start, "", nil)
+		require.Equal(t, http.StatusFound, started.status, started.body)
+		sent, err := url.Parse(started.header.Get("Location"))
+		require.NoError(t, err)
+		guarded.add("the nonce of a login", sent.Query().Get("nonce"))
+		callback := oidctest.LogIn(t, browser, sent.String(), person, callbackOf(t))
+		guarded.add("the code of a login", callback.Query().Get("code"))
+		guarded.add("the state of a login", callback.Query().Get("state"))
+		return callback
+	}
+
+	answers := []asked{}
+	expect := func(answer asked, status int) asked {
+		t.Helper()
+		require.Equal(t, status, answer.status, answer.body)
+		answers = append(answers, answer)
+		return answer
+	}
+	browser := aBrowser(t)
+	used := guardedCallback(browser, oidctest.Administrator)
+	loggedIn := expect(sendFrom(t, stayingPut(browser), http.MethodGet, toTheAPI(t, api.url, used), "", nil), http.StatusSeeOther)
+	guarded.add("the cookie of the session after the login", sessionCookie(t, loggedIn).Value)
+	// Who is logged in and the login state answer an e-mail, by design.
+	require.Equal(t, http.StatusOK, whoIsLoggedIn(t, browser, api.url).status)
+	// Refused: an e-mail of no active user, which the login state tells.
+	refusedIn := aBrowser(t)
+	expect(sendFrom(t, stayingPut(refusedIn), http.MethodGet, toTheAPI(t, api.url, guardedCallback(refusedIn, oidctest.Developer)), "", nil), http.StatusSeeOther)
+	require.Contains(t, loginStateOf(t, refusedIn, api.url).body, oidctest.Developer.Email)
+	// A code the provider refuses: the code used above, with the state of a
+	// new login, so the exchange fails and is logged.
+	replayIn := aBrowser(t)
+	fresh := sendFrom(t, stayingPut(replayIn), http.MethodGet, start, "", nil)
+	sent, err := url.Parse(fresh.header.Get("Location"))
+	require.NoError(t, err)
+	query := url.Values{"code": {used.Query().Get("code")}, "state": {sent.Query().Get("state")}}
+	guarded.add("the state of a login", sent.Query().Get("state"))
+	expect(sendFrom(t, stayingPut(replayIn), http.MethodGet, api.url+used.Path+"?"+query.Encode(), "", nil), http.StatusSeeOther)
+	// A 5xx with the code and the state in the query: the API role may not
+	// read the provider links.
+	_, err = owner.Exec(context.Background(), "REVOKE SELECT ON provider_links FROM api")
+	require.NoError(t, err)
+	failingIn := aBrowser(t)
+	expect(sendFrom(t, stayingPut(failingIn), http.MethodGet, toTheAPI(t, api.url, guardedCallback(failingIn, oidctest.Administrator)), "", nil), http.StatusInternalServerError)
+	_, err = owner.Exec(context.Background(), "GRANT SELECT ON provider_links TO api")
+	require.NoError(t, err)
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	var auditLog string
+	require.NoError(t, owner.QueryRow(context.Background(),
+		"SELECT string_agg(row_to_json(audit_log)::text, E'\n') FROM audit_log").Scan(&auditLog))
+	logs := api.logs.String()
+	require.Contains(t, logs, "the local login provider is on", "the scenario turned no provider on")
+	require.Contains(t, logs, "a login through a provider failed", "the scenario logged no failure of the provider")
+	require.Contains(t, logs, "permission denied for table provider_links", "the scenario logged no raw error of the callback")
+	require.Contains(t, auditLog, `"way_in":"local"`, "the scenario recorded no login through the provider")
+	require.Contains(t, collector.Text(), "GET /api/session/login_providers/{key}/callback", "the scenario exported no span of the callback")
+	require.Contains(t, collector.Text(), "Login provider POST", "the scenario exported no span of the exchange of a code")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(auditLog), "the audit log carries a sensitive value")
+	for _, answer := range answers {
+		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats a sensitive value: %s", answer.body)
+	}
 }
