@@ -24,6 +24,7 @@ import {
   StartProviderLoginQueryParams,
 } from "../../shared/api/generated/schemas"
 import { ApiError, whenUnauthorized } from "../../shared/api/request"
+import { signedURLsRenewEvery } from "../../shared/api/storage"
 
 // The reads and writes of the session (Data module in CODING_STANDARDS.md):
 // who is logged in, the login state, asking for a login code, checking it,
@@ -34,7 +35,9 @@ import { ApiError, whenUnauthorized } from "../../shared/api/request"
  * Who is logged in to the session of this browser, or `null` when nobody is:
  * the API answers 401 then, which here is a value and not a failure, because
  * the gate decides with it. It is read again when the person comes back to
- * the tab a minute or more after the last read.
+ * the tab a minute or more after the last read, and every ten minutes while
+ * the tab shows, so the URL of the photo, which works for fifteen minutes,
+ * is always one that works.
  */
 export const loggedInUserQuery = queryOptions({
   queryKey: ["session"],
@@ -49,6 +52,7 @@ export const loggedInUserQuery = queryOptions({
     }
   },
   staleTime: 60_000,
+  refetchInterval: signedURLsRenewEvery,
 })
 
 /**

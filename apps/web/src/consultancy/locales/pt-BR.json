@@ -97,5 +97,8 @@
         "register": "Cadastrar o administrador"
       }
     }
+  },
+  "start": {
+    "areasOfWorkComeNext": "As áreas de trabalho, como clientes e projetos, chegam nas próximas versões do sistema."
   }
 }

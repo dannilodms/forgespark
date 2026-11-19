@@ -1,6 +1,10 @@
 {
   "productName": "My Software Factory Manager",
   "language": "Idioma",
+  "shell": {
+    "sidebar": "Barra lateral",
+    "openSidebar": "Abrir a barra lateral"
+  },
   "form": {
     "optional": "{{label}} (opcional)",
     "nothingMatches": "Nada corresponde ao que foi digitado.",

@@ -1,4 +1,12 @@
 /**
+ * How often a read that carries the URL of an image is read again, in
+ * milliseconds. The API signs a URL to read a file for fifteen minutes (Files
+ * in CODING_STANDARDS.md), so the app holds a URL that works before the one
+ * it shows expires, and an image never breaks on the screen.
+ */
+export const signedURLsRenewEvery = 10 * 60_000
+
+/**
  * Sends a file to the file storage, at a URL the API signed for it (Files in
  * CODING_STANDARDS.md). The type and the size were declared when the upload
  * started and are signed with the URL, so the `PUT` carries the file's own:

@@ -103,6 +103,13 @@
   /* An overlay opens along this curve. A colour change keeps the default. */
   --ease-overlay: cubic-bezier(0.2, 0.8, 0.2, 1);
 
+  /*
+   * Under this width the sidebar of the App shell is a sheet, opened from a
+   * button at the start of the header: the `shell:` classes. `useIsMobile`
+   * in ui/hooks holds the same width.
+   */
+  --breakpoint-shell: 60rem;
+
   --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Poppins", "Figtree Variable", ui-sans-serif, sans-serif;
   --font-mono:

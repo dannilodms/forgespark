@@ -27,6 +27,7 @@ import type {
   AskForLoginCodeRequest,
   CheckLoginCodeRequest,
   ConcludeSetupRequest,
+  Consultancy,
   LoggedInUser,
   LoginState,
   OpenSetupRequest,
@@ -39,10 +40,29 @@ import type {
 } from './model';
 
 
-export const getTellLoggedInUserResponseMock = (overrideResponse: Partial<Extract<LoggedInUser, object>> = {}): LoggedInUser => ({email: faker.internet.email(), name: faker.string.alpha({length: {min: 10, max: 20}}), preferred_language: faker.helpers.arrayElement(['en-US','es','pt-BR'] as const), role_keys: faker.helpers.arrayElements(['administrator','developer'] as const), ...overrideResponse})
+export const getTellConsultancyResponseMock = (overrideResponse: Partial<Extract<Consultancy, object>> = {}): Consultancy => ({logo_url: faker.helpers.arrayElement([faker.internet.url(), undefined]), name: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
 
 
-export const getTellLoggedInUserResponseMock200 = (overrideResponse: Partial<Extract<LoggedInUser, object>> = {}): LoggedInUser => ({email: faker.internet.email(), name: faker.string.alpha({length: {min: 10, max: 20}}), preferred_language: faker.helpers.arrayElement(['en-US','es','pt-BR'] as const), role_keys: faker.helpers.arrayElements(['administrator','developer'] as const), ...overrideResponse})
+export const getTellConsultancyResponseMock200 = (overrideResponse: Partial<Extract<Consultancy, object>> = {}): Consultancy => ({logo_url: faker.helpers.arrayElement([faker.internet.url(), undefined]), name: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getTellConsultancyResponseMock401 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+
+export const getTellConsultancyResponseMock500 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }})), undefined]), params: {
+        [faker.string.alphanumeric(5)]: {}
+      }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+export const getTellLoggedInUserResponseMock = (overrideResponse: Partial<Extract<LoggedInUser, object>> = {}): LoggedInUser => ({email: faker.internet.email(), name: faker.string.alpha({length: {min: 10, max: 20}}), photo_url: faker.helpers.arrayElement([faker.internet.url(), undefined]), preferred_language: faker.helpers.arrayElement(['en-US','es','pt-BR'] as const), role_keys: faker.helpers.arrayElements(['administrator','developer'] as const), ...overrideResponse})
+
+
+export const getTellLoggedInUserResponseMock200 = (overrideResponse: Partial<Extract<LoggedInUser, object>> = {}): LoggedInUser => ({email: faker.internet.email(), name: faker.string.alpha({length: {min: 10, max: 20}}), photo_url: faker.helpers.arrayElement([faker.internet.url(), undefined]), preferred_language: faker.helpers.arrayElement(['en-US','es','pt-BR'] as const), role_keys: faker.helpers.arrayElements(['administrator','developer'] as const), ...overrideResponse})
 
 
 export const getTellLoggedInUserResponseMock401 = (overrideResponse: Partial<Extract<Problem, object>> = {}): Problem => ({code: faker.string.alpha({length: {min: 10, max: 20}}), detail: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined]), errors: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({code: faker.string.alpha({length: {min: 10, max: 20}}), location: faker.string.alpha({length: {min: 10, max: 20}}), message: faker.string.alpha({length: {min: 10, max: 20}}), params: {
@@ -295,6 +315,57 @@ export const getStartSetupUploadResponseMock500 = (overrideResponse: Partial<Ext
         [faker.string.alphanumeric(5)]: {}
       }, status: faker.number.int(), title: faker.string.alpha({length: {min: 10, max: 20}}), trace_id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
 
+
+export const getTellConsultancyMockHandler = (overrideResponse?: Consultancy | ((info: Parameters<HttpResponseResolver>[0]) => Promise<Consultancy> | Consultancy), options?: RequestHandlerOptions) => {
+  return http.get('*/api/consultancy', async (info: Parameters<HttpResponseResolver>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getTellConsultancyResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+
+export const getTellConsultancyMockHandler200 = (overrideResponse?: Consultancy | ((info: Parameters<HttpResponseResolver>[0]) => Promise<Consultancy> | Consultancy), options?: RequestHandlerOptions) => {
+  return http.get('*/api/consultancy', async (info: Parameters<HttpResponseResolver>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getTellConsultancyResponseMock200(),
+      { status: 200
+      })
+  }, options)
+}
+
+
+export const getTellConsultancyMockHandler401 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.get('*/api/consultancy', async (info: Parameters<HttpResponseResolver>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getTellConsultancyResponseMock401(),
+      { status: 401, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
+
+
+export const getTellConsultancyMockHandler500 = (overrideResponse?: Problem | ((info: Parameters<HttpResponseResolver>[0]) => Promise<Problem> | Problem), options?: RequestHandlerOptions) => {
+  return http.get('*/api/consultancy', async (info: Parameters<HttpResponseResolver>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getTellConsultancyResponseMock500(),
+      { status: 500, headers: { 'Content-Type': 'application/problem+json' }
+      })
+  }, options)
+}
 
 export const getTellLoggedInUserMockHandler = (overrideResponse?: LoggedInUser | ((info: Parameters<HttpResponseResolver>[0]) => Promise<LoggedInUser> | LoggedInUser), options?: RequestHandlerOptions) => {
   return http.get('*/api/session', async (info: Parameters<HttpResponseResolver>[0]) => {
@@ -984,6 +1055,7 @@ export const getStartSetupUploadMockHandler500 = (overrideResponse?: Problem | (
   }, options)
 }
 export const getMySoftwareFactoryManagerMock = () => [
+  getTellConsultancyMockHandler(),
   getTellLoggedInUserMockHandler(),
   getLogOutMockHandler(),
   getTellLoginStateMockHandler(),

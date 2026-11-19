@@ -61,8 +61,8 @@
       "newCodeIn": "Puedes pedir un código nuevo en {{wait, seconds}}."
     }
   },
-  "landing": {
-    "loggedInAs": "Iniciaste sesión como {{name}}.",
+  "userMenu": {
+    "open": "Menú de {{name}}",
     "logOut": "Cerrar sesión"
   }
 }
