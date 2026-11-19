@@ -68,3 +68,8 @@
 
 - **The e-mail address value object.** `consultancy/domain.Email` (lowercase, form, length) is the address of a user; the `email` area has its own minimal `Recipient`. Ticket 03 needs the same rule as `consultancy` to read the e-mail typed at the login, so the move of `Email` to `kernel` (as Between domain areas in `CODING_STANDARDS.md` says for a type a second area needs) is likely decided there.
 - **The identifier the sender returned for SMTP** is the Message-ID the adapter set, not an identifier the server returned (Mailpit answers `250 2.0.0 Ok: queued as <id>`; go-mail keeps it as `Msg.ServerResponse`). The Message-ID is what Mailpit and any mail client show and search by; switching is one line if the maintainer prefers the server's queue identifier.
+
+### Settled at the end of the effort
+
+- **The e-mail address value object**: moved to `kernel` by ticket 03; in the review-fix pass its one rule became `kernel.IsEmailAddress`, which the recipient of an e-mail (`email/domain.NewRecipient`) and the addresses of the configuration (`config.EmailAddress`, `config.Mailbox`) are checked by. Recorded in Between domain areas of `CODING_STANDARDS.md`.
+- **The identifier of an e-mail sent through SMTP** is the Message-ID the adapter sets: accepted by the maintainer as it is. Recorded in Record of E-mail in `CODING_STANDARDS.md`.

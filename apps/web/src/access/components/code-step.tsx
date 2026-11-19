@@ -133,7 +133,9 @@ export function CodeStep({
           t={t}
           i18nKey="login.code.intro"
           values={{ email }}
-          components={{ email: <strong className="break-all" /> }}
+          // The e-mail goes whole to the next line, and breaks only where it
+          // is longer than the line, as in the notices.
+          components={{ email: <strong className="wrap-anywhere" /> }}
         />
       </p>
 

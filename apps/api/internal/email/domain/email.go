@@ -8,7 +8,6 @@ package domain
 import (
 	"errors"
 	"fmt"
-	"net/mail"
 	"slices"
 	"time"
 
@@ -26,20 +25,17 @@ func NewEmailID(value int64) (EmailID, error) {
 	return EmailID(value), nil
 }
 
-// RecipientMaxLength is the longest e-mail address there is (RFC 5321).
-const RecipientMaxLength = 254
-
 // Recipient is the address an e-mail goes to: one address and nothing around
 // it, no name and no angle brackets.
 type Recipient struct {
 	address string
 }
 
-// NewRecipient reads the address of a recipient. Its error never repeats the
-// address.
+// NewRecipient reads the address of a recipient, as it is written, by the
+// rule of an e-mail address of kernel.IsEmailAddress. Its error never
+// repeats the address.
 func NewRecipient(address string) (Recipient, error) {
-	parsed, err := mail.ParseAddress(address)
-	if err != nil || parsed.Name != "" || parsed.Address != address || len(address) > RecipientMaxLength {
+	if !kernel.IsEmailAddress(address) {
 		return Recipient{}, RecipientInvalidError{}
 	}
 	return Recipient{address: address}, nil
@@ -180,10 +176,14 @@ func Queue(id EmailID, recipient Recipient, template Template, language kernel.L
 	if !reference.valid() {
 		return nil, fmt.Errorf("an e-mail refers to a record of a known kind, not %q %d", reference.kind, reference.identifier)
 	}
+	subject, err := template.subjectIn(language)
+	if err != nil {
+		return nil, err
+	}
 	return &Email{
 		id:        id,
 		recipient: recipient,
-		subject:   template.subjectIn(language),
+		subject:   subject,
 		template:  template,
 		language:  language,
 		reference: reference,

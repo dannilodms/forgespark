@@ -29,7 +29,7 @@ var writeSpec = flag.Bool("write-spec", false, "write the OpenAPI spec generated
 // returns the spec of what it registered.
 func generatedSpec(t *testing.T) *huma.OpenAPI {
 	t.Helper()
-	api, err := mountREST(http.NewServeMux(), served{loginCodeKey: make([]byte, 32)})
+	api, err := mountREST(http.NewServeMux(), served{})
 	require.NoError(t, err)
 	return api.OpenAPI()
 }
@@ -137,6 +137,17 @@ func TestTheLoginThroughAProviderTakesTheKeyInItsPathAndNoEmailOrToken(t *testin
 		assert.Contains(t, redirect.Headers, "Location", path)
 		assert.Contains(t, item.Get.Responses["404"].Description, "`not_found`", path)
 	}
+}
+
+// The callback checks nothing of what the provider writes in its query, so
+// it never answers `validation_failed`, and its spec declares no 422; the
+// start checks the length of its path to return to, and declares it.
+func TestTheCallbackOfAProviderDeclaresNoFailedValidation(t *testing.T) {
+	t.Parallel()
+	paths := generatedSpec(t).Paths
+
+	assert.NotContains(t, paths[providerLoginPaths[1]].Get.Responses, "422")
+	assert.Contains(t, paths[providerLoginPaths[0]].Get.Responses, "422")
 }
 
 // parametersOf lists where each parameter of the operation is and its name:

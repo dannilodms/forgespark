@@ -24,6 +24,13 @@ func (r *ConsultancyReader) Read(context.Context) (application.ConsultancyNameAn
 		return application.ConsultancyNameAndLogo{}, false, nil
 	}
 	details := stored[0].Details()
-	logo, _ := details.LogoFileID()
-	return application.ConsultancyNameAndLogo{Name: details.Name(), LogoFileID: logo}, true, nil
+	return application.ConsultancyNameAndLogo{Name: details.Name(), LogoFileID: fileOrNone(details.LogoFileID())}, true, nil
+}
+
+// fileOrNone is the file a record names, and nil when it names none.
+func fileOrNone(id application.FileID, present bool) *application.FileID {
+	if !present {
+		return nil
+	}
+	return &id
 }

@@ -32,8 +32,12 @@ func (r *EmailRepository) NextIdentifier(context.Context) (domain.EmailID, error
 	return domain.NewEmailID(r.lastIdentifier)
 }
 
-// Load returns a copy of the e-mail with this identifier.
-func (r *EmailRepository) Load(_ context.Context, id domain.EmailID) (*domain.Email, bool, error) {
+// Load returns a copy of the e-mail with this identifier. A context that
+// ended is refused, as the database refuses a query on it.
+func (r *EmailRepository) Load(ctx context.Context, id domain.EmailID) (*domain.Email, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, false, err
+	}
 	email, found := r.Find(id)
 	if !found {
 		return nil, false, nil
@@ -42,8 +46,11 @@ func (r *EmailRepository) Load(_ context.Context, id domain.EmailID) (*domain.Em
 }
 
 // Save stores the e-mail, in place of the one with the same identifier when
-// there is one.
-func (r *EmailRepository) Save(_ context.Context, email *domain.Email) error {
+// there is one. A context that ended is refused, as by the database.
+func (r *EmailRepository) Save(ctx context.Context, email *domain.Email) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if r.failure != nil {
 		return r.failure
 	}

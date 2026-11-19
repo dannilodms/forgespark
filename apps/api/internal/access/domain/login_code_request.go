@@ -15,6 +15,11 @@ import (
 // LoginCodeLifetime is how long a login code works after it is asked for.
 const LoginCodeLifetime = 10 * time.Minute
 
+// LoginCodeRequestKeptFor is how long a login code request is kept once it
+// ended or expired: no code works with it, and the delivery of its e-mail,
+// which reads it, has long run out of attempts.
+const LoginCodeRequestKeptFor = 24 * time.Hour
+
 // randomValueSize is the size of the random value of a request, in bytes.
 const randomValueSize = 32
 

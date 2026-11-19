@@ -29,8 +29,8 @@ type ActiveUser struct {
 	Name              string
 	Email             kernel.Email
 	PreferredLanguage kernel.Language
-	// PhotoFileID is the file of their photo, the file 0 when they have none.
-	PhotoFileID domain.FileID
+	// PhotoFileID is the file of their photo, and nil when they have none.
+	PhotoFileID *domain.FileID
 	Roles       []domain.RoleKey
 	Scopes      []kernel.Scope
 }

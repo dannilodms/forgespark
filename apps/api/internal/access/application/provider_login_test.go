@@ -212,7 +212,8 @@ func TestALaterLoginFindsTheUserByTheLinkAndCreatesNoOtherLink(t *testing.T) {
 
 // The e-mail of an account that someone else got at the provider, once the
 // user has an account of that provider linked, logs nobody in: the user is
-// known there by the account they linked.
+// known there by the account they linked. The login screen tells them so,
+// since trying again with that account never works (story 17).
 func TestAnotherAccountWithTheEmailOfAUserLinkedAtTheProviderLogsNobodyIn(t *testing.T) {
 	s := newSystem(t)
 	s.registeredAna(t)
@@ -223,11 +224,48 @@ func TestAnotherAccountWithTheEmailOfAUserLinkedAtTheProviderLogsNobodyIn(t *tes
 
 	concluded := s.throughTheProvider(t, theBrowser, someoneElse)
 
-	assert.Equal(t, application.LoginNotConcluded, concluded.Outcome)
+	assert.Equal(t, application.AnotherAccountLinked, concluded.Outcome)
+	assert.Equal(t, "/projects", concluded.ReturnTo.String())
 	_, loggedIn := s.sessions.UserOf(theBrowser)
 	assert.False(t, loggedIn)
 	assert.Len(t, s.links.All(), 1)
 	assert.Len(t, s.auditLog.Entries(), entriesBefore)
+	_, refused := s.sessions.RefusalOf(theBrowser)
+	assert.False(t, refused, "the session keeps a refusal for an e-mail")
+}
+
+// Two first logins of one account at the same moment both find it unlinked;
+// the second to link it finds the link the first saved meanwhile, and logs
+// the same user in (ticket 07).
+func TestTwoFirstLoginsOfOneAccountAtTheSameMomentLogTheUserIn(t *testing.T) {
+	s := newSystem(t)
+	ana := s.registeredAna(t)
+	s.links.LinkMeanwhile(domain.LinkProvider("local", "ana-at-the-local-provider", ana, noon))
+
+	concluded := s.throughTheProvider(t, theBrowser, anaAtTheProvider)
+
+	assert.Equal(t, application.LoggedInThroughProvider, concluded.Outcome)
+	user, loggedIn := s.sessions.UserOf(theBrowser)
+	assert.True(t, loggedIn)
+	assert.Equal(t, ana, user)
+	assert.Len(t, s.links.All(), 1)
+	assert.Len(t, s.auditLog.Entries(), 1)
+}
+
+// A login that would link an account when another account of the provider
+// was linked to the user meanwhile logs nobody in, as when it was linked
+// before.
+func TestAFirstLoginWhileAnotherAccountOfTheUserIsLinkedMeanwhileLogsNobodyIn(t *testing.T) {
+	s := newSystem(t)
+	ana := s.registeredAna(t)
+	s.links.LinkMeanwhile(domain.LinkProvider("local", "another-account-of-ana", ana, noon))
+
+	concluded := s.throughTheProvider(t, theBrowser, anaAtTheProvider)
+
+	assert.Equal(t, application.AnotherAccountLinked, concluded.Outcome)
+	s.requireNobodyLoggedIn(t, theBrowser)
+	assert.Len(t, s.links.All(), 1)
+	assert.Empty(t, s.auditLog.Entries())
 }
 
 func TestAVerifiedEmailOfNoActiveUserIsRefusedAndTheSessionKeepsIt(t *testing.T) {

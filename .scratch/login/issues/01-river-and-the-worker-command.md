@@ -65,3 +65,10 @@
 - **River's version and the panel's.** River UI 0.22.0 is built with River v0.49.0 and works on the schema of v0.51.2 (version 8 of the main line). An update of River that changes its schema should be checked against the panel image, and the comment in `deploy/compose.base.yaml` says to update both together.
 - **`service.name` of the worker's spans** is `api`, as for every command of the binary (`tracedDatabase`). Whether the worker should name itself apart (`worker`) in traces is for the health report and Grafana work; nothing here depends on it.
 - **The sensitive-values test** now runs the worker against an unreachable PostgreSQL. A worker that reaches a database but fails inside River would log River's own lines; those carry job identifiers and kinds, never arguments, by what the middleware and River's executor record. A ticket that brings a job with arguments should extend the scenario with one that fails.
+
+### Settled at the end of the effort
+
+- **The worker on the servers**, with a stop grace period longer than `WORKER_SHUTDOWN_DEADLINE` plus the 15 seconds of grace and the flush of telemetry: deferred by the maintainer to the deploy effort. Recorded under Deferred in `CODING_STANDARDS.md`.
+- **River's version and the panel's**: deferred by the maintainer, with no effort of its own: River UI's image is updated with River, in the same commit. Recorded under Deferred and in Panel of Jobs in `CODING_STANDARDS.md`.
+- **`service.name` of the worker's spans**, which is `api`: deferred by the maintainer to the system health effort, with the River panel behind the session. Recorded under Deferred in `CODING_STANDARDS.md`.
+- **The sensitive-values test of a job with arguments**: nothing to settle; the rule stands for the next job kind with arguments (Test of sensitive values in Telemetry). The daily cleanup of this pass has no argument.

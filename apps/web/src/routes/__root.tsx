@@ -8,10 +8,7 @@ import {
 import { loggedInUserQuery, returnPathOf, whereTheLoginLeads } from "../access"
 import { leadsToTheSetup, setupStateQuery } from "../consultancy"
 import { ErrorScreen } from "../shared/errors/error-screen"
-import {
-  speakThePreferredLanguage,
-  speakTheSelectedLanguage,
-} from "../shared/locales/i18n"
+import { speakIn, speakTheSelectedLanguage } from "../shared/locales/i18n"
 
 type RouterContext = { queryClient: QueryClient }
 
@@ -44,7 +41,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       }
       return
     }
-    speakThePreferredLanguage(user.preferred_language)
+    speakIn(user.preferred_language)
     if (atTheLogin || atTheSetup) {
       const { return_to: returnTo } = location.search as { return_to?: unknown }
       throw redirect({ href: whereTheLoginLeads(returnTo), replace: true })

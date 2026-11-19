@@ -167,6 +167,40 @@ func TestARunCutByTheShutdownLeavesTheEmailQueuedEvenOnTheLastAttempt(t *testing
 	assert.Equal(t, domain.Queued, room.emailOf(t, id).Status())
 }
 
+// A run whose time ran out is a failure, not a cut: River gives no attempt
+// back. On the last attempt the e-mail is marked failed, in a transaction
+// whose context is not the one that ran out, as the repository refuses that
+// one as the database does.
+func TestTheLastAttemptWhoseTimeRanOutMarksTheEmailFailed(t *testing.T) {
+	room := newMailroom()
+	id := room.queuedLoginCode(t, "en-US")
+	room.sender.HangUntilTheContextEnds()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	err := room.deliver.Execute(ctx, lastAttempt(id))
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	code, _, failed := room.emailOf(t, id).Failure()
+	assert.True(t, failed, "the e-mail stays queued with no job to send it")
+	assert.Equal(t, domain.SendingFailed, code)
+}
+
+// Before the last attempt, a run whose time ran out leaves the e-mail queued
+// for the next one, as any failure does.
+func TestAnAttemptWhoseTimeRanOutLeavesTheEmailQueuedForTheNextOne(t *testing.T) {
+	room := newMailroom()
+	id := room.queuedLoginCode(t, "en-US")
+	room.sender.HangUntilTheContextEnds()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	err := room.deliver.Execute(ctx, attempt(id))
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Equal(t, domain.Queued, room.emailOf(t, id).Status())
+}
+
 func TestAJobOfAnEmailThatDoesNotExistFails(t *testing.T) {
 	room := newMailroom()
 

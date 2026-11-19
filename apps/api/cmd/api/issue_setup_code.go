@@ -45,6 +45,7 @@ func issueSetupCode(ctx context.Context, environment map[string]string, stdout, 
 	}
 
 	logger := telemetry.NewLogger(stderr, settings.LogLevel)
+	telemetry.RouteTheStandardLogger(logger)
 	tracing, pool, stop, err := tracedDatabase(settings, logger)
 	if err != nil {
 		return err

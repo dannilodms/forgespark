@@ -36,7 +36,6 @@ type site struct {
 func newSite(t *testing.T, pool *pgxpool.Pool, settings session.Settings) site {
 	t.Helper()
 	sessions := session.New(pool, settings)
-	t.Cleanup(sessions.Stop)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/numbers", func(w http.ResponseWriter, r *http.Request) {
 		number, err := strconv.ParseInt(r.URL.Query().Get("number"), 10, 64)
@@ -186,6 +185,14 @@ func TestAPathOutsideThePrefixTouchesNoSession(t *testing.T) {
 // theAppOrigin is the origin the app of these tests is served from.
 const theAppOrigin = "http://localhost"
 
+// appOrigin is the origin of the app as the configuration reads it.
+func appOrigin(t *testing.T) config.Origin {
+	t.Helper()
+	origin, err := config.NewOrigin(theAppOrigin)
+	require.NoError(t, err)
+	return origin
+}
+
 // sendWith sends a request that carries a cookie of a session, or none, with
 // these headers.
 func sendWith(t *testing.T, method, url string, cookie bool, headers map[string]string) *http.Response {
@@ -209,7 +216,7 @@ func sendWith(t *testing.T, method, url string, cookie bool, headers map[string]
 // session is read: the store behind this site cannot be reached.
 func TestARequestThatChangesStateWithTheCookieFromAnotherSiteIsRefused(t *testing.T) {
 	t.Parallel()
-	served := newSite(t, unreachablePool(t), session.Settings{Secure: false, AppOrigin: theAppOrigin})
+	served := newSite(t, unreachablePool(t), session.Settings{Secure: false, AppOrigin: appOrigin(t)})
 	cases := map[string]struct {
 		method  string
 		headers map[string]string
@@ -240,7 +247,7 @@ func TestARequestThatChangesStateWithTheCookieFromAnotherSiteIsRefused(t *testin
 // bounce webhook, a read, and a request from the app itself.
 func TestARequestWithNoCookieAReadAndARequestFromTheAppAreNotRefused(t *testing.T) {
 	t.Parallel()
-	served := newSite(t, migratedPool(t), session.Settings{Secure: false, AppOrigin: theAppOrigin})
+	served := newSite(t, migratedPool(t), session.Settings{Secure: false, AppOrigin: appOrigin(t)})
 	cases := map[string]struct {
 		method  string
 		cookie  bool
@@ -257,6 +264,10 @@ func TestARequestWithNoCookieAReadAndARequestFromTheAppAreNotRefused(t *testing.
 		},
 		"a POST with the cookie from the app": {
 			method: http.MethodPost, cookie: true, headers: map[string]string{"Origin": theAppOrigin, "Sec-Fetch-Site": "same-origin"},
+			status: http.StatusAccepted,
+		},
+		"a POST with the cookie from the app, its origin written in another case and with the default port": {
+			method: http.MethodPost, cookie: true, headers: map[string]string{"Origin": "HTTP://LocalHost:80"},
 			status: http.StatusAccepted,
 		},
 		"a POST with the cookie and no header, as a command-line client sends": {

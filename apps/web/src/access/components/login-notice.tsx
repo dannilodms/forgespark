@@ -13,9 +13,10 @@ import { Alert, AlertDescription, AlertTitle } from "#ui/components/alert"
  * - a new administrator was registered, the way back in, or may have been,
  *   by an attempt of theirs that got no answer;
  * - their session ended while they worked, or they logged out;
- * - a login through a login provider did not conclude, or the provider's
- *   verified e-mail belongs to no active user. The callback of the provider
- *   sends these two; the e-mail comes from the login state, never from the
+ * - a login through a login provider did not conclude, the provider's
+ *   verified e-mail belongs to no active user, or the account is not the one
+ *   linked to the user who has that e-mail. The callback of the provider
+ *   sends these three; the e-mail comes from the login state, never from the
  *   address.
  */
 export const loginNotices = [
@@ -28,45 +29,50 @@ export const loginNotices = [
   "logged_out",
   "login_not_concluded",
   "no_active_user",
+  "another_account_linked",
 ] as const
 
 export type LoginNotice = (typeof loginNotices)[number]
 
-/** The texts of each notice: a title and what to do, in `access`. */
-const texts = {
-  setup_concluded: "login.notices.setupConcluded",
-  setup_already_concluded: "login.notices.setupAlreadyConcluded",
-  setup_concluded_without_answer: "login.notices.setupConcludedWithoutAnswer",
-  administrator_registered: "login.notices.administratorRegistered",
-  administrator_registered_without_answer:
-    "login.notices.administratorRegisteredWithoutAnswer",
-  session_ended: "login.notices.sessionEnded",
-  logged_out: "login.notices.loggedOut",
-  login_not_concluded: "login.notices.loginNotConcluded",
-  no_active_user: "login.notices.noActiveUser",
-} as const satisfies Record<LoginNotice, string>
+const done = <CircleCheckIcon className="text-status-done" />
+const attention = <TriangleAlertIcon className="text-status-attention" />
+const information = <InfoIcon className="text-status-working" />
 
 /**
- * The sign of each notice, in a feedback colour: done, attention or
- * information (rule 9 of DESIGN.md: never colour alone, the title says it).
+ * What each notice shows: its texts, a title and what to do, in `access`,
+ * and its sign, in a feedback colour: done, attention or information (rule 9
+ * of DESIGN.md: never colour alone, the title says it).
  */
-const signs: Record<LoginNotice, ReactNode> = {
-  setup_concluded: <CircleCheckIcon className="text-status-done" />,
-  setup_already_concluded: (
-    <TriangleAlertIcon className="text-status-attention" />
-  ),
-  setup_concluded_without_answer: (
-    <TriangleAlertIcon className="text-status-attention" />
-  ),
-  administrator_registered: <CircleCheckIcon className="text-status-done" />,
-  administrator_registered_without_answer: (
-    <TriangleAlertIcon className="text-status-attention" />
-  ),
-  session_ended: <TriangleAlertIcon className="text-status-attention" />,
-  logged_out: <InfoIcon className="text-status-working" />,
-  login_not_concluded: <TriangleAlertIcon className="text-status-attention" />,
-  no_active_user: <TriangleAlertIcon className="text-status-attention" />,
-}
+const notices = {
+  setup_concluded: { texts: "login.notices.setupConcluded", sign: done },
+  setup_already_concluded: {
+    texts: "login.notices.setupAlreadyConcluded",
+    sign: attention,
+  },
+  setup_concluded_without_answer: {
+    texts: "login.notices.setupConcludedWithoutAnswer",
+    sign: attention,
+  },
+  administrator_registered: {
+    texts: "login.notices.administratorRegistered",
+    sign: done,
+  },
+  administrator_registered_without_answer: {
+    texts: "login.notices.administratorRegisteredWithoutAnswer",
+    sign: attention,
+  },
+  session_ended: { texts: "login.notices.sessionEnded", sign: attention },
+  logged_out: { texts: "login.notices.loggedOut", sign: information },
+  login_not_concluded: {
+    texts: "login.notices.loginNotConcluded",
+    sign: attention,
+  },
+  no_active_user: { texts: "login.notices.noActiveUser", sign: attention },
+  another_account_linked: {
+    texts: "login.notices.anotherAccountLinked",
+    sign: attention,
+  },
+} as const satisfies Record<LoginNotice, { texts: string; sign: ReactNode }>
 
 /**
  * The notice the screen was given, above the ways to log in. The notice
@@ -94,12 +100,12 @@ export function LoginNoticeAlert({
 
   return (
     <Alert>
-      {signs[notice]}
-      <AlertTitle>{t(`${texts[notice]}.title`)}</AlertTitle>
+      {notices[notice].sign}
+      <AlertTitle>{t(`${notices[notice].texts}.title`)}</AlertTitle>
       <AlertDescription>
         <Trans
           t={t}
-          i18nKey={`${texts[notice]}.todo`}
+          i18nKey={`${notices[notice].texts}.todo`}
           values={{ email: refusedEmail }}
           // The e-mail goes whole to the next line, and breaks only where it
           // is longer than the line.

@@ -13,13 +13,7 @@ type (
 	Subject = domain.Subject
 	// Entry is one record of the audit log.
 	Entry = domain.Entry
-	// WayIn is how a user logged in: LoginCodeWayIn, or the key of a login
-	// provider.
-	WayIn = domain.WayIn
 )
-
-// LoginCodeWayIn is a login with a login code.
-const LoginCodeWayIn = domain.LoginCodeWayIn
 
 const (
 	// SetupCodeIssued is recorded when whoever installs the system issues a

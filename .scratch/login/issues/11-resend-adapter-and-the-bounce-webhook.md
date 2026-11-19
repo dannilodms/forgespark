@@ -63,3 +63,10 @@
 - **`bounce_notices` grows** by one row per bounce and is never pruned. Svix stops delivering a notice within days, so a periodic job could remove the rows older than a month; not needed at this volume.
 - **Migration numbers.** 00023 follows 00016 and 00020 here. A development database migrated from this branch before ticket 03 (00017-00019) lands would refuse the lower numbers, since goose does not apply out of order. Temporary test databases are unaffected.
 - **One recipient per e-mail.** The adapter sends to the one address the record holds; a bounce of an e-mail with several recipients would mark the whole record, which no template does today.
+
+### Settled at the end of the effort
+
+- **The secret `RESEND_TEST_API_KEY` and the account the scheduled tests use**: deferred by the maintainer to the deploy effort. `docs/providers.md` now names what is fixed on our side: the webhook `POST /api/resend/bounces`, the event `email.bounced`, its signing secret, the separate test key and the repository secret. Recorded under Deferred in `CODING_STANDARDS.md`.
+- **`bounce_notices` grew and was never pruned**: decided by the maintainer and built in the review-fix pass. The daily cleanup removes the notices received more than 30 days before (`CleanUpBounceNotices` of `email`; migration `00027` lets the API role delete them). Recorded in Jobs of `CODING_STANDARDS.md` and in ADR-0016.
+- **Migration numbers**: no longer open; every migration of the effort is merged.
+- **One recipient per e-mail**: accepted as it is; no template sends to several.

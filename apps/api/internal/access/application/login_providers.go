@@ -83,9 +83,14 @@ func (u *TellLoginState) Execute(ctx context.Context) (LoginState, error) {
 	if err != nil {
 		return LoginState{}, err
 	}
-	turnedOn := make([]TurnedOnLoginProvider, 0, len(u.providers.providers))
-	for _, provider := range u.providers.providers {
+	return LoginState{Providers: u.providers.turnedOn(), RefusedEmail: email, Refused: refused}, nil
+}
+
+// turnedOn lists the providers as the login screen shows them, in order.
+func (p *LoginProviders) turnedOn() []TurnedOnLoginProvider {
+	turnedOn := make([]TurnedOnLoginProvider, 0, len(p.providers))
+	for _, provider := range p.providers {
 		turnedOn = append(turnedOn, TurnedOnLoginProvider{Key: provider.Key().String(), DisplayName: provider.DisplayName()})
 	}
-	return LoginState{Providers: turnedOn, RefusedEmail: email, Refused: refused}, nil
+	return turnedOn
 }

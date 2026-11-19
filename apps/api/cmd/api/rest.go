@@ -10,6 +10,7 @@ import (
 	accesspostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/postgres"
 	accessrest "github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/rest"
 	accessapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
+	accessdomain "github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
 	auditpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/adapters/postgres"
 	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
 	consultancypostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/adapters/postgres"
@@ -34,22 +35,21 @@ var bodyLimits = restapi.Limits{BodyBytes: 1 << 20, BodyReadTimeout: 5 * time.Se
 
 // served are what the operations reach outside the process: the database,
 // the file storage, the saving of jobs, the sessions of the browsers and the
-// login providers turned on; and the key the login codes are computed with.
-// Generating the spec passes none of the first five, and a key of its own:
-// the use cases are built and never run.
+// login providers turned on; and the key the login codes are computed with,
+// kept in its secret type. Generating the spec passes none of them: the use
+// cases are built and never run.
 type served struct {
 	pool           *pgxpool.Pool
 	storage        *filess3.Storage
 	saver          *jobs.Saver
 	sessions       *session.Sessions
 	loginProviders []accessapplication.LoginProvider
-	loginCodeKey   []byte
+	loginCodeKey   accessdomain.LoginCodeKey
 }
 
 // mountREST builds the REST adapter on the mux and registers every operation
 // of every domain area: it wires each use case to its adapters, by hand. It
-// fails on a key of the login code too short, and on two login providers
-// with one key.
+// fails on two login providers with one key.
 //
 // The OpenAPI spec is generated from what this function registers, so an
 // operation that is served is in the spec.
@@ -91,6 +91,7 @@ func mountREST(mux *http.ServeMux, with served) (*restapi.API, error) {
 		Transactions: transactions,
 		Requests:     accesspostgres.NewLoginCodeRequestRepository(with.pool),
 		Session:      browser,
+		Key:          with.loginCodeKey,
 		Clock:        clock.System{},
 	}
 	activeUsers := consultancypostgres.NewActiveUserReader(with.pool)
@@ -102,10 +103,6 @@ func mountREST(mux *http.ServeMux, with served) (*restapi.API, error) {
 		RecordEntry:        setup.RecordEntry,
 		Clock:              clock.System{},
 	})
-	checkLoginCode, err := accessapplication.NewCheckLoginCode(login, logIn, with.loginCodeKey)
-	if err != nil {
-		return nil, err
-	}
 	providers, err := accessapplication.NewLoginProviders(with.loginProviders...)
 	if err != nil {
 		return nil, err
@@ -115,6 +112,7 @@ func mountREST(mux *http.ServeMux, with served) (*restapi.API, error) {
 	accessrest.Register(api, accessrest.UseCases{
 		AskForLoginCode: accessapplication.NewAskForLoginCode(
 			login,
+			accesspostgres.NewAskedAddressRepository(with.pool),
 			consultancyapplication.NewFindActiveUser(activeUsers),
 			emailapplication.NewQueueEmail(
 				transactions,
@@ -124,7 +122,7 @@ func mountREST(mux *http.ServeMux, with served) (*restapi.API, error) {
 			),
 			rand.Reader,
 		),
-		CheckLoginCode:     checkLoginCode,
+		CheckLoginCode:     accessapplication.NewCheckLoginCode(login, logIn),
 		TellLoggedInUser:   accessapplication.NewTellLoggedInUser(findActiveUserByID, signDownload),
 		LogOut:             accessapplication.NewLogOut(browser),
 		TellLoginState:     accessapplication.NewTellLoginState(providers, browser),

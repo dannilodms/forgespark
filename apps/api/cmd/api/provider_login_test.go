@@ -144,6 +144,27 @@ func TestALaterLoginThroughTheLocalProviderFindsTheUserByTheLink(t *testing.T) {
 	assert.Equal(t, 1, links)
 }
 
+// A user who has another account of the provider linked is known there by
+// that one: the account of Dex with their e-mail logs nobody in, and the
+// browser goes back to the login with a notice of its own (story 17).
+func TestAnAccountWithTheEmailOfAUserWhoLinkedAnotherReturnsToTheLoginWithItsNotice(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+	api := startAPI(t, withLocalLoginProvider(t, environmentOf(temporary)))
+	withAUser(t, temporary, api, oidctest.Administrator.Email)
+	owner := asOwner(t, temporary)
+	_, err := owner.Exec(context.Background(), `INSERT INTO provider_links (provider_key, subject, user_id, linked_at)
+		SELECT 'local', 'another-account-at-dex', id, now() FROM users WHERE email = $1`, oidctest.Administrator.Email)
+	require.NoError(t, err)
+	browser := aBrowser(t)
+
+	concluded := throughDex(t, browser, api, oidctest.Administrator, "/projects")
+
+	requireRedirectTo(t, concluded, "/login?notice=another_account_linked&return_to=%2Fprojects")
+	requireNotLoggedIn(t, whoIsLoggedIn(t, browser, api))
+	assert.NotContains(t, loginStateOf(t, browser, api).body, "refused_email")
+}
+
 // The developer of Dex is no user: the browser goes back to the login with
 // the notice, the e-mail in no address, and the login state tells it to this
 // browser alone.

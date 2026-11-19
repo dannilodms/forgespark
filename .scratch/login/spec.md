@@ -1,6 +1,6 @@
 # Login and the shell of the app
 
-Status: ready-for-agent
+Status: resolved
 
 The second of three efforts. The first laid the foundation and the setup; the third is the consultancy settings, the users and the system health, specified when this one ends. The decisions below were taken in the grilling of 2026-11-18 and stand on ADR-0011 (login and session), ADR-0016 (jobs), ADR-0017 (files), ADR-0019 (seed), ADR-0024 (setup), ADR-0026 (roles and scopes) and the sections Login, Jobs, E-mail, Files, Seed and Rate limit of `CODING_STANDARDS.md`. The terms are in `GLOSSARY.md`: user, administrator, developer, role, scope, login code, login provider, local login provider, provider link, session, audit log, setup code. Do not reopen them.
 

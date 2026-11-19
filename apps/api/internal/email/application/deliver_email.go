@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
 )
@@ -44,16 +45,26 @@ type DeliverEmailInput struct {
 //
 // On the last attempt a failure marks the e-mail failed, with the code of
 // what failed, and is still returned, so the job ends as failed too. A run
-// cut by the shutdown is not a failure: the job runs again later.
+// that ran out of its time is such a failure. A run cut by the shutdown, whose
+// context was cancelled, is not: the job runs again later, with its attempt
+// given back.
 func (u *DeliverEmail) Execute(ctx context.Context, input DeliverEmailInput) error {
 	err := u.transactions.Run(ctx, func(ctx context.Context) error {
 		return u.deliver(ctx, input.EmailID)
 	})
-	if err == nil || !input.LastAttempt || ctx.Err() != nil {
+	if err == nil || !input.LastAttempt || errors.Is(ctx.Err(), context.Canceled) {
 		return err
 	}
-	return errors.Join(err, u.markFailed(ctx, input.EmailID, failureCodeOf(err)))
+	// The context of the run may have run out of its time: the mark has a
+	// time of its own.
+	marking, cancel := context.WithTimeout(context.WithoutCancel(ctx), markingTimeout)
+	defer cancel()
+	return errors.Join(err, u.markFailed(marking, input.EmailID, failureCodeOf(err)))
 }
+
+// markingTimeout bounds the transaction that marks an e-mail failed after
+// its last attempt, which the time of the job no longer bounds.
+const markingTimeout = 10 * time.Second
 
 func (u *DeliverEmail) deliver(ctx context.Context, id domain.EmailID) error {
 	email, found, err := u.emails.Load(ctx, id)

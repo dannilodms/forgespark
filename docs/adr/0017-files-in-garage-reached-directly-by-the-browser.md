@@ -46,5 +46,6 @@ Files live in S3-compatible storage. The server is Garage, which replaces MinIO,
 - A signed upload URL bounds the size of what is sent only where the storage checks the signed `Content-Length`: Garage does, and Backblaze B2 is not tried. The API checks the size when the upload is confirmed and removes an object over the limit.
 - A signed URL is signed for the public host name of the storage, so the backend has to know that name.
 - The file storage stays an optional part of the system health (ADR-0012): down, it makes the system degraded and leaves it serving. It is required, though: the API refuses to start without its configuration, so it is never `not_configured` (Health in `CODING_STANDARDS.md`).
+- In development one bucket serves the database of development and those of the Go tests, and a worker of development removes, a day later, the objects only a database of a test names; the end-to-end test has a bucket of its own. A bucket or a prefix of keys for each database is left for later (Deferred in `CODING_STANDARDS.md`). The cleanup of the storage keeps running every hour.
 - The library that uploads in parts from the browser is chosen with the first upload screen.
 - How a document reaches a person outside the system, as an attachment or as a link, is not decided.

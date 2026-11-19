@@ -52,3 +52,8 @@
 ### Found, and left for a decision
 
 - **The step of the code and the review of the setup break an e-mail inside a word** (`break-all` in `code-step.tsx` and `review-step.tsx`), as the notice did before this ticket. `wrap-anywhere` keeps the e-mail whole when it fits the line; changing them is a small change outside this ticket.
+
+### Settled at the end of the effort
+
+- **The step of the code and the review of the setup broke an e-mail inside a word**: fixed in the review-fix pass, with `wrap-anywhere`, as the notice does.
+- **The sixth criterion**, the Dex login landing in the shell: ticked when ticket 06 merged, and seen by the end-to-end test of ticket 12.

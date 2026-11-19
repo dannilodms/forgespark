@@ -37,6 +37,10 @@
       "noActiveUser": {
         "title": "Ningún usuario activo tiene este correo electrónico",
         "todo": "El proveedor de inicio de sesión dio el correo electrónico <email>{{email}}</email>, y ningún usuario activo del sistema lo tiene. Pide acceso a un administrador."
+      },
+      "anotherAccountLinked": {
+        "title": "Esta no es la cuenta vinculada a tu usuario",
+        "todo": "Tu usuario está vinculado a otra cuenta de este proveedor de inicio de sesión. Inicia sesión con esa cuenta o con un código de inicio de sesión enviado a tu correo electrónico."
       }
     },
     "providers": {

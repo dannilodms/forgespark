@@ -29,11 +29,23 @@ func NewEmail(typed string) (Email, error) {
 	if utf8.RuneCountInString(address) > EmailMaxLength {
 		return Email{}, TooLongError{MaxLength: EmailMaxLength}
 	}
-	parsed, err := mail.ParseAddress(address)
-	if err != nil || parsed.Name != "" || parsed.Address != address {
+	if !IsEmailAddress(address) {
 		return Email{}, EmailInvalidError{}
 	}
 	return Email{address: strings.ToLower(address)}, nil
+}
+
+// IsEmailAddress tells whether the text is one e-mail address and nothing
+// around it: no name, no angle brackets, no space, EmailMaxLength characters
+// at most. It is the one rule of an e-mail address: NewEmail reads the e-mail
+// of a person with it, and the recipient of an e-mail and the addresses of
+// the configuration are checked with it as they are written.
+func IsEmailAddress(text string) bool {
+	if utf8.RuneCountInString(text) > EmailMaxLength {
+		return false
+	}
+	parsed, err := mail.ParseAddress(text)
+	return err == nil && parsed.Name == "" && parsed.Address == text
 }
 
 // String returns the address.

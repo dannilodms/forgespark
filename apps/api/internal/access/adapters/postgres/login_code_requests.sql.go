@@ -10,24 +10,6 @@ import (
 	"time"
 )
 
-const countLoginCodeRequestsAskedSince = `-- name: CountLoginCodeRequestsAskedSince :one
-SELECT count(*)::integer
-FROM login_code_requests
-WHERE user_id = $1 AND asked_at > $2
-`
-
-type CountLoginCodeRequestsAskedSinceParams struct {
-	UserID int64
-	Since  time.Time
-}
-
-func (q *Queries) CountLoginCodeRequestsAskedSince(ctx context.Context, arg CountLoginCodeRequestsAskedSinceParams) (int32, error) {
-	row := q.db.QueryRow(ctx, countLoginCodeRequestsAskedSince, arg.UserID, arg.Since)
-	var column_1 int32
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
 const findLoginCodeRequest = `-- name: FindLoginCodeRequest :one
 SELECT id, user_id, random_value, asked_at, expires_at, attempts, ended_at
 FROM login_code_requests
@@ -120,6 +102,16 @@ func (q *Queries) NextLoginCodeRequestID(ctx context.Context) (int64, error) {
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const removeLoginCodeRequestsEndedOrExpiredBefore = `-- name: RemoveLoginCodeRequestsEndedOrExpiredBefore :exec
+DELETE FROM login_code_requests
+WHERE expires_at < $1 OR ended_at < $1
+`
+
+func (q *Queries) RemoveLoginCodeRequestsEndedOrExpiredBefore(ctx context.Context, before time.Time) error {
+	_, err := q.db.Exec(ctx, removeLoginCodeRequestsEndedOrExpiredBefore, before)
+	return err
 }
 
 const saveLoginCodeRequest = `-- name: SaveLoginCodeRequest :exec

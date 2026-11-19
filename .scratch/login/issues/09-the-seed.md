@@ -50,3 +50,8 @@
 
 - Nothing builds the seed image in the pipeline until the deploy effort writes the publish: a Dockerfile that stops building would show only on the maintainer's machine. A `docker build` step in the backend job of `ci.yml` would catch it before then; it was not added, because the pipeline is read before being changed and the deploy effort owns the images.
 - The developer, `seed+developer@fabrica.example`, is listed in Dex by ticket 07 and created by the seed in the next effort, when registering a user exists, as the spec says. Until then logging in as the developer shows the notice of an e-mail with no active user.
+
+### Settled at the end of the effort
+
+- **Nothing built the seed image in the pipeline**: decided by the maintainer and built in the review-fix pass. `task seed:image` builds the `seed` service of `compose.yaml`, publishing nothing, and the backend job of `ci.yml` runs it; `task workflows:check` passes. Recorded in Checks on a pull request of `CODING_STANDARDS.md`.
+- **The developer of Dex is created by the seed in the next effort**: nothing to settle; the spec of the next effort holds it.

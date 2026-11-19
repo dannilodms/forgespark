@@ -19,7 +19,10 @@ export interface LoggedInUser {
   name: string;
   /** A URL that reads the photo of the user from the file storage, signed for its public host name and valid for fifteen minutes. Left out when the user has no photo. */
   photo_url?: string;
-  /** The supported language the user reads the system in. */
+  /**
+     * The supported language the user reads the system in.
+     * @minLength 1
+     */
   preferred_language: LoggedInUserPreferredLanguage;
   /** The keys of the roles of the user, sorted, which the app translates. */
   role_keys: LoggedInUserRoleKeysItem[];

@@ -126,19 +126,52 @@ func TestAskingForALoginCodeAnswersTheSameForEveryEmail(t *testing.T) {
 	assert.NotContains(t, arguments, "ana.souza")
 }
 
-func TestASecondLoginCodeWithinAMinuteAnswersTheRuleOfTheLimit(t *testing.T) {
+// The limit counts the asks for the typed address, so the e-mail of a user
+// and an e-mail of no user meet it the same way (ADR-0011).
+func TestASecondLoginCodeWithinAMinuteAnswersTheRuleOfTheLimitForEveryEmail(t *testing.T) {
 	t.Parallel()
 	temporary := databasetest.Migrated(t)
 	api := startAPI(t, environmentOf(temporary))
 	withAUser(t, temporary, api, "ana.souza@fabrica.example")
-	browser := aBrowser(t)
-	require.Equal(t, http.StatusAccepted, askForLoginCode(t, browser, api, "ana.souza@fabrica.example").status)
 
-	again := askForLoginCode(t, browser, api, "ana.souza@fabrica.example")
+	for _, email := range []string{"ana.souza@fabrica.example", "bruno.lima@fabrica.example"} {
+		browser := aBrowser(t)
+		require.Equal(t, http.StatusAccepted, askForLoginCode(t, browser, api, email).status)
 
-	require.Equal(t, http.StatusUnprocessableEntity, again.status, again.body)
-	assert.Equal(t, "application/problem+json", again.mediaType)
-	assert.Equal(t, "login_code_limit_reached", again.fields["code"])
+		again := askForLoginCode(t, browser, api, strings.ToUpper(email))
+
+		require.Equal(t, http.StatusUnprocessableEntity, again.status, "%s: %s", email, again.body)
+		assert.Equal(t, "application/problem+json", again.mediaType)
+		assert.Equal(t, "login_code_limit_reached", again.fields["code"], email)
+	}
+	owner := asOwner(t, temporary)
+	assert.Equal(t, 1, countOf(t, owner, "login_code_requests"))
+	assert.Equal(t, 2, countOf(t, owner, "login_code_asks"), "a refused ask was counted")
+}
+
+// Two asks for one address at the same moment are counted one after the
+// other, so one gets the code and the other the limit: never a failure of the
+// unique index of the open requests (ticket 03).
+func TestTwoAsksForOneAddressAtTheSameMomentAnswerTheCodeAndTheLimit(t *testing.T) {
+	t.Parallel()
+	temporary := databasetest.Migrated(t)
+	api := startAPI(t, environmentOf(temporary))
+	withAUser(t, temporary, api, "ana.souza@fabrica.example")
+	statuses := make(chan int, 2)
+	ask := func() int {
+		response, err := http.Post(api+loginCodePath, "application/json", strings.NewReader(`{"email": "ana.souza@fabrica.example"}`))
+		if err != nil {
+			return 0
+		}
+		defer response.Body.Close()
+		return response.StatusCode
+	}
+
+	for range 2 {
+		go func() { statuses <- ask() }()
+	}
+
+	assert.ElementsMatch(t, []int{http.StatusAccepted, http.StatusUnprocessableEntity}, []int{<-statuses, <-statuses})
 	assert.Equal(t, 1, countOf(t, asOwner(t, temporary), "login_code_requests"))
 }
 

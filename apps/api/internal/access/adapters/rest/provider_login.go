@@ -34,8 +34,9 @@ const loginScreenPath = "/login"
 
 // The notices of the login screen a login through a provider ends with.
 const (
-	loginNotConcludedNotice = "login_not_concluded"
-	noActiveUserNotice      = "no_active_user"
+	loginNotConcludedNotice    = "login_not_concluded"
+	noActiveUserNotice         = "no_active_user"
+	anotherAccountLinkedNotice = "another_account_linked"
 )
 
 // The login through a provider is two navigations of the browser, which no
@@ -79,8 +80,11 @@ func registerProviderLogin(api *restapi.API, useCases UseCases) {
 		Path:          loginProvidersPath + "/{key}/callback",
 		DefaultStatus: http.StatusSeeOther,
 		// The provider writes the query of its callback, and may add
-		// parameters of its own: they are not refused.
+		// parameters of its own: they are not refused, and the use case
+		// judges what it reads. It has no body. So it never answers
+		// `validation_failed`, and declares no 422.
 		SkipValidateParams: true,
+		SkipValidateBody:   true,
 		Summary:            "Conclude a login through a login provider",
 		Description: "The login provider sends the browser back here; the generated client does not call it. The " +
 			"state must be the one of the login this browser started, which is used once. The code is exchanged " +
@@ -88,10 +92,12 @@ func registerProviderLogin(api *restapi.API, useCases UseCases) {
 			"of the account, or else by the e-mail the token says is verified, and the account is linked. It " +
 			"redirects to the path to return to, logged in, with the cookie of the session set again with a new " +
 			"token. A verified e-mail of no active user redirects to the login screen with the notice " +
-			"`no_active_user`, the e-mail kept for `tell_login_state`; a cancel or an error at the provider, a code " +
-			"it refuses, an e-mail it does not say is verified, or a state that is not the one of this browser " +
-			"redirects with `login_not_concluded`. The query parameters are the ones OAuth defines, and any other " +
-			"the provider adds is not refused. A key of no provider turned on answers `not_found`.",
+			"`no_active_user`, the e-mail kept for `tell_login_state`; an account that is not linked, whose " +
+			"verified e-mail is the one of a user who has another account of the provider linked, redirects with " +
+			"`another_account_linked`; a cancel or an error at the provider, a code it refuses, an e-mail it does " +
+			"not say is verified, or a state that is not the one of this browser redirects with " +
+			"`login_not_concluded`. The query parameters are the ones OAuth defines, and any other the provider " +
+			"adds is not refused. A key of no provider turned on answers `not_found`.",
 		Tags: []string{loginTag},
 	}, restapi.Failures{
 		http.StatusNotFound: {restapi.NotFound},
@@ -194,6 +200,8 @@ func (o concludeProviderLogin) handle(ctx context.Context, input *concludeProvid
 		return &redirectOutput{Location: concluded.ReturnTo.String()}, nil
 	case application.NoActiveUser:
 		return &redirectOutput{Location: loginScreen(noActiveUserNotice, concluded.ReturnTo)}, nil
+	case application.AnotherAccountLinked:
+		return &redirectOutput{Location: loginScreen(anotherAccountLinkedNotice, concluded.ReturnTo)}, nil
 	}
 	return &redirectOutput{Location: loginScreen(loginNotConcludedNotice, concluded.ReturnTo)}, nil
 }

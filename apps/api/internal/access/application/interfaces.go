@@ -40,9 +40,6 @@ type LoginCodeRequestRepository interface {
 	// expired or not, and locks each one until the transaction ends. A user
 	// has one at most.
 	LoadNotEndedOf(ctx context.Context, user domain.UserID) ([]*domain.LoginCodeRequest, error)
-	// CountAskedSince counts the requests of the user asked for after this
-	// moment, ended or not. It locks nothing.
-	CountAskedSince(ctx context.Context, user domain.UserID, since time.Time) (int, error)
 	// Find returns the request with this identifier, ended or not, and false
 	// when there is none. It locks nothing: it serves the delivery of the
 	// e-mail of the code, which saves nothing of the request.
@@ -53,6 +50,34 @@ type LoginCodeRequestRepository interface {
 	Load(ctx context.Context, id domain.LoginCodeRequestID) (*domain.LoginCodeRequest, bool, error)
 	// Save stores a request whole, whether it is new or changed.
 	Save(ctx context.Context, request *domain.LoginCodeRequest) error
+	// RemoveEndedOrExpiredBefore removes the requests that ended, or
+	// expired, before the moment.
+	RemoveEndedOrExpiredBefore(ctx context.Context, before time.Time) error
+}
+
+// AskedAddressRepository keeps the asks for a login code of each typed
+// address, for the limits: the digest of the address and when it was asked
+// for, never the address (domain.AskedAddress). An ask is kept while a limit
+// counts it.
+type AskedAddressRepository interface {
+	// Hold locks the asks for the address until the transaction ends, so two
+	// asks for one address at the same moment are counted one after the
+	// other, and the second counts the first.
+	Hold(ctx context.Context, address domain.AskedAddress) error
+	// CountAskedSince counts the asks for the address after this moment.
+	CountAskedSince(ctx context.Context, address domain.AskedAddress, since time.Time) (int, error)
+	// Add keeps one more ask for the address, at this moment.
+	Add(ctx context.Context, address domain.AskedAddress, at time.Time) error
+	// RemoveAskedBefore removes the asks made before the moment, of every
+	// address.
+	RemoveAskedBefore(ctx context.Context, before time.Time) error
+}
+
+// EndedSessions are the sessions of the browsers that ended: idle too long,
+// or past their lifetime. One that ended is never read again.
+type EndedSessions interface {
+	// Remove removes the sessions that ended by this moment.
+	Remove(ctx context.Context, at time.Time) error
 }
 
 // ProviderLinkRepository keeps the provider links. A link is created at the
@@ -65,9 +90,12 @@ type ProviderLinkRepository interface {
 	// HasLink tells whether the user has an account of the provider linked
 	// already: a user has one at each provider at most.
 	HasLink(ctx context.Context, provider domain.LoginProviderKey, user domain.UserID) (bool, error)
-	// Save stores a new link. A second link of the same account, or a second
-	// link of the user at the same provider, fails.
-	Save(ctx context.Context, link *domain.ProviderLink) error
+	// Save stores a new link, and returns true. It returns false, and stores
+	// nothing, when the account, or the user at the provider, is linked
+	// already: by another login at the same moment, whose transaction
+	// committed while this one waited. What was saved meanwhile can be read in
+	// the same transaction.
+	Save(ctx context.Context, link *domain.ProviderLink) (bool, error)
 }
 
 // LoginProvider is a login provider turned on (ADR-0011): where the browser

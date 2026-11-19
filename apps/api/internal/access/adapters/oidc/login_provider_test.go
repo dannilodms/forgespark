@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -256,6 +257,53 @@ func TestAProviderThatCannotBeReachedFailsAndIsLogged(t *testing.T) {
 	require.Error(t, again)
 	assert.Equal(t, 2, strings.Count(logs.String(), "a login through a provider failed"))
 	assert.Contains(t, logs.String(), `"login_provider":"local"`)
+}
+
+// A provider whose discovery hangs holds up only the login that waits for
+// it: the next login discovers the provider by itself, and is not kept
+// waiting behind the first (ticket 07).
+func TestALoginIsNotKeptWaitingByAnotherStillDiscoveringTheProvider(t *testing.T) {
+	t.Parallel()
+	arrived := make(chan struct{})
+	release := make(chan struct{})
+	var discoveries atomic.Int32
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	t.Cleanup(func() { close(release) })
+	mux.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+		if discoveries.Add(1) == 1 {
+			close(arrived)
+			hangUntil(release, r)
+			return
+		}
+		writeJSON(t, w, map[string]any{
+			"issuer":                                server.URL,
+			"authorization_endpoint":                server.URL + "/auth",
+			"token_endpoint":                        server.URL + "/token",
+			"jwks_uri":                              server.URL + "/keys",
+			"id_token_signing_alg_values_supported": []string{"RS256"},
+		})
+	})
+	provider := standInProvider(t, server)
+	go func() { _, _ = provider.AuthorizationURL(context.Background(), started(t, provider)) }()
+	<-arrived
+
+	begun := time.Now()
+	address, err := provider.AuthorizationURL(context.Background(), started(t, provider))
+
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(address, server.URL+"/auth?"), address)
+	assert.Less(t, time.Since(begun), 5*time.Second, "the login waited for the one still discovering the provider")
+}
+
+// hangUntil answers nothing until the test releases the request or its
+// caller gives up.
+func hangUntil(release <-chan struct{}, r *http.Request) {
+	select {
+	case <-release:
+	case <-r.Context().Done():
+	}
 }
 
 func TestAProviderWithAKeyThatIsNotOneIsRefused(t *testing.T) {

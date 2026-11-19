@@ -76,3 +76,11 @@
 - **The other sessions of a deactivated user** end at their next request, when each is read; until then their rows stay in the table, and its cleanup removes them once they expire. Nothing ends them at the moment of the deactivation, which arrives with the use case that deactivates a user.
 - **`role_keys` is an enum of the two keys of the setup.** A role a person creates will have a name and no key (ADR-0026), and this field changes then.
 - **The development database is now at migration 24**, applied from this worktree for the check with `curl` before the merge; until the branch is merged, the API of another checkout on that database is not ready and its worker refuses to start (their newest migration is 23).
+
+### Settled at the end of the effort
+
+- **The time of a wrong code**: left as known, with nothing measured, as the maintainer decided for the login code. Recorded in ADR-0011.
+- **The other sessions of a deactivated user end at their next request**: accepted by the maintainer. Recorded in ADR-0011 and in Session of Login in `CODING_STANDARDS.md`; the daily cleanup of the review-fix pass now removes them once they expire.
+- **`role_keys` is an enum of the two keys of the setup**: accepted by the maintainer; it changes with the users effort. Recorded in ADR-0011 and in Operations of Login in `CODING_STANDARDS.md`.
+- **The check of the origin refuses every method but GET, HEAD and OPTIONS, and lets a request with neither `Origin` nor `Sec-Fetch-Site` pass**: accepted by the maintainer. Recorded in ADR-0011 and in Sessions of API conventions. The review-fix pass reads `APP_ORIGIN` as a browser writes an origin (lowercase scheme and host, no default port) and compares the `Origin` read the same way.
+- **The development database at migration 24**: no longer open.

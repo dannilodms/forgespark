@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // CheckLoginCode checks the six digits typed in a browser against the login
@@ -13,18 +14,12 @@ import (
 type CheckLoginCode struct {
 	login LoginCodeDependencies
 	logIn *LogIn
-	key   domain.LoginCodeKey
 }
 
-// NewCheckLoginCode builds the use case. The key comes from configuration,
-// and has at least domain.LoginCodeKeyMinSize bytes: the one the delivery of
-// the e-mail computed the code with.
-func NewCheckLoginCode(login LoginCodeDependencies, logIn *LogIn, key []byte) (*CheckLoginCode, error) {
-	held, err := domain.NewLoginCodeKey(key)
-	if err != nil {
-		return nil, err
-	}
-	return &CheckLoginCode{login: login, logIn: logIn, key: held}, nil
+// NewCheckLoginCode builds the use case. The key of the dependencies is the
+// one the delivery of the e-mail computed the code with.
+func NewCheckLoginCode(login LoginCodeDependencies, logIn *LogIn) *CheckLoginCode {
+	return &CheckLoginCode{login: login, logIn: logIn}
 }
 
 // CheckLoginCodeInput is the code as the person typed it.
@@ -51,7 +46,7 @@ func (u *CheckLoginCode) Execute(ctx context.Context, input CheckLoginCodeInput)
 	}
 	var refusal error
 	var noRequest bool
-	loggedIn, err := u.logIn.Execute(ctx, domain.LoginCodeWayIn, func(ctx context.Context) (domain.UserID, bool, error) {
+	loggedIn, err := u.logIn.Execute(ctx, kernel.LoginCodeWayIn, func(ctx context.Context) (domain.UserID, bool, error) {
 		// Locked, so two checks of one request count their attempts one
 		// after the other.
 		request, found, err := u.login.Requests.Load(ctx, id)
@@ -59,7 +54,7 @@ func (u *CheckLoginCode) Execute(ctx context.Context, input CheckLoginCodeInput)
 		if err != nil || !found {
 			return 0, false, err
 		}
-		refusal = request.Check(input.Code, u.key, u.login.Clock.Now())
+		refusal = request.Check(input.Code, u.login.Key, u.login.Clock.Now())
 		if err := u.login.Requests.Save(ctx, request); err != nil {
 			return 0, false, err
 		}
@@ -85,7 +80,7 @@ func (u *CheckLoginCode) checkWithoutRequest(ctx context.Context, typed string) 
 		return err
 	}
 	standIn := domain.StandInLoginCodeRequest(attempts)
-	refusal := standIn.Check(typed, u.key, u.login.Clock.Now())
+	refusal := standIn.Check(typed, u.login.Key, u.login.Clock.Now())
 	if err := u.login.Session.RememberAttemptsWithoutRequest(ctx, standIn.Attempts()); err != nil {
 		return err
 	}

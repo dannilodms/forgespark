@@ -9,7 +9,7 @@ import {
   useSidebar,
 } from "#ui/components/sidebar"
 
-import { BrandMark } from "./brand-mark"
+import { ProductLogo } from "./brand-mark"
 
 /**
  * Every screen after the login: the header and the sidebar on the frame, and
@@ -38,10 +38,7 @@ export function AppShell({
     <SidebarProvider className="h-svh min-h-0 flex-col overflow-hidden bg-background [--header-height:--spacing(14)]">
       <header className="flex h-(--header-height) shrink-0 items-center gap-2.5 px-4">
         <SheetButton label={t("shell.openSidebar")} />
-        <BrandMark className="size-7 shrink-0 text-brand" />
-        <span className="min-w-0 truncate font-heading text-lg font-semibold">
-          {t("productName")}
-        </span>
+        <ProductLogo />
         <div className="ml-auto flex shrink-0 items-center">{userMenu}</div>
       </header>
 

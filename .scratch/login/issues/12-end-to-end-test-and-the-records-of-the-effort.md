@@ -14,7 +14,7 @@
 - [x] `CODING_STANDARDS.md`: Deferred no longer calls the login and the shell the next effort; each joint of this effort is marked proven or corrected, with its ADR changed where it did not hold; Rate limit has the numbers of the login code; E-mail has the format of the templates.
 - [x] `README.md`: the status line, Local development with the login, Dex and Mailpit, and the diagram of the parts still match what runs.
 - [x] `.env.example` lists every new variable with a value that works in development, and `docs/machine-tools.yaml` was updated by 01 if River's tooling is installed on the machine.
-- [ ] Every item under "Found, and left for a decision" in the tickets of this effort was settled with the maintainer, and the spec is set to `resolved`.
+- [x] Every item under "Found, and left for a decision" in the tickets of this effort was settled with the maintainer, and the spec is set to `resolved`. The maintainer decided them on 2026-11-19; the review-fix pass built the decisions and the fixes, recorded each where it lasts, and added to each ticket a section "Settled at the end of the effort".
 
 ## Comments
 
@@ -57,3 +57,8 @@
 - **The tests of Go still share the bucket of development**, as ticket 10 found: a worker of development removes, a day later, what only a temporary database names. The end-to-end test no longer does; a bucket or a prefix for the tests would close the rest.
 - **The people of Dex are written in four places**: the configuration of Dex in `compose.yaml`, `access/adapters/oidc/oidctest`, `apps/web/e2e/system.ts` and the README. A change of the default of `SEED_MAILBOX` changes all four together; the configuration of Dex does not follow `SEED_MAILBOX` itself.
 - `docs/machine-tools.yaml` and `docs/providers.md` need no change.
+
+### Settled at the end of the effort
+
+- **The tests of Go share the bucket of development**: deferred by the maintainer, with the bucket of each database (Deferred in `CODING_STANDARDS.md`, ADR-0017).
+- **The people of Dex are written in four places**: accepted by the maintainer. Recorded in Local provider of Login in `CODING_STANDARDS.md` and in ADR-0011.

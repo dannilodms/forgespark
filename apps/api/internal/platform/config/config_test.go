@@ -318,6 +318,37 @@ func TestTheOriginOfTheAppIsReadWithoutATrailingSlash(t *testing.T) {
 	}
 }
 
+// The origin of the app is read as a browser writes the Origin of a request,
+// so the check of the origin compares like with like: the scheme and the host
+// in lowercase, and no port that is the default of the scheme.
+func TestTheOriginOfTheAppIsReadAsABrowserWritesIt(t *testing.T) {
+	for value, read := range map[string]string{
+		"HTTPS://Factory.Example.COM":      "https://factory.example.com",
+		"https://factory.example.com:443":  "https://factory.example.com",
+		"http://localhost:80/":             "http://localhost",
+		"https://factory.example.com:8443": "https://factory.example.com:8443",
+		"http://LOCALHOST:5173":            "http://localhost:5173",
+		"http://[::1]:80":                  "http://[::1]",
+		"http://[::1]:5173":                "http://[::1]:5173",
+	} {
+		loaded, err := config.Load(config.ServeAPI, with(validEnvironment(), "APP_ORIGIN", value))
+
+		require.NoError(t, err, value)
+		assert.Equal(t, read, loaded.AppOrigin.String(), value)
+	}
+}
+
+func TestAnOriginIsReadFromAnyTextAsAnOriginOfTheAppIs(t *testing.T) {
+	read, err := config.NewOrigin("https://Factory.example.com:443")
+	require.NoError(t, err)
+	assert.Equal(t, "https://factory.example.com", read.String())
+
+	for _, text := range []string{"null", "", "https://factory.example.com/app", "factory.example.com"} {
+		_, err := config.NewOrigin(text)
+		assert.Error(t, err, text)
+	}
+}
+
 func TestTheOriginOfTheAppTellsWhetherItIsServedOverHTTPS(t *testing.T) {
 	for value, overHTTPS := range map[string]bool{"https://factory.example.com": true, "http://localhost": false} {
 		loaded, err := config.Load(config.ServeAPI, with(validEnvironment(), "APP_ORIGIN", value))

@@ -2,16 +2,17 @@ package domain
 
 import "time"
 
-// LoginCodeLimit is a limit on asking for login codes, for each user: at most
-// Requests in any Window.
+// LoginCodeLimit is a limit on asking for login codes, for each typed
+// address: at most Requests in any Window.
 type LoginCodeLimit struct {
 	Requests int
 	Window   time.Duration
 }
 
 // LoginCodeLimits are the limits of asking for a login code, counted on the
-// requests of each user: one a minute and five an hour (Login in
-// CODING_STANDARDS.md).
+// asks for each typed address, whether or not it belongs to a user: one a
+// minute and five an hour (Login in CODING_STANDARDS.md). An ask is kept for
+// the longest window, AskKeptFor, and no longer.
 func LoginCodeLimits() []LoginCodeLimit {
 	return []LoginCodeLimit{
 		{Requests: 1, Window: time.Minute},
@@ -19,14 +20,18 @@ func LoginCodeLimits() []LoginCodeLimit {
 	}
 }
 
-// Since returns the start of the window that ends at this moment: a request
-// asked for after it counts against the limit.
+// AskKeptFor is how long an ask for a login code is kept for the limits: the
+// window of the longest one.
+const AskKeptFor = time.Hour
+
+// Since returns the start of the window that ends at this moment: an ask
+// made after it counts against the limit.
 func (l LoginCodeLimit) Since(at time.Time) time.Time {
 	return at.Add(-l.Window)
 }
 
-// Allows tells whether a user who asked for this many codes in the window may
-// ask for one more, and answers LoginCodeLimitReachedError when not.
+// Allows tells whether an address asked for this many codes in the window
+// may ask for one more, and answers LoginCodeLimitReachedError when not.
 func (l LoginCodeLimit) Allows(asked int) error {
 	if asked >= l.Requests {
 		return LoginCodeLimitReachedError{}

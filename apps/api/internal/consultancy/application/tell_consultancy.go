@@ -42,19 +42,9 @@ func (u *TellConsultancy) Execute(ctx context.Context, _ kernel.Actor) (ShownCon
 	if !found {
 		return ShownConsultancy{}, errNoConsultancy
 	}
-	logoURL, err := signedURLOf(ctx, u.signDownload, consultancy.LogoFileID)
+	logoURL, err := u.signDownload.URLOf(ctx, (*filesapplication.FileID)(consultancy.LogoFileID))
 	if err != nil {
 		return ShownConsultancy{}, err
 	}
 	return ShownConsultancy{Name: consultancy.Name, LogoURL: logoURL}, nil
-}
-
-// signedURLOf signs the download of an image of this area, and is empty when
-// there is no image, the file 0.
-func signedURLOf(ctx context.Context, signDownload *filesapplication.SignDownload, id FileID) (string, error) {
-	if id == 0 {
-		return "", nil
-	}
-	url, _, err := signDownload.Execute(ctx, filesapplication.FileID(id))
-	return url, err
 }

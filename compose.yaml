@@ -216,8 +216,11 @@ configs:
         http: 0.0.0.0:5556
       telemetry:
         http: 0.0.0.0:5558
+      # At `info` Dex writes a line for each login with the e-mail and the name
+      # of the person, which no output of a container carries (Privacy in
+      # Observability, CODING_STANDARDS.md). At `warn` it writes its failures.
       logger:
-        level: info
+        level: warn
         format: json
       oauth2:
         responseTypes: [code]

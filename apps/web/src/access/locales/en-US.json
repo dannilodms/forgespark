@@ -37,6 +37,10 @@
       "noActiveUser": {
         "title": "No active user has this e-mail",
         "todo": "The login provider gave the e-mail <email>{{email}}</email>, and no active user of the system has it. Ask an administrator for access."
+      },
+      "anotherAccountLinked": {
+        "title": "This is not the account linked to your user",
+        "todo": "Your user is linked to another account of this login provider. Log in with that account, or with a login code sent to your e-mail."
       }
     },
     "providers": {

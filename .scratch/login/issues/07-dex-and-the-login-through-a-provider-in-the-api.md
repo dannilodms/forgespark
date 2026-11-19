@@ -73,3 +73,13 @@
 - **go-oidc fetches the keys of the provider in a goroutine of its own**, on a background context, bounded by the timeout of the client (10 s): a library that does not follow "no goroutine outlives its request" to the letter.
 - **A provider that writes `email_verified` as a text** (`"true"`, as some do) fails the reading of the claims and logs nobody in. Each provider is checked when it is configured, as ADR-0011 already says.
 - **A login started and never concluded** stays in the session until the next start replaces it or the session ends; it has no time limit of its own, besides the code at the provider, which expires.
+
+### Settled at the end of the effort
+
+- **A person who lost the account linked at a provider**: unlinking deferred by the maintainer to the users effort (Deferred in `CODING_STANDARDS.md`). The review-fix pass gives the case its own notice: the callback redirects to `/login?notice=another_account_linked`, and the login screen says the account is not the one linked to the user and to use that account or a login code, in the three languages (story 17). Recorded in Through a provider of Login in `CODING_STANDARDS.md` and in ADR-0011.
+- **Two first logins of one account at the same instant**: fixed in the review-fix pass. The link is inserted with `ON CONFLICT DO NOTHING`; the second login waits for the first, saves nothing, reads the link again in its own transaction and logs the same user in. Tested at the `postgres` seam and on the use case. Recorded in Through a provider.
+- **The 422 the callback declared**: fixed in the review-fix pass. An operation that checks neither its parameters nor a body, and declares no broken rule under 422, no longer declares it (`restapi.Register`); the callback skips the check of its body as well, and a test of the spec says so.
+- **go-oidc fetches the keys in a goroutine of its own**, bounded by the timeout of its client: accepted as it is, a library that holds nothing of a request. The review-fix pass also takes the lock off the discovery: a provider that hangs keeps waiting only the login that called it.
+- **A provider that writes `email_verified` as a text**: deferred by the maintainer to the deploy effort, which checks each real provider as it is configured. Recorded in ADR-0011 and under Deferred.
+- **A login through a provider has no time limit of its own**: accepted by the maintainer. Recorded in ADR-0011 and in Through a provider.
+- **The development database at migration 25**: no longer open.

@@ -51,9 +51,10 @@ func (q *Queries) HasProviderLink(ctx context.Context, arg HasProviderLinkParams
 	return exists, err
 }
 
-const insertProviderLink = `-- name: InsertProviderLink :exec
+const insertProviderLink = `-- name: InsertProviderLink :execrows
 INSERT INTO provider_links (provider_key, subject, user_id, linked_at)
 VALUES ($1, $2, $3, $4)
+ON CONFLICT DO NOTHING
 `
 
 type InsertProviderLinkParams struct {
@@ -63,12 +64,19 @@ type InsertProviderLinkParams struct {
 	LinkedAt    time.Time
 }
 
-func (q *Queries) InsertProviderLink(ctx context.Context, arg InsertProviderLinkParams) error {
-	_, err := q.db.Exec(ctx, insertProviderLink,
+// Inserts nothing when the account, or the user at the provider, is linked
+// already. A link another transaction is inserting meanwhile is waited for:
+// once it commits, this one inserts nothing, and stays usable, so it can read
+// that link.
+func (q *Queries) InsertProviderLink(ctx context.Context, arg InsertProviderLinkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertProviderLink,
 		arg.ProviderKey,
 		arg.Subject,
 		arg.UserID,
 		arg.LinkedAt,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

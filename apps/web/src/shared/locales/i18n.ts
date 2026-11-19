@@ -53,6 +53,11 @@ function resourcesOf(files: TranslationFiles) {
  * the one closest to what the browser asks for, until the person chooses
  * another. The preferred language of a logged-in user does not change it, so
  * logging out returns to it.
+ *
+ * It is kept here, beside the language i18next holds for the whole app, and
+ * not in a Zustand store (State in CODING_STANDARDS.md): no component reads
+ * it, only the gate, outside React, and the start of the app, before the
+ * first render; the screens re-render when i18next changes the language.
  */
 let selectedLanguage: Language = defaultLanguage
 
@@ -120,19 +125,15 @@ export function useLanguage() {
   }
 }
 
-/** Changes every text to `language`, unless the screen is already in it. */
-function speak(language: Language) {
+/**
+ * Changes every text to `language`, unless the screen is already in it: the
+ * preferred language of the user logged in, whatever the browser asks for or
+ * the selector shows. The selector keeps its own.
+ */
+export function speakIn(language: Language) {
   if (i18n.language !== language) {
     void i18n.changeLanguage(language)
   }
-}
-
-/**
- * Puts the screen in the preferred language of the user logged in, whatever
- * the browser asks for or the selector shows. The selector keeps its own.
- */
-export function speakThePreferredLanguage(language: Language) {
-  speak(language)
 }
 
 /**
@@ -140,5 +141,5 @@ export function speakThePreferredLanguage(language: Language) {
  * in: after a logout, or a session that ended.
  */
 export function speakTheSelectedLanguage() {
-  speak(selectedLanguage)
+  speakIn(selectedLanguage)
 }

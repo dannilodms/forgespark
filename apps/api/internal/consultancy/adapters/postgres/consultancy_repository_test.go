@@ -207,9 +207,9 @@ func TestTheConsultancyIsReadWithItsNameAndTheFileOfItsLogo(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, found)
-	assert.Equal(t, application.ConsultancyNameAndLogo{Name: "Fábrica de Software", LogoFileID: typed.LogoFileID}, read)
+	assert.Equal(t, application.ConsultancyNameAndLogo{Name: "Fábrica de Software", LogoFileID: &typed.LogoFileID}, read)
 	require.True(t, foundWithout)
-	assert.Equal(t, application.ConsultancyNameAndLogo{Name: "Fábrica de Software", LogoFileID: 0}, readWithout)
+	assert.Equal(t, application.ConsultancyNameAndLogo{Name: "Fábrica de Software", LogoFileID: nil}, readWithout)
 }
 
 func TestNoConsultancyIsReadBeforeTheSetupIsConcluded(t *testing.T) {

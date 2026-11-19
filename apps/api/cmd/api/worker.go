@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	accesspostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/postgres"
+	accessriver "github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/river"
 	accessapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
 	emailpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/postgres"
 	emailresend "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/resend"
@@ -30,6 +31,12 @@ import (
 // does when it starts.
 const cleanUpInterval = time.Hour
 
+// dailyCleanUpInterval is how often the worker removes the records the login
+// and the e-mail keep only for a while: once a day, so the database is
+// reached for it no more often (the maintainer may move to a database billed
+// by use). It also does when it starts.
+const dailyCleanUpInterval = 24 * time.Hour
+
 // workJobs runs the jobs until the shutdown notice, then stops without
 // cutting a job short of its deadline, as the API does with its requests
 // (Jobs and Shutdown in CODING_STANDARDS.md). It needs the database and the
@@ -42,6 +49,7 @@ func workJobs(shutdown context.Context, environment map[string]string, _, stderr
 	}
 
 	logger := telemetry.NewLogger(stderr, settings.LogLevel)
+	telemetry.RouteTheStandardLogger(logger)
 	if err := work(shutdown, settings, logger); err != nil {
 		logger.Error("the worker stopped", slog.String("error", err.Error()))
 		return errLogged
@@ -94,17 +102,31 @@ func work(shutdown context.Context, settings config.Config, logger *slog.Logger)
 func mountJobs(pool *pgxpool.Pool, settings config.Config, tracerProvider trace.TracerProvider) (*jobs.Kinds, error) {
 	// The area that asks for the e-mails of a template gives their content:
 	// the access area computes the code of a login code.
-	loginCodes, err := accessapplication.NewLoginCodeContents(
-		accesspostgres.NewLoginCodeRequestRepository(pool), settings.LoginCodeKey.Reveal())
+	loginCodeKey, err := loginCodeKeyOf(settings)
 	if err != nil {
 		return nil, err
 	}
+	loginCodes := accessapplication.NewLoginCodeContents(accesspostgres.NewLoginCodeRequestRepository(pool), loginCodeKey)
 	contents := emailapplication.ContentSources{emailapplication.LoginCode: loginCodes}
 
 	kinds := jobs.NewKinds()
 	jobs.Add(kinds, emailriver.NewDeliveryWorker(deliverEmail(pool, emailSender(settings, tracerProvider), contents)))
 	jobs.AddPeriodic(kinds, filesriver.NewCleanUpStorageWorker(cleanUpStorage(pool, settings, tracerProvider)), cleanUpInterval)
+	jobs.AddPeriodic(kinds, accessriver.NewCleanUpOldRecordsWorker(cleanUpOldRecords(pool)), dailyCleanUpInterval)
 	return kinds, nil
+}
+
+// cleanUpOldRecords wires the daily cleanup: the records of the login and the
+// sessions in PostgreSQL, and the bounce notices, which the e-mail area
+// removes.
+func cleanUpOldRecords(pool *pgxpool.Pool) *accessapplication.CleanUpOldRecords {
+	return accessapplication.NewCleanUpOldRecords(accessapplication.OldRecords{
+		Requests:             accesspostgres.NewLoginCodeRequestRepository(pool),
+		Asks:                 accesspostgres.NewAskedAddressRepository(pool),
+		EndedSessions:        accesspostgres.NewEndedSessions(pool),
+		CleanUpBounceNotices: emailapplication.NewCleanUpBounceNotices(emailpostgres.NewBounceNotices(pool), clock.System{}),
+		Clock:                clock.System{},
+	})
 }
 
 // cleanUpStorage wires the cleanup of the file storage: the files in

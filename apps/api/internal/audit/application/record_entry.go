@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/audit/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 // AuditLog is where entries are kept. Nothing reads it back yet, and nothing
@@ -41,7 +42,7 @@ type RecordEntryInput struct {
 	Operation  Operation
 	Actor      Actor
 	Subject    Subject
-	WayIn      WayIn
+	WayIn      kernel.WayIn
 }
 
 // Execute records the entry.
