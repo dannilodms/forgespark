@@ -2,7 +2,8 @@
 // interfaces they need. Another area queues an e-mail inside its own
 // transaction with QueueEmail, and the job saved with it runs DeliverEmail,
 // which writes the e-mail with the content that area gives and hands it to
-// the sender the configuration chose.
+// the sender the configuration chose. A bounce the sender reports runs
+// MarkEmailBounced.
 package application
 
 import (
@@ -54,6 +55,14 @@ type Sender interface {
 	// Send sends the message and returns the identifier the sender gave it.
 	// Its error never carries the address of the recipient.
 	Send(ctx context.Context, message domain.Message) (messageID string, err error)
+}
+
+// BounceNotices keeps the identifiers of the bounce notices taken, so a
+// notice its sender delivers again changes nothing.
+type BounceNotices interface {
+	// Keep keeps the identifier of a notice in the transaction the context
+	// carries, and tells false when it was kept before.
+	Keep(ctx context.Context, notice string, receivedAt time.Time) (bool, error)
 }
 
 // ContentSource gives the content of the e-mails of one template, from the

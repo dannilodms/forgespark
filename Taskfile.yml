@@ -189,6 +189,14 @@ tasks:
       # Never from the cache: a test that reaches a service can fail with no file changed.
       - go test -count=1 {{.CLI_ARGS | default "./..."}}
 
+  api:test:resend:
+    desc: Run the tests of the Resend adapter against Resend itself, with the key in RESEND_TEST_API_KEY; they skip without it
+    dir: apps/api
+    cmds:
+      # The scheduled workflow resend.yml runs them, never a pull request.
+      # They need no service of development.
+      - go test -count=1 -v -run '^TestAgainstResend' ./internal/email/adapters/resend/
+
   db:clean:
     desc: Drop the databases the Go tests left in the PostgreSQL of development, test_... and testdb_..., and no other. Run it when no test runs
     cmds:

@@ -1,10 +1,12 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"net"
 	"net/mail"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -191,16 +193,21 @@ func (a EmailAddress) String() string {
 // EmailSender is what the worker sends e-mail through.
 type EmailSender string
 
-// SMTPSender sends to an SMTP server, Mailpit outside production. The Resend
-// API joins it with its adapter.
-const SMTPSender EmailSender = "smtp"
+// The senders of e-mail.
+const (
+	// SMTPSender sends to an SMTP server, Mailpit outside production.
+	SMTPSender EmailSender = "smtp"
+	// ResendSender sends through the API of Resend, in production.
+	ResendSender EmailSender = "resend"
+)
 
 // UnmarshalText reads a sender from the text of a variable.
 func (s *EmailSender) UnmarshalText(text []byte) error {
-	if EmailSender(text) != SMTPSender {
+	sender := EmailSender(text)
+	if sender != SMTPSender && sender != ResendSender {
 		return errNotValid
 	}
-	*s = EmailSender(text)
+	*s = sender
 	return nil
 }
 
@@ -269,5 +276,52 @@ func (s Secret) String() string {
 
 // GoString keeps the secret out of a %#v as well.
 func (s Secret) GoString() string {
+	return "[secret]"
+}
+
+// WebhookSecret is the secret a service signs the webhooks it sends with, as
+// Svix writes it for Resend: `whsec_` followed by the key in base64. It
+// prints as a placeholder: only Key gives the key. The zero value is no
+// secret: the variable was left empty.
+type WebhookSecret struct {
+	key []byte
+}
+
+// NewWebhookSecret reads a secret that comes from somewhere other than a
+// variable, such as the one the tests sign with, as a variable is read.
+func NewWebhookSecret(text string) (WebhookSecret, error) {
+	var secret WebhookSecret
+	err := secret.UnmarshalText([]byte(text))
+	return secret, err
+}
+
+// UnmarshalText reads a secret from the text of a variable.
+func (s *WebhookSecret) UnmarshalText(text []byte) error {
+	encoded, prefixed := strings.CutPrefix(string(text), "whsec_")
+	key, err := base64.StdEncoding.DecodeString(encoded)
+	if !prefixed || err != nil || len(key) == 0 {
+		return errNotValid
+	}
+	s.key = key
+	return nil
+}
+
+// IsSet tells whether the variable held a secret.
+func (s WebhookSecret) IsSet() bool {
+	return len(s.key) > 0
+}
+
+// Key returns the key the webhooks are signed with. It goes to the check of
+// a signature and nowhere else.
+func (s WebhookSecret) Key() []byte {
+	return slices.Clone(s.key)
+}
+
+func (s WebhookSecret) String() string {
+	return "[secret]"
+}
+
+// GoString keeps the secret out of a %#v as well.
+func (s WebhookSecret) GoString() string {
 	return "[secret]"
 }

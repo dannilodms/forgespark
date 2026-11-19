@@ -17,24 +17,27 @@ import (
 
 var noon = time.Date(2026, time.November, 18, 12, 0, 0, 0, time.UTC)
 
-// mailroom is the e-mail area on its in-memory implementations: the two use
+// mailroom is the e-mail area on its in-memory implementations: its use
 // cases, and what they write to.
 type mailroom struct {
 	clock        *applicationtest.Clock
 	transactions *applicationtest.Transactions
 	emails       *applicationtest.EmailRepository
 	deliveries   *applicationtest.DeliveryJobs
+	notices      *applicationtest.BounceNotices
 	loginCodes   *applicationtest.ContentSource
 	sender       *applicationtest.Sender
 	queue        *application.QueueEmail
 	deliver      *application.DeliverEmail
+	markBounced  *application.MarkEmailBounced
 }
 
 func newMailroom() *mailroom {
 	clock := applicationtest.NewClock(noon)
 	emails := applicationtest.NewEmailRepository()
 	deliveries := applicationtest.NewDeliveryJobs()
-	transactions := applicationtest.NewTransactions(emails, deliveries)
+	notices := applicationtest.NewBounceNotices()
+	transactions := applicationtest.NewTransactions(emails, deliveries, notices)
 	loginCodes := applicationtest.NewContentSource()
 	sender := applicationtest.NewSender()
 	contents := application.ContentSources{application.LoginCode: loginCodes}
@@ -43,10 +46,12 @@ func newMailroom() *mailroom {
 		transactions: transactions,
 		emails:       emails,
 		deliveries:   deliveries,
+		notices:      notices,
 		loginCodes:   loginCodes,
 		sender:       sender,
 		queue:        application.NewQueueEmail(transactions, emails, deliveries, clock),
 		deliver:      application.NewDeliverEmail(transactions, emails, contents, sender, clock),
+		markBounced:  application.NewMarkEmailBounced(transactions, emails, notices, clock),
 	}
 }
 

@@ -1,0 +1,62 @@
+name: Resend
+
+# The tests of the Resend adapter against Resend itself, every day and on a
+# manual trigger, never on a pull request: they call a service outside the
+# repository, with a key of their own, the secret RESEND_TEST_API_KEY. Until
+# that secret exists the tests skip and the run passes. A failed run warns the
+# maintainer and blocks no pull request.
+# Rules: Scheduled workflows in CODING_STANDARDS.md.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: resend
+  cancel-in-progress: false
+
+env:
+  TASK_VERSION: 3.54.0
+  TASK_SHA256: 680859dbb4d881a9c72d4d9a8f510825450849af8567deacd7302c01124416fb
+
+jobs:
+  resend:
+    name: Resend adapter against Resend
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the Go toolchain that go.mod names
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Install Task
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="task_linux_amd64.tar.gz"
+          gh release download "v${TASK_VERSION}" \
+            --repo go-task/task \
+            --pattern "$archive" \
+            --dir "$RUNNER_TEMP"
+          echo "${TASK_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      # Resend's test addresses deliver nothing. What a step prints is public:
+      # the tests print no key and no address but the test ones.
+      - name: Send to Resend's test addresses
+        env:
+          RESEND_TEST_API_KEY: ${{ secrets.RESEND_TEST_API_KEY }}
+        run: task api:test:resend

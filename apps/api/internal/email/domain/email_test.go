@@ -122,6 +122,38 @@ func TestAnEmailIsMarkedFailedWithWhyAndCanThenBeNeitherSentNorFailedAgain(t *te
 	assert.Error(t, email.MarkFailed(domain.SendingFailed, later))
 }
 
+func TestASentEmailIsMarkedBouncedOnceForTheMessageItWasSentAs(t *testing.T) {
+	email := queued(t, "en-US")
+	require.NoError(t, email.MarkSent("4ef8a1c2-resend", noon))
+	later := noon.Add(2 * time.Minute)
+
+	require.ErrorIs(t, email.MarkBounced("another-message", later), domain.BounceOfAnotherMessageError{})
+	assert.Equal(t, domain.Sent, email.Status(), "a bounce of another message changes nothing")
+	require.NoError(t, email.MarkBounced("4ef8a1c2-resend", later))
+
+	assert.Equal(t, domain.Bounced, email.Status())
+	bouncedAt, bounced := email.BouncedAt()
+	assert.True(t, bounced)
+	assert.Equal(t, later, bouncedAt)
+	messageID, _ := email.MessageID()
+	assert.Equal(t, "4ef8a1c2-resend", messageID)
+	assert.ErrorIs(t, email.MarkBounced("4ef8a1c2-resend", later),
+		domain.OperationNotAllowedError{Operation: domain.MarkBouncedOperation, Status: domain.Bounced})
+}
+
+func TestOnlyASentEmailCanBounce(t *testing.T) {
+	stillQueued := queued(t, "en-US")
+	failed := queued(t, "en-US")
+	require.NoError(t, failed.MarkFailed(domain.SendingFailed, noon))
+
+	assert.ErrorIs(t, stillQueued.MarkBounced("", noon),
+		domain.OperationNotAllowedError{Operation: domain.MarkBouncedOperation, Status: domain.Queued})
+	assert.ErrorIs(t, failed.MarkBounced("", noon),
+		domain.OperationNotAllowedError{Operation: domain.MarkBouncedOperation, Status: domain.Failed})
+	_, bounced := stillQueued.BouncedAt()
+	assert.False(t, bounced)
+}
+
 func TestAMessageIsWrittenOnlyWithTheContentOfItsTemplate(t *testing.T) {
 	email := queued(t, "en-US")
 

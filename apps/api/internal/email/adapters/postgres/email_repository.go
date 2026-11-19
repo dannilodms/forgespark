@@ -65,6 +65,7 @@ func (r *EmailRepository) Load(ctx context.Context, id domain.EmailID) (*domain.
 		SentAt:    inUTC(row.SentAt),
 		FailedAt:  inUTC(row.FailedAt),
 		Failure:   domain.FailureCode(valueOf(row.FailureCode)),
+		BouncedAt: inUTC(row.BouncedAt),
 	}), true, nil
 }
 
@@ -85,6 +86,7 @@ func (r *EmailRepository) Save(ctx context.Context, email *domain.Email) error {
 		SentAt:        nil,
 		FailedAt:      nil,
 		FailureCode:   nil,
+		BouncedAt:     nil,
 	}
 	if messageID, sent := email.MessageID(); sent {
 		params.MessageID = &messageID
@@ -96,6 +98,9 @@ func (r *EmailRepository) Save(ctx context.Context, email *domain.Email) error {
 		failure := string(code)
 		params.FailureCode = &failure
 		params.FailedAt = &failedAt
+	}
+	if bouncedAt, bounced := email.BouncedAt(); bounced {
+		params.BouncedAt = &bouncedAt
 	}
 	if err := r.queries(ctx).SaveEmail(ctx, params); err != nil {
 		return fmt.Errorf("save an e-mail: %w", err)

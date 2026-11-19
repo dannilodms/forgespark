@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	emailpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/postgres"
+	emailresend "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/resend"
 	emailriver "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/river"
 	emailsmtp "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/smtp"
 	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
@@ -118,8 +119,18 @@ func deliverEmail(pool *pgxpool.Pool, sender emailapplication.Sender, contents e
 	)
 }
 
-// emailSender is the sender EMAIL_SENDER names: SMTP, the only one so far.
+// emailSender is the sender EMAIL_SENDER names: the API of Resend, or an
+// SMTP server.
 func emailSender(settings config.Config, tracerProvider trace.TracerProvider) emailapplication.Sender {
+	if settings.EmailSender == config.ResendSender {
+		return emailresend.NewSender(emailresend.Settings{
+			URL:            emailresend.URL,
+			APIKey:         settings.ResendAPIKey,
+			FromAddress:    settings.EmailFromAddress.String(),
+			FromName:       settings.EmailFromName,
+			TracerProvider: tracerProvider,
+		})
+	}
 	return emailsmtp.NewSender(emailsmtp.Settings{
 		Host:           settings.EmailSMTPAddress.Host(),
 		Port:           settings.EmailSMTPAddress.Port(),
