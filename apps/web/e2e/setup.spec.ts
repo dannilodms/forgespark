@@ -2,12 +2,13 @@ import { join } from "node:path"
 
 import { expect, test, type Page } from "playwright/test"
 
-import { issueSetupCode } from "./system"
+import { administrator, issueSetupCode } from "./system"
 
 // The setup, end to end, as whoever installs the system does it: the command
 // of the API prints a setup code, and the app, opened through Caddy at the
-// address it printed, takes it. Every name, number and address is fictitious
-// (ADR-0021).
+// address it printed, takes it. The first administrator has the e-mail of the
+// administrator Dex knows, so the login (`login.spec.ts`) continues on this
+// database. Every name, number and address is fictitious (ADR-0021).
 
 const images = join(import.meta.dirname, "images")
 
@@ -39,7 +40,8 @@ test.describe.serial("the setup", () => {
     ).toBeVisible()
     await fill(page, {
       Name: "Ada Example",
-      "E-mail": "Ada@Consultancy.example",
+      // Typed in capitals in part, and kept in lowercase, as Dex gives it.
+      "E-mail": "Seed+Admin@Fabrica.example",
       "National ID": "000.000.000-00",
     })
     await choose(page, "Country", "Braz", "Brazil")
@@ -76,7 +78,7 @@ test.describe.serial("the setup", () => {
     await fill(page, {
       Name: "Bruno Example",
       // The e-mail of the first administrator, typed in another case.
-      "E-mail": "ADA@consultancy.example",
+      "E-mail": administrator.email.toUpperCase(),
       "National ID": "000 000 000",
     })
     await choose(page, "Country", "Portu", "Portugal")
