@@ -9,6 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/trace"
 
+	accesspostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/postgres"
+	accessapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
 	emailpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/postgres"
 	emailresend "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/resend"
 	emailriver "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/river"
@@ -64,11 +66,15 @@ func work(shutdown context.Context, settings config.Config, logger *slog.Logger)
 		return err
 	}
 
+	kinds, err := mountJobs(pool, settings, tracing.Provider)
+	if err != nil {
+		return err
+	}
 	runner, err := jobs.NewRunner(pool, jobs.RunnerSettings{
 		LightQueueMaxJobs: settings.WorkerLightQueueMaxJobs,
 		HeavyQueueMaxJobs: settings.WorkerHeavyQueueMaxJobs,
 		ShutdownDeadline:  settings.WorkerShutdownDeadline,
-		Kinds:             mountJobs(pool, settings, tracing.Provider),
+		Kinds:             kinds,
 		TracerProvider:    tracing.Provider,
 		Logger:            logger,
 	})
@@ -85,15 +91,20 @@ func work(shutdown context.Context, settings config.Config, logger *slog.Logger)
 // them: it wires the job worker of each domain area to its use case and its
 // adapters, by hand, as mountREST does for the REST operations. A new kind is
 // one more line.
-func mountJobs(pool *pgxpool.Pool, settings config.Config, tracerProvider trace.TracerProvider) *jobs.Kinds {
-	// The area that asks for the e-mails of a template gives their content.
-	// No area asks for one yet: the login adds the login code here.
-	contents := emailapplication.ContentSources{}
+func mountJobs(pool *pgxpool.Pool, settings config.Config, tracerProvider trace.TracerProvider) (*jobs.Kinds, error) {
+	// The area that asks for the e-mails of a template gives their content:
+	// the access area computes the code of a login code.
+	loginCodes, err := accessapplication.NewLoginCodeContents(
+		accesspostgres.NewLoginCodeRequestRepository(pool), settings.LoginCodeKey.Reveal())
+	if err != nil {
+		return nil, err
+	}
+	contents := emailapplication.ContentSources{emailapplication.LoginCode: loginCodes}
 
 	kinds := jobs.NewKinds()
 	jobs.Add(kinds, emailriver.NewDeliveryWorker(deliverEmail(pool, emailSender(settings, tracerProvider), contents)))
 	jobs.AddPeriodic(kinds, filesriver.NewCleanUpStorageWorker(cleanUpStorage(pool, settings, tracerProvider)), cleanUpInterval)
-	return kinds
+	return kinds, nil
 }
 
 // cleanUpStorage wires the cleanup of the file storage: the files in

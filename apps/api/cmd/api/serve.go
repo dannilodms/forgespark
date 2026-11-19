@@ -15,7 +15,10 @@ import (
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/health"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/jobs"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/lifecycle"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/session"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
 	"github.com/dannilodms/software-factory-manager/apps/api/migrations"
 )
@@ -68,6 +71,13 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 		return err
 	}
 	defer stop()
+	saver, err := jobs.NewSaver(pool, tracing.Provider, logger)
+	if err != nil {
+		return err
+	}
+	// Deferred after the pool, so its cleanup stops before the pool closes.
+	sessions := session.New(pool, session.Settings{Secure: settings.AppOrigin.IsHTTPS()})
+	defer sessions.Stop()
 
 	mux := http.NewServeMux()
 	ready := func(ctx context.Context) error {
@@ -77,7 +87,12 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 		return database.CheckSchema(ctx, pool, migrations.Files)
 	}
 	health.Mount(mux, ready, settings.HealthCheckTimeout)
-	mountREST(mux, pool, fileStorageOf(settings, tracing.Provider))
+	mountREST(mux, served{
+		pool:     pool,
+		storage:  fileStorageOf(settings, tracing.Provider),
+		saver:    saver,
+		sessions: sessions,
+	})
 	mountBounceWebhook(mux, pool, settings)
 
 	listener, err := net.Listen("tcp", settings.ListenAddress.String())
@@ -86,7 +101,9 @@ func serve(shutdown context.Context, settings config.Config, logger *slog.Logger
 	}
 	logger.Info("the API started", slog.String("address", listener.Addr().String()))
 
-	// A probe every few seconds would fill the traces.
-	handler := telemetry.Requests(mux, logger, tracing.Provider, health.Paths()...)
+	// Every request under the API carries the session of its browser.
+	// Liveness and readiness carry none, and record no span: a probe every
+	// few seconds would fill the traces.
+	handler := telemetry.Requests(sessions.Under(restapi.Prefix, mux), logger, tracing.Provider, health.Paths()...)
 	return lifecycle.Serve(shutdown, listener, handler, settings.ShutdownDrainDeadline, logger)
 }

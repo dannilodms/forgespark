@@ -55,11 +55,23 @@ http://localhost {
 
 		# Each POST of the setup checks a setup code: ten a minute for each
 		# IP address, counted together. Past it, the error below answers.
+		# The two operations of the login code, asking for one and checking
+		# it, have a zone of their own: ten a minute for each IP address,
+		# counted together.
 		rate_limit {
 			zone setup {
 				match {
 					method POST
 					path /api/setup/*
+				}
+				key {remote_host}
+				events 10
+				window 1m
+			}
+			zone login {
+				match {
+					method POST
+					path /api/session/login_code /api/session/login_code/check
 				}
 				key {remote_host}
 				events 10

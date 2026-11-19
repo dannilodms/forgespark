@@ -32,6 +32,7 @@ func validEnvironment() map[string]string {
 		"EMAIL_SMTP_ADDRESS":             "mailpit:1025",
 		"EMAIL_FROM_ADDRESS":             "no-reply@fabrica.example",
 		"EMAIL_FROM_NAME":                "Fábrica Exemplo",
+		"LOGIN_CODE_KEY":                 "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
 	}
 }
 
@@ -50,6 +51,8 @@ func workerEnvironment() map[string]string {
 		"FILE_STORAGE_BUCKET":            "software-factory-files",
 		"FILE_STORAGE_ACCESS_KEY_ID":     "GK0123",
 		"FILE_STORAGE_SECRET_ACCESS_KEY": "a-secret-key",
+		// The delivery of a login code computes the code with its key.
+		"LOGIN_CODE_KEY": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
 	}
 }
 
@@ -172,6 +175,7 @@ func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
 		{config.ServeAPI, "FILE_STORAGE_BUCKET"},
 		{config.ServeAPI, "FILE_STORAGE_ACCESS_KEY_ID"},
 		{config.ServeAPI, "FILE_STORAGE_SECRET_ACCESS_KEY"},
+		{config.ServeAPI, "APP_ORIGIN"},
 		{config.Migrate, "MIGRATION_DATABASE_URL"},
 		{config.IssueSetupCode, "DATABASE_URL"},
 		{config.IssueSetupCode, "APP_ORIGIN"},
@@ -188,6 +192,7 @@ func TestLoadNamesARequiredVariableThatIsMissing(t *testing.T) {
 		{config.Worker, "FILE_STORAGE_BUCKET"},
 		{config.Worker, "FILE_STORAGE_ACCESS_KEY_ID"},
 		{config.Worker, "FILE_STORAGE_SECRET_ACCESS_KEY"},
+		{config.Worker, "LOGIN_CODE_KEY"},
 	}
 	for _, c := range cases {
 		t.Run(string(c.command)+" without "+c.variable, func(t *testing.T) {
@@ -262,6 +267,8 @@ func TestLoadNamesAnInvalidVariableAndNeverShowsItsValue(t *testing.T) {
 		{"EMAIL_FROM_ADDRESS", "Fabrica <no-reply@fabrica.example>", "configuration: EMAIL_FROM_ADDRESS is not valid: expected an e-mail address such as name@example.com"},
 		{"RESEND_WEBHOOK_SECRET", "c2lnbmluZy1rZXk=", "configuration: RESEND_WEBHOOK_SECRET is not valid: expected whsec_ followed by the key in base64"},
 		{"RESEND_WEBHOOK_SECRET", "whsec_not base64!", "configuration: RESEND_WEBHOOK_SECRET is not valid: expected whsec_ followed by the key in base64"},
+		{"LOGIN_CODE_KEY", "not-hexadecimal-digits-at-all-not-hexadecimal-digits-at-all-0000", "configuration: LOGIN_CODE_KEY is not valid: expected at least 64 hexadecimal digits (32 bytes)"},
+		{"LOGIN_CODE_KEY", "00010203040506070809", "configuration: LOGIN_CODE_KEY is not valid: expected at least 64 hexadecimal digits (32 bytes)"},
 	}
 	for _, c := range cases {
 		t.Run(c.variable+"="+c.value, func(t *testing.T) {
@@ -307,6 +314,15 @@ func TestTheOriginOfTheAppIsReadWithoutATrailingSlash(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, strings.TrimSuffix(value, "/"), loaded.AppOrigin.String())
+	}
+}
+
+func TestTheOriginOfTheAppTellsWhetherItIsServedOverHTTPS(t *testing.T) {
+	for value, overHTTPS := range map[string]bool{"https://factory.example.com": true, "http://localhost": false} {
+		loaded, err := config.Load(config.ServeAPI, with(validEnvironment(), "APP_ORIGIN", value))
+
+		require.NoError(t, err)
+		assert.Equal(t, overHTTPS, loaded.AppOrigin.IsHTTPS(), value)
 	}
 }
 
@@ -367,6 +383,27 @@ func TestLoadReadsTheVariablesOfTheWorker(t *testing.T) {
 	assert.Equal(t, 4, loaded.WorkerLightQueueMaxJobs)
 	assert.Equal(t, 1, loaded.WorkerHeavyQueueMaxJobs)
 	assert.Equal(t, 45*time.Second, loaded.WorkerShutdownDeadline)
+}
+
+func TestLoadReadsTheKeyOfTheLoginCodeAndNeverPrintsIt(t *testing.T) {
+	loaded, err := config.Load(config.Worker, workerEnvironment())
+	require.NoError(t, err)
+
+	key := loaded.LoginCodeKey.Reveal()
+
+	assert.Len(t, key, 32)
+	assert.Equal(t, byte(0x1f), key[31])
+	for _, printed := range []string{fmt.Sprint(loaded), fmt.Sprintf("%+v", loaded), fmt.Sprintf("%#v", loaded.LoginCodeKey)} {
+		assert.NotContains(t, printed, "0a0b0c0d")
+	}
+}
+
+// The cookie of the session goes over HTTPS only when the app does: the API
+// reads where the app is served.
+func TestTheAPINeedsTheOriginOfTheApp(t *testing.T) {
+	_, err := config.Load(config.ServeAPI, without(validEnvironment(), "APP_ORIGIN"))
+
+	require.EqualError(t, err, "configuration: APP_ORIGIN is required")
 }
 
 // The configuration is the one package that reads the environment: the

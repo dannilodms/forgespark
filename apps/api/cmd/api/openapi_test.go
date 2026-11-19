@@ -28,7 +28,7 @@ var writeSpec = flag.Bool("write-spec", false, "write the OpenAPI spec generated
 // with no database behind it, and returns the spec of what it registered.
 func generatedSpec(t *testing.T) *huma.OpenAPI {
 	t.Helper()
-	return mountREST(http.NewServeMux(), nil, nil).OpenAPI()
+	return mountREST(http.NewServeMux(), served{}).OpenAPI()
 }
 
 func TestTheCommittedSpecMatchesTheCode(t *testing.T) {
@@ -76,27 +76,29 @@ func TestTheSpecIsTheSameEachTimeItIsGenerated(t *testing.T) {
 	}
 }
 
-// The setup code travels in the body of each operation of the setup. An
-// operation that took it any other way would write it to the address, which
-// the browser history, the logs and the spans keep.
-func TestTheSetupCodeIsInNoPathQueryParameterOrHeaderOfTheSpec(t *testing.T) {
+// The setup code travels in the body of each operation of the setup, and the
+// e-mail and the login code in the body of each operation of the login code.
+// An operation that took one any other way would write it to the address,
+// which the browser history, the logs and the spans keep.
+func TestNoSetupCodeEmailOrLoginCodeIsInAPathQueryParameterOrHeaderOfTheSpec(t *testing.T) {
 	t.Parallel()
 	paths := generatedSpec(t).Paths
 	require.Contains(t, paths, "/api/setup/open")
+	require.Contains(t, paths, "/api/session/login_code")
 
 	for path, item := range paths {
 		assertTakesNothingOutsideTheBody(t, path, item)
 	}
 }
 
-// assertTakesNothingOutsideTheBody checks a path of the setup: it has no
-// variable, and its operations take no parameter.
+// assertTakesNothingOutsideTheBody checks a path of the setup or of the login
+// code: it has no variable, and its operations take no parameter.
 func assertTakesNothingOutsideTheBody(t *testing.T, path string, item *huma.PathItem) {
 	t.Helper()
-	if !strings.HasPrefix(path, "/api/setup") {
+	if !strings.HasPrefix(path, "/api/setup") && !strings.HasPrefix(path, "/api/session/login_code") {
 		return
 	}
-	assert.NotContains(t, path, "{", "a path of the setup takes a value: %s", path)
+	assert.NotContains(t, path, "{", "a path takes a value: %s", path)
 	assert.Empty(t, item.Parameters, "the operations of %s take a parameter outside the body", path)
 	for _, operation := range operationsOf(item) {
 		assert.Empty(t, operation.Parameters, "%s %s takes a parameter outside the body", operation.Method, path)
@@ -129,6 +131,24 @@ func TestEveryPostOperationOfTheSetupDeclaresTheLimitOfCaddy(t *testing.T) {
 		assert.Contains(t, limited.Description, "`too_many_requests`", "the 429 of POST %s", path)
 	}
 	assert.NotContains(t, paths["/api/setup"].Get.Responses, "429", "Caddy does not limit reading the state of the setup")
+}
+
+// Caddy limits the operations of the login code for each IP address, in a
+// zone of their own. Checking a code joins asking for one with its ticket.
+func TestEveryOperationOfTheLoginCodeDeclaresTheLimitOfCaddy(t *testing.T) {
+	t.Parallel()
+	paths := generatedSpec(t).Paths
+	posts := maps.Clone(paths)
+	maps.DeleteFunc(posts, func(path string, item *huma.PathItem) bool {
+		return !strings.HasPrefix(path, "/api/session/login_code") || item.Post == nil
+	})
+
+	require.Len(t, posts, 1, "the POST operations of the login code")
+	for path, item := range posts {
+		limited := item.Post.Responses["429"]
+		require.NotNil(t, limited, "POST %s does not declare the 429 of Caddy", path)
+		assert.Contains(t, limited.Description, "`too_many_requests`", "the 429 of POST %s", path)
+	}
 }
 
 func TestEveryFailureOfAnOperationIsDescribedByTheErrorFormat(t *testing.T) {

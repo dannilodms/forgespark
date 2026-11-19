@@ -106,7 +106,7 @@ func TestATextOverItsLimitIsNamedAndNothingIsSaved(t *testing.T) {
 		"the e-mail": {
 			field: "administrator.email", code: "too_long",
 			change: func(input *application.ConcludeSetupInput) {
-				input.Administrator.Email = strings.Repeat("a", domain.EmailMaxLength) + "@fabrica.example"
+				input.Administrator.Email = strings.Repeat("a", kernel.EmailMaxLength) + "@fabrica.example"
 			},
 		},
 	}
@@ -136,7 +136,7 @@ func TestATextOverItsLimitSaysTheLimit(t *testing.T) {
 	var invalid kernel.InvalidFieldsError
 	require.ErrorAs(t, err, &invalid)
 	require.Len(t, invalid.Fields, 1)
-	var tooLong domain.TooLongError
+	var tooLong kernel.TooLongError
 	require.ErrorAs(t, invalid.Fields[0].Rule, &tooLong)
 	assert.Equal(t, map[string]any{"max_length": domain.TaxIDMaxLength}, tooLong.Params())
 }

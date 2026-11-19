@@ -27,3 +27,10 @@ SET name = excluded.name,
 INSERT INTO user_roles (user_id, role_id)
 SELECT @user_id, unnest(@role_ids::bigint[])
 ON CONFLICT DO NOTHING;
+
+-- name: FindActiveUser :one
+-- The user who logs in with the e-mail, when they can: a deactivated user is
+-- not found. The e-mail is stored in lowercase, and the parameter is too.
+SELECT id, email, preferred_language
+FROM users
+WHERE email = @email AND NOT deactivated;

@@ -22,6 +22,27 @@ func (q *Queries) EmailInUse(ctx context.Context, email string) (bool, error) {
 	return exists, err
 }
 
+const findActiveUser = `-- name: FindActiveUser :one
+SELECT id, email, preferred_language
+FROM users
+WHERE email = $1 AND NOT deactivated
+`
+
+type FindActiveUserRow struct {
+	ID                int64
+	Email             string
+	PreferredLanguage string
+}
+
+// The user who logs in with the e-mail, when they can: a deactivated user is
+// not found. The e-mail is stored in lowercase, and the parameter is too.
+func (q *Queries) FindActiveUser(ctx context.Context, email string) (FindActiveUserRow, error) {
+	row := q.db.QueryRow(ctx, findActiveUser, email)
+	var i FindActiveUserRow
+	err := row.Scan(&i.ID, &i.Email, &i.PreferredLanguage)
+	return i, err
+}
+
 const giveUserRoles = `-- name: GiveUserRoles :exec
 INSERT INTO user_roles (user_id, role_id)
 SELECT $1, unnest($2::bigint[])

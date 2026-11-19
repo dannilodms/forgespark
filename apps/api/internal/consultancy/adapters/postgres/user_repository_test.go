@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
 )
 
 var administratorAna = domain.TypedUser{
@@ -185,7 +186,7 @@ func TestTheDatabaseRefusesASecondUserWithTheSameEmail(t *testing.T) {
 // emailInUse asks the repository whether a user has the e-mail, as typed.
 func (s stored) emailInUse(t *testing.T, typed string) bool {
 	t.Helper()
-	email, err := domain.NewEmail(typed)
+	email, err := kernel.NewEmail(typed)
 	require.NoError(t, err)
 	inUse, err := s.users.EmailInUse(context.Background(), email)
 	require.NoError(t, err)

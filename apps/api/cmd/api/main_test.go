@@ -5,6 +5,7 @@ import (
 	"context"
 	"io/fs"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -40,9 +41,17 @@ func (o *output) String() string {
 func environmentOf(temporary databasetest.Database) map[string]string {
 	return withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS":     "127.0.0.1:0",
+		"APP_ORIGIN":             appOrigin(),
 		"DATABASE_URL":           temporary.APIURL,
 		"MIGRATION_DATABASE_URL": temporary.MigrationURL,
 	})
+}
+
+// appOrigin is the origin of the app in development, as `task api:test`
+// reads it from .env.example: http, so the cookie of the session travels
+// over the plain HTTP of the tests.
+func appOrigin() string {
+	return os.Getenv("APP_ORIGIN")
 }
 
 // startAPI runs the command that serves the API until the test ends, and
@@ -68,7 +77,9 @@ func statusOf(t *testing.T, url string) int {
 func TestTheAPIRefusesToStartWithARequiredVariableMissing(t *testing.T) {
 	var stdout, stderr output
 
-	status := run(context.Background(), nil, withFileStorage(map[string]string{"API_LISTEN_ADDRESS": "127.0.0.1:0"}), &stdout, &stderr)
+	environment := withFileStorage(map[string]string{"API_LISTEN_ADDRESS": "127.0.0.1:0", "APP_ORIGIN": appOrigin()})
+
+	status := run(context.Background(), nil, environment, &stdout, &stderr)
 
 	assert.Equal(t, 1, status)
 	assert.Equal(t, "api: configuration: DATABASE_URL is required\n", stderr.String())
@@ -79,6 +90,7 @@ func TestTheAPIRefusesToStartWithAnInvalidVariableAndNeverShowsItsValue(t *testi
 	var stdout, stderr output
 	environment := withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS": "127.0.0.1:0",
+		"APP_ORIGIN":         appOrigin(),
 		"DATABASE_URL":       "postgres://api:hunter2@localhost:5432/software_factory?sslmode=sometimes",
 	})
 
@@ -93,6 +105,7 @@ func TestTheAPIRefusesToStartWithoutTheFileStorage(t *testing.T) {
 	var stdout, stderr output
 	environment := map[string]string{
 		"API_LISTEN_ADDRESS": "127.0.0.1:0",
+		"APP_ORIGIN":         appOrigin(),
 		"DATABASE_URL":       "postgres://api:api@localhost:5432/software_factory",
 	}
 
@@ -175,6 +188,7 @@ func TestTheAPIIsAliveAndNotReadyWhilePostgreSQLIsDown(t *testing.T) {
 	t.Parallel()
 	environment := withFileStorage(map[string]string{
 		"API_LISTEN_ADDRESS": "127.0.0.1:0",
+		"APP_ORIGIN":         appOrigin(),
 		// Port 1 of the machine has no PostgreSQL behind it.
 		"DATABASE_URL": "postgres://api:api@127.0.0.1:1/software_factory?sslmode=disable",
 	})

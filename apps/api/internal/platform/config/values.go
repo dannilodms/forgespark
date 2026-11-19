@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"net"
 	"net/mail"
@@ -140,6 +141,11 @@ func (o Origin) String() string {
 	return string(o)
 }
 
+// IsHTTPS tells whether the site is served over HTTPS.
+func (o Origin) IsHTTPS() bool {
+	return strings.HasPrefix(string(o), "https://")
+}
+
 // Mailbox is an e-mail address whose owner receives the e-mail of several
 // addresses derived from it, each with a tag after a plus sign in the local
 // part (`name+tag@example.com`), as the mailbox of the seed does.
@@ -244,6 +250,41 @@ func (a ServerAddress) Port() int {
 
 func (a ServerAddress) String() string {
 	return net.JoinHostPort(a.host, strconv.Itoa(a.port))
+}
+
+// KeyMinSize is the shortest Key, in bytes.
+const KeyMinSize = 32
+
+// Key is a secret key of at least KeyMinSize bytes, written in hexadecimal,
+// such as the key the login codes are computed with (`openssl rand -hex 32`
+// writes one). It prints as a placeholder: only Reveal gives its bytes.
+type Key struct {
+	bytes []byte
+}
+
+// UnmarshalText reads a key from the text of a variable.
+func (k *Key) UnmarshalText(text []byte) error {
+	decoded, err := hex.DecodeString(string(text))
+	if err != nil || len(decoded) < KeyMinSize {
+		return errNotValid
+	}
+	k.bytes = decoded
+	return nil
+}
+
+// Reveal returns the bytes of the key. They go to what computes with the key
+// and nowhere else.
+func (k Key) Reveal() []byte {
+	return append([]byte(nil), k.bytes...)
+}
+
+func (k Key) String() string {
+	return "[secret]"
+}
+
+// GoString keeps the key out of a %#v as well.
+func (k Key) GoString() string {
+	return "[secret]"
 }
 
 // Secret is a value that opens something, such as the key the API signs with

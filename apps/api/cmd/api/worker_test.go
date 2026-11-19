@@ -129,15 +129,22 @@ func workerEnvironmentOf(t *testing.T, temporary databasetest.Database) map[stri
 	}))
 }
 
-// withEmailSender adds the sender of e-mail: the Mailpit of development, at
-// the address the tests receive in EMAIL_SMTP_ADDRESS.
+// withEmailSender adds what the delivery of e-mail needs: the sender, the
+// Mailpit of development at the address the tests receive in
+// EMAIL_SMTP_ADDRESS, and theLoginCodeKey, which the content of the e-mail of
+// a login code is computed with.
 func withEmailSender(environment map[string]string) map[string]string {
 	environment["EMAIL_SENDER"] = "smtp"
 	environment["EMAIL_SMTP_ADDRESS"] = os.Getenv("EMAIL_SMTP_ADDRESS")
 	environment["EMAIL_FROM_ADDRESS"] = "no-reply@fabrica.example"
 	environment["EMAIL_FROM_NAME"] = "Fábrica Exemplo"
+	environment["LOGIN_CODE_KEY"] = theLoginCodeKey
 	return environment
 }
+
+// theLoginCodeKey is the key of the login code of the tests: the bytes 0 to
+// 31, in hexadecimal.
+const theLoginCodeKey = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 
 func TestTheWorkerRunsOnTheDatabaseTheSenderOfEmailAndTheFileStorageAndStopsOnTheSignalWithStatusZero(t *testing.T) {
 	t.Parallel()
@@ -197,7 +204,7 @@ func TestTheWorkerRefusesToStartWithoutTheDatabaseTheSenderOfEmailOrTheFileStora
 	assert.Equal(t, "api: configuration: DATABASE_URL is required; "+
 		"FILE_STORAGE_URL is required; FILE_STORAGE_PUBLIC_URL is required; FILE_STORAGE_REGION is required; "+
 		"FILE_STORAGE_BUCKET is required; FILE_STORAGE_ACCESS_KEY_ID is required; FILE_STORAGE_SECRET_ACCESS_KEY is required; "+
-		"EMAIL_SENDER is required; EMAIL_FROM_ADDRESS is required; EMAIL_FROM_NAME is required\n",
+		"LOGIN_CODE_KEY is required; EMAIL_SENDER is required; EMAIL_FROM_ADDRESS is required; EMAIL_FROM_NAME is required\n",
 		stderr.String())
 }
 
