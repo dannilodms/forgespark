@@ -1,6 +1,6 @@
-// Package postgres keeps the login code requests in PostgreSQL. The code of a
-// request is not kept: it is computed from the request with a key the
-// database never holds.
+// Package postgres keeps the login code requests and the provider links in
+// PostgreSQL. The code of a request is not kept: it is computed from the
+// request with a key the database never holds.
 package postgres
 
 import (

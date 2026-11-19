@@ -138,6 +138,31 @@ services:
       - 127.0.0.1:${MAILPIT_SMTP_PORT:?Set MAILPIT_SMTP_PORT, as .env.example does}:1025
       - 127.0.0.1:${MAILPIT_PORT:?Set MAILPIT_PORT, as .env.example does}:8025
 
+  # The local login provider: Dex, an OpenID Connect provider with the people
+  # of the seed and their fixed passwords, which the README lists. It is
+  # published on DEX_PORT of the machine, and its issuer names that port, so
+  # the browser and the API, both on the machine, reach the same address. It
+  # keeps what it needs in memory: a login in flight does not survive a
+  # restart. Its configuration is a config written here, so a run of `up`
+  # from another checkout does not create it again.
+  dex:
+    extends:
+      file: deploy/compose.base.yaml
+      service: dex
+    command: [dex, serve, /etc/dex/config.yaml]
+    ports:
+      - 127.0.0.1:${DEX_PORT:?Set DEX_PORT, as .env.example does}:5556
+    configs:
+      - source: dex
+        target: /etc/dex/config.yaml
+    healthcheck:
+      test: [CMD, wget, --quiet, --spider, http://127.0.0.1:5558/healthz/ready]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
+
   # The River panel, in development only: it reads and manages the jobs of
   # the development database as the API role, on a port of the machine.
   riverui:
@@ -173,6 +198,46 @@ configs:
       [s3_api]
       s3_region = "${FILE_STORAGE_REGION}"
       api_bind_addr = "0.0.0.0:3900"
+
+  # Dex with one static client, the API, which may send a person back only to
+  # its callback, and two people, at the addresses the seed derives from its
+  # default mailbox: the administrator, whom the seed creates, and the
+  # developer, who is not a user yet and is refused with the notice of an
+  # e-mail of no active user. Their passwords are fictitious and fixed: the
+  # README gives them, and each hash is bcrypt's, with every dollar sign
+  # doubled for Compose. The approval screen is skipped, as the real providers
+  # skip it once the person accepted.
+  dex:
+    content: |
+      issuer: http://localhost:${DEX_PORT}
+      storage:
+        type: memory
+      web:
+        http: 0.0.0.0:5556
+      telemetry:
+        http: 0.0.0.0:5558
+      logger:
+        level: info
+        format: json
+      oauth2:
+        responseTypes: [code]
+        skipApprovalScreen: true
+      staticClients:
+        - id: ${LOCAL_LOGIN_PROVIDER_CLIENT_ID}
+          name: My Software Factory Manager
+          secret: ${LOCAL_LOGIN_PROVIDER_CLIENT_SECRET}
+          redirectURIs:
+            - ${APP_ORIGIN}/api/session/login_providers/${LOCAL_LOGIN_PROVIDER_KEY}/callback
+      enablePasswordDB: true
+      staticPasswords:
+        - email: seed+admin@fabrica.example
+          username: Ana Exemplo
+          userID: 5d0f6a1e-3c2b-4f7a-9e1d-0a1b2c3d4e01
+          hash: "$$2a$$10$$s4PTLnhfLLYA8UHEwsJsbuaGyhQlKw0nRGeqatX7TYm5TPwW53Nyq"
+        - email: seed+developer@fabrica.example
+          username: Developer Exemplo
+          userID: 5d0f6a1e-3c2b-4f7a-9e1d-0a1b2c3d4e02
+          hash: "$$2a$$10$$i8Rjbuj9t11eCK2FjNgi1uzPKNtSLDliuMZxQK17RsKSiD/XdLidm"
 
   # PutBucketCors of the S3 API, signed with the key of the API. A browser
   # asks before it sends a file to another origin; Garage answers 403 to an

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/mail"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -250,6 +251,30 @@ func (a ServerAddress) Port() int {
 
 func (a ServerAddress) String() string {
 	return net.JoinHostPort(a.host, strconv.Itoa(a.port))
+}
+
+// ProviderKey is the key that names a login provider, in the paths of a
+// login through it, in its provider links and in the audit log: lowercase
+// letters, digits and underscores, starting with a letter, 64 at most. It is
+// never `login_code`, the way in of the login code.
+type ProviderKey string
+
+// providerKeyForm is the form of a ProviderKey: words of lowercase letters
+// and digits joined by one underscore.
+var providerKeyForm = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z0-9]+)*$`)
+
+// UnmarshalText reads a key from the text of a variable.
+func (k *ProviderKey) UnmarshalText(text []byte) error {
+	key := string(text)
+	if len(key) > 64 || !providerKeyForm.MatchString(key) || key == "login_code" {
+		return errNotValid
+	}
+	*k = ProviderKey(key)
+	return nil
+}
+
+func (k ProviderKey) String() string {
+	return string(k)
 }
 
 // KeyMinSize is the shortest Key, in bytes.

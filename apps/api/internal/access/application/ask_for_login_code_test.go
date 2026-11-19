@@ -69,6 +69,13 @@ type system struct {
 	findActor        *application.FindActor
 	tellLoggedInUser *application.TellLoggedInUser
 	logOut           *application.LogOut
+	// The login through a provider: the provider links, and two providers
+	// turned on, the local one first.
+	links                 *applicationtest.ProviderLinkRepository
+	localProvider         *applicationtest.LoginProvider
+	startProviderLogin    *application.StartProviderLogin
+	concludeProviderLogin *application.ConcludeProviderLogin
+	tellLoginState        *application.TellLoginState
 }
 
 func newSystem(t *testing.T) system {
@@ -80,7 +87,8 @@ func newSystem(t *testing.T) system {
 	emails := emailapplicationtest.NewEmailRepository()
 	deliveries := emailapplicationtest.NewDeliveryJobs()
 	auditLog := auditapplicationtest.NewAuditLog()
-	transactions := applicationtest.NewTransactions(requests, emails, deliveries, auditLog)
+	links := applicationtest.NewProviderLinkRepository()
+	transactions := applicationtest.NewTransactions(requests, emails, deliveries, auditLog, links)
 	loginCodes, err := application.NewLoginCodeContents(requests, theKey())
 	require.NoError(t, err)
 	login := application.LoginCodeDependencies{
@@ -99,6 +107,9 @@ func newSystem(t *testing.T) system {
 		Clock:              clock,
 	})
 	checkLoginCode, err := application.NewCheckLoginCode(login, logIn, theKey())
+	require.NoError(t, err)
+	localProvider := applicationtest.NewLoginProvider("local", "Local login provider")
+	providers, err := application.NewLoginProviders(localProvider, applicationtest.NewLoginProvider("another", "Another provider"))
 	require.NoError(t, err)
 	return system{
 		clock:      clock,
@@ -119,6 +130,20 @@ func newSystem(t *testing.T) system {
 		findActor:        application.NewFindActor(sessions, findActiveUserByID),
 		tellLoggedInUser: application.NewTellLoggedInUser(findActiveUserByID),
 		logOut:           application.NewLogOut(sessions),
+		links:            links,
+		localProvider:    localProvider,
+		// The random source counts from 0, apart from the one of the login
+		// code, so the values of a login differ from one login to the next.
+		startProviderLogin: application.NewStartProviderLogin(providers, sessions, &countingBytes{next: 0}),
+		concludeProviderLogin: application.NewConcludeProviderLogin(application.ProviderLoginDependencies{
+			Providers:      providers,
+			Session:        sessions,
+			Links:          links,
+			FindActiveUser: consultancyapplication.NewFindActiveUser(activeUsers),
+			LogIn:          logIn,
+			Clock:          clock,
+		}),
+		tellLoginState: application.NewTellLoginState(providers, sessions),
 	}
 }
 

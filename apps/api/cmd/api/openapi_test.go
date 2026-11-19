@@ -84,10 +84,17 @@ func TestTheSpecIsTheSameEachTimeItIsGenerated(t *testing.T) {
 // and the token of the session in its cookie alone. An operation that took
 // one any other way would write it to the address, which the browser history,
 // the logs and the spans keep, or to a header the contract names.
+//
+// The two navigations of a login through a provider are the one exception,
+// which the next test checks: the browser follows them, so what they take is
+// in their path and their query.
 func TestNoSetupCodeEmailLoginCodeOrTokenIsInAPathQueryParameterOrHeaderOfTheSpec(t *testing.T) {
 	t.Parallel()
 	paths := generatedSpec(t).Paths
-	for _, path := range []string{"/api/setup/open", "/api/session", "/api/session/login_code", "/api/session/login_code/check", "/api/session/log_out"} {
+	for _, path := range []string{
+		"/api/setup/open", "/api/session", "/api/session/login", "/api/session/login_code",
+		"/api/session/login_code/check", "/api/session/log_out",
+	} {
 		require.Contains(t, paths, path)
 	}
 
@@ -96,11 +103,61 @@ func TestNoSetupCodeEmailLoginCodeOrTokenIsInAPathQueryParameterOrHeaderOfTheSpe
 	}
 }
 
+// providerLoginPaths are the start and the callback of a login through a
+// provider.
+var providerLoginPaths = []string{
+	"/api/session/login_providers/{key}/start",
+	"/api/session/login_providers/{key}/callback",
+}
+
+// The start takes the key of the provider in its path and the path of the
+// app to return to in its query; the callback takes the key in its path and
+// what OAuth defines in its query: the code, which works once and only with
+// the verifier the session keeps, the state, and the failure the provider
+// answers. No e-mail, no token and no header: the e-mail of a refusal is read
+// from the login state, and the tokens never leave the API. Both answer a
+// redirect, with its Location.
+func TestTheLoginThroughAProviderTakesTheKeyInItsPathAndNoEmailOrToken(t *testing.T) {
+	t.Parallel()
+	paths := generatedSpec(t).Paths
+	takes := map[string][]string{
+		providerLoginPaths[0]: {"path key", "query return_to"},
+		providerLoginPaths[1]: {"path key", "query code", "query state", "query error", "query error_description"},
+	}
+	redirects := map[string]string{providerLoginPaths[0]: "302", providerLoginPaths[1]: "303"}
+
+	for path, parameters := range takes {
+		require.Contains(t, paths, path)
+		item := paths[path]
+		assert.Empty(t, item.Parameters, path)
+		require.Len(t, operationsOf(item), 1, "%s has another operation", path)
+		assert.ElementsMatch(t, parameters, parametersOf(item.Get), path)
+		redirect := item.Get.Responses[redirects[path]]
+		require.NotNil(t, redirect, "%s answers no redirect", path)
+		assert.Contains(t, redirect.Headers, "Location", path)
+		assert.Contains(t, item.Get.Responses["404"].Description, "`not_found`", path)
+	}
+}
+
+// parametersOf lists where each parameter of the operation is and its name:
+// `query return_to`.
+func parametersOf(operation *huma.Operation) []string {
+	taken := []string{}
+	for _, parameter := range operation.Parameters {
+		taken = append(taken, parameter.In+" "+parameter.Name)
+	}
+	return taken
+}
+
 // assertTakesNothingOutsideTheBody checks a path of the setup or of the
-// session: it has no variable, and its operations take no parameter.
+// session, but the two of a login through a provider: it has no variable,
+// and its operations take no parameter.
 func assertTakesNothingOutsideTheBody(t *testing.T, path string, item *huma.PathItem) {
 	t.Helper()
 	if !strings.HasPrefix(path, "/api/setup") && !strings.HasPrefix(path, "/api/session") {
+		return
+	}
+	if slices.Contains(providerLoginPaths, path) {
 		return
 	}
 	assert.NotContains(t, path, "{", "a path takes a value: %s", path)

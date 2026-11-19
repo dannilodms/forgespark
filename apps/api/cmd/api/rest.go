@@ -33,21 +33,23 @@ import (
 var bodyLimits = restapi.Limits{BodyBytes: 1 << 20, BodyReadTimeout: 5 * time.Second}
 
 // served are what the operations reach outside the process: the database,
-// the file storage, the saving of jobs and the sessions of the browsers; and
-// the key the login codes are computed with. Generating the spec passes none
-// of the first four, and a key of its own: the use cases are built and never
-// run.
+// the file storage, the saving of jobs, the sessions of the browsers and the
+// login providers turned on; and the key the login codes are computed with.
+// Generating the spec passes none of the first five, and a key of its own:
+// the use cases are built and never run.
 type served struct {
-	pool         *pgxpool.Pool
-	storage      *filess3.Storage
-	saver        *jobs.Saver
-	sessions     *session.Sessions
-	loginCodeKey []byte
+	pool           *pgxpool.Pool
+	storage        *filess3.Storage
+	saver          *jobs.Saver
+	sessions       *session.Sessions
+	loginProviders []accessapplication.LoginProvider
+	loginCodeKey   []byte
 }
 
 // mountREST builds the REST adapter on the mux and registers every operation
 // of every domain area: it wires each use case to its adapters, by hand. It
-// fails on a key of the login code too short.
+// fails on a key of the login code too short, and on two login providers
+// with one key.
 //
 // The OpenAPI spec is generated from what this function registers, so an
 // operation that is served is in the spec.
@@ -101,6 +103,10 @@ func mountREST(mux *http.ServeMux, with served) (*restapi.API, error) {
 	if err != nil {
 		return nil, err
 	}
+	providers, err := accessapplication.NewLoginProviders(with.loginProviders...)
+	if err != nil {
+		return nil, err
+	}
 	// Every operation that needs a user finds who acts through the session.
 	api.AuthenticateWith(accessrest.NewActors(accessapplication.NewFindActor(browser, findActiveUserByID)))
 	accessrest.Register(api, accessrest.UseCases{
@@ -115,9 +121,19 @@ func mountREST(mux *http.ServeMux, with served) (*restapi.API, error) {
 			),
 			rand.Reader,
 		),
-		CheckLoginCode:   checkLoginCode,
-		TellLoggedInUser: accessapplication.NewTellLoggedInUser(findActiveUserByID),
-		LogOut:           accessapplication.NewLogOut(browser),
+		CheckLoginCode:     checkLoginCode,
+		TellLoggedInUser:   accessapplication.NewTellLoggedInUser(findActiveUserByID),
+		LogOut:             accessapplication.NewLogOut(browser),
+		TellLoginState:     accessapplication.NewTellLoginState(providers, browser),
+		StartProviderLogin: accessapplication.NewStartProviderLogin(providers, browser, rand.Reader),
+		ConcludeProviderLogin: accessapplication.NewConcludeProviderLogin(accessapplication.ProviderLoginDependencies{
+			Providers:      providers,
+			Session:        browser,
+			Links:          accesspostgres.NewProviderLinkRepository(with.pool),
+			FindActiveUser: consultancyapplication.NewFindActiveUser(activeUsers),
+			LogIn:          logIn,
+			Clock:          clock.System{},
+		}),
 	})
 
 	return api, nil

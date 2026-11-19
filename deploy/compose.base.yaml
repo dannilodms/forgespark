@@ -80,6 +80,13 @@ services:
     image: axllent/mailpit:v1.34.0
     logging: *logging
 
+  # The identity container behind the local login provider (ADR-0011), with a
+  # fixed list of people. Development alone declares it: staging and
+  # production log in through the real login providers.
+  dex:
+    image: ghcr.io/dexidp/dex:v2.46.1
+    logging: *logging
+
   # The River panel (ADR-0016), which shows the jobs. Development alone runs
   # it, until the API serves it behind the session (Jobs in
   # CODING_STANDARDS.md). Its release is built with a River of its own: it is

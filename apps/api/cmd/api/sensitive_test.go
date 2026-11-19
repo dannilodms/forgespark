@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/oidc/oidctest"
 	emailpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/postgres"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/resend/resendtest"
 	emailriver "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/river"
@@ -38,9 +39,9 @@ import (
 // then searches the logs and the exported spans for each value.
 //
 // A ticket that brings a new kind of sensitive value (a setup code, an
-// e-mail, a name) adds it to TestTheLogsAndTheSpansCarryNothingSensitive, or
-// to a scenario of its own below when the value needs a migrated database or
-// a job to go by:
+// e-mail, a name, the code and the state of a login through a provider) adds
+// it to TestTheLogsAndTheSpansCarryNothingSensitive, or to a scenario of its
+// own below when the value needs a migrated database or a job to go by:
 //
 //  1. Add to the scenario the step that carries the value: a command of the
 //     binary, or a request to the API. Prefer a step that fails, because a
@@ -885,6 +886,96 @@ func TestTheLogsAndTheSpansOfALoginNeverCarryTheCodeTheEmailOrTheCookie(t *testi
 	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
 	assert.Empty(t, guarded.foundIn(auditLog), "the audit log carries a sensitive value")
 	assert.Empty(t, guarded.foundIn(sessionsKept), "the sessions table keeps a token as the cookie carries it")
+	for _, answer := range answers {
+		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats a sensitive value: %s", answer.body)
+	}
+}
+
+// A login through the local provider: the code and the state travel in the
+// query of the callback, the secret of the client goes to Dex, and the
+// e-mails of the people Dex knows come back in its ID tokens. None of them
+// may reach the logs or the spans, whether the login succeeds, is refused,
+// is answered a code the provider refuses, or fails with a 5xx.
+func TestTheLogsAndTheSpansOfALoginThroughAProviderNeverCarryTheCodeTheStateTheSecretOrTheEmail(t *testing.T) {
+	t.Parallel()
+	guarded := &sensitiveValues{}
+	collector := telemetrytest.NewCollector(t)
+	temporary := databasetest.Migrated(t)
+	environment := withLocalLoginProvider(t, environmentOf(temporary))
+	environment["LOG_LEVEL"] = "debug"
+	environment["OTEL_EXPORTER_OTLP_ENDPOINT"] = collector.URL
+	guarded.add("the secret of the client of the local login provider", environment["LOCAL_LOGIN_PROVIDER_CLIENT_SECRET"])
+	api := launchAPI(t, environment)
+	owner := asOwner(t, temporary)
+	withAUser(t, temporary, api.url, oidctest.Administrator.Email)
+	guarded.add("the e-mail of the administrator", oidctest.Administrator.Email)
+	guarded.add("the e-mail of the developer", oidctest.Developer.Email)
+	key := requiredVariable(t, "LOCAL_LOGIN_PROVIDER_KEY")
+	start := api.url + startPathOf(key) + "?return_to=%2Fprojects"
+	// guardedCallback logs the person in at Dex from the browser and guards
+	// the code, the state and the nonce of that login.
+	guardedCallback := func(browser *http.Client, person oidctest.Person) *url.URL {
+		started := sendFrom(t, stayingPut(browser), http.MethodGet, start, "", nil)
+		require.Equal(t, http.StatusFound, started.status, started.body)
+		sent, err := url.Parse(started.header.Get("Location"))
+		require.NoError(t, err)
+		guarded.add("the nonce of a login", sent.Query().Get("nonce"))
+		callback := oidctest.LogIn(t, browser, sent.String(), person, callbackOf(t))
+		guarded.add("the code of a login", callback.Query().Get("code"))
+		guarded.add("the state of a login", callback.Query().Get("state"))
+		return callback
+	}
+
+	answers := []asked{}
+	expect := func(answer asked, status int) asked {
+		t.Helper()
+		require.Equal(t, status, answer.status, answer.body)
+		answers = append(answers, answer)
+		return answer
+	}
+	browser := aBrowser(t)
+	used := guardedCallback(browser, oidctest.Administrator)
+	loggedIn := expect(sendFrom(t, stayingPut(browser), http.MethodGet, toTheAPI(t, api.url, used), "", nil), http.StatusSeeOther)
+	guarded.add("the cookie of the session after the login", sessionCookie(t, loggedIn).Value)
+	// Who is logged in and the login state answer an e-mail, by design.
+	require.Equal(t, http.StatusOK, whoIsLoggedIn(t, browser, api.url).status)
+	// Refused: an e-mail of no active user, which the login state tells.
+	refusedIn := aBrowser(t)
+	expect(sendFrom(t, stayingPut(refusedIn), http.MethodGet, toTheAPI(t, api.url, guardedCallback(refusedIn, oidctest.Developer)), "", nil), http.StatusSeeOther)
+	require.Contains(t, loginStateOf(t, refusedIn, api.url).body, oidctest.Developer.Email)
+	// A code the provider refuses: the code used above, with the state of a
+	// new login, so the exchange fails and is logged.
+	replayIn := aBrowser(t)
+	fresh := sendFrom(t, stayingPut(replayIn), http.MethodGet, start, "", nil)
+	sent, err := url.Parse(fresh.header.Get("Location"))
+	require.NoError(t, err)
+	query := url.Values{"code": {used.Query().Get("code")}, "state": {sent.Query().Get("state")}}
+	guarded.add("the state of a login", sent.Query().Get("state"))
+	expect(sendFrom(t, stayingPut(replayIn), http.MethodGet, api.url+used.Path+"?"+query.Encode(), "", nil), http.StatusSeeOther)
+	// A 5xx with the code and the state in the query: the API role may not
+	// read the provider links.
+	_, err = owner.Exec(context.Background(), "REVOKE SELECT ON provider_links FROM api")
+	require.NoError(t, err)
+	failingIn := aBrowser(t)
+	expect(sendFrom(t, stayingPut(failingIn), http.MethodGet, toTheAPI(t, api.url, guardedCallback(failingIn, oidctest.Administrator)), "", nil), http.StatusInternalServerError)
+	_, err = owner.Exec(context.Background(), "GRANT SELECT ON provider_links TO api")
+	require.NoError(t, err)
+	api.signal()
+	require.Equal(t, 0, <-api.status)
+
+	var auditLog string
+	require.NoError(t, owner.QueryRow(context.Background(),
+		"SELECT string_agg(row_to_json(audit_log)::text, E'\n') FROM audit_log").Scan(&auditLog))
+	logs := api.logs.String()
+	require.Contains(t, logs, "the local login provider is on", "the scenario turned no provider on")
+	require.Contains(t, logs, "a login through a provider failed", "the scenario logged no failure of the provider")
+	require.Contains(t, logs, "permission denied for table provider_links", "the scenario logged no raw error of the callback")
+	require.Contains(t, auditLog, `"way_in":"local"`, "the scenario recorded no login through the provider")
+	require.Contains(t, collector.Text(), "GET /api/session/login_providers/{key}/callback", "the scenario exported no span of the callback")
+	require.Contains(t, collector.Text(), "Login provider POST", "the scenario exported no span of the exchange of a code")
+	assert.Empty(t, guarded.foundIn(logs), "the logs carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(collector.Text()), "the spans carry a sensitive value")
+	assert.Empty(t, guarded.foundIn(auditLog), "the audit log carries a sensitive value")
 	for _, answer := range answers {
 		assert.Empty(t, guarded.foundIn(answer.body), "an answer repeats a sensitive value: %s", answer.body)
 	}
