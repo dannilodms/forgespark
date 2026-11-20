@@ -131,6 +131,10 @@ jobs:
       - name: Check that every version is exact
         run: task versions:check
 
+      # docker compose config, with --quiet: it prints nothing.
+      - name: Check the Compose file of staging
+        run: task compose:check
+
       - name: Lint the Go code and check its format, its imports, else and nesting
         run: task api:lint
 

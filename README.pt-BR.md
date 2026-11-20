@@ -162,7 +162,7 @@ Frontend e backend ficam neste único repositório:
 ├── apps/
 │   ├── api/          # backend e API em Go
 │   └── web/          # o app React, com o design system em src/ui
-├── deploy/           # Caddyfile, arquivos Compose dos servidores, cloud-init
+├── deploy/           # Caddyfiles, arquivos Compose dos servidores, cloud-init
 ├── .github/          # workflows da pipeline
 ├── docs/
 │   ├── adr/          # decisões de arquitetura
@@ -420,6 +420,7 @@ Os comandos, executados na raiz do repositório:
 | `task api:lint` | Roda o lint do código Go e verifica o formato, os imports entre camadas e entre áreas de domínio, o `else` e o nível de aninhamento |
 | `task api:format` | Reescreve os arquivos Go como o formatador pede |
 | `task versions:check` | Verifica se toda versão fixada no repositório é exata: sem intervalo, sem `latest`, sem tag flutuante |
+| `task compose:check` | Verifica o arquivo do Compose de staging com `docker compose config --quiet`, que não imprime nada |
 | `task workflows:check` | Verifica os arquivos de workflow com o actionlint e o zizmor, cada um rodado a partir da sua imagem Docker |
 | `task api:generate` | Gera, com o sqlc, o código Go dos adaptadores `postgres` a partir dos arquivos SQL de cada um. O resultado entra no commit |
 | `task api:generate:check` | Falha quando o código gerado pelo sqlc que está no repositório ficou desatualizado |
@@ -476,7 +477,7 @@ Voltar a uma versão anterior é um workflow manual que publica um commit anteri
 
 Uma release dá um número e notas a um marco que já está em produção. Ela é um pull request que muda o `VERSION` e o `CHANGELOG.md`. Depois que ele é publicado, a pipeline cria a tag, a release no GitHub e a marca numerada nas imagens (veja o [ADR-0023](docs/adr/0023-a-release-names-a-milestone-already-in-production.md)). A primeira release, a 0.1.0, ainda está por vir.
 
-Um deploy reinicia a única instância da API. A API termina as requisições em andamento antes de sair (veja Shutdown em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), então o arquivo do Compose dá a ela um `stop_grace_period` de 30 segundos, e o Caddy segura as requisições novas por até 30 segundos (`lb_try_duration`) até a nova instância aceitar conexões.
+Um deploy reinicia a única instância da API. A API termina as requisições em andamento antes de sair (veja Shutdown em [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), então o arquivo do Compose dá a ela um `stop_grace_period` de 45 segundos, e o Caddy segura as requisições novas por até 30 segundos (`lb_try_duration`) até a nova instância aceitar conexões.
 
 Antes de a API subir, um serviço de execução única do Compose aplica as migrations pendentes do banco, e a API só sobe se ele terminar bem. Quando há migration pendente, o deploy gera um `pg_dump` antes, porque as migrations não têm caminho de volta (veja o [ADR-0015](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md)).
 
