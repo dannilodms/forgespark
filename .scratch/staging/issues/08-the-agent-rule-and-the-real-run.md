@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] A global rule of Claude on this machine, written for this repository, says what the description above says. It recommends "without staging" for a pull request that changes only documents.
-- [ ] The rule says that a failure to turn staging on is reported and stops the agent before the push.
+- [x] A global rule of Claude on this machine, written for this repository, says what the description above says. It recommends "without staging" for a pull request that changes only documents.
+- [x] The rule says that a failure to turn staging on is reported and stops the agent before the push.
 - [x] The `README.md` says how to turn staging on and off, what the machine needs (`gh` logged in, `HETZNER_TOKEN` in `.env`) and how to read the password of Mailpit.
 - [x] `CODING_STANDARDS.md`, `docs/providers.md` and ADR-0019 match what was built. `docs/providers.md` marks `sslip.io` as provisional and points to the ticket of the domain.
 - [x] The permissions of the `gh` token have one home: a row "Token of `gh` on the maintainer's machine" in the table of the GitHub section of `docs/providers.md`. The row says the token is fine-grained, with access to `dannilodms/software-factory-manager` alone and no account permission. It gives each repository permission below with its level, and the expiration date, "none" until the maintainer makes the token again. It never gives the value. Both READMEs point to that row instead of listing permissions: the paragraph of `task staging:on` in Deploy, which lists three since be4939d, and, if it fits, the row of the GitHub CLI in the prerequisites. The list, as the maintainer chose it on 2026-11-19 (relayed by another session of this repository):

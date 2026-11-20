@@ -4,13 +4,13 @@
 
 **Blocked by:** 05.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] The workflow also runs when a label is added to a pull request. Adding `staging` to an open pull request runs its checks again and publishes it.
-- [ ] After a publish succeeds, the label comes off every other open pull request that has it, and each of them gets a comment naming the pull request staging now shows.
-- [ ] A push to a pull request whose label was taken off publishes nothing.
-- [ ] Adding another label does not publish a pull request without `staging`.
-- [ ] Tried for real with two pull requests, or recorded under "What was not checked" with the reason.
+- [x] The workflow also runs when a label is added to a pull request. Adding `staging` to an open pull request runs its checks again and publishes it.
+- [x] After a publish succeeds, the label comes off every other open pull request that has it, and each of them gets a comment naming the pull request staging now shows.
+- [x] A push to a pull request whose label was taken off publishes nothing.
+- [x] Adding another label does not publish a pull request without `staging`.
+- [x] Tried for real with two pull requests, or recorded under "What was not checked" with the reason.
 
 ## Comments
 
@@ -48,6 +48,13 @@
 - `go test -count=1 ./tools/environment/...`, `golangci-lint run ./tools/environment/...`, `go run ./tools/guard code`, `go vet` with `GOOS=linux`, `task versions:check`, and `task workflows:check` with `GH_TOKEN`, so with zizmor's online audits, on the final `ci.yml`: no finding.
 - `task check:quick` once: every step passed but `api:test`, where `TestTheProbeOfReadinessFailsWhileAMigrationIsPending` and `TestTheWorkerStopsAtOnceWhileAMigrationIsPending` failed in their cleanup (`DROP DATABASE … WITH (FORCE)` out of time) under the load of the whole suite, as in tickets 03 and 05, in code this ticket does not touch; run again alone, both passed. The concurrency of `ci.yml` was changed after that run, and checked again with `task workflows:check`.
 - The behaviour of the workflow itself, its trigger, its groups and the condition of the job, needs GitHub: the steps below try it.
+- For real, on 2026-11-20, by the orchestrator, with staging on, #10 and a throwaway #11 (`try/staging-label`, based on `feat/staging`, closed unmerged afterwards, branch deleted), following the steps below:
+  1. **A push re-publishes #10.** The push of 92bf151 (this ticket merged) ran 44665621551, whose publish succeeded on #10. It had waited behind run 44664171333, whose publish had started before it.
+  2. **Opening #11 publishes it once.** `gh pr create --label staging` opened #11. The run of `opened` (44666542623) was cancelled, and the run of `labeled` (44666543455) ran. The checks of a change to documents only passed with the builds skipped, and the publish succeeded. It printed "Staging shows pull request #11", "Took the staging label off pull request #10, with a comment there" and "Commented the addresses on pull request #11". #10 was left with no label and the comment "Staging shows pull request #11 now…". `pull-requests: write` was enough to take the label off: no `issues: write`.
+  3. **Another label publishes nothing and cancels nothing.** Adding `documentation` to #11, which still had `staging`, ran 44667137818: `Checks` succeeded, "Publish to staging" was skipped, and no other run was cancelled.
+  4. **Adding `staging` publishes again and moves the label.** Adding `staging` to #10, 28 seconds later, ran 44667179671 beside step 3's run. Its checks and its publish succeeded. #11 lost `staging`, with the comment "Staging shows pull request #10 now…", and #10 got the comment with the addresses.
+  5. **Another label on a pull request without `staging`.** Taking `documentation` off #11 and adding it again ran 44668263305: success, publish skipped.
+  6. **A push to a pull request whose label was taken off.** An empty commit pushed to #11 ran 44668393817: success, publish skipped. #10 kept `staging` throughout.
 
 ### Found, and left for a decision
 
