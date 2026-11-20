@@ -162,7 +162,7 @@ Frontend and backend live in this single repository:
 ├── apps/
 │   ├── api/          # Go backend and API
 │   └── web/          # the React app, with the design system in src/ui
-├── deploy/           # Caddyfile, Compose files of the servers, cloud-init
+├── deploy/           # Caddyfiles, Compose files of the servers, cloud-init
 ├── .github/          # pipeline workflows
 ├── docs/
 │   ├── adr/          # architecture decisions
@@ -418,6 +418,7 @@ The commands, run from the repository root:
 | `task api:lint` | Lints the Go code and checks its format, the imports between layers and between domain areas, `else` and the level of nesting |
 | `task api:format` | Rewrites the Go files as the formatter asks |
 | `task versions:check` | Checks that every version the repository pins is exact: no range, no `latest`, no floating tag |
+| `task compose:check` | Checks the Compose file of staging with `docker compose config --quiet`, which prints nothing |
 | `task workflows:check` | Checks the workflow files with actionlint and zizmor, each run from its Docker image |
 | `task api:generate` | Generates, with sqlc, the Go code of the `postgres` adapters from the SQL files of each one. What it writes is committed |
 | `task api:generate:check` | Fails when the committed code that sqlc generated is stale |
@@ -462,7 +463,7 @@ Going back to an earlier version is a manual workflow that publishes an earlier 
 
 A release gives a number and notes to a milestone that is already in production. It is a pull request that changes `VERSION` and `CHANGELOG.md`. After it is published, the pipeline creates the tag, the GitHub Release and the numbered tag on the images (see [ADR-0023](docs/adr/0023-a-release-names-a-milestone-already-in-production.md)). The first release, 0.1.0, is still to come.
 
-A deploy restarts the single API instance. The API finishes the requests in flight before it exits (see Shutdown in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), so the Compose file gives it a `stop_grace_period` of 30 seconds, and Caddy holds new requests for up to 30 seconds (`lb_try_duration`) until the new instance accepts connections.
+A deploy restarts the single API instance. The API finishes the requests in flight before it exits (see Shutdown in [`CODING_STANDARDS.md`](CODING_STANDARDS.md)), so the Compose file gives it a `stop_grace_period` of 45 seconds, and Caddy holds new requests for up to 30 seconds (`lb_try_duration`) until the new instance accepts connections.
 
 Before the API starts, a one-shot Compose service applies the pending database migrations, and the API starts only when it succeeds. When a migration is pending, the deploy takes a `pg_dump` first, because migrations have no way back (see [ADR-0015](docs/adr/0015-hand-written-sql-checked-by-sqlc-and-forward-only-migrations.md)).
 

@@ -363,6 +363,18 @@ tasks:
       # audits too; without it, the offline ones.
       - docker run --rm --volume "{{.ROOT_DIR}}:/repository:ro" --workdir /repository --env GH_TOKEN {{.ZIZMOR_IMAGE}} --color=always .
 
+  compose:check:
+    desc: Check the Compose file of staging, deploy/compose.staging.yaml, with docker compose config, which prints nothing
+    env:
+      # What only a server is given, by the publish; every other variable
+      # comes from .env.example. Compose checks that each one it requires
+      # has a value, and reads none of them further here.
+      COMMIT: "0000000000000000000000000000000000000000"
+      MAILPIT_PASSWORD_HASH: the-bcrypt-hash-of-the-password-of-mailpit
+    cmds:
+      # --quiet, because the configuration Compose prints holds every value.
+      - docker compose --file deploy/compose.staging.yaml config --quiet
+
   versions:check:
     desc: Check that every version the repository pins is exact
     dir: apps/api
@@ -379,6 +391,7 @@ tasks:
     desc: Every check of task check but the end-to-end test, for daily use. It needs no free port and does not restart Caddy, so it runs beside task dev
     cmds:
       - task: versions:check
+      - task: compose:check
       - task: workflows:check
       - task: web:check
       - task: api:lint

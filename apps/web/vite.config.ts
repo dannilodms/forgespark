@@ -23,6 +23,13 @@ export default defineConfig({
     // The Brotli copies of the build, which Caddy serves on the servers.
     brotliCopies(),
   ],
+  build: {
+    // Every file of the build is a file of its own under /assets/, a font
+    // too small to be worth a request included: none goes inline as a
+    // `data:` URL, which the Content-Security-Policy of the servers refuses
+    // (Security headers in Delivery, CODING_STANDARDS.md).
+    assetsInlineLimit: 0,
+  },
   optimizeDeps: {
     // Every source file, so the dependencies a lazy route or a test imports
     // are found at the start, and not halfway through a run of the screen

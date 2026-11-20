@@ -121,6 +121,8 @@ In production the browser reaches the files at Backblaze's own host name, so the
 
 Nothing is configured there. The certificates are for the host names listed in Domain and DNS.
 
+**ZeroSSL.** Caddy asks ZeroSSL when Let's Encrypt refuses a certificate only when it has an address for the account, `ACME_EMAIL` (`deploy/Caddyfile.staging`). Staging gives none yet, so it asks Let's Encrypt alone.
+
 ## Resend
 
 **Why.** It sends the e-mail of production and reports a bounce to the API. Development, tests and staging use Mailpit and send nothing real.
