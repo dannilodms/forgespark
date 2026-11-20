@@ -297,9 +297,10 @@ A ferramenta que liga e desliga a homologação lê duas variáveis que não est
 | Ambiente | Onde ficam os valores |
 | --- | --- |
 | Desenvolvimento | O `.env.example`, cujos valores funcionam como estão. Um arquivo `.env`, nunca versionado, altera um valor: o Task o lê primeiro |
-| Homologação e produção | O Environment do GitHub de cada um: um segredo para o que é secreto, uma variável para o restante. A publicação os grava em um arquivo de variáveis no servidor, que só o usuário de deploy consegue ler |
+| Homologação | A publicação da ferramenta dos ambientes, que decide um valor para cada nome do `.env.example` em `apps/api/tools/environment/variables.go`: fixo, derivado da publicação (o endereço do servidor, o commit, a senha do Mailpit), sorteado a cada publicação ou deliberadamente vazio. Ela os grava em um arquivo de variáveis no servidor, que só o usuário de deploy consegue ler. O Environment `staging` do GitHub guarda só o que chega ao servidor |
+| Produção | O Environment `production` do GitHub: um segredo para o que é secreto, uma variável para o restante. A publicação os grava em um arquivo de variáveis no servidor, que só o usuário de deploy consegue ler |
 
-Uma variável nova precisa ter o valor definido nos dois Environments do GitHub antes do merge. A publicação compara os nomes do `.env.example` com os valores que tem e para, antes de reiniciar qualquer coisa, quando falta algum.
+Uma variável nova recebe o valor da homologação, decidido em `apps/api/tools/environment/variables.go`, e o valor de produção, definido no Environment `production` do GitHub, antes do merge. A publicação compara os nomes do `.env.example` com os valores que tem e para, antes de entrar no servidor, quando falta algum.
 
 Cada comando do binário exige apenas as variáveis que usa. As que o binário lê hoje:
 
@@ -471,7 +472,9 @@ A máquina precisa do `HETZNER_TOKEN` no `.env` do checkout principal: um token 
 
 A senha do Mailpit é escolhida na primeira vez que a homologação é ligada e fica no `.env` do checkout principal, como `STAGING_MAILPIT_PASSWORD`: leia-a ali, porque o GitHub nunca devolve um segredo. Toda vez que a homologação é ligada depois disso, ela usa a mesma senha.
 
-Enquanto a homologação está ligada, o checkout principal guarda a chave de deploy dela em `.servers/staging/`, que o git ignora, e `ssh -F .servers/staging/ssh_config staging`, rodado ali, entra no servidor como o usuário de deploy. Os nomes de host dela ficam sob o endereço dela, escrito para o `sslip.io`, o que é provisório: eles mudam a cada vez que a homologação é ligada, e o `task staging:status` os mostra. Publicar um pull request nela, com o rótulo `staging`, vem com o comando de publicação da mesma ferramenta.
+Enquanto a homologação está ligada, o checkout principal guarda a chave de deploy dela em `.servers/staging/`, que o git ignora, e `ssh -F .servers/staging/ssh_config staging`, rodado ali, entra no servidor como o usuário de deploy. Os nomes de host dela ficam sob o endereço dela, escrito para o `sslip.io`, o que é provisório: eles mudam a cada vez que a homologação é ligada, e o `task staging:status` os mostra.
+
+Um pull request deste repositório com o rótulo `staging` é publicado na homologação assim que as verificações passam, pelo job `Publish to staging` do `ci.yml`: ele constrói as três imagens do commit que as verificações testaram, envia para o registro de containers do GitHub, com a tag do hash dele, e roda `go run ./tools/environment publish staging`, a publicação da mesma ferramenta. Ela entra no servidor por SSH como o usuário de deploy, confiando só na chave de host dele, copia os arquivos do Compose e a configuração do Caddy, grava o arquivo de variáveis, baixa as imagens, para a API e o worker, apaga os dados do PostgreSQL e do Garage, inicia esses dois de novo com o Mailpit e o Caddy, aplica as migrations, roda o seed, inicia a API e o worker e espera até o `/up` responder por HTTPS. Um comentário no pull request dá então o endereço do app e do Mailpit, cujo usuário é `maintainer` e cuja senha é a `STAGING_MAILPIT_PASSWORD`. Os dados são os do seed: entre como `seed+admin@fabrica.example` com um código de login, lido no Mailpit. Quando a homologação está desligada, o job não publica nada, avisa em uma notice e passa. Só uma publicação roda por vez, e uma que está rodando nunca é cancelada.
 
 Voltar a uma versão anterior é um workflow manual que publica um commit anterior da `main`, indicado pelo hash ou por uma release.
 

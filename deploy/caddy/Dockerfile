@@ -23,4 +23,8 @@ COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 # its one home in apps/web/package.json.
 FROM development AS servers
 
+# The repository the image is built from, which links its package in the
+# GitHub container registry to the repository.
+LABEL org.opencontainers.image.source="https://github.com/dannilodms/software-factory-manager"
+
 COPY . /srv

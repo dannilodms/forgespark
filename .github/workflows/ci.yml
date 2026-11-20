@@ -1,6 +1,7 @@
 name: CI
 
-# The checks of a pull request, run again on `main` after the merge.
+# The checks of a pull request, run again on `main` after the merge, and the
+# publish of a pull request that has the `staging` label to staging.
 # Rules: Pipeline in CODING_STANDARDS.md.
 
 on:
@@ -11,9 +12,14 @@ on:
 
 permissions: {}
 
+# A new run of a pull request cancels the run before it, unless the pull
+# request has the `staging` label: that run may be publishing, and a publish
+# that started is never cancelled, or staging is left half-published. The
+# runs of a labelled pull request wait instead: the one running ends, and
+# the newest one waiting runs next.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'staging') }}
 
 env:
   TASK_VERSION: 3.54.0
@@ -375,3 +381,136 @@ jobs:
                 ;;
             esac
           done
+
+  # Publishes a pull request of this repository that has the `staging` label
+  # to staging, once its checks pass: it builds the three images of the
+  # commit, the one the checks tested, pushes them to the GitHub container
+  # registry, and runs the publish of the tool of the environments, which
+  # logs in to the server over SSH, starts staging again from the seed and
+  # comments the addresses on the pull request (Publishing in
+  # CODING_STANDARDS.md). It is not among the jobs that Checks needs, so the
+  # required check does not change. A pull request from a fork never gets
+  # here, and so never gets the secrets of staging.
+  staging:
+    name: Publish to staging
+    needs: checks
+    if: >-
+      ${{ !cancelled() && needs.checks.result == 'success' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'staging') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # The values of the GitHub Environment are read only by a job that
+    # declares it, and only once the job runs: whether staging is on is told
+    # by its first step, not by the condition of the job.
+    environment: staging
+    # One publish at a time, of any pull request, and a running one is never
+    # cancelled. A publish waiting while another runs gives its place to a
+    # newer one.
+    concurrency:
+      group: staging
+      cancel-in-progress: false
+    permissions:
+      contents: read # to check out the commit
+      packages: write # to push its images
+      pull-requests: write # to comment on the pull request
+    env:
+      # Each image is one manifest, with no attestation beside it.
+      BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
+    steps:
+      # SERVER_ADDRESS is empty while staging is off: turning it on writes it
+      # last and turning it off deletes it first.
+      - name: Tell whether staging is on
+        id: staging
+        env:
+          SERVER_ADDRESS: ${{ vars.SERVER_ADDRESS }}
+        run: |
+          if [ -n "$SERVER_ADDRESS" ]; then
+            echo "on=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::notice title=Staging is off::Nothing was published. Turn staging on with task staging:on, then push to the pull request again."
+          echo "on=false" >> "$GITHUB_OUTPUT"
+
+      # The commit the checks tested: the merge of the pull request into the
+      # branch it merges into.
+      - name: Check out the repository
+        if: ${{ steps.staging.outputs.on == 'true' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # A job that publishes restores no cache, which a pull request could
+      # have filled.
+      - name: Install the Go toolchain that go.mod names
+        if: ${{ steps.staging.outputs.on == 'true' }}
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: apps/api/go.mod
+          cache: false
+
+      # Vite+ and the JavaScript dependencies of the app, which its build
+      # needs; not the Chromium of its tests.
+      - name: Install Vite+ and the dependencies of the app
+        if: ${{ steps.staging.outputs.on == 'true' }}
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          version-file: package.json
+          working-directory: apps/web
+          run-install: true
+          cache: false
+
+      - name: Install Task
+        if: ${{ steps.staging.outputs.on == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive="task_linux_amd64.tar.gz"
+          gh release download "v${TASK_VERSION}" \
+            --repo go-task/task \
+            --pattern "$archive" \
+            --dir "$RUNNER_TEMP"
+          echo "${TASK_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "${RUNNER_TEMP}/${archive}" -C "$RUNNER_TEMP/bin" task
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      # The same targets the checks build them with.
+      - name: Build the three images of the commit
+        if: ${{ steps.staging.outputs.on == 'true' }}
+        run: |
+          task api:image
+          task caddy:image
+          task seed:image
+
+      # Tagged with the hash of the commit, under the names the Compose file
+      # of staging runs. The login lasts for this step alone.
+      - name: Push the three images of the commit to the GitHub container registry
+        if: ${{ steps.staging.outputs.on == 'true' }}
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
+        run: |
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          trap 'docker logout ghcr.io' EXIT
+          for built in api:servers caddy:servers seed:development; do
+            published="ghcr.io/dannilodms/software-factory-manager-${built%%:*}:${GITHUB_SHA}"
+            docker tag "software-factory-manager-${built}" "$published"
+            docker push --quiet "$published"
+          done
+
+      # Every value reaches the tool through its environment, never as an
+      # argument. gh comments as the token of this job.
+      - name: Publish the commit to staging
+        if: ${{ steps.staging.outputs.on == 'true' }}
+        working-directory: apps/api
+        env:
+          COMMIT: ${{ github.sha }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+          SERVER_ADDRESS: ${{ vars.SERVER_ADDRESS }}
+          SERVER_HOST_KEY: ${{ vars.SERVER_HOST_KEY }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          MAILPIT_PASSWORD: ${{ secrets.MAILPIT_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: go run ./tools/environment publish staging

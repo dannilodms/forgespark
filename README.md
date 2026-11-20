@@ -297,9 +297,10 @@ The tool that turns staging on and off reads two variables that are not there, b
 | Environment | Where the values are |
 | --- | --- |
 | Development | `.env.example`, whose values work as they are. A `.env` file, never committed, changes one: Task reads it first |
-| Staging and production | The GitHub Environment of each one: a secret for what is secret, a variable for the rest. The publish writes them to a variables file on the server, readable by the deploy user alone |
+| Staging | The publish of the tool of the environments, which decides a value for every name of `.env.example` in `apps/api/tools/environment/variables.go`: fixed, derived from the publish (the address of the server, the commit, the password of Mailpit), drawn at random on each publish, or deliberately empty. It writes them to a variables file on the server, readable by the deploy user alone. The GitHub Environment `staging` holds only what reaches the server |
+| Production | The GitHub Environment `production`: a secret for what is secret, a variable for the rest. The publish writes them to a variables file on the server, readable by the deploy user alone |
 
-A new variable needs its value set in both GitHub Environments before the merge. The publish compares the names in `.env.example` with the values it has and stops, before restarting anything, when one is missing.
+A new variable gets its staging value decided in `apps/api/tools/environment/variables.go`, and its production value set in the GitHub Environment `production`, before the merge. The publish compares the names in `.env.example` with the values it has and stops, before it logs in to the server, when one is missing.
 
 A command of the binary requires only the variables it uses. The ones the binary reads today:
 
@@ -471,7 +472,9 @@ The machine needs `HETZNER_TOKEN` in the `.env` of the main checkout: an API tok
 
 The password of Mailpit is chosen the first time staging is turned on and kept in the `.env` of the main checkout, as `STAGING_MAILPIT_PASSWORD`: read it there, since GitHub never gives a secret back. Every later turn-on uses the same one.
 
-While staging is on, the main checkout keeps its deploy key in `.servers/staging/`, which git ignores, and `ssh -F .servers/staging/ssh_config staging`, run there, logs in to the server as the deploy user. Its host names are under its address, written for `sslip.io`, which is provisional: they change each time staging is turned on, and `task staging:status` prints them. Publishing a pull request to it, with the `staging` label, comes with the publish command of the same tool.
+While staging is on, the main checkout keeps its deploy key in `.servers/staging/`, which git ignores, and `ssh -F .servers/staging/ssh_config staging`, run there, logs in to the server as the deploy user. Its host names are under its address, written for `sslip.io`, which is provisional: they change each time staging is turned on, and `task staging:status` prints them.
+
+A pull request of this repository that has the `staging` label is published to staging once its checks pass, by the job `Publish to staging` of `ci.yml`: it builds the three images of the commit the checks tested, pushes them to the GitHub container registry, tagged with its hash, and runs `go run ./tools/environment publish staging`, the publish of the same tool. That logs in to the server over SSH as the deploy user, trusting only its host key, copies the Compose files and Caddy's configuration, writes the variables file, pulls the images, stops the API and the worker, removes the data of PostgreSQL and Garage, starts them again with Mailpit and Caddy, applies the migrations, runs the seed, starts the API and the worker, and waits until `/up` answers over HTTPS. A comment on the pull request then gives the address of the app and of Mailpit, whose user is `maintainer` and whose password is `STAGING_MAILPIT_PASSWORD`. The data is the seed's: log in as `seed+admin@fabrica.example` with a login code, read in Mailpit. When staging is off, the job publishes nothing, says so in a notice and passes. Only one publish runs at a time, and a running one is never cancelled.
 
 Going back to an earlier version is a manual workflow that publishes an earlier commit of `main`, named by its hash or by a release.
 

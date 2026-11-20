@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -107,4 +108,61 @@ func TestTheRenderedCloudInitFileFitsTheUserDataOfAServer(t *testing.T) {
 	require.NoError(t, err)
 	assert.Less(t, len(rendered.Reveal()), 32*1024, "Hetzner takes 32 KiB of user data")
 	assert.NotContains(t, rendered.Reveal(), "{{")
+}
+
+func TestEveryStagingValueIsOfANameOfEnvExample(t *testing.T) {
+	t.Parallel()
+	names, err := namesIn(filepath.Join(repository, ".env.example"))
+	require.NoError(t, err)
+
+	for name := range stagingValues {
+		assert.Contains(t, names, name, "the staging value of %s is of no name of .env.example: remove it", name)
+	}
+}
+
+// required finds a variable that Compose requires: ${NAME:?message}.
+var required = regexp.MustCompile(`\$\{([A-Z][A-Z0-9_]*):\?`)
+
+func TestEveryVariableTheComposeFilesOfStagingRequireHasAValueOnEveryPublish(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+	world.readyToPublish()
+	world.succeeds("publish", "staging")
+	values := world.variablesOnServer()
+
+	for _, file := range []string{"compose.staging.yaml", "compose.base.yaml"} {
+		assertEveryRequiredVariableHasAValue(t, file, values)
+	}
+}
+
+func assertEveryRequiredVariableHasAValue(t *testing.T, file string, values map[string]string) {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(repository, "deploy", file))
+	require.NoError(t, err)
+	for _, found := range required.FindAllStringSubmatch(string(content), -1) {
+		assert.NotEmpty(t, values[found[1]], "deploy/%s requires %s, which the publish leaves empty", file, found[1])
+	}
+}
+
+func TestTheComposeFileOfStagingDeclaresTheVolumesThePublishRemovesAndTheOnesItKeeps(t *testing.T) {
+	t.Parallel()
+	content, err := os.ReadFile(filepath.Join(repository, "deploy", "compose.staging.yaml"))
+	require.NoError(t, err)
+	var file struct {
+		Name    string         `yaml:"name"`
+		Volumes map[string]any `yaml:"volumes"`
+	}
+	require.NoError(t, yaml.Unmarshal(content, &file))
+
+	assert.Equal(t, "software-factory-manager-staging", file.Name)
+	assert.ElementsMatch(t, append(slices.Clone(recreatedVolumes), "caddy-data", "caddy-config"), slices.Collect(maps.Keys(file.Volumes)),
+		"the publish removes the data of PostgreSQL and Garage and keeps the certificates of Caddy")
+}
+
+func TestTheCaddyfileOfStagingAsksForTheUserOfMailpitThatTheCommentNames(t *testing.T) {
+	t.Parallel()
+	content, err := os.ReadFile(filepath.Join(repository, "deploy", "Caddyfile.staging"))
+	require.NoError(t, err)
+
+	assert.Regexp(t, `\n\s+`+mailpitUser+` \{\$MAILPIT_PASSWORD_HASH\}\n`, string(content))
 }

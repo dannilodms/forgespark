@@ -300,6 +300,27 @@ func TestNoPullRequestWithTheLabel(t *testing.T) {
 	assert.Empty(t, found)
 }
 
+func TestACommentGoesToGhThroughItsStandardInput(t *testing.T) {
+	t.Parallel()
+	fake := newFakeGh(t)
+	body := "Staging shows this pull request.\n\n- The app: https://app.203-0-113-10.sslip.io\n"
+
+	err := fake.github().CommentOnPullRequest(context.Background(), 12, body)
+
+	require.NoError(t, err)
+	assert.Equal(t, []call{{Arguments: []string{"pr", "comment", "12", "--body-file", "-"}, Input: body}}, fake.calls())
+}
+
+func TestAFailureToCommentSaysOnWhichPullRequest(t *testing.T) {
+	t.Parallel()
+	fake := newFakeGh(t)
+	fake.answers(1, "", "GraphQL: Resource not accessible by integration (addComment)\n", "pr", "comment")
+
+	err := fake.github().CommentOnPullRequest(context.Background(), 12, "Staging shows this pull request.")
+
+	require.EqualError(t, err, "comment on the pull request #12: gh failed, with exit status 1: GraphQL: Resource not accessible by integration (addComment)")
+}
+
 func TestAFailureOfGhSaysWhatFailedAndWhatGhSaidAndNoValue(t *testing.T) {
 	t.Parallel()
 	fake := newFakeGh(t)

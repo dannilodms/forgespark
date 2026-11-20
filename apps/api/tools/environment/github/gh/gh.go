@@ -1,6 +1,7 @@
 // Package gh reaches GitHub through its command-line tool, gh, logged in on
-// the machine as the maintainer. gh finds the repository from the remote of
-// the checkout it runs in, or from GH_REPO.
+// the machine as the maintainer, or with GH_TOKEN, the token of the job, in
+// the pipeline. gh finds the repository from the remote of the checkout it
+// runs in, or from GH_REPO.
 //
 // A value goes to gh through its standard input, never as an argument: an
 // argument is seen by every process of the machine, and gh reads the value
@@ -15,6 +16,7 @@ import (
 	"fmt"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
@@ -122,6 +124,12 @@ func (g *GitHub) LabelledPullRequests(ctx context.Context, label string) ([]gith
 		found = append(found, github.PullRequest{Number: pullRequest.Number, Title: pullRequest.Title, URL: pullRequest.URL})
 	}
 	return found, nil
+}
+
+// CommentOnPullRequest gives gh the body on its standard input too.
+func (g *GitHub) CommentOnPullRequest(ctx context.Context, number int, body string) error {
+	_, err := g.run(ctx, body, "pr", "comment", strconv.Itoa(number), "--body-file", "-")
+	return failedTo(fmt.Sprintf("comment on the pull request #%d", number), err)
 }
 
 // environmentExists tells whether the repository has the environment.
