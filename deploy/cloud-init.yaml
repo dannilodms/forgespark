@@ -20,9 +20,12 @@
 
 # The host key the tool generated, so that the tool, the pipeline and the
 # maintainer know it before the first connection. The keys of the image are
-# deleted and no other is made.
+# deleted. cloud-init makes a key only of a type whose key is missing, so the
+# one type below, which its schema requires, keeps the given key. The upgrade
+# of openssh-server at the first boot makes the other types again: runcmd
+# deletes them, and sshd offers only this one.
 ssh_deletekeys: true
-ssh_genkeytypes: []
+ssh_genkeytypes: [ed25519]
 ssh_keys:
   ed25519_private: |
     {{ indent 4 .HostPrivateKey }}
@@ -44,6 +47,7 @@ write_files:
   - path: /etc/ssh/sshd_config.d/10-server.conf
     permissions: "0644"
     content: |
+      HostKey /etc/ssh/ssh_host_ed25519_key
       PermitRootLogin no
       PasswordAuthentication no
       KbdInteractiveAuthentication no
@@ -153,6 +157,11 @@ packages:
 # server is prepared, is never written.
 runcmd:
   - set -eu
+  # cloud-init only warns when this file breaks its schema, and goes on with
+  # what it understood. Checked here, a broken file stops the script before
+  # the signal, and the tool destroys the server. The configuration of the
+  # provider is not checked, so that a deprecation there fails nothing.
+  - cloud-init schema --config-file /var/lib/cloud/instance/cloud-config.txt
   - usermod --append --groups docker deploy
   # The firewall inside the server: 22, 80 and 443 in, everything out. SSH is
   # let in before the firewall starts.
@@ -163,6 +172,7 @@ runcmd:
   - ufw allow 443/tcp
   - ufw allow 443/udp
   - ufw --force enable
+  - rm -f /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_rsa_key.pub /etc/ssh/ssh_host_ecdsa_key /etc/ssh/ssh_host_ecdsa_key.pub
   - sshd -t
   - systemctl try-restart ssh.service
   - docker version
