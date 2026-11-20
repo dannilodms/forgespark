@@ -20,7 +20,7 @@ Revised on 2026-11-19, before any server existed: the servers moved from the pip
 - **Publishing is one command.** GitHub Actions builds the images, tags them with the commit, pushes them to the GitHub container registry, and runs the publish command of the same tool, which logs in to the server over SSH, writes the variables file, pulls the images and restarts the Compose services. The Compose files stay the description of the deploy.
 - **Secrets live in GitHub Environments**, `staging` and `production`. A value can be written and never read back. The secrets of `production` can be used only by a run of `main`. The publish writes the variables file on the server, after checking that every name in `.env.example` has a value. Staging's data starts again on every publish, so the publish draws its secrets anew each time; the `staging` environment keeps only what reaches the server and Mailpit, written by the tool when staging is turned on.
 - **The seed is its own command, in its own image.** It creates data by calling use cases, so seeded data obeys the domain rules. The production Compose file does not declare it, the same way it does not declare the local login provider (ADR-0011).
-- **A stand-in answers for the LLM provider outside production.** It is a small server written in this repository that answers in the Chat Completions format (ADR-0004) with fixed answers, streamed ones included, and lists models for the health check. Development, the pipeline and staging use it. The production Compose file does not declare it.
+- **A stand-in answers for the LLM provider outside production.** It is a small server written in this repository that answers in the Chat Completions format (ADR-0004) with fixed answers, streamed ones included, and lists models for the health check. Development and the pipeline use it, and staging does once a feature calls an LLM: until then the staging Compose file declares none. The production Compose file does not declare it.
 
 What each environment runs:
 
@@ -32,7 +32,7 @@ What each environment runs:
 | File storage | Garage | Garage, recreated on every publish | Backblaze B2 (ADR-0020) |
 | E-mail | Mailpit | Mailpit, behind a password | Resend |
 | Login | Dex, or a login code read from Mailpit | the three providers, or a login code read from Mailpit | the three providers, or a login code sent by Resend |
-| LLM provider | the stand-in | the stand-in | the real provider |
+| LLM provider | the stand-in | the stand-in, once a feature calls an LLM | the real provider |
 | Telemetry | a Compose profile, off by default | none | none yet (ADR-0012) |
 | Seed | yes | on every publish | never |
 
@@ -84,7 +84,7 @@ What each environment runs:
 - Staging needs its own application registered with each of the three login providers, and a fixed address to register, which only the domain gives. Until then, the login in staging is by login code only.
 - An automated test cannot get past a real login provider, so nothing automated logs in to staging. The end-to-end tests run in the pipeline, against the development Compose file.
 - An LLM feature meets a real provider only in production. Nothing automated calls one anywhere else, so the tests of the LLM adapter run against the stand-in, and a change at the provider shows first in production. The one exception is the maintainer pointing the development configuration at a real provider, by hand, to work on a prompt.
-- The three Compose files extend one base file, so the version of each container image keeps a single home. Tried with development, which extends the base for PostgreSQL, Garage, the step that sets the rule of the bucket, and Caddy. It holds, with two things the base cannot hold: `extends` copies a service and nothing else, so the volumes and the configs a service names are declared in the file that extends it; and an image built in this repository, Caddy's, has its versions in its Dockerfile, and the file that builds it names the result with `build` and `image` together.
+- The three Compose files extend one base file, so the version of each container image keeps a single home. Tried with development, which extends the base for PostgreSQL, Garage, the step that sets the rule of the bucket, and Caddy. It holds, with two things the base cannot hold: `extends` copies a service and nothing else, so the volumes and the configs a service names are declared in the file that extends it; and an image built in this repository, Caddy's, has its versions in its Dockerfile, and the file that builds it names the result with `build` and `image` together. The staging Compose file builds nothing: it runs the images the pipeline pushed, named by the commit.
 - The monthly restore test of ADR-0020 was a workflow that created a server. With servers created only from the maintainer's machine, it has to become a task run there; this is decided with production.
 - Going back to an earlier version is a manual workflow that publishes an earlier commit of `main`. Going back in the data is a restore (ADR-0020).
 - Earlier documents call this environment staging. The label on a pull request and the GitHub Environment use the same name.

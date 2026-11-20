@@ -6,23 +6,24 @@ Every outside service this system depends on: why it was chosen, what it costs, 
 
 **Keep it true.** A change made at a provider (a new record, a new bucket, a change of plan) is written here in the same pull request, or right after when the change is made by hand.
 
-Prices were read on the providers' own pages on 2026-11-16, without tax, and Hetzner's from its API on 2026-11-19. Only the GitHub repository and the Hetzner project of staging have been created by hand so far, and the GitHub Environment and the label of staging are made by the first `task staging:on`, or the environment by the first run of `staging-reminder.yml` when that comes first: a value shown as _not created_ is filled in when the resource exists.
+Prices were read on the providers' own pages on 2026-11-16, without tax, and Hetzner's from its API on 2026-11-19. The GitHub repository and the Hetzner project of staging were created by hand; the GitHub Environment and the label of staging were made by the first `task staging:on`, and the packages of the images by the first publish to staging, on 2026-11-20. A value shown as _not created_ is filled in when the resource exists.
 
 ## Summary
 
 | Provider | Used for | Environments | Approximate cost | State |
 | --- | --- | --- | --- | --- |
-| [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; the environment `staging` and the label `staging` made by the first `task staging:on`, the environment possibly by the first run of `staging-reminder.yml`, the packages of the images by the first publish to staging; the environment `production` and the secret `RESEND_TEST_API_KEY` not created yet |
+| [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; the environment `staging`, the label `staging` and the packages of the three images created; the environment `production` and the secret `RESEND_TEST_API_KEY` not created yet |
 | [Hetzner Cloud](#hetzner-cloud) | The servers | staging, production | US$ 0.0114 an hour while staging is on; production _not created_ | Project of staging created; its server exists only while staging is on |
-| [Backblaze B2](#backblaze-b2) | Production files, database backups | production, staging (certificates only) | Free under 10 GB, about US$ 0.63 a month at 100 GB | Decided, not created |
-| [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | _not known_ | Registrar not chosen |
+| [Backblaze B2](#backblaze-b2) | Production files, database backups | production | Free under 10 GB, about US$ 0.63 a month at 100 GB | Decided, not created |
+| [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | _not known_ | Registrar not chosen; [a ticket](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md) asks the maintainer to register it |
+| [sslip.io](#sslipio) | Host names of staging until the domain exists | staging | Free | Provisional, nothing to create |
 | [Let's Encrypt](#lets-encrypt) | HTTPS certificates, through Caddy | staging, production | Free | Nothing to create |
 | [Resend](#resend) | Sending e-mail | production | _not checked_ | Decided, not created |
 | [Login providers](#login-providers) | Login through Google, Microsoft and GitHub | staging, production | Free | Decided, not created |
 | [LLM provider](#llm-provider) | Calls to language models | production | By use | Not chosen |
 | [Hosted monitor](#hosted-monitor) | Warning when production or a backup stops | production | Free plan intended | Not chosen |
 
-Expected total while the system is small: about € 7 to € 9 a month, plus the domain.
+Expected total while the system is small, from the prices below: about US$ 7.10 a month for the production server and its IPv4 address, about US$ 0.27 for each day staging is on, and nothing for Backblaze B2 under 10 GB, plus the domain and what Resend and the LLM provider charge.
 
 ## GitHub
 
@@ -46,10 +47,11 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 | Workflows of outside contributors | Run only after approval, for every outside contributor |
 | Tag protection | A ruleset on the tags that start with `v`: no update and no deletion (ADR-0023). _Not created_ |
 | Releases | Created by the publish workflow, one for each tag, with the notes from `CHANGELOG.md` and no attached file. _None yet_ |
-| Container registry (GHCR) | Public images, tagged with the commit hash: the packages `software-factory-manager-api`, `software-factory-manager-caddy` and `software-factory-manager-seed` of `ghcr.io/dannilodms`, pushed by the job `Publish to staging` of `ci.yml` with the token of the job, and linked to the repository by the label `org.opencontainers.image.source` of each image. The server pulls them without logging in, so each must be public: a package that its first push creates may come up private, and is then made public by hand, once, in its settings on GitHub (Danger Zone, Change visibility). _Not created_: the first publish to staging creates them. The images of a release also carry its number |
+| Container registry (GHCR) | Public images, tagged with the commit hash: the packages `software-factory-manager-api`, `software-factory-manager-caddy` and `software-factory-manager-seed` of `ghcr.io/dannilodms`, pushed by the job `Publish to staging` of `ci.yml` with the token of the job, and linked to the repository by the label `org.opencontainers.image.source` of each image. The server pulls them without logging in, so each must be public. The first publish to staging created the three on 2026-11-20, public from their first push, with nothing done by hand; a new package that came up private would be made public by hand, once, in its settings on GitHub (Danger Zone, Change visibility). The images of a release also carry its number |
 | Label that publishes a pull request to staging | `staging`, color `FBCA04`, described as "Publish this pull request to staging once its checks pass". Created, or given that description and color, by `task staging:on`. Adding it to an open pull request publishes that pull request, and each publish takes it off every other open pull request, with the token of the job |
 | Commit address | The maintainer's `noreply` address |
 | Repository secret `RESEND_TEST_API_KEY` | The key of Resend's test account that the scheduled workflow `resend.yml` gives the tests that call Resend (see Resend). _Not created_: until it exists those tests skip and the run passes |
+| Token of `gh` on the maintainer's machine | The token with which `gh`, logged in as the maintainer, opens pull requests, reads the pipeline and turns staging on and off (the value is a secret). Fine-grained, with access to `dannilodms/software-factory-manager` alone and no account permission. Expiration date: none, until the maintainer makes the token again. Its repository permissions: Metadata, read (required). Contents, read: compares branches when a pull request is opened, and reads releases; not write, because agents never merge, and tags and releases come from the workflow. Pull requests, read and write: opens and edits pull requests, puts the label on and takes it off, creates the label of the repository and comments on a pull request; those endpoints accept Issues or Pull requests write (`X-Accepted-GitHub-Permissions: issues=write; pull_requests=write`). Actions, read and write: runs, logs, rerun, cancel and `gh workflow run`; read also covers reading an environment. Secrets, read and write: the repository secret `RESEND_TEST_API_KEY`. Environments, read and write: the secrets and variables of `staging`, and later of `production`; without it GitHub answers 403 to the first secret, and `task staging:on` destroys the server it created. Administration, read and write: creates the environments `staging` and `production`; the maintainer accepted the risk that it also allows deleting the repository and changing its rulesets. Left out: Issues (Pull requests covers it), Workflows (git goes over SSH, and a token counts only for git over HTTPS), Variables (those of an environment come with Environments), Webhooks, and Packages (a fine-grained token cannot reach the GHCR; the pipeline uses `GITHUB_TOKEN`) |
 
 ## Hetzner Cloud
 
@@ -85,12 +87,11 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 | S3 endpoint | _not created_ |
 | Bucket of production files | _not created_; private, versioning on, old versions removed after 30 days, cross-origin requests from the app's origin only |
 | Bucket of database backups | _not created_; private, written by pgBackRest, 30 days kept |
-| Bucket of staging certificates | _not created_; private, holds Caddy's certificate data between staging servers |
 | Application keys | One for each bucket, limited to it (the values are secrets) |
 
 ## Domain and DNS
 
-**Why.** The system needs addresses of its own. The staging server keeps a reserved IP address, so the records are set once, by hand, and the registrar needs no API (ADR-0019).
+**Why.** The system needs addresses of its own: production needs one, and so does each application that staging and production register with a login provider. Until the domain is registered, the host names of staging are under `sslip.io` (see below). Registering it is [a ticket for the maintainer](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md), which also decides how the host names of staging follow a server whose address changes each time staging is turned on.
 
 **Cost.** _Not known_: the yearly fee of the domain.
 
@@ -105,12 +106,28 @@ Records to create:
 | Host name | Type | Points to | Serves |
 | --- | --- | --- | --- |
 | _app, production_ | A | The production server | The app, the API and MCP |
-| _app, staging_ | A | The reserved IP address | The app, the API and MCP of the branch |
-| _files, staging_ | A | The reserved IP address | Garage, for uploads and downloads |
-| _mail, staging_ | A | The reserved IP address | Mailpit, behind a password |
+| _app, staging_ | A | The staging server, in the way the ticket of the domain decides | The app, the API and MCP of the pull request |
+| _files, staging_ | A | The staging server, the same way | Garage, for uploads and downloads |
+| _mail, staging_ | A | The staging server, the same way | Mailpit, behind a password |
 | _the records Resend asks for_ | TXT, MX, CNAME | Resend | Proof that the domain may send e-mail |
 
 In production the browser reaches the files at Backblaze's own host name, so there is no record for them.
+
+## sslip.io
+
+**Why.** It answers DNS for an IPv4 address written into a host name, so `app.203-0-113-10.sslip.io` points to `203.0.113.10` with no account and no record to set. Staging has host names, and so HTTPS, from its first turn-on, before the domain exists (ADR-0019).
+
+**Cost.** Free.
+
+**Provisional.** It goes once the domain is registered, which [a ticket for the maintainer](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md) asks for, and soon:
+
+- `sslip.io` is not on the Public Suffix List, so Let's Encrypt counts every certificate under it against one limit shared with everyone who uses it, and that limit has run out in some weeks (see Let's Encrypt).
+- The host names change each time staging is turned on, so no login provider can register them: until the domain exists, staging logs in with a login code only.
+
+| Item | Value |
+| --- | --- |
+| Host names of staging | `app`, `files` and `mail`, each followed by the address of the server written with dashes and `.sslip.io` (`app.203-0-113-10.sslip.io`). `task staging:status` prints them |
+| Configured there | Nothing: the address is in the name |
 
 ## Let's Encrypt
 
@@ -118,9 +135,9 @@ In production the browser reaches the files at Backblaze's own host name, so the
 
 **Cost.** Free.
 
-**Limit that matters.** No more than five identical certificates in a week. Each staging server would ask for the same ones, so Caddy's certificate data is kept in a bucket between one staging server and the next (ADR-0019).
+**Limit that matters.** No more than five certificates for the same host names in a week. Each staging server has host names of its own, so none asks again for a certificate an earlier one got, and Caddy keeps its certificates in a volume of the server while the server lives (ADR-0019). The limit that can still stop staging is the one `sslip.io` shares with all its users (see sslip.io).
 
-Nothing is configured there. The certificates are for the host names listed in Domain and DNS.
+Nothing is configured there. The certificates are for the host names of staging under `sslip.io`, and, once the domain is registered, for the ones listed in Domain and DNS.
 
 **ZeroSSL.** Caddy asks ZeroSSL when Let's Encrypt refuses a certificate only when it has an address for the account, `ACME_EMAIL` (`deploy/Caddyfile.staging`). Staging gives none yet, so it asks Let's Encrypt alone.
 
@@ -146,7 +163,7 @@ Nothing is configured there. The certificates are for the host names listed in D
 
 **Cost.** Free.
 
-Each provider needs two registered applications, because staging and production have different addresses. Development and the pipeline use Dex and register nothing. The redirect address each application registers is the origin of the app followed by the callback of the provider, `<APP_ORIGIN>/api/session/login_providers/<key>/callback`, where the key names the provider in the configuration (such as `google`).
+Each provider needs two registered applications, because staging and production have different addresses. Staging registers its own once the domain gives it a fixed address; until then it logs in with a login code only (ADR-0019). Development and the pipeline use Dex and register nothing. The redirect address each application registers is the origin of the app followed by the callback of the provider, `<APP_ORIGIN>/api/session/login_providers/<key>/callback`, where the key names the provider in the configuration (such as `google`).
 
 | Provider | Application for | Redirect address |
 | --- | --- | --- |
@@ -159,7 +176,7 @@ Each provider needs two registered applications, because staging and production 
 
 ## LLM provider
 
-**Why.** The backend calls models through one interface in the Chat Completions format, so the provider is configuration: a base address, a key and a model (ADR-0004). Only production calls a real provider. Development, the pipeline and staging use the stand-in written in this repository.
+**Why.** The backend calls models through one interface in the Chat Completions format, so the provider is configuration: a base address, a key and a model (ADR-0004). Only production calls a real provider. Development and the pipeline use the stand-in written in this repository, and staging does once a feature calls an LLM; until then it declares none.
 
 **Cost.** By use, in production only. Nothing automated calls a real provider anywhere else (ADR-0019).
 
