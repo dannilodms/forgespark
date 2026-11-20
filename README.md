@@ -292,6 +292,8 @@ The API binary reads its configuration from environment variables only, once, wh
 
 Every variable is listed in the committed `.env.example`, with no real secret.
 
+The tool that turns staging on and off reads one variable that is not there, because it belongs to the maintainer's machine and never reaches a server or GitHub: `HETZNER_TOKEN`, the API token of the Hetzner project of staging. It goes in the `.env` of the main checkout, which the tool reads also when it runs in a worktree (see Deploy).
+
 | Environment | Where the values are |
 | --- | --- |
 | Development | `.env.example`, whose values work as they are. A `.env` file, never committed, changes one: Task reads it first |
@@ -453,7 +455,17 @@ The REST contract is `apps/api/openapi.yaml`. It is generated from the operation
 
 Every change reaches `main` through a pull request, and a merge into `main` is published to production once the pipeline passes. GitHub Actions builds the images, pushes them to the GitHub container registry and logs in to the server over SSH to pull them and restart the Compose services. The secrets of each environment are in GitHub Environments, and the publish writes them to a variables file on the server (see [ADR-0019](docs/adr/0019-three-environments-with-staging-on-a-server-created-on-demand.md)).
 
-To look at a branch before merging it, give its pull request the `staging` label. A server is created with the branch on it, a fresh database and the seed data. It is destroyed when the label is removed or the pull request closes, and never lives longer than 24 hours.
+Staging is a server that exists only while a pull request is tried on it, and costs only while it is on (see [`docs/providers.md`](docs/providers.md)). It is turned on and off by hand, from the main checkout or a worktree of it:
+
+```sh
+task staging:on      # create the server, and wait until it is ready
+task staging:status  # on or off, since when, its address and its host names
+task staging:off     # destroy the server, with its address and its deploy key
+```
+
+The machine needs `HETZNER_TOKEN` in the `.env` of the main checkout: an API token of the Hetzner project `software-factory-manager-staging`, with read and write permission. `task staging:on` creates the server from the choices in `deploy/server.staging.yaml`, prepared by `deploy/cloud-init.yaml`, and returns once the server answers SSH with the host key it was given and cloud-init has prepared it; when that fails, it destroys the server before it reports the failure. Turning staging on when it is on, or off when it is off, creates and destroys nothing. Nothing turns it off by itself.
+
+While staging is on, the main checkout keeps its deploy key in `.servers/staging/`, which git ignores, and `ssh -F .servers/staging/ssh_config staging`, run there, logs in to the server as the deploy user. Its host names are under its address, written for `sslip.io`, which is provisional: they change each time staging is turned on, and `task staging:status` prints them. Publishing a pull request to it, with the `staging` label, comes with the publish command of the same tool.
 
 Going back to an earlier version is a manual workflow that publishes an earlier commit of `main`, named by its hash or by a release.
 

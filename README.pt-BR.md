@@ -292,6 +292,8 @@ O binário da API lê a configuração apenas de variáveis de ambiente, uma ún
 
 Toda variável está listada no `.env.example` versionado, sem segredos reais.
 
+A ferramenta que liga e desliga a homologação lê uma variável que não está lá, porque ela pertence à máquina do mantenedor e nunca chega a um servidor nem ao GitHub: `HETZNER_TOKEN`, o token de API do projeto de homologação na Hetzner. Ele fica no `.env` do checkout principal, que a ferramenta lê também quando roda em uma worktree (veja Deploy).
+
 | Ambiente | Onde ficam os valores |
 | --- | --- |
 | Desenvolvimento | O `.env.example`, cujos valores funcionam como estão. Um arquivo `.env`, nunca versionado, altera um valor: o Task o lê primeiro |
@@ -453,7 +455,17 @@ O `task api:build` gera o binário da API em `apps/api/bin`. A imagem do seed é
 
 Toda mudança chega à `main` por um pull request, e um merge na `main` é publicado em produção assim que a pipeline passa. O GitHub Actions constrói as imagens, envia para o registro de containers do GitHub e entra no servidor por SSH para baixá-las e reiniciar os serviços do Compose. Os segredos de cada ambiente ficam nos Environments do GitHub, e a publicação os grava em um arquivo de variáveis no servidor (veja o [ADR-0019](docs/adr/0019-three-environments-with-staging-on-a-server-created-on-demand.md)).
 
-Para ver uma branch antes do merge, dê ao pull request dela o rótulo `staging`. Um servidor é criado com a branch, um banco novo e os dados do seed. Ele é destruído quando o rótulo sai ou o pull request fecha, e nunca vive mais de 24 horas.
+A homologação é um servidor que só existe enquanto um pull request é experimentado nele, e só custa enquanto está ligada (veja o [`docs/providers.md`](docs/providers.md)). Ela é ligada e desligada à mão, do checkout principal ou de uma worktree dele:
+
+```sh
+task staging:on      # cria o servidor e espera até ele ficar pronto
+task staging:status  # ligada ou desligada, desde quando, o endereço e os nomes de host
+task staging:off     # destrói o servidor, com o endereço e a chave de deploy
+```
+
+A máquina precisa do `HETZNER_TOKEN` no `.env` do checkout principal: um token de API do projeto `software-factory-manager-staging` da Hetzner, com permissão de leitura e escrita. O `task staging:on` cria o servidor com as escolhas do `deploy/server.staging.yaml`, preparado pelo `deploy/cloud-init.yaml`, e termina quando o servidor responde ao SSH com a chave de host que recebeu e o cloud-init o preparou; quando isso falha, ele destrói o servidor antes de relatar a falha. Ligar a homologação quando ela está ligada, ou desligá-la quando está desligada, não cria nem destrói nada. Nada a desliga sozinho.
+
+Enquanto a homologação está ligada, o checkout principal guarda a chave de deploy dela em `.servers/staging/`, que o git ignora, e `ssh -F .servers/staging/ssh_config staging`, rodado ali, entra no servidor como o usuário de deploy. Os nomes de host dela ficam sob o endereço dela, escrito para o `sslip.io`, o que é provisório: eles mudam a cada vez que a homologação é ligada, e o `task staging:status` os mostra. Publicar um pull request nela, com o rótulo `staging`, vem com o comando de publicação da mesma ferramenta.
 
 Voltar a uma versão anterior é um workflow manual que publica um commit anterior da `main`, indicado pelo hash ou por uma release.
 

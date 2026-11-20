@@ -118,6 +118,28 @@ tasks:
     cmds:
       - echo "The app opens at $APP_ORIGIN, through Caddy, which task services starts."
 
+  # Staging is turned on and off by hand, from the main checkout or a
+  # worktree of it, by the tool of the environments (Servers in Environments
+  # in CODING_STANDARDS.md). The token of the provider, HETZNER_TOKEN, comes
+  # from the .env of the main checkout.
+  staging:on:
+    desc: Turn staging on. Creates its server at Hetzner, prepared by deploy/cloud-init.yaml, and waits until it is ready; destroys it when that fails. When staging is on, checks that it answers and creates nothing
+    dir: apps/api
+    cmds:
+      - go run ./tools/environment on staging
+
+  staging:off:
+    desc: Turn staging off. Destroys its server, with its address and its deploy key. When staging is off, does nothing
+    dir: apps/api
+    cmds:
+      - go run ./tools/environment off staging
+
+  staging:status:
+    desc: Tell whether staging is on, since when, and at which address and host names
+    dir: apps/api
+    cmds:
+      - go run ./tools/environment status staging
+
   api:build:
     desc: Build the API binary into apps/api/bin
     dir: apps/api
