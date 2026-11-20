@@ -6,14 +6,14 @@ Every outside service this system depends on: why it was chosen, what it costs, 
 
 **Keep it true.** A change made at a provider (a new record, a new bucket, a change of plan) is written here in the same pull request, or right after when the change is made by hand.
 
-Prices were read on the providers' own pages on 2026-11-16, without tax. Only the GitHub repository has been created so far: a value shown as _not created_ is filled in when the resource exists.
+Prices were read on the providers' own pages on 2026-11-16, without tax, and Hetzner's from its API on 2026-11-19. Only the GitHub repository and the Hetzner project of staging have been created so far: a value shown as _not created_ is filled in when the resource exists.
 
 ## Summary
 
 | Provider | Used for | Environments | Approximate cost | State |
 | --- | --- | --- | --- | --- |
 | [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; environments and the secret `RESEND_TEST_API_KEY` not created yet |
-| [Hetzner Cloud](#hetzner-cloud) | The servers | staging, production | € 5.99 a month, plus cents for staging | Decided, not created |
+| [Hetzner Cloud](#hetzner-cloud) | The servers | staging, production | US$ 0.0114 an hour while staging is on; production _not created_ | Project of staging created; its server exists only while staging is on |
 | [Backblaze B2](#backblaze-b2) | Production files, database backups | production, staging (certificates only) | Free under 10 GB, about US$ 0.63 a month at 100 GB | Decided, not created |
 | [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | _not known_ | Registrar not chosen |
 | [Let's Encrypt](#lets-encrypt) | HTTPS certificates, through Caddy | staging, production | Free | Nothing to create |
@@ -52,23 +52,23 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 
 ## Hetzner Cloud
 
-**Why.** The lowest price found for a server of this size that is billed by the hour, which is what lets the staging server exist only while it is used. One account and one command-line tool cover both servers (ADR-0019).
+**Why.** The lowest price found for a server of this size that is billed by the hour, which is what lets the staging server exist only while it is used. The tool of the environments reaches its API through hcloud-go, from the maintainer's machine: GitHub Actions holds no credential of Hetzner and knows only a server it reaches over SSH (ADR-0019).
 
-**Cost.** CX23 (2 vCPU, 4 GB, 40 GB): € 5.99 a month, or € 0.0096 an hour. Staging at about 40 hours a month is about € 0.40. The monthly restore test costs cents. The price of the reserved IP address and of the production IPv4 address was not confirmed.
+**Cost.** Read from Hetzner's API on 2026-11-19, in US dollars, without VAT; the account is billed in dollars. CX23 (2 vCPU, 4 GB, 40 GB): US$ 0.0104 an hour, up to US$ 6.49 a month. An IPv4 address: US$ 0.001 an hour, up to US$ 0.60 a month. Staging costs only while it is on, about US$ 0.27 a day, and nothing once it is off. Production is priced when its server is created.
 
-**To check before ordering.** The plan showed limited stock, and a new account has its resources limited in its first month. If the CX23 cannot be ordered, the next plans are CAX11 (ARM, € 6.49) and CPX22 (€ 16.99).
+**To check before ordering.** A new account has its resources limited in its first month. On 2026-11-19 the CX23 was offered in `fsn1`, `nbg1` and `hel1`; moving staging to another of them is a change to `deploy/server.staging.yaml`.
 
 | Item | Value |
 | --- | --- |
-| Project | _not created_ |
-| Region | _not chosen_ (Germany or Finland) |
-| Production server | Plan CX23; name and IP address _not created_ |
-| Staging server | Plan CX23, created by the pipeline for a labelled pull request, destroyed within 24 hours |
-| Restore-test server | Plan CX23, created and destroyed by the monthly workflow |
-| Reserved IP address (staging) | _not created_ |
-| Firewall | Ports 22, 80 and 443 |
-| System image | _not chosen_; recorded in `deploy/cloud-init.yaml` |
-| SSH | Key login as the deploy user; no password, no root |
+| Project of staging | `software-factory-manager-staging`, for staging alone. Its API token, which needs read and write permission, is `HETZNER_TOKEN` in the `.env` of the maintainer's main checkout, and nowhere else |
+| Region | `fsn1` (Falkenstein, Germany), a location: Hetzner's API no longer names a datacenter |
+| Staging server | `staging`, plan CX23, system image `ubuntu-26.04`, labelled `environment=staging`. Created by `task staging:on` and destroyed by `task staging:off`, from the choices in `deploy/server.staging.yaml`, and prepared by `deploy/cloud-init.yaml`. It exists only while staging is on |
+| Address of staging | An ordinary IPv4 address, created with the server and deleted with it, and no IPv6. No reserved address: each turn-on gets a new one |
+| SSH key of the project | `staging`, the deploy public key of the server, labelled `environment=staging`, registered with the server so that Hetzner e-mails no root password, and removed with it. A new one each turn-on |
+| Firewall | None at Hetzner: the firewall is inside the server, ufw, which lets in 22, 80 and 443 (`deploy/cloud-init.yaml`) |
+| SSH | Key login as the deploy user; no password, no root. The host key is the one the tool gave the server |
+| Production server | Plan CX23; project, name and IP address _not created_ |
+| Restore-test server | _Decided with production_: a task of the maintainer's machine (ADR-0019) |
 
 ## Backblaze B2
 

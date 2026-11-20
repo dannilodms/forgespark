@@ -14,3 +14,10 @@
 - [ ] A test through HTTP, as `caddy_test.go` does, starts Caddy with the staging configuration and its own local certificates. It proves the forwarding of the three host names, the password of Mailpit, the rate limit and the headers.
 - [ ] The checks validate the staging Compose file with `docker compose config`.
 - [ ] `CODING_STANDARDS.md` (Compose files, Delivery) matches what was built.
+
+## Comments
+
+### From ticket 01
+
+- Docker publishes the port of a container past ufw, the firewall that `deploy/cloud-init.yaml` sets inside the server: it writes rules of its own in iptables. The staging Compose file publishes Caddy's 80 and 443 and nothing else, or what it publishes is open to the internet whatever ufw says. The firewall lets in 443/udp too, for HTTP/3 if Caddy keeps it. The rule is in Ports, in Servers of `CODING_STANDARDS.md`.
+- The host names are `app.`, `files.` and `mail.` before the address of the server written with dashes, then `.sslip.io` (`app.203-0-113-10.sslip.io`), as `hostNamesOf` in `apps/api/tools/environment/status.go` writes them and `task staging:status` prints them. The publish derives them the same way, from that function.

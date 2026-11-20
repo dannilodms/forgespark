@@ -25,7 +25,7 @@ apps/api/internal/
 
 A **domain area** is one part of the business with its own aggregates. It is the deep module of the backend: its public surface is its use cases, and everything else is internal to it.
 
-Beside `internal`, `apps/api/cmd/api` holds the commands of the binary (see Commands), `apps/api/migrations` the migrations (see Database), `apps/api/tools` the checks of the build that are written in this repository and `apps/api/openapi.yaml` the OpenAPI spec generated from the code (see Enforcement). `platform` is a set of packages, one per concern: `clock` (the clock of the machine), `config`, `database`, `health`, `identifier` (the identifier of a record as it leaves the backend, see API conventions), `jobs` (River: the queues, the saving of a job and the runner of the worker, see Jobs), `lifecycle` (the signals, the shutdown notice and the server), `restapi` (what every REST operation stands on: Huma, the error format, strict input, the limits of a body and the operations that need a logged-in user), `session` (the session of a browser: scs on PostgreSQL, and the refusal of a request from another site that carries its cookie, see Login) and `telemetry` (the logger, the tracer and the telemetry of a request).
+Beside `internal`, `apps/api/cmd/api` holds the commands of the binary (see Commands), `apps/api/migrations` the migrations (see Database), `apps/api/tools` the tools written in this repository, which no image holds: the checks of the build (see Enforcement) and the tool that turns an environment on and off (see Servers in Environments), and `apps/api/openapi.yaml` the OpenAPI spec generated from the code (see Enforcement). `platform` is a set of packages, one per concern: `clock` (the clock of the machine), `config`, `database`, `health`, `identifier` (the identifier of a record as it leaves the backend, see API conventions), `jobs` (River: the queues, the saving of a job and the runner of the worker, see Jobs), `lifecycle` (the signals, the shutdown notice and the server), `restapi` (what every REST operation stands on: Huma, the error format, strict input, the limits of a body and the operations that need a logged-in user), `session` (the session of a browser: scs on PostgreSQL, and the refusal of a request from another site that carries its cookie, see Login) and `telemetry` (the logger, the tracer and the telemetry of a request).
 
 An **inbound adapter** calls use cases on behalf of an outside caller: REST for the React app and for the agents of ADR-0004, MCP for coding agents, a job worker for work that runs in the background. An **outbound adapter** implements an interface that `application` declares: Postgres, the S3 storage, an LLM provider. `adapters` has one package per technology, one level deep, and an area creates only the ones it uses.
 
@@ -152,6 +152,7 @@ The terms user, role, administrator, developer and scope are defined in `GLOSSAR
 - **The seed apart.** `apps/api/cmd/seed` is a second `main` package of the module, with the `seed` command alone, built into its own image (see Seed in Environments). It keeps the rules below as the commands of the API binary do.
 - **Wired by hand.** A command wires its own dependencies, in its file: it loads the configuration, builds the pool and the adapters, and passes each part to what uses it. No injection library is used, and no other package builds a dependency for another.
 - **Testable whole.** A command receives its arguments, the environment and its outputs, and returns the exit status: 0 when it succeeded, 1 when it failed, 2 when it was not understood. A test runs it as the process would.
+- **The tool of the environments.** `apps/api/tools/environment` is a `main` package of the module, run on the maintainer's machine with `go run` (`task staging:on`, `task staging:off`, `task staging:status`) and built into no image. It keeps the rules above. Its commands also receive what they reach outside the process, the provider, readiness and the clock among them, so that its tests give them in-memory implementations.
 
 ### Configuration
 
@@ -159,9 +160,9 @@ The terms user, role, administrator, developer and scope are defined in `GLOSSAR
 - **Fails at the start.** A missing or invalid value stops the process before it serves anything, with a line that names the variable and never its value.
 - **By command.** A command requires only the variables it uses. The API never receives the connection of the migration role, and `migrate` never receives the one of the API role.
 - **Secrets do not print.** A value that carries a secret, such as a connection URL, is a type that prints as a placeholder. It keeps that type until the adapter hands it to the library that uses it, at the last moment: the settings of the pool and of the storage hold the type, not the text. A secret a domain computes with keeps a secret type of that domain, which prints as a placeholder too: the command turns the key of the login code (`config.Key`) into `access/domain.LoginCodeKey` at once, and only the HMACs of `access/domain` read its bytes.
-- **No file.** The binary reads no `.env` and no configuration file. Compose and Task load the variables.
+- **No file.** The binary reads no `.env` and no configuration file. Compose and Task load the variables. The tool of the environments, which is no part of the binary, is the one exception: when the process has no token of the provider, it reads it from the `.env` of the main checkout, also when it runs in a worktree, whose own `.env` Task loaded instead (see Servers in Environments).
 - **Passed in.** A domain area receives the values it needs when it is built. `application` and `domain` never import the configuration struct.
-- **Example.** Every variable is listed in the committed `.env.example`, with no real secret.
+- **Example.** Every variable of the system is listed in the committed `.env.example`, with no real secret. The variables of the tool of the environments are not, because they live on the maintainer's machine alone and the publish asks a staging value for every name listed there: `HETZNER_TOKEN`, the token of the provider.
 
 ### Telemetry
 
@@ -353,7 +354,7 @@ A rule that tooling can check fails the build. `task api:lint` runs the checks o
 - **Linter.** golangci-lint, configured in `apps/api/.golangci.yml`: its standard set of linters, and nolintlint, which makes a `//nolint` name the rule it silences and say why.
 - **Formatter.** gofumpt, run by golangci-lint, so a file that is not formatted fails the lint. `task api:format` rewrites the files.
 - **Imports.** `apps/api/tools/guard/imports` checks the table of the Dependency rule on every import under `internal`, and that every package there has a place in the Layout. A test file may also import a third-party library, in any layer.
-- **Control flow.** `apps/api/tools/guard/controlflow` rejects an `else`, an `else if` included, and a block that opens inside another block of the same function. The blocks are `if`, `for`, `switch` and `select`. A function literal starts again from zero.
+- **Control flow.** `apps/api/tools/guard/controlflow` rejects an `else`, an `else if` included, and a block that opens inside another block of the same function. The blocks are `if`, `for`, `switch` and `select`. A function literal starts again from zero. It judges every Go file of the module, the tests and `apps/api/tools` included, as the linter does; the imports are judged under `internal` only.
 - **Mapping.** The exhaustruct linter of golangci-lint, limited to the types of the adapter packages: a struct literal of an API type or of a database row that leaves a field out fails the lint. The zero value returned beside an error is allowed.
 - **Generated code.** A file is generated when it carries the comment Go defines for it, `// Code generated ... DO NOT EDIT.`, before the package clause. Its format, its lint and its control flow are not judged. Its imports are.
 - **Fixtures.** No check reads a `testdata` directory.
@@ -677,13 +678,17 @@ Where the system runs and what each environment declares. The reasons, and the t
 
 ### Servers
 
-- **One file.** `deploy/cloud-init.yaml` prepares every server: Docker, the deploy user, the firewall and automatic security updates. The provider's command-line tool applies it.
+- **One file.** `deploy/cloud-init.yaml` prepares every server: Docker from Docker's own repository, at the versions the file names; the deploy user, in Docker's group; the host key it is given; SSH by key only; the firewall; automatic security updates; and, last, the signal that the server is prepared. Its steps run as one script that stops at the first one that fails, so a server that is not prepared never gives the signal. The tool of the environments writes the keys of each new server into it and hands it to the provider.
+- **Its choices.** The provider, the region, the size, the system image and the name of an environment's server are in `deploy/server.<environment>.yaml`, which the tool reads. Moving to another provider changes that file and adds an adapter to the tool, in `apps/api/tools/environment/provider`; the cloud-init file, the pipeline and the publish stay as they are. Hetzner's adapter, on hcloud-go, is the only one, and creates no firewall at Hetzner.
 - **Nothing only by hand.** A change made by hand on the production server is written into that file as well, so a new server comes up the same.
-- **Ports.** 22, 80 and 443, and no other.
-- **SSH.** Key login only, as the deploy user. No password and no root login.
-- **Staging lifecycle.** The `staging` label on a pull request creates the server. Removing the label or closing the pull request destroys it, and a scheduled sweep destroys any staging server older than 24 hours.
-- **Staging address.** A reserved IP address, with DNS records set once by hand. The app, Garage and Mailpit each have a host name. The one of Mailpit asks for a password.
-- **Staging certificates.** Caddy's certificate data is saved to a private bucket before the server is destroyed and restored on the next one.
+- **Ports.** 22, 80 and 443, and no other: the firewall inside the server, ufw, lets nothing else in. Docker publishes the port of a container past ufw, through rules of its own in iptables, so the Compose file of a server publishes the ports of Caddy and nothing else.
+- **SSH.** Key login only, as the deploy user. No password and no root login. The tool generates the host key and gives it to the server, so the tool, the pipeline and the maintainer trust that key alone, from the first connection, and refuse a server that answers with another before offering it the deploy key. Each new server gets a new deploy key and a new host key.
+- **Staging, on and off.** By hand, from the maintainer's machine, in the main checkout or a worktree of it; GitHub Actions holds no credential of the provider. `task staging:on` creates the server and returns once it answers SSH with its host key and cloud-init has prepared it, within about ten minutes; a failure after the server was asked for destroys it, with its deploy key at the provider and the local copy, and exits with an error. Turning on when staging is on checks that the server answers and creates nothing. `task staging:off` destroys the server, its address and its deploy key at the provider; when staging is off it succeeds and says so. `task staging:status` tells whether it is on, since when, and at which address and host names. Nothing turns staging off by itself.
+- **The token.** `HETZNER_TOKEN`, the API token of the Hetzner project of staging, from the variables of the process or else from the `.env` of the main checkout. It never reaches GitHub or a server.
+- **The local copy.** While an environment is on, the main checkout keeps in `.servers/<environment>/`, which git ignores, the deploy key, the host key as a line of known hosts and a configuration of OpenSSH that uses both: `ssh -F .servers/staging/ssh_config staging`, from the main checkout, logs in as the deploy user. Only the owner of the files can read them, which OpenSSH requires of a private key; on Windows that is an access list of their own. Turning off removes them.
+- **Nothing printed.** No command of the tool prints a token or a private key. Its tests run each command with known secrets and search what it printed.
+- **Staging address.** Provisional, until the domain is registered: each server has the host names `app`, `files` and `mail` under its own address written for `sslip.io`, with dashes (`app.203-0-113-10.sslip.io`), so they change each time staging is turned on (see [`docs/providers.md`](docs/providers.md)). The origin of the app is `https://` and the host name of the app. The one of Mailpit asks for a password.
+- **Staging certificates.** Caddy keeps its certificates in a volume of the server that every publish keeps, so they last as long as the server. A new server has new host names, so no certificate is asked for twice.
 
 ### Secrets
 
@@ -776,7 +781,7 @@ Every tool, library and container image runs at a version written in a committed
 | --- | --- |
 | The system itself | `VERSION` at the root (see Releases) |
 | Go toolchain | the `go` and `toolchain` lines of `go.mod` |
-| Go libraries | `go.mod` and `go.sum` |
+| Go libraries, hcloud-go, the library of the provider, included | `go.mod` and `go.sum` |
 | Go command-line tools (sqlc, vacuum, oasdiff, the River CLI) | the `tool` line of a module file of its own beside `go.mod`, one for each tool (`apps/api/sqlc.mod`), run with `go tool -modfile=sqlc.mod` |
 | The Go linter and formatter (golangci-lint, with gofumpt inside it) | the `tool` line of `apps/api/golangci-lint.mod`, a module file of its own, run with `go tool -modfile=golangci-lint.mod` |
 | Node.js | `devEngines.runtime` in `apps/web/package.json`, written by `vp env pin` |
@@ -786,9 +791,10 @@ Every tool, library and container image runs at a version written in a committed
 | What the images built in this repository are built on (the API, Caddy with the built web app, the seed) | the `FROM` lines of their Dockerfiles: `apps/api/cmd/api/Dockerfile`, `deploy/caddy/Dockerfile` and `apps/api/cmd/seed/Dockerfile`. The Go image of the API and of the seed names the Go version of `go.mod` again and is updated with it. No Dockerfile names Node.js: the app is built outside the image, by `task web:build`, and the Caddy image copies its output |
 | Caddy plugins | the Dockerfile that builds the Caddy image |
 | pgBackRest | the Dockerfile that builds the PostgreSQL image |
-| GitHub Actions and the tools a workflow installs (Task, the provider's command-line tool, Trivy) | the workflow file: an action by its full commit hash, a tool by its exact version |
+| GitHub Actions and the tools a workflow installs (Task, Trivy) | the workflow file: an action by its full commit hash, a tool by its exact version |
 | The linters of the workflows (actionlint, zizmor), run from their images | a variable of `workflows:check` in `Taskfile.yml` whose name ends in `_IMAGE`: the image by its tag and by the digest of that tag in its registry, `name:1.2.3@sha256:...` |
-| The system image of the servers | `deploy/cloud-init.yaml` and the workflow that creates a server |
+| The system image of a server | `system_image` in the choices of its environment, `deploy/server.<environment>.yaml` |
+| Docker on the servers | the `packages` of `deploy/cloud-init.yaml`, each at the exact version of Docker's repository built for the release of Ubuntu of the system image |
 | MCP servers for agents | `.mcp.json` |
 | Docker, Task, the global `vp`, the installed Go and the GitHub CLI | the prerequisites table of `README.md`, as a minimum version |
 | What the maintainer's machine has installed (the prerequisites above, Git, Node.js and its version manager, pnpm) | `docs/machine-tools.yaml`, as the version in use |
@@ -805,7 +811,7 @@ Every tool, library and container image runs at a version written in a committed
 
 ### Updating
 
-- **Listing.** `task outdated` lists what has a newer release among the versions the repository pins: the Go toolchain, Go modules and tools, Node.js, pnpm, JavaScript packages, container images, Caddy plugins, pgBackRest, GitHub Actions and the tools a workflow installs, the system image of the servers and MCP servers. It is written when the deploy is built.
+- **Listing.** `task outdated` lists what has a newer release among the versions the repository pins: the Go toolchain, Go modules and tools, Node.js, pnpm, JavaScript packages, container images, Caddy plugins, pgBackRest, GitHub Actions and the tools a workflow installs, the system image of the servers, Docker on the servers and MCP servers. It is written when the deploy is built.
 - **Every week.** A scheduled workflow runs the listing and warns the maintainer through one issue (see Scheduled workflows). Updating stays a decision of the maintainer.
 - **The machine.** `task outdated:machine` is run by hand on the maintainer's machine, which no workflow can see. It reads `docs/machine-tools.yaml` and lists the tools that have a newer release and the ones whose installed version differs from the recorded one. After an update the file is corrected (see `AGENTS.md`).
 - **One at a time.** An update is its own commit: one dependency, or one family released together (TanStack, OpenTelemetry), with the build and the tests passing.
@@ -823,4 +829,4 @@ Every tool, library and container image runs at a version written in a committed
 - **`.mcp.json`**: a server that `npx` or `pnpm dlx` downloads names its package as `name@1.2.3`.
 - **`Taskfile.yml`**: a variable under `vars` whose name ends in `_IMAGE`, as an image above, such as the image of a linter that `workflows:check` runs, and one whose name ends in `_VERSION`, by its three numbers. A tag followed by its digest passes, and so does a tag alone: the check asks no image for its digest, which the linters carry by the rule of their row above.
 
-What the check does not read stays a rule for the author: pgBackRest in its Dockerfile, the system image of the servers, and a one-off command in `Taskfile.yml` that names its version in its text. Each joins the check when its file is written.
+What the check does not read stays a rule for the author: pgBackRest in its Dockerfile, and a one-off command in `Taskfile.yml` that names its version in its text. Each joins the check when its file is written. The system image of the servers and Docker on them are judged by the tests of `apps/api/tools/environment` instead, which `task api:test` runs: each package of Docker in the cloud-init file names an exact version built for the release of Ubuntu that the system image of every environment names, so the two change together.
