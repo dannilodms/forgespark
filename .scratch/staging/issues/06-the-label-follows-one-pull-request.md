@@ -64,3 +64,4 @@ With this ticket on `feat/staging`, pushed, staging on and pull request #10 open
 4. `gh pr edit 10 --add-label staging`: #10's checks run again and it is published; B loses the label, with a comment naming #10.
 5. `gh pr edit <B> --remove-label documentation`, then `--add-label documentation` again: B, without `staging`, publishes nothing.
 6. `git commit --allow-empty -m "Try a push"` on B's branch and push: its run skips "Publish to staging". Then `gh pr close <B> --delete-branch`.
+
