@@ -4,7 +4,7 @@
 
 **Blocked by:** 01.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] GitHub is an interface: make sure the environment and the label exist, set and delete a secret or a variable of the environment, and find the open pull request with the label. It has an in-memory implementation for the tests and an adapter that calls `gh`.
 - [x] The `gh` adapter passes a secret value through standard input, never as an argument. A test against a stand-in executable that records its arguments and its input proves it.
@@ -13,7 +13,7 @@
 - [x] The password of Mailpit is generated the first time staging is turned on and kept in the `.env` of the main checkout, under a name of its own that is not in `.env.example`. The next turn-on reuses it.
 - [x] The status shows the open pull request that has the `staging` label, or none.
 - [x] The token of the provider never reaches GitHub: a test checks that nothing written to the fake GitHub holds it.
-- [ ] After a real turn-on, `gh secret list --env staging` and `gh variable list --env staging` show the names above. After a real turn-off, only the password of Mailpit is left.
+- [x] After a real turn-on, `gh secret list --env staging` and `gh variable list --env staging` show the names above. After a real turn-off, only the password of Mailpit is left.
 - [x] `docs/providers.md` lists the environment `staging`, the label, and the names of its secrets and variables, with no value.
 
 ## Comments
@@ -45,6 +45,14 @@
 - `go test -count=1 ./tools/environment/...` on Windows: the commands with the fake GitHub (what the environment holds after on, on again with the values cleared and the clock moved, off, off when off, off with no environment, a failure after writing, a failure before writing, GitHub unreachable on on, off and status, the label), the password of Mailpit (chosen once, reused, kept in the main checkout from a worktree with LF, CR LF and no last line end, a variable of the process winning, not in `.env.example`, a `.env` that cannot be read), the status with and without labelled pull requests, the token in nothing written to GitHub (from the process and from the `.env`), and no command printing the token, the keys or the password. The `gh` adapter against the stand-in (`-count=5`): the exact arguments and input of each call, the secret in no argument, an environment created only when absent, deletions only of what is listed, the pull requests parsed, a failure naming what failed and what `gh` said, and no `gh` on the PATH.
 - `golangci-lint run ./tools/environment/...`, `go run ./tools/guard code`, `go vet` with `GOOS=linux` and `GOOS=darwin`, and `task check:quick`: every step passed but `api:test`, where the eleven packages that create databases failed together on PostgreSQL's connection limit ("too many clients") and the 30-second limit of a new database, with other checkouts testing against the same PostgreSQL; run again alone (`task api:test -- -p 1 <those packages>`), all eleven passed, as Tests in `CODING_STANDARDS.md` says to do.
 
-### Found, and left for a decision
-
-- `gh auth status` lists no scopes for the maintainer's login, the mark of a fine-grained token. If its permissions on this repository do not cover creating an environment (Administration), its secrets and variables (Environments, or Secrets and Variables) and a label (Issues or Pull requests), the first real `task staging:on` stops at "make sure the GitHub Environment staging exists", before creating any server; the token then needs those permissions.
+- For real, on 2026-11-19 and 20, by the orchestrator from a worktree:
+  - **First turn-on.** It created the environment `staging` (no protection rule) and the label `staging`, then the server. It then failed on the first secret: `HTTP 403: Resource not accessible by personal access token`, with `X-Accepted-GitHub-Permissions: environments=read`. The maintainer's fine-grained token had Administration and Pull requests, but not Environments. The undo destroyed the server, its address and its key at Hetzner, and removed `.servers/staging`. Deleting the values from GitHub failed on the same 403, and nothing had been written there. The message said so and said to turn staging off. Hetzner's API then listed nothing. The prediction above, that the turn-on would stop before any server, did not hold: creating the environment needs Administration only.
+  - **Second turn-on**, after the maintainer gave the token Environments (read and write). It was ready in 5 min 30 s and printed that the environment has the address, the host key, the deploy key and the password of Mailpit. It reused the password of Mailpit that the first turn-on had chosen and kept in the main checkout's `.env` as `STAGING_MAILPIT_PASSWORD` (it printed that line then, with no value).
+  - `gh secret list --env staging` listed `DEPLOY_KEY` and `MAILPIT_PASSWORD`. `gh variable list --env staging` listed `SERVER_ADDRESS`, `SERVER_HOST_KEY` and `TURNED_ON_AT`, which held `2026-11-20T01:28:54Z`, the creation time that `task staging:status` gave ("since 2026-11-20 01:28 UTC"). The status said no open pull request has the label.
+  - **Turn-off.** `task staging:off` said the environment keeps only the password of Mailpit. Afterwards `gh secret list` listed `MAILPIT_PASSWORD` alone, `gh variable list` listed nothing, the label stayed, and Hetzner's API listed no server, address, key, volume or firewall.
+- The second server also proved the fix of `deploy/cloud-init.yaml` from ticket 01:
+  - `cloud-init status --long` said `extended_status: done`, with no recoverable error;
+  - `cloud-init schema` found the user-data valid;
+  - only `/etc/ssh/ssh_host_ed25519_key` existed, and `sshd -T` named it as the only `hostkey`;
+  - an SSH client limited to ECDSA or RSA host keys could not connect.
+- `README.md` and `README.pt-BR.md` (Deploy) now name the permissions a fine-grained token needs: Administration, Environments and Pull requests, each read and write. They also say that without Environments, turning staging on fails with a 403 and destroys the server it created.
