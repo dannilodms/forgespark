@@ -275,29 +275,58 @@ func TestDeletingWhatDoesNotExistSucceedsAndDeletesNothing(t *testing.T) {
 	}
 }
 
-func TestTheLabelledPullRequestsAreTheOnesGhLists(t *testing.T) {
+// openPullRequests is GitHub's own list of the open pull requests, which
+// is current at once. `gh pr list --label` asks GitHub's search instead,
+// which can still list a pull request whose label came off a moment ago.
+const openPullRequests = "repos/{owner}/{repo}/pulls?state=open&per_page=100"
+
+func TestTheLabelledPullRequestsAreTheOpenOnesWithTheLabel(t *testing.T) {
 	t.Parallel()
 	fake := newFakeGh(t)
-	fake.answers(0, `[{"number":12,"title":"Publish to staging","url":"https://github.com/dannilodms/software-factory-manager/pull/12"}]`, "", "pr", "list")
+	fake.answers(0, `{"number":11,"title":"Another change","url":"https://github.com/dannilodms/software-factory-manager/pull/11","labels":["documentation"]}
+{"number":12,"title":"Publish to staging","url":"https://github.com/dannilodms/software-factory-manager/pull/12","labels":["staging"]}
+{"number":13,"title":"Also labelled","url":"https://github.com/dannilodms/software-factory-manager/pull/13","labels":["documentation","Staging"]}
+`, "", "api", openPullRequests)
 
 	found, err := fake.github().LabelledPullRequests(context.Background(), "staging")
 
 	require.NoError(t, err)
-	assert.Equal(t, []github.PullRequest{{
-		Number: 12, Title: "Publish to staging", URL: "https://github.com/dannilodms/software-factory-manager/pull/12",
-	}}, found)
-	assert.Equal(t, []call{{Arguments: []string{"pr", "list", "--label", "staging", "--state", "open", "--json", "number,title,url"}}}, fake.calls())
+	assert.Equal(t, []github.PullRequest{
+		{Number: 12, Title: "Publish to staging", URL: "https://github.com/dannilodms/software-factory-manager/pull/12"},
+		{Number: 13, Title: "Also labelled", URL: "https://github.com/dannilodms/software-factory-manager/pull/13"},
+	}, found, "GitHub compares the names of labels regardless of case")
+	assert.Equal(t, []call{{Arguments: []string{
+		"api", openPullRequests, "--paginate", "--jq", ".[] | {number, title, url: .html_url, labels: [.labels[].name]}",
+	}}}, fake.calls())
 }
 
 func TestNoPullRequestWithTheLabel(t *testing.T) {
 	t.Parallel()
+	for name, listed := range map[string]string{
+		"no open pull request":                    "",
+		"no open pull request that has the label": `{"number":11,"title":"Another change","url":"https://github.com/dannilodms/software-factory-manager/pull/11","labels":[]}` + "\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			fake := newFakeGh(t)
+			fake.answers(0, listed, "", "api", openPullRequests)
+
+			found, err := fake.github().LabelledPullRequests(context.Background(), "staging")
+
+			require.NoError(t, err)
+			assert.Empty(t, found)
+		})
+	}
+}
+
+func TestAListThatIsNotReadableIsAFailure(t *testing.T) {
+	t.Parallel()
 	fake := newFakeGh(t)
-	fake.answers(0, "[]\n", "", "pr", "list")
+	fake.answers(0, "<html>Unicorn!</html>\n", "", "api", openPullRequests)
 
-	found, err := fake.github().LabelledPullRequests(context.Background(), "staging")
+	_, err := fake.github().LabelledPullRequests(context.Background(), "staging")
 
-	require.NoError(t, err)
-	assert.Empty(t, found)
+	require.ErrorContains(t, err, "read the pull requests gh listed: ")
 }
 
 func TestACommentGoesToGhThroughItsStandardInput(t *testing.T) {
@@ -319,6 +348,28 @@ func TestAFailureToCommentSaysOnWhichPullRequest(t *testing.T) {
 	err := fake.github().CommentOnPullRequest(context.Background(), 12, "Staging shows this pull request.")
 
 	require.EqualError(t, err, "comment on the pull request #12: gh failed, with exit status 1: GraphQL: Resource not accessible by integration (addComment)")
+}
+
+// The label comes off through the REST API of issues, which the token of a
+// job reaches with the permission to write pull requests.
+func TestALabelComesOffThePullRequestThroughTheAPIOfItsIssue(t *testing.T) {
+	t.Parallel()
+	fake := newFakeGh(t)
+
+	err := fake.github().RemoveLabel(context.Background(), 7, "staging")
+
+	require.NoError(t, err)
+	assert.Equal(t, []call{{Arguments: []string{"api", "--method", "DELETE", "repos/{owner}/{repo}/issues/7/labels/staging", "--silent"}}}, fake.calls())
+}
+
+func TestAFailureToTakeALabelOffSaysOffWhichPullRequest(t *testing.T) {
+	t.Parallel()
+	fake := newFakeGh(t)
+	fake.answers(1, "", "gh: Resource not accessible by integration (HTTP 403)\n", "api", "--method", "DELETE")
+
+	err := fake.github().RemoveLabel(context.Background(), 7, "staging")
+
+	require.EqualError(t, err, "take the label staging off the pull request #7: gh failed, with exit status 1: gh: Resource not accessible by integration (HTTP 403)")
 }
 
 func TestAFailureOfGhSaysWhatFailedAndWhatGhSaidAndNoValue(t *testing.T) {

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"maps"
 	"os"
@@ -17,6 +19,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ssh/knownhosts"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
 )
 
@@ -32,14 +35,16 @@ const (
 	compose = "docker compose --file staging/compose.staging.yaml --env-file staging/.env"
 )
 
-// readyToPublish gives the publish the variables the job gives it for pull
-// request #12, from the GitHub Environment of a staging that is on at
-// 203.0.113.10, and nothing else: no token of the provider. The deploy key
-// comes without its last line break, as gh keeps it.
+// readyToPublish opens pull request #12 with the staging label and gives the
+// publish the variables the job gives it for that pull request, from the
+// GitHub Environment of a staging that is on at 203.0.113.10, and nothing
+// else: no token of the provider. The deploy key comes without its last
+// line break, as gh keeps it.
 func (w *world) readyToPublish() serverKeys {
 	w.t.Helper()
 	keys, err := newServerKeys("staging")
 	require.NoError(w.t, err)
+	w.github.AddPullRequest(aPullRequest(12, "Publish to staging"), "staging")
 	w.variables = map[string]string{
 		"COMMIT":           publishedCommit,
 		"PULL_REQUEST":     "12",
@@ -247,6 +252,92 @@ func TestThePublishedPullRequestGetsACommentWithTheAddressesOfTheAppAndOfMailpit
 	}, world.github.Comments(12))
 }
 
+// aPullRequest is an open pull request of the repository.
+func aPullRequest(number int, title string) github.PullRequest {
+	return github.PullRequest{Number: number, Title: title, URL: fmt.Sprintf("https://github.com/dannilodms/software-factory-manager/pull/%d", number)}
+}
+
+// labelledNumbers are the numbers of the open pull requests that have the
+// staging label.
+func (w *world) labelledNumbers() []int {
+	w.t.Helper()
+	labelled, err := w.github.LabelledPullRequests(context.Background(), "staging")
+	require.NoError(w.t, err)
+	numbers := make([]int, 0, len(labelled))
+	for _, pullRequest := range labelled {
+		numbers = append(numbers, pullRequest.Number)
+	}
+	return numbers
+}
+
+// shownElsewhere is the comment on a pull request that lost the label to
+// pull request #12.
+const shownElsewhere = "Staging shows pull request #12 now, so the `staging` label came off this pull request, " +
+	"and a push to it publishes nothing. Add the label again to publish it.\n"
+
+func TestAPublishTakesTheLabelOffEveryOtherOpenPullRequestWithACommentThere(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+	world.github.AddPullRequest(aPullRequest(7, "Shown before"), "staging", "documentation")
+	world.github.AddPullRequest(aPullRequest(9, "Not on staging"), "documentation")
+	world.readyToPublish()
+	world.github.AddPullRequest(aPullRequest(15, "Also labelled"), "staging")
+
+	world.succeeds("publish", "staging")
+
+	assert.Equal(t, []int{12}, world.labelledNumbers(), "staging shows one pull request")
+	assert.Equal(t, []string{"documentation"}, world.github.LabelsOf(7), "the other labels stay")
+	assert.Equal(t, []string{shownElsewhere}, world.github.Comments(7))
+	assert.Equal(t, []string{shownElsewhere}, world.github.Comments(15))
+	assert.Equal(t, []string{"documentation"}, world.github.LabelsOf(9))
+	assert.Empty(t, world.github.Comments(9), "a pull request without the label is left alone")
+	assert.Len(t, world.github.Comments(12), 1, "the published one gets the addresses")
+}
+
+// The run of a push made before the label came off, by another publish or
+// by hand, may reach its publish after: the label is read again then.
+func TestAPullRequestThatLostTheLabelBeforeItsPublishStartedIsNotPublished(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+	world.github.AddPullRequest(aPullRequest(14, "Shown now"), "staging")
+	world.readyToPublish()
+	require.NoError(t, world.github.RemoveLabel(context.Background(), 12, "staging"))
+
+	printed := world.succeeds("publish", "staging")
+
+	assert.Equal(t, "Pull request #12 does not have the staging label any more, so it is not published.\n", printed)
+	assert.Empty(t, world.server.targets, "the server was not logged in to")
+	assert.Empty(t, world.journal.entries)
+	assert.Equal(t, []int{14}, world.labelledNumbers(), "the pull request staging shows keeps its label")
+	assert.Empty(t, world.github.Comments(12))
+	assert.Empty(t, world.github.Comments(14))
+}
+
+func TestAPullRequestThatWasClosedBeforeItsPublishStartedIsNotPublished(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+	world.readyToPublish()
+	world.github.Close(12)
+
+	printed := world.succeeds("publish", "staging")
+
+	assert.Equal(t, "Pull request #12 does not have the staging label any more, so it is not published.\n", printed)
+	assert.Empty(t, world.server.targets)
+}
+
+func TestAPublishThatCannotReadTheLabelsStopsBeforeItLogsIn(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+	world.readyToPublish()
+	world.github.Unreachable(errors.New("gh failed, with exit status 1: HTTP 403"))
+
+	ran := world.run("publish", "staging")
+
+	assert.Equal(t, 1, ran.status)
+	assert.Equal(t, "environment: find whether pull request #12 still has the staging label: gh failed, with exit status 1: HTTP 403\n", ran.stderr)
+	assert.Empty(t, world.server.targets)
+}
+
 func TestTheFilesOfTheServerAreTheCommittedOnes(t *testing.T) {
 	t.Parallel()
 	world := aWorld(t)
@@ -380,7 +471,7 @@ func TestACommentThatFailsFailsThePublishOnceStagingShowsThePullRequest(t *testi
 	t.Parallel()
 	world := aWorld(t)
 	world.readyToPublish()
-	world.github.Unreachable(errors.New("comment on the pull request #12: gh failed, with exit status 1: HTTP 403"))
+	world.github.FailCommentingOn(12, errors.New("comment on the pull request #12: gh failed, with exit status 1: HTTP 403"))
 
 	ran := world.run("publish", "staging")
 
@@ -388,6 +479,42 @@ func TestACommentThatFailsFailsThePublishOnceStagingShowsThePullRequest(t *testi
 	assert.Equal(t, "environment: staging shows pull request #12, but it got no comment with the addresses: "+
 		"comment on the pull request #12: gh failed, with exit status 1: HTTP 403\n", ran.stderr)
 	assert.Contains(t, world.journal.entries, "wait until https://app.203-0-113-10.sslip.io/up answers")
+}
+
+func TestALabelThatDoesNotComeOffFailsThePublishOnceEverythingElseWasTried(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+	world.github.AddPullRequest(aPullRequest(7, "Shown before"), "staging")
+	world.github.AddPullRequest(aPullRequest(8, "Labelled too"), "staging")
+	world.readyToPublish()
+	world.github.FailRemovingALabelFrom(7, errors.New("take the label staging off the pull request #7: gh failed, with exit status 1: HTTP 403"))
+	world.github.FailCommentingOn(8, errors.New("comment on the pull request #8: gh failed, with exit status 1: HTTP 403"))
+
+	ran := world.run("publish", "staging")
+
+	assert.Equal(t, 1, ran.status)
+	assert.Equal(t, "environment: staging shows pull request #12, but "+
+		"the staging label is still on pull request #7: take the label staging off the pull request #7: gh failed, with exit status 1: HTTP 403; "+
+		"pull request #8 lost the staging label, with no comment saying why: comment on the pull request #8: gh failed, with exit status 1: HTTP 403\n", ran.stderr)
+	assert.Equal(t, []int{7, 12}, world.labelledNumbers())
+	assert.Empty(t, world.github.Comments(7))
+	assert.Len(t, world.github.Comments(12), 1, "the published one still gets the addresses")
+}
+
+func TestAPublishSaysOffWhichPullRequestsItTookTheLabel(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+	world.github.AddPullRequest(aPullRequest(7, "Shown before"), "staging")
+	world.readyToPublish()
+
+	printed := world.succeeds("publish", "staging")
+
+	assert.True(t, strings.HasSuffix(printed, "Staging shows pull request #12.\n"+
+		"  App:    https://app.203-0-113-10.sslip.io\n"+
+		"  Files:  https://files.203-0-113-10.sslip.io\n"+
+		"  Mail:   https://mail.203-0-113-10.sslip.io, as the user maintainer\n"+
+		"Took the staging label off pull request #7, with a comment there.\n"+
+		"Commented the addresses on pull request #12.\n"), printed)
 }
 
 func TestAPublishSaysEachOfItsSteps(t *testing.T) {

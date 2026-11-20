@@ -20,6 +20,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
 )
 
@@ -112,10 +113,22 @@ type step struct {
 // needs is checked before it logs in, so that a missing one never
 // half-changes the server. It prints no value, no variables file and no
 // configuration of a container.
+//
+// The label of the environment says which pull request it shows, and is
+// read again first: a pull request that lost it, or was closed, since the
+// event that started the run is not published.
 func publish(ctx context.Context, environment environment, stdout io.Writer) error {
 	given, err := environment.publication()
 	if err != nil {
 		return err
+	}
+	labelled, err := environment.stillLabelled(ctx, given.pullRequest)
+	if err != nil {
+		return err
+	}
+	if !labelled {
+		fmt.Fprintf(stdout, "Pull request #%d does not have the %s label any more, so it is not published.\n", given.pullRequest, environment.name)
+		return nil
 	}
 	variables, err := environment.variablesFile(given)
 	if err != nil {
@@ -208,17 +221,83 @@ func inSteps(stdout io.Writer, steps []step) error {
 	return failed
 }
 
-// announce says where staging shows the pull request, and comments the
-// same on the pull request.
+// announce says where the environment shows the pull request, takes the
+// label of the environment off every other open pull request that has it,
+// with a comment there, and comments the addresses on the one it shows. It
+// tries each of them, and then fails with whatever failed.
 func (e environment) announce(ctx context.Context, given publication, stdout io.Writer) error {
 	names := hostNamesOf(given.address)
 	fmt.Fprintf(stdout, "%s shows pull request #%d.\n  App:    https://%s\n  Files:  https://%s\n  Mail:   https://%s, as the user %s\n",
 		e.title(), given.pullRequest, names.app, names.files, names.mail, mailpitUser)
+	failed := errors.Join(
+		e.takeTheLabelOffTheOthers(ctx, given.pullRequest, stdout),
+		e.commentTheAddresses(ctx, given, stdout),
+	)
+	if failed != nil {
+		// errors.Join writes one failure a line: the output gives them one
+		// line together.
+		return fmt.Errorf("%s shows pull request #%d, but %s", e.name, given.pullRequest, strings.ReplaceAll(failed.Error(), "\n", "; "))
+	}
+	return nil
+}
+
+// stillLabelled tells whether the pull request with that number is open and
+// has the label of the environment now.
+func (e environment) stillLabelled(ctx context.Context, number int) (bool, error) {
+	labelled, err := e.outside.github.LabelledPullRequests(ctx, e.name)
+	if err != nil {
+		return false, fmt.Errorf("find whether pull request #%d still has the %s label: %w", number, e.name, err)
+	}
+	return slices.ContainsFunc(labelled, func(open github.PullRequest) bool { return open.Number == number }), nil
+}
+
+// takeTheLabelOffTheOthers takes the label of the environment off every
+// other open pull request that has it, so that a push to one of them
+// publishes nothing, with a comment there naming the pull request the
+// environment shows now. It tries each of them.
+func (e environment) takeTheLabelOffTheOthers(ctx context.Context, shown int, stdout io.Writer) error {
+	labelled, err := e.outside.github.LabelledPullRequests(ctx, e.name)
+	if err != nil {
+		return fmt.Errorf("the open pull requests with the %s label could not be read: %w", e.name, err)
+	}
+	var failed error
+	for _, other := range labelled {
+		failed = errors.Join(failed, e.takeTheLabelOff(ctx, other.Number, shown, stdout))
+	}
+	return failed
+}
+
+// takeTheLabelOff takes the label of the environment off the pull request
+// with that number, unless it is the one the environment shows.
+func (e environment) takeTheLabelOff(ctx context.Context, number, shown int, stdout io.Writer) error {
+	if number == shown {
+		return nil
+	}
+	if err := e.outside.github.RemoveLabel(ctx, number, e.name); err != nil {
+		return fmt.Errorf("the %s label is still on pull request #%d: %w", e.name, number, err)
+	}
+	if err := e.outside.github.CommentOnPullRequest(ctx, number, e.shownElsewhereComment(shown)); err != nil {
+		return fmt.Errorf("pull request #%d lost the %s label, with no comment saying why: %w", number, e.name, err)
+	}
+	fmt.Fprintf(stdout, "Took the %s label off pull request #%d, with a comment there.\n", e.name, number)
+	return nil
+}
+
+// commentTheAddresses comments the addresses on the pull request the
+// environment shows.
+func (e environment) commentTheAddresses(ctx context.Context, given publication, stdout io.Writer) error {
 	if err := e.outside.github.CommentOnPullRequest(ctx, given.pullRequest, e.publishedComment(given)); err != nil {
-		return fmt.Errorf("%s shows pull request #%d, but it got no comment with the addresses: %w", e.name, given.pullRequest, err)
+		return fmt.Errorf("it got no comment with the addresses: %w", err)
 	}
 	fmt.Fprintf(stdout, "Commented the addresses on pull request #%d.\n", given.pullRequest)
 	return nil
+}
+
+// shownElsewhereComment is the comment of a pull request whose label came
+// off because the environment shows another one now.
+func (e environment) shownElsewhereComment(shown int) string {
+	return fmt.Sprintf("%s shows pull request #%d now, so the `%s` label came off this pull request, "+
+		"and a push to it publishes nothing. Add the label again to publish it.\n", e.title(), shown, e.name)
 }
 
 // publishedComment is the comment of the pull request that the environment

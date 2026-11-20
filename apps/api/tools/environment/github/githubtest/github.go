@@ -35,6 +35,8 @@ type GitHub struct {
 	written      []string
 	unreachable  error
 	setErrs      map[string]error
+	commentErrs  map[int]error
+	removeErrs   map[int]error
 }
 
 // NewGitHub gives a repository with no environment, no label and no pull
@@ -45,7 +47,21 @@ func NewGitHub() *GitHub {
 		labels:       map[string]github.Label{},
 		comments:     map[int][]string{},
 		setErrs:      map[string]error{},
+		commentErrs:  map[int]error{},
+		removeErrs:   map[int]error{},
 	}
+}
+
+// FailCommentingOn makes every later comment on the pull request with that
+// number fail with err and add nothing.
+func (g *GitHub) FailCommentingOn(number int, err error) {
+	g.commentErrs[number] = err
+}
+
+// FailRemovingALabelFrom makes every later removal of a label from the pull
+// request with that number fail with err and remove nothing.
+func (g *GitHub) FailRemovingALabelFrom(number int, err error) {
+	g.removeErrs[number] = err
 }
 
 // Unreachable makes every later call fail with err and change nothing, as
@@ -63,6 +79,11 @@ func (g *GitHub) FailSettingWith(name string, err error) {
 // AddPullRequest opens a pull request with those labels.
 func (g *GitHub) AddPullRequest(pullRequest github.PullRequest, labels ...string) {
 	g.pullRequests = append(g.pullRequests, labelled{pullRequest: pullRequest, labels: labels})
+}
+
+// Close closes the pull request with that number, which keeps its labels.
+func (g *GitHub) Close(number int) {
+	g.pullRequests = slices.DeleteFunc(g.pullRequests, func(open labelled) bool { return open.pullRequest.Number == number })
 }
 
 // EnsureEnvironment creates the environment when it does not exist.
@@ -156,8 +177,30 @@ func (g *GitHub) CommentOnPullRequest(_ context.Context, number int, body string
 	if g.unreachable != nil {
 		return g.unreachable
 	}
+	if err := g.commentErrs[number]; err != nil {
+		return err
+	}
 	g.written = append(g.written, body)
 	g.comments[number] = append(g.comments[number], body)
+	return nil
+}
+
+// RemoveLabel takes the label off the pull request. Like GitHub, it refuses
+// to take off a label the pull request does not have.
+func (g *GitHub) RemoveLabel(_ context.Context, number int, label string) error {
+	if g.unreachable != nil {
+		return g.unreachable
+	}
+	if err := g.removeErrs[number]; err != nil {
+		return err
+	}
+	found := slices.IndexFunc(g.pullRequests, func(open labelled) bool {
+		return open.pullRequest.Number == number && slices.Contains(open.labels, label)
+	})
+	if found < 0 {
+		return fmt.Errorf("the pull request #%d does not have the label %s", number, label)
+	}
+	g.pullRequests[found].labels = slices.DeleteFunc(g.pullRequests[found].labels, func(name string) bool { return name == label })
 	return nil
 }
 
@@ -165,6 +208,15 @@ func (g *GitHub) CommentOnPullRequest(_ context.Context, number int, body string
 // made.
 func (g *GitHub) Comments(number int) []string {
 	return slices.Clone(g.comments[number])
+}
+
+// LabelsOf gives the labels of the pull request with that number.
+func (g *GitHub) LabelsOf(number int) []string {
+	found := slices.IndexFunc(g.pullRequests, func(open labelled) bool { return open.pullRequest.Number == number })
+	if found < 0 {
+		return nil
+	}
+	return slices.Clone(g.pullRequests[found].labels)
 }
 
 // Environments gives the names of the environments that exist.
