@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] An image of the API runs the binary with each of its commands: serve, `migrate`, `worker`. `issue-setup-code` stays reachable for the installer.
 - [x] The web app is built with the same command the checks use, and its output goes into an image of Caddy that keeps the rate-limit plugin. Node keeps its one home in `apps/web/package.json`: no Dockerfile names a Node version.
 - [x] Task targets build each image locally and publish nothing, as `seed:image` does.
-- [ ] The backend job of the pipeline (or the job that builds the web app) builds both images on every pull request, so that a change that breaks either fails before anything is published.
+- [x] The backend job of the pipeline (or the job that builds the web app) builds both images on every pull request, so that a change that breaks either fails before anything is published.
 - [x] `task versions:check` accepts every new pinned version, and every new image tag is exact.
 - [x] The development Compose file and `task dev` behave as before: development still serves the web app through Vite.
 - [x] `CODING_STANDARDS.md` (Checks on a pull request, Publishing, Versions) names the images and where their versions live.
@@ -43,6 +43,10 @@
 - The Caddy image of the servers: `/srv` holds `index.html` and `assets/` with their `.br` copies, `caddy list-modules` lists `http.handlers.rate_limit`, and the version is 2.11.9. Every one of the eight copies decompresses to its file.
 - `task versions:check`, `task workflows:check` (offline audits), `vp check` (the new file is type-checked) and the lint of the API all pass.
 - `task check:quick` ran once at the end, with the three images. Every step passed but `api:test`, where two tests outside this change, `TestTheWorkerStopsAtOnceWhileAMigrationIsPending` and `TestTheSeedFailsWhileAMigrationIsPending`, failed in their cleanup: `DROP DATABASE ... WITH (FORCE)` ran out of time while the whole suite loaded PostgreSQL. `go test ./cmd/...` passed when run again. `task e2e` passed (7 tests), with the Caddy of development built from the stage `development`, so development still serves the app through Vite.
+- For real, on 2026-11-20, in run 44662023954 of pull request #10:
+  - the job Backend passed "Build the image of the seed" and "Build the image of the API";
+  - the job App passed "Build the web app, and the Caddy image of the servers with it inside";
+  - the job "Publish to staging" then built the three images again with the same Task targets, pushed them, and the server ran them (ticket 05).
 
 ### Found, and left for a decision
 
