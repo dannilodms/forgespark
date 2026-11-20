@@ -4,7 +4,7 @@
 
 **Blocked by:** 05, 06, 07.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] A global rule of Claude on this machine, written for this repository, says what the description above says. It recommends "without staging" for a pull request that changes only documents.
 - [x] The rule says that a failure to turn staging on is reported and stops the agent before the push.
@@ -19,7 +19,7 @@
   - Environments: read and write. The secrets and variables of `staging`, and later of `production`.
   - Administration: read and write. Creating the environments `staging` and `production`. The maintainer accepted the risk that it also allows deleting the repository and changing its rulesets.
   - Left out: Issues (Pull requests covers it), Workflows (git goes over SSH, and a token counts only for git over HTTPS), Variables (those of an environment come with Environments), Webhooks, and Packages (a fine-grained token cannot reach the GHCR; the pipeline uses `GITHUB_TOKEN`).
-- [ ] The real run, done with the maintainer and recorded here:
+- [x] The real run, done with the maintainer and recorded here:
   1. the rule's question is asked;
   2. staging is turned on;
   3. this effort's pull request is opened with the label and published;
@@ -56,8 +56,24 @@
 ### What was checked
 
 - Items 9, 10 and 13 of the notes of this effort, against the current files: tickets 01 to 07 had fixed `.env.example`, the output of the seed and every line they named in `CODING_STANDARDS.md`. After this change, outside the considered options of ADR-0019, no file gives staging a reserved address, a sweep or a bucket of certificates, and none gives a price in euros.
-- Every item under "Found, and left for a decision" in tickets 03 to 06 is still true: no size limit of the JavaScript; `ACME_EMAIL` empty (`variables.go`, `.env.example`); nothing set against Zod's probe of `eval`; no `lb_try_duration` in `deploy/`, while the README still promises it; `environment: staging` on the job of every labelled run; `labeled` among the triggers; the label read again, with no time compared.
+- Every item under "Found, and left for a decision" in tickets 03 to 06 is still true: no size limit of the JavaScript; `ACME_EMAIL` empty (`variables.go`, `.env.example`); nothing set against Zod's probe of `eval`; no `lb_try_duration` in `deploy/` (the fix pass of the code review took its promise out of both READMEs); `environment: staging` on the job of every labelled run; `labeled` among the triggers; the label read again, with no time compared.
 - The rule against `writing-claude-rules.md`: frontmatter, English with Portuguese only in the example question, a Reason, numbered steps, a link to `no-unsolicited-commits.md`, under 100 lines.
+- **The real run**, on 2026-11-20, by the orchestrator with the maintainer, on the code after the fix pass of the code review (b0901f3):
+  1. **The rule's question.** It was asked through AskUserQuestion, in Portuguese, with the three answers and "with staging" recommended, and the maintainer chose "with staging". This effort's pull request, #10, was opened on 2026-11-20 before the rule existed, with the label and with the maintainer's approval given at the start of the effort. So the question was asked before the push that published the fixed code to #10, not before an opening. The first pull request opened after this one is the first use of the rule as written.
+  2. **Staging turned on**, on a new server with the fixed `deploy/cloud-init.yaml`. On that server:
+     - `containers-without-metadata.service` was active and enabled, and cloud-init was `done`, with no error;
+     - from a container, `curl` to `169.254.169.254/hetzner/v1/userdata` timed out (exit 28), while the server itself got 200 from the metadata service.
+  3. **The push published #10.** The push of b0901f3 ran 44737315367. Every check passed, and the publish printed steps 1 to 10, step 6 now "Remove PostgreSQL, Garage and Mailpit, with their data", then "Staging shows pull request #10" and the comment. The log held neither the password of Mailpit nor a private key, and no line of the variables file.
+  4. **A login code from Mailpit opened a session.** The Chrome DevTools server did not connect in this session, so the login was made with the requests the app makes, the ones Chrome recorded in ticket 05:
+     - `GET /api/session` answered 401;
+     - `POST /api/session/login_code` for `seed+admin@fabrica.example` answered 202, and Mailpit, empty until then, received "Seu código de login";
+     - `POST /api/session/login_code/check` with its six digits answered 204;
+     - `GET /api/session` then gave Ana Exemplo with 200, `GET /api/consultancy` gave Fábrica Exemplo, and `/` served the page of the app.
+
+     In Chrome, the same path opened the shell in ticket 05.
+  5. **A second publish left Mailpit empty.** Run 44737315367 was published again, job "Publish to staging" alone (attempt 2, success), and Mailpit went from 1 message to 0.
+  6. **A reboot kept the block.** After a reboot of the server, with a new boot id, the unit and Docker were active, a container still timed out on the metadata service, the server still got 200, the six containers were up again, and `/up` answered 200.
+  7. **Staging turned off.** `task staging:off` destroyed the server with its address and its key. `task staging:status` said off. `gh secret list --env staging` listed only `MAILPIT_PASSWORD`, and `gh variable list --env staging` listed nothing. Hetzner's API listed no server, primary IP, SSH key, floating IP, volume or firewall, and `.servers/` in the main checkout was empty.
 
 ### Found, and left for a decision
 
