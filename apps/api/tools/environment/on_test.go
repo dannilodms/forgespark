@@ -52,8 +52,10 @@ func TestTurningStagingOnCreatesOneServerFromItsCommittedChoices(t *testing.T) {
 	assert.Equal(t, "ubuntu-26.04", specification.SystemImage, "the newest Ubuntu LTS that Docker supports officially")
 	assert.Equal(t, map[string]string{"environment": "staging"}, specification.Labels)
 	assert.Equal(t, []map[string]string{{"environment": "staging"}}, world.labels, "the provider finds what it created by the labels")
-	assert.Equal(t, `Turning staging on: creating the server staging at hetzner, a cx23 with ubuntu-26.04 in fsn1.
+	assert.Equal(t, `Chose a password for the Mailpit of staging and kept it in `+filepath.Join(world.directory, ".env")+`, as STAGING_MAILPIT_PASSWORD.
+Turning staging on: creating the server staging at hetzner, a cx23 with ubuntu-26.04 in fsn1.
 The server is at 203.0.113.10. Waiting until it answers SSH with its host key and cloud-init has prepared it, for up to 10m0s.
+The GitHub Environment staging has the address, the host key and the deploy key of the server, and the password of Mailpit.
 Staging is on.
   App:    https://app.203-0-113-10.sslip.io
   Files:  https://files.203-0-113-10.sslip.io
@@ -138,6 +140,7 @@ func TestTurningOnWhenOnCreatesNothingAndSaysSo(t *testing.T) {
 	assert.Equal(t, first, world.specification(), "the server is the one of the first turn-on")
 	assert.Equal(t, `Staging is on already, at 203.0.113.10. Checking that it answers.
 It answers: nothing was created.
+The GitHub Environment staging has the address, the host key and the deploy key of the server, and the password of Mailpit.
   App:    https://app.203-0-113-10.sslip.io
   Files:  https://files.203-0-113-10.sslip.io
   Mail:   https://mail.203-0-113-10.sslip.io
@@ -211,7 +214,7 @@ func TestAFailedTurnOnThatCannotDestroyTheServerSaysToTurnStagingOff(t *testing.
 	ran := world.run("on", "staging")
 
 	assert.Equal(t, 1, ran.status)
-	assert.Equal(t, "environment: wait until the server is ready: not ready; destroying the server failed too (the provider does not answer): turn staging off\n", ran.stderr)
+	assert.Equal(t, "environment: wait until the server is ready: not ready; undoing it failed too (destroy the server: the provider does not answer): turn staging off\n", ran.stderr)
 	assert.NoDirExists(t, world.localCopy())
 }
 

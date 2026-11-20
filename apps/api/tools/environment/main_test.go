@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github/githubtest"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider/providertest"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
@@ -18,7 +19,7 @@ import (
 
 // The commands run as the process would, on a checkout written into a
 // temporary directory with the committed choices and cloud-init file of this
-// repository, against a provider and a readiness kept in memory.
+// repository, against a provider, a readiness and a GitHub kept in memory.
 
 // repository is the root of this repository, from the directory of the
 // package.
@@ -53,6 +54,7 @@ type world struct {
 	directory string
 	provider  *providertest.Provider
 	readiness *fakeReadiness
+	github    *githubtest.GitHub
 	clock     *clock
 	variables map[string]string
 	// tokens are the tokens the provider was reached with.
@@ -73,6 +75,7 @@ func aWorld(t *testing.T) *world {
 		directory: root,
 		provider:  providertest.NewProvider(now.Now),
 		readiness: &fakeReadiness{},
+		github:    githubtest.NewGitHub(),
 		clock:     now,
 		variables: map[string]string{"HETZNER_TOKEN": token},
 	}
@@ -98,6 +101,7 @@ func (w *world) outside() outside {
 			return w.provider
 		},
 		readiness: w.readiness,
+		github:    w.github,
 		now:       w.clock.Now,
 	}
 }

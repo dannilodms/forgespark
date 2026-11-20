@@ -9,11 +9,15 @@
 // The provider is an adapter: Hetzner's, today, whose token is HETZNER_TOKEN,
 // read from the environment or else from the .env of the main checkout, so
 // that the command runs from a worktree too. While an environment is on, the
-// main checkout keeps a copy of its deploy key, outside git.
+// main checkout keeps a copy of its deploy key, outside git, and the GitHub
+// Environment of the same name holds what the pipeline needs to reach the
+// server, written through gh, logged in as the maintainer. The password of
+// the environment's Mailpit is chosen once and kept in the .env of the main
+// checkout too.
 //
-// It prints no secret: no token, no private key. The command wires its own
-// dependencies by hand, as the commands of the API binary do (Commands in
-// CODING_STANDARDS.md).
+// It prints no secret: no token, no private key, no password. The command
+// wires its own dependencies by hand, as the commands of the API binary do
+// (Commands in CODING_STANDARDS.md).
 package main
 
 import (
@@ -27,6 +31,8 @@ import (
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/lifecycle"
+	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
+	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github/gh"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider/hetzner"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
@@ -35,12 +41,15 @@ import (
 const usage = `Usage: environment <command> <environment>
 
 Commands:
-  on        Create the server of the environment and wait until it is ready.
-            When it is on already, check that it answers and create nothing
+  on        Create the server of the environment, wait until it is ready and
+            give its GitHub Environment what reaches it. When it is on
+            already, check that it answers, give GitHub its values again and
+            create nothing
   off       Destroy the server of the environment and what it had at the
-            provider. When it is off already, do nothing
+            provider, and take its values out of GitHub, but the password of
+            Mailpit. When it is off already, do nothing more
   status    Tell whether the environment is on, since when, at which address
-            and host names
+            and host names, and which open pull request has its label
 
 The one environment is staging. Its choices are in deploy/server.staging.yaml.
 `
@@ -84,12 +93,14 @@ type readiness interface {
 
 // outside is what the commands reach beyond their arguments and their
 // environment variables: the directory they start from, the provider,
-// readiness and the clock. main gives the real ones; the tests give fakes.
+// readiness, GitHub and the clock. main gives the real ones; the tests give
+// fakes.
 type outside struct {
 	directory string
 	// connect reaches the provider an environment names, with its token.
 	connect   func(providerName string, token config.Secret, labels map[string]string) provider.Provider
 	readiness readiness
+	github    github.GitHub
 	now       func() time.Time
 }
 
@@ -106,6 +117,7 @@ func main() {
 			return adapters[providerName].connect(token, labels)
 		},
 		readiness: sshclient.Readiness{RetryInterval: sshRetryInterval},
+		github:    gh.New(gh.Settings{Executable: gh.Executable, Directory: directory}),
 		now:       time.Now,
 	}
 	os.Exit(run(shutdown, os.Args[1:], config.Environment(), actual, os.Stdout, os.Stderr))

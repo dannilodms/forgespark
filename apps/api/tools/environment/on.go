@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
 )
@@ -25,12 +26,20 @@ const (
 	sshPort    = "22"
 )
 
-// turnOn creates the server of the environment and waits until it is
-// ready. When it exists already, it checks that it answers and creates
-// nothing.
+// turnOn creates the server of the environment, waits until it is ready
+// and gives the GitHub Environment what reaches it. When the server exists
+// already, it checks that it answers, gives GitHub its values again and
+// creates nothing.
 func turnOn(ctx context.Context, environment environment, stdout io.Writer) error {
 	servers, err := environment.provider()
 	if err != nil {
+		return err
+	}
+	mailpitPassword, err := environment.mailpitPassword(stdout)
+	if err != nil {
+		return err
+	}
+	if err := environment.prepareGitHub(ctx); err != nil {
 		return err
 	}
 	name := environment.choices.ServerName
@@ -39,14 +48,15 @@ func turnOn(ctx context.Context, environment environment, stdout io.Writer) erro
 		return fmt.Errorf("find the server %s at %s: %w", name, environment.choices.Provider, err)
 	}
 	if found {
-		return confirmOn(ctx, environment, server, stdout)
+		return confirmOn(ctx, environment, server, mailpitPassword, stdout)
 	}
-	return create(ctx, environment, servers, stdout)
+	return create(ctx, environment, servers, mailpitPassword, stdout)
 }
 
 // confirmOn checks that a server that exists answers, with the keys the
-// main checkout kept when it was created.
-func confirmOn(ctx context.Context, environment environment, server provider.Server, stdout io.Writer) error {
+// main checkout kept when it was created, and gives GitHub its values
+// again.
+func confirmOn(ctx context.Context, environment environment, server provider.Server, mailpitPassword config.Secret, stdout io.Writer) error {
 	keys, kept, err := environment.localCopy().read()
 	if err != nil {
 		return fmt.Errorf("read the local copy of the deploy key: %w", err)
@@ -59,14 +69,18 @@ func confirmOn(ctx context.Context, environment environment, server provider.Ser
 	if err := environment.waitUntilReady(ctx, server.Address, keys); err != nil {
 		return fmt.Errorf("%s is on at %s, but does not answer: %w", environment.name, server.Address, err)
 	}
-	// Ticket 02 of .scratch/staging: the values go to GitHub again here.
 	fmt.Fprintln(stdout, "It answers: nothing was created.")
+	values := serverValues{address: server.Address, hostKey: keys.host, deployKey: keys.deployPrivate, turnedOn: server.Created}
+	if err := environment.writeValues(ctx, values, mailpitPassword, stdout); err != nil {
+		return fmt.Errorf("%s is on at %s, but GitHub does not have its values (%w): turn %s on again", environment.name, server.Address, err, environment.name)
+	}
 	return report(stdout, environment, server)
 }
 
-// create creates the server with new keys, waits until it is ready and
-// keeps the keys. A failure after the server was asked for destroys it.
-func create(ctx context.Context, environment environment, servers provider.Provider, stdout io.Writer) error {
+// create creates the server with new keys, waits until it is ready, keeps
+// the keys and gives GitHub its values. A failure after the server was
+// asked for destroys it.
+func create(ctx context.Context, environment environment, servers provider.Provider, mailpitPassword config.Secret, stdout io.Writer) error {
 	chosen := environment.choices
 	keys, err := newServerKeys(environment.name)
 	if err != nil {
@@ -104,8 +118,10 @@ func create(ctx context.Context, environment environment, servers provider.Provi
 	if err := environment.localCopy().save(server.Address, keys.deployPrivate, keys.hostPublic); err != nil {
 		return environment.undo(ctx, servers, fmt.Errorf("keep the local copy of the deploy key: %w", err))
 	}
-	// Ticket 02 of .scratch/staging: the values go to GitHub here, and undo
-	// takes them out again.
+	values := serverValues{address: server.Address, hostKey: keys.hostPublic, deployKey: keys.deployPrivate, turnedOn: server.Created}
+	if err := environment.writeValues(ctx, values, mailpitPassword, stdout); err != nil {
+		return environment.undo(ctx, servers, err)
+	}
 	fmt.Fprintf(stdout, "%s is on.\n", environment.title())
 	return report(stdout, environment, server)
 }
@@ -124,14 +140,27 @@ func (e environment) waitUntilReady(ctx context.Context, address netip.Addr, key
 }
 
 // undo destroys what a failed turn-on created, with the deploy key at the
-// provider, and removes the local copy, then reports the failure. It runs
-// to its end even when a signal cut the turn-on short.
+// provider, takes its values out of GitHub and removes the local copy, then
+// reports the failure. It runs to its end even when a signal cut the
+// turn-on short.
 func (e environment) undo(ctx context.Context, servers provider.Provider, cause error) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), undoDeadline)
 	defer cancel()
-	failed := errors.Join(servers.Destroy(ctx, e.choices.ServerName), e.localCopy().remove())
+	failed := errors.Join(
+		failedTo("destroy the server", servers.Destroy(ctx, e.choices.ServerName)),
+		e.deleteValues(ctx),
+		failedTo("remove the local copy of the deploy key", e.localCopy().remove()),
+	)
 	if failed != nil {
-		return fmt.Errorf("%w; destroying the server failed too (%w): turn %s off", cause, failed, e.name)
+		return fmt.Errorf("%w; undoing it failed too (%w): turn %s off", cause, failed, e.name)
 	}
 	return fmt.Errorf("%w; the server was destroyed, and nothing of it is left", cause)
+}
+
+// failedTo names what failed, and is nil when nothing did.
+func failedTo(what string, err error) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", what, err)
 }

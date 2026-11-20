@@ -260,7 +260,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [Dex](https://dexidp.io/) | Identity container behind the local login provider, in development and tests |
 | [Hetzner Cloud](https://www.hetzner.com/cloud) | The production server, and the staging server created on demand |
 | [GitHub Actions](https://docs.github.com/actions) | The pipeline: checks on every pull request, publishing, scheduled tests |
-| [GitHub CLI](https://cli.github.com/) | How agents reach GitHub: pull requests, runs, secrets |
+| [GitHub CLI](https://cli.github.com/) | How agents reach GitHub: pull requests, runs, secrets; and how turning staging on and off writes to the GitHub Environment of staging |
 | [Caddy](https://caddyserver.com/) | HTTPS, static frontend files, reverse proxy to the API, security headers and the limit on the login code and the setup code |
 | [Docker](https://www.docker.com/) | Packaging and running the services in containers (Docker Compose) |
 | [Task](https://taskfile.dev/) | Task runner for the repository (dev, build, test, code generation) |
@@ -278,7 +278,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | Go | 1.27.4 | [go.dev/dl](https://go.dev/dl/) |
 | Vite+ (manages Node.js and pnpm) | 1.6.0 | [viteplus.dev](https://viteplus.dev/) |
 | Task | 3.54.0 | [taskfile.dev](https://taskfile.dev/installation/) |
-| GitHub CLI | 2.104.0 | [cli.github.com](https://cli.github.com/). Only to open pull requests and read the pipeline |
+| GitHub CLI | 2.104.0 | [cli.github.com](https://cli.github.com/). To open pull requests and read the pipeline, and to turn staging on and off, logged in as the maintainer (`gh auth login`) |
 
 Each minimum is the version in use on the maintainer's machine, recorded in [`docs/machine-tools.yaml`](docs/machine-tools.yaml). No earlier version has been tried. Git clones the repository.
 
@@ -292,7 +292,7 @@ The API binary reads its configuration from environment variables only, once, wh
 
 Every variable is listed in the committed `.env.example`, with no real secret.
 
-The tool that turns staging on and off reads one variable that is not there, because it belongs to the maintainer's machine and never reaches a server or GitHub: `HETZNER_TOKEN`, the API token of the Hetzner project of staging. It goes in the `.env` of the main checkout, which the tool reads also when it runs in a worktree (see Deploy).
+The tool that turns staging on and off reads two variables that are not there, because they belong to the maintainer's machine and no server and no publish reads them from there: `HETZNER_TOKEN`, the API token of the Hetzner project of staging, which never reaches a server or GitHub, and `STAGING_MAILPIT_PASSWORD`, the password of the Mailpit of staging. Both go in the `.env` of the main checkout, which the tool reads also when it runs in a worktree. The token is written there by the maintainer; the password by the tool, the first time staging is turned on (see Deploy).
 
 | Environment | Where the values are |
 | --- | --- |
@@ -461,12 +461,14 @@ Every change reaches `main` through a pull request, and a merge into `main` is p
 Staging is a server that exists only while a pull request is tried on it, and costs only while it is on (see [`docs/providers.md`](docs/providers.md)). It is turned on and off by hand, from the main checkout or a worktree of it:
 
 ```sh
-task staging:on      # create the server, and wait until it is ready
-task staging:status  # on or off, since when, its address and its host names
-task staging:off     # destroy the server, with its address and its deploy key
+task staging:on      # create the server, wait until it is ready, and give GitHub what reaches it
+task staging:status  # on or off, since when, its address, its host names and the labelled pull request
+task staging:off     # destroy the server, with its address and its deploy key, and take them out of GitHub
 ```
 
-The machine needs `HETZNER_TOKEN` in the `.env` of the main checkout: an API token of the Hetzner project `software-factory-manager-staging`, with read and write permission. `task staging:on` creates the server from the choices in `deploy/server.staging.yaml`, prepared by `deploy/cloud-init.yaml`, and returns once the server answers SSH with the host key it was given and cloud-init has prepared it; when that fails, it destroys the server before it reports the failure. Turning staging on when it is on, or off when it is off, creates and destroys nothing. Nothing turns it off by itself.
+The machine needs `HETZNER_TOKEN` in the `.env` of the main checkout: an API token of the Hetzner project `software-factory-manager-staging`, with read and write permission. It also needs `gh` logged in as the maintainer, with permission to create an environment, its secrets and its variables, and a label, in this repository. `task staging:on` makes sure the GitHub Environment `staging` and the label `staging` exist, creates the server from the choices in `deploy/server.staging.yaml`, prepared by `deploy/cloud-init.yaml`, and returns once the server answers SSH with the host key it was given and cloud-init has prepared it, and the GitHub Environment `staging` has what the pipeline needs to reach it: the address, the host key and the deploy key of the server, and the password of Mailpit. When that fails, it destroys the server and takes those values out of GitHub before it reports the failure. Turning staging on when it is on creates nothing and gives GitHub the same values again; turning it off when it is off destroys nothing. Nothing turns it off by itself. `task staging:off` leaves only the password of Mailpit in GitHub.
+
+The password of Mailpit is chosen the first time staging is turned on and kept in the `.env` of the main checkout, as `STAGING_MAILPIT_PASSWORD`: read it there, since GitHub never gives a secret back. Every later turn-on uses the same one.
 
 While staging is on, the main checkout keeps its deploy key in `.servers/staging/`, which git ignores, and `ssh -F .servers/staging/ssh_config staging`, run there, logs in to the server as the deploy user. Its host names are under its address, written for `sslip.io`, which is provisional: they change each time staging is turned on, and `task staging:status` prints them. Publishing a pull request to it, with the `staging` label, comes with the publish command of the same tool.
 
