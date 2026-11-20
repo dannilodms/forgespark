@@ -24,7 +24,7 @@
 - [x] Neither the command nor the job prints a value, the variables file or the configuration of a container. A test checks what the command prints.
 - [x] A job of `ci.yml` runs after `Checks`, only for a pull request from this repository with the label, in the GitHub Environment `staging`. It pushes the three images tagged with the commit and runs the publish. The required check does not change.
 - [ ] When the address variable of `staging` is empty, the job skips with a notice and passes.
-- [ ] Publishes share one concurrency group, and a running one is never cancelled.
+- [x] Publishes share one concurrency group, and a running one is never cancelled.
 - [x] The job asks for writing packages and pull requests and only reading the contents. actionlint and zizmor pass.
 - [x] The published pull request gets a comment with the address of the app and of Mailpit.
 - [x] For real: the pull request of this effort, labelled, is published to a staging that is on. The app opens on the login screen over HTTPS, a login code asked for a user of the seed arrives in Mailpit, and logging in with it reaches the shell.
@@ -75,7 +75,8 @@
   - **On the server.** `staging/.env` was `600 deploy`. The API, PostgreSQL, Garage and Mailpit were healthy, the worker was up, and only Caddy published ports: 80, 443 and 443/udp.
   - **Over HTTPS.** `https://app.2-28-41-54.sslip.io/up` answered 200, with a certificate curl verified. The page came with `Content-Encoding: br`, `Cache-Control: no-cache`, the CSP, HSTS, `nosniff` and `Referrer-Policy: same-origin`. HTTP answered 308 to HTTPS. Mailpit answered 401 without its password.
   - **In Chrome.** The app opened on the login screen. A code asked for `seed+admin@fabrica.example` arrived in Mailpit as "Seu código de login", read through its API with `maintainer` and the password. Logging in with it opened the shell as Ana Exemplo, of Fábrica Exemplo. The console showed the CSP issue about `eval` that ticket 04 left for a decision, and one 401, the answer to `GET /api/session` before the login. After the login, the same request answered 200, as did `/api/consultancy`.
-- Still to be tried for real: the notice of a run while staging is off, and a push during a publish, which must wait for it and not cancel it.
+- **A push during a publish**, for real, on 2026-11-20. Run A (44664036656, commit c8c0032) had its "Publish to staging" in progress when 1f88e3a was pushed to the same pull request. Run B (44664171333) stayed `pending` for the whole publish. Run A ended in success, its publish too, and only then did run B start.
+- Still to be tried for real: the notice of a run while staging is off.
 
 ### Found, and left for a decision
 
