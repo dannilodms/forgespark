@@ -54,15 +54,15 @@ func (e environment) title() string {
 // adapter reads.
 func (e environment) provider() (provider.Provider, error) {
 	adapter := adapters[e.choices.Provider]
-	token, err := e.variable(adapter.tokenVariable)
+	token, err := e.secret(adapter.tokenVariable)
 	if err != nil {
 		return nil, err
 	}
-	if token == "" {
+	if token.Reveal() == "" {
 		return nil, fmt.Errorf("%s is required to reach %s: write it in the .env of the main checkout, %s",
 			adapter.tokenVariable, e.choices.Provider, e.checkout.envFile())
 	}
-	return e.outside.connect(e.choices.Provider, config.NewSecret(token), e.labels()), nil
+	return e.outside.connect(e.choices.Provider, token, e.labels()), nil
 }
 
 // labels mark what the provider creates for the environment.
@@ -70,18 +70,19 @@ func (e environment) labels() map[string]string {
 	return map[string]string{"environment": e.name}
 }
 
-// variable reads a variable of the process, or else of the .env of the main
-// checkout. In the main checkout Task has loaded that file already; in a
-// worktree it loaded the worktree's own, which has none of the tool's.
-func (e environment) variable(name string) (string, error) {
+// secret reads a secret of the tool from a variable of the process, or else
+// of the .env of the main checkout. In the main checkout Task has loaded
+// that file already; in a worktree it loaded the worktree's own, which has
+// none of the tool's. A secret that is set nowhere is empty.
+func (e environment) secret(name string) (config.Secret, error) {
 	if value := e.variables[name]; value != "" {
-		return value, nil
+		return config.NewSecret(value), nil
 	}
 	value, err := valueIn(e.checkout.envFile(), name)
 	if err != nil {
-		return "", fmt.Errorf("read %s from %s: %w", name, e.checkout.envFile(), err)
+		return config.Secret{}, fmt.Errorf("read %s from %s: %w", name, e.checkout.envFile(), err)
 	}
-	return value, nil
+	return config.NewSecret(value), nil
 }
 
 // localCopy is where the main checkout keeps the keys of the environment's

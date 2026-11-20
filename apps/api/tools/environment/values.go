@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
@@ -40,12 +39,12 @@ const (
 // labelColor is the color of the label that publishes a pull request.
 const labelColor = "FBCA04"
 
-// serverValues are what GitHub gets of a server that is on.
+// serverValues are what GitHub gets of a server that is on: where it is,
+// the keys that log in to it, and when it was created.
 type serverValues struct {
-	address   netip.Addr
-	hostKey   ssh.PublicKey
-	deployKey []byte
-	turnedOn  time.Time
+	address  netip.Addr
+	keys     loginKeys
+	turnedOn time.Time
 }
 
 // label is the label that publishes a pull request to the environment.
@@ -72,40 +71,35 @@ func (e environment) prepareGitHub(ctx context.Context) error {
 // writeValues gives the GitHub Environment what reaches the server, and the
 // address last: a publish takes the environment for on once it has one.
 func (e environment) writeValues(ctx context.Context, server serverValues, mailpitPassword config.Secret, stdout io.Writer) error {
-	hub, name := e.outside.github, e.name
+	deployKey := server.keys.deployPrivate
 	address := server.address.String()
+	hostKey := knownhosts.Line([]string{address}, server.keys.host)
+	turnedOn := server.turnedOn.UTC().Format(time.RFC3339)
 	err := inOrder(
-		func() error {
-			return hub.SetSecret(ctx, name, deployKeySecret, config.NewSecret(string(server.deployKey)))
-		},
-		func() error { return hub.SetSecret(ctx, name, mailpitPasswordSecret, mailpitPassword) },
-		func() error {
-			return hub.SetVariable(ctx, name, hostKeyVariable, knownhosts.Line([]string{address}, server.hostKey))
-		},
-		func() error {
-			return hub.SetVariable(ctx, name, turnedOnAtVariable, server.turnedOn.UTC().Format(time.RFC3339))
-		},
-		func() error { return hub.SetVariable(ctx, name, addressVariable, address) },
+		func() error { return e.outside.github.SetSecret(ctx, e.name, deployKeySecret, deployKey) },
+		func() error { return e.outside.github.SetSecret(ctx, e.name, mailpitPasswordSecret, mailpitPassword) },
+		func() error { return e.outside.github.SetVariable(ctx, e.name, hostKeyVariable, hostKey) },
+		func() error { return e.outside.github.SetVariable(ctx, e.name, turnedOnAtVariable, turnedOn) },
+		func() error { return e.outside.github.SetVariable(ctx, e.name, addressVariable, address) },
 	)
 	if err != nil {
-		return fmt.Errorf("give the GitHub Environment %s the values of the server: %w", name, err)
+		return fmt.Errorf("give the GitHub Environment %s the values of the server: %w", e.name, err)
 	}
-	fmt.Fprintf(stdout, "The GitHub Environment %s has the address, the host key and the deploy key of the server, and the password of Mailpit.\n", name)
+	fmt.Fprintf(stdout, "The GitHub Environment %s has the address, the host key and the deploy key of the server, and the password of Mailpit.\n", e.name)
 	return nil
 }
 
 // deleteValues takes out of the GitHub Environment what reached the server,
 // the address first, and keeps the password of Mailpit.
 func (e environment) deleteValues(ctx context.Context) error {
-	hub, name := e.outside.github, e.name
 	err := inOrder(
-		func() error { return hub.DeleteVariable(ctx, name, addressVariable) },
-		func() error { return hub.DeleteVariable(ctx, name, hostKeyVariable) },
-		func() error { return hub.DeleteVariable(ctx, name, turnedOnAtVariable) },
-		func() error { return hub.DeleteSecret(ctx, name, deployKeySecret) },
+		func() error { return e.outside.github.DeleteVariable(ctx, e.name, addressVariable) },
+		func() error { return e.outside.github.DeleteVariable(ctx, e.name, hostKeyVariable) },
+		func() error { return e.outside.github.DeleteVariable(ctx, e.name, turnedOnAtVariable) },
+		func() error { return e.outside.github.DeleteSecret(ctx, e.name, deployKeySecret) },
 	)
 	if err != nil {
-		return fmt.Errorf("delete the values of the server from the GitHub Environment %s: %w", name, err)
+		return fmt.Errorf("delete the values of the server from the GitHub Environment %s: %w", e.name, err)
 	}
 	return nil
 }
@@ -116,12 +110,12 @@ func (e environment) deleteValues(ctx context.Context) error {
 // maintainer reads it.
 func (e environment) mailpitPassword(stdout io.Writer) (config.Secret, error) {
 	name := mailpitPasswordName(e.name)
-	kept, err := e.variable(name)
+	kept, err := e.secret(name)
 	if err != nil {
 		return config.Secret{}, err
 	}
-	if kept != "" {
-		return config.NewSecret(kept), nil
+	if kept.Reveal() != "" {
+		return kept, nil
 	}
 	chosen := rand.Text()
 	comment := fmt.Sprintf("# The password of the Mailpit of %s, chosen when %s was first turned on.\n", e.name, e.name)
@@ -137,16 +131,4 @@ func (e environment) mailpitPassword(stdout io.Writer) (config.Secret, error) {
 // .env.example: no server and no publish reads it.
 func mailpitPasswordName(environment string) string {
 	return strings.ToUpper(strings.ReplaceAll(environment, "-", "_")) + "_MAILPIT_PASSWORD"
-}
-
-// inOrder runs the steps one after the other and stops at the first that
-// fails.
-func inOrder(steps ...func() error) error {
-	if len(steps) == 0 {
-		return nil
-	}
-	if err := steps[0](); err != nil {
-		return err
-	}
-	return inOrder(steps[1:]...)
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -21,7 +20,6 @@ import (
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
 )
 
 // What the pipeline gives a publish, in the variables of its process: the
@@ -60,7 +58,8 @@ const (
 
 // recreatedVolumes are the volumes of the Compose project that every
 // publish removes, so that staging starts from the seed's data again: those
-// of PostgreSQL and Garage. Caddy's, which hold its certificates, stay.
+// of PostgreSQL and Garage. Mailpit has none: its e-mails go with its
+// container. Caddy's, which hold its certificates, stay.
 var recreatedVolumes = []string{"postgres-data", "garage-data"}
 
 // fullHash is the hash of a commit, as Git writes it in full.
@@ -84,13 +83,12 @@ type appReadiness interface {
 }
 
 // publication is what a publish is given: the commit of a pull request, and
-// what reaches the server.
+// what reaches the server, its address and the keys that log in to it.
 type publication struct {
 	commit          string
 	pullRequest     int
 	address         netip.Addr
-	hostKey         ssh.PublicKey
-	deployKey       ssh.Signer
+	keys            loginKeys
 	mailpitPassword config.Secret
 }
 
@@ -143,12 +141,7 @@ func publish(ctx context.Context, environment environment, stdout io.Writer) err
 	fmt.Fprintf(stdout, "Every name of .env.example has a value for %s.\n", environment.name)
 
 	fmt.Fprintf(stdout, "1. Log in to the server as %s, trusting only the host key %s was given.\n", deployUser, environment.name)
-	server, err := environment.outside.reachServer(ctx, sshclient.Target{
-		Address: net.JoinHostPort(given.address.String(), sshPort),
-		HostKey: given.hostKey,
-		User:    deployUser,
-		Key:     given.deployKey,
-	}, stdout)
+	server, err := environment.outside.reachServer(ctx, given.keys.at(given.address), stdout)
 	if err != nil {
 		return fmt.Errorf("step 1, log in to the server at %s: %w", given.address, err)
 	}
@@ -190,8 +183,11 @@ func (e environment) steps(ctx context.Context, server remoteServer, given publi
 		}},
 		{"pull the images of the commit", running(compose + " pull --quiet")},
 		{"stop the API and the worker", running(compose + " stop api worker")},
-		{"remove the volumes of PostgreSQL and Garage", running(
-			compose+" rm --stop --force postgres garage",
+		// Mailpit keeps its e-mails inside its container, which goes with
+		// the others, so that no login code of an earlier pull request is
+		// left.
+		{"remove PostgreSQL, Garage and Mailpit, with their data", running(
+			compose+" rm --stop --force postgres garage mailpit",
 			"docker volume rm --force "+strings.Join(volumes, " "),
 		)},
 		// Each service from here on is started by its own step, in this
@@ -343,7 +339,8 @@ func (e environment) publication() (publication, error) {
 	}
 	// gh keeps the key without its last line break, which the reader of
 	// PEM does without.
-	deployKey, err := ssh.ParsePrivateKey([]byte(e.variables[deployKeySecret]))
+	deployPrivate := config.NewSecret(e.variables[deployKeySecret])
+	deploy, err := ssh.ParsePrivateKey([]byte(deployPrivate.Reveal()))
 	if err != nil {
 		return publication{}, fmt.Errorf("%s is not a private key in OpenSSH's format", deployKeySecret)
 	}
@@ -351,8 +348,7 @@ func (e environment) publication() (publication, error) {
 		commit:          commit,
 		pullRequest:     pullRequest,
 		address:         address,
-		hostKey:         hostKey,
-		deployKey:       deployKey,
+		keys:            loginKeys{deploy: deploy, deployPrivate: deployPrivate, host: hostKey},
 		mailpitPassword: config.NewSecret(e.variables[mailpitPasswordSecret]),
 	}, nil
 }

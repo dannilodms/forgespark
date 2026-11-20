@@ -21,7 +21,8 @@
 #
 # The data of PostgreSQL and Garage is in the volumes postgres-data and
 # garage-data, which every publish removes, with their containers, to start
-# from the seed again. The certificates of Caddy are in caddy-data, which the
+# from the seed again. Mailpit keeps its e-mails in its container, which
+# every publish removes too. The certificates of Caddy are in caddy-data, which the
 # publish keeps while the server lives: `docker compose down --volumes`
 # would remove it too, and is never run.
 #
@@ -71,8 +72,9 @@ services:
       garage:
         condition: service_healthy
 
-  # Keeps every e-mail the worker sends, the login codes among them, and
-  # shows them at the host name of Mailpit, through Caddy.
+  # Keeps every e-mail the worker sends, the login codes among them, inside
+  # its container, which every publish removes, and shows them at the host
+  # name of Mailpit, through Caddy.
   mailpit:
     extends:
       file: compose.base.yaml
@@ -211,7 +213,7 @@ configs:
       rpc_public_addr = "127.0.0.1:3901"
 
       [s3_api]
-      s3_region = "${FILE_STORAGE_REGION}"
+      s3_region = "${FILE_STORAGE_REGION:?Set FILE_STORAGE_REGION, as .env.example does}"
       api_bind_addr = "0.0.0.0:3900"
 
   # PutBucketCors of the S3 API, signed with the key of the API. A browser

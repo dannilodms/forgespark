@@ -39,6 +39,7 @@
 - **The password of Mailpit**: `crypto/rand.Text`, 26 characters of base32 (A to Z, 2 to 7), 128 bits, with no `$`, quote or space, so it needs no quoting in `.env`, in a Compose variables file or in a hash for Caddy. It is appended to the `.env` after a comment line; a variable of the process wins over the file, as for the token, since Task loads the `.env` in the main checkout.
 - **The status** lists every open pull request with the label, one line each, or says none has it, also while staging is off.
 - **The stand-in of `gh`** is the test binary itself, run again by the adapter with a variable that `TestMain` reads (the pattern of `os/exec`'s own tests); it records each call and its input in the directory of one test, which is where the adapter runs `gh`, and answers as that directory says.
+- **After the code review** (2026-11-20): a `.env` the first turn-on creates gets an access list of its owner alone before the password is written to it, on Windows too (`restrictToOwner`); one that exists keeps its access. The `TestMain` of the stand-in reads its variable through `config.Environment`. The tool reads a `.env` with one parser, `assignment`, for a value and for the names of `.env.example`.
 
 ### What was checked
 

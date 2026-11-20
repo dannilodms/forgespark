@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -29,9 +28,10 @@ func fixed(text string) value {
 }
 
 // derived is derived from what the publish is given: the address of the
-// server, the commit, or the password of Mailpit.
-func derived(from func(publication) (string, error)) value {
-	return from
+// server or the commit. The hash of the password of Mailpit, which can fail,
+// is a value of its own, mailpitPasswordHash.
+func derived(from func(publication) string) value {
+	return func(given publication) (string, error) { return from(given), nil }
 }
 
 // random is drawn anew on each publish, and written only to the server, so
@@ -66,7 +66,7 @@ var stagingValues = map[string]value{
 	"ACME_EMAIL": deliberatelyEmpty,
 
 	// The images of the commit published.
-	"COMMIT": derived(func(given publication) (string, error) { return given.commit, nil }),
+	"COMMIT": derived(func(given publication) string { return given.commit }),
 
 	// Garage, which the API reaches on the network of the project.
 	"GARAGE_PORT":       deliberatelyEmpty,
@@ -76,8 +76,8 @@ var stagingValues = map[string]value{
 	// Caddy holds only the hash.
 	"MAILPIT_SMTP_PORT":     deliberatelyEmpty,
 	"MAILPIT_PORT":          deliberatelyEmpty,
-	"MAILPIT_PUBLIC_URL":    derived(func(given publication) (string, error) { return "https://" + hostNamesOf(given.address).mail, nil }),
-	"MAILPIT_PASSWORD_HASH": derived(mailpitPasswordHash),
+	"MAILPIT_PUBLIC_URL":    derived(func(given publication) string { return "https://" + hostNamesOf(given.address).mail }),
+	"MAILPIT_PASSWORD_HASH": mailpitPasswordHash,
 
 	// Dex, the River panel and Vite, which run in development alone.
 	"DEX_PORT":         deliberatelyEmpty,
@@ -97,9 +97,9 @@ var stagingValues = map[string]value{
 	"DATABASE_STATEMENT_TIMEOUT":           fixed("30s"),
 	"DATABASE_IDLE_IN_TRANSACTION_TIMEOUT": fixed("1m"),
 	"HEALTH_CHECK_TIMEOUT":                 fixed("2s"),
-	"APP_ORIGIN":                           derived(func(given publication) (string, error) { return "https://" + hostNamesOf(given.address).app, nil }),
+	"APP_ORIGIN":                           derived(func(given publication) string { return "https://" + hostNamesOf(given.address).app }),
 	"FILE_STORAGE_URL":                     deliberatelyEmpty,
-	"FILE_STORAGE_PUBLIC_URL":              derived(func(given publication) (string, error) { return "https://" + hostNamesOf(given.address).files, nil }),
+	"FILE_STORAGE_PUBLIC_URL":              derived(func(given publication) string { return "https://" + hostNamesOf(given.address).files }),
 	"FILE_STORAGE_REGION":                  fixed("garage"),
 	"FILE_STORAGE_BUCKET":                  fixed("software-factory-files"),
 	"FILE_STORAGE_ACCESS_KEY_ID":           random(garageKeyID),
@@ -185,31 +185,6 @@ func quotable(name, text string) error {
 	return nil
 }
 
-// namesIn gives the names a .env file sets, in the order it sets them, each
-// once.
-func namesIn(path string) ([]string, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var names []string
-	for line := range strings.Lines(string(content)) {
-		names = withNameOf(names, line)
-	}
-	return names, nil
-}
-
-// withNameOf adds the name the line sets, when it sets one not there yet.
-func withNameOf(names []string, line string) []string {
-	line = strings.TrimSpace(line)
-	name, _, assigns := strings.Cut(strings.TrimPrefix(line, "export "), "=")
-	name = strings.TrimSpace(name)
-	if !assigns || strings.HasPrefix(line, "#") || name == "" || slices.Contains(names, name) {
-		return names
-	}
-	return append(names, name)
-}
-
 // hexKey draws 32 bytes, written in hexadecimal: a password, a secret of
 // Garage, a key of the storage or of the login code.
 func hexKey() (string, error) {
@@ -231,8 +206,9 @@ func randomHex(size int) (string, error) {
 	return hex.EncodeToString(drawn), nil
 }
 
-// mailpitPasswordHash is the bcrypt hash of the password of Mailpit, which
-// Caddy checks the password the browser sends against.
+// mailpitPasswordHash is derived from the password of Mailpit: its bcrypt
+// hash, which Caddy checks the password the browser sends against. bcrypt
+// refuses a password longer than 72 bytes.
 func mailpitPasswordHash(given publication) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(given.mailpitPassword.Reveal()), bcrypt.DefaultCost)
 	return string(hash), err

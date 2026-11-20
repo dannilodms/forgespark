@@ -48,6 +48,7 @@
 - **Stop grace period 45 s** for the API and the worker: 20 s of drain or of jobs, 15 s for the pool, 5 s for the spans. README said 30 s and now says 45 s. In Shutdown.
 - **The configs of PostgreSQL and Garage are written twice**, in `compose.yaml` and in the staging file, because `extends` copies none and a config of a file would be a bind mount of the checkout that development avoids. Each file says a change goes into both. In Compose files.
 - **The image of a server is named by `COMMIT`**, a variable of `.env.example` like the other names only the files of the servers read, so the publish's check covers it.
+- **After the code review** (2026-11-20): every variable the base and the staging files require is written `${NAME:?...}`, the health check of Garage and the region in the config of Garage included (and in its twin in `compose.yaml`). The README says what is built: Caddy holds no request while the API restarts; `lb_try_duration` stays under Found, and left for a decision.
 
 ### What was checked
 

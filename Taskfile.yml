@@ -81,12 +81,14 @@ tasks:
       - go run ./cmd/seed
 
   seed:image:
-    desc: Build the image of the seed, the `seed` service of compose.yaml, and publish nothing
+    desc: Build the image of the seed, software-factory-manager-seed:servers, which staging runs on every publish, and publish nothing
     cmds:
       # The image staging runs on every publish (Seed in Environments in
       # CODING_STANDARDS.md); the pipeline builds it on every pull request,
-      # so a change that breaks its build fails before it is published.
-      - docker compose --profile seed build seed
+      # so a change that breaks its build fails before it is published. The
+      # `seed` service of compose.yaml builds the same Dockerfile, under the
+      # name of development.
+      - docker build --file apps/api/cmd/seed/Dockerfile --tag software-factory-manager-seed:servers apps/api
 
   api:image:
     desc: Build the image of the API, software-factory-manager-api:servers, which the servers run with each command of the binary, and publish nothing

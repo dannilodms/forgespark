@@ -13,18 +13,18 @@ import (
 // says so, and still takes out of GitHub what a turn-on cut short left
 // there.
 func turnOff(ctx context.Context, environment environment, stdout io.Writer) error {
-	servers, err := environment.provider()
+	theProvider, err := environment.provider()
 	if err != nil {
 		return err
 	}
 	name := environment.choices.ServerName
-	server, found, err := servers.Find(ctx, name)
+	server, found, err := theProvider.Find(ctx, name)
 	if err != nil {
 		return fmt.Errorf("find the server %s at %s: %w", name, environment.choices.Provider, err)
 	}
 	// Even with no server: a turn-on cut short may have left its deploy key
 	// at the provider.
-	if err := servers.Destroy(ctx, name); err != nil {
+	if err := theProvider.Destroy(ctx, name); err != nil {
 		return fmt.Errorf("destroy the server %s at %s: %w", name, environment.choices.Provider, err)
 	}
 	if err := environment.localCopy().remove(); err != nil {

@@ -4,22 +4,18 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/netip"
-	"strings"
 	"time"
-
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
 )
 
 // tellStatus tells whether the environment is on, since when, at which
 // address and host names, and which open pull request has its label.
 func tellStatus(ctx context.Context, environment environment, stdout io.Writer) error {
-	servers, err := environment.provider()
+	theProvider, err := environment.provider()
 	if err != nil {
 		return err
 	}
 	name := environment.choices.ServerName
-	server, found, err := servers.Find(ctx, name)
+	server, found, err := theProvider.Find(ctx, name)
 	if err != nil {
 		return fmt.Errorf("find the server %s at %s: %w", name, environment.choices.Provider, err)
 	}
@@ -49,35 +45,6 @@ func tellPullRequests(ctx context.Context, environment environment, stdout io.Wr
 		fmt.Fprintf(stdout, "Pull request #%d has the %s label: %s, %s\n", pullRequest.Number, environment.name, pullRequest.Title, pullRequest.URL)
 	}
 	return nil
-}
-
-// report writes the host names of the server, and how to log in to it.
-func report(stdout io.Writer, environment environment, server provider.Server) error {
-	names := hostNamesOf(server.Address)
-	fmt.Fprintf(stdout, "  App:    https://%s\n  Files:  https://%s\n  Mail:   https://%s\n", names.app, names.files, names.mail)
-	kept, err := environment.localCopy().kept()
-	if err != nil {
-		return fmt.Errorf("look for the local copy of the deploy key: %w", err)
-	}
-	if !kept {
-		fmt.Fprintln(stdout, "  SSH:    the main checkout keeps no copy of the deploy key")
-		return nil
-	}
-	fmt.Fprintf(stdout, "  SSH:    %s\n", environment.localCopy().sshCommand())
-	return nil
-}
-
-// hostNames are the host names of a server. Until the domain is registered
-// they are under sslip.io, which answers a name that carries an address with
-// that address (provisional, see docs/providers.md).
-type hostNames struct {
-	app, files, mail string
-}
-
-// hostNamesOf writes the address with dashes, as one label of the name.
-func hostNamesOf(address netip.Addr) hostNames {
-	domain := strings.ReplaceAll(address.String(), ".", "-") + ".sslip.io"
-	return hostNames{app: "app." + domain, files: "files." + domain, mail: "mail." + domain}
 }
 
 // age writes a duration in hours and minutes.

@@ -35,6 +35,7 @@
 - **The Brotli plugin is the repository's own** (surprise 2, Compression in `CODING_STANDARDS.md`). It is about twenty lines over `node:zlib`, at the highest quality, in `closeBundle`, and needs no dependency: the types of Node come through the types of Vite+. No plugin of the ecosystem had been tried with Vite+ (Rolldown). Every text file gets its copy, as Compression says, even a few bytes where the copy is not smaller.
 - **`task check:quick` builds the three images**, the seed's included, which it did not build before. That keeps true the rule that `task check` runs every check of a pull request.
 - **The Go images keep the compiler's cache between builds**, with a cache mount in the Dockerfiles of the API and of the seed. On this machine a rebuild after a change compiled in 6.5 s, not 89 s. Nothing of the cache goes into the image, and the pipeline starts with an empty cache.
+- **After the code review** (2026-11-20): `task seed:image` builds `software-factory-manager-seed:servers` with `docker build`, as the other two are built, so the publish pushes the three by one name (`software-factory-manager-<image>:servers`); the `seed` service of `compose.yaml` keeps its own name of development. The size limit of the JavaScript is written back as deferred, in the frontend rules, with its numbers and its tool still the maintainer's. "Install Task" stays copied in each job: zizmor refuses a composite action that writes `GITHUB_PATH` (`github-env`, high).
 
 ### What was checked
 

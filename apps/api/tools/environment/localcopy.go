@@ -10,6 +10,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
+
+	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 )
 
 // localCopiesFolder is the folder of the main checkout, ignored by git, that
@@ -35,7 +37,7 @@ type localCopy struct {
 
 // save keeps the keys of the server at that address, replacing what was
 // kept before.
-func (l localCopy) save(address netip.Addr, deployKey []byte, hostKey ssh.PublicKey) error {
+func (l localCopy) save(address netip.Addr, keys loginKeys) error {
 	if err := l.remove(); err != nil {
 		return err
 	}
@@ -45,9 +47,9 @@ func (l localCopy) save(address netip.Addr, deployKey []byte, hostKey ssh.Public
 	if err := restrictToOwner(l.folder); err != nil {
 		return fmt.Errorf("restrict %s to its owner: %w", l.folder, err)
 	}
-	knownHosts := knownhosts.Line([]string{address.String()}, hostKey) + "\n"
+	knownHosts := knownhosts.Line([]string{address.String()}, keys.host) + "\n"
 	return errors.Join(
-		writePrivate(l.path(deployKeyFile), deployKey),
+		writePrivate(l.path(deployKeyFile), []byte(keys.deployPrivate.Reveal())),
 		writePrivate(l.path(knownHostsFile), []byte(knownHosts)),
 		writePrivate(l.path(sshConfigFile), []byte(l.sshConfig(address))),
 	)
@@ -74,7 +76,7 @@ func (l localCopy) read() (loginKeys, bool, error) {
 	if err != nil {
 		return loginKeys{}, false, fmt.Errorf("read %s: %w", l.path(knownHostsFile), err)
 	}
-	return loginKeys{deploy: signer, deployPrivate: deployKey, host: hostKey}, true, nil
+	return loginKeys{deploy: signer, deployPrivate: config.NewSecret(string(deployKey)), host: hostKey}, true, nil
 }
 
 // kept tells whether there is a copy.

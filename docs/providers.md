@@ -70,6 +70,7 @@ Expected total while the system is small, from the prices below: about US$ 7.10 
 | SSH key of the project | `staging`, the deploy public key of the server, labelled `environment=staging`, registered with the server so that Hetzner e-mails no root password, and removed with it. A new one each turn-on |
 | Firewall | None at Hetzner: the firewall is inside the server, ufw, which lets in 22, 80 and 443 (`deploy/cloud-init.yaml`) |
 | SSH | Key login as the deploy user; no password, no root. The host key is the one the tool gave the server |
+| Metadata service | `169.254.169.254`, which gives anything on the server its user data, the rendered cloud-init file with the private host key. The server reads it; no container reaches it, by a rule of `deploy/cloud-init.yaml` (Servers in [`CODING_STANDARDS.md`](../CODING_STANDARDS.md)) |
 | Production server | Plan CX23; project, name and IP address _not created_ |
 | Restore-test server | _Decided with production_: a task of the maintainer's machine (ADR-0019) |
 

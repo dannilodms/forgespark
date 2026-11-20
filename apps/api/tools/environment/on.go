@@ -5,13 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/netip"
 	"time"
 
 	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
 )
 
 const (
@@ -31,7 +29,7 @@ const (
 // already, it checks that it answers, gives GitHub its values again and
 // creates nothing.
 func turnOn(ctx context.Context, environment environment, stdout io.Writer) error {
-	servers, err := environment.provider()
+	theProvider, err := environment.provider()
 	if err != nil {
 		return err
 	}
@@ -43,14 +41,14 @@ func turnOn(ctx context.Context, environment environment, stdout io.Writer) erro
 		return err
 	}
 	name := environment.choices.ServerName
-	server, found, err := servers.Find(ctx, name)
+	server, found, err := theProvider.Find(ctx, name)
 	if err != nil {
 		return fmt.Errorf("find the server %s at %s: %w", name, environment.choices.Provider, err)
 	}
 	if found {
 		return confirmOn(ctx, environment, server, mailpitPassword, stdout)
 	}
-	return create(ctx, environment, servers, mailpitPassword, stdout)
+	return create(ctx, environment, theProvider, mailpitPassword, stdout)
 }
 
 // confirmOn checks that a server that exists answers, with the keys the
@@ -70,7 +68,7 @@ func confirmOn(ctx context.Context, environment environment, server provider.Ser
 		return fmt.Errorf("%s is on at %s, but does not answer: %w", environment.name, server.Address, err)
 	}
 	fmt.Fprintln(stdout, "It answers: nothing was created.")
-	values := serverValues{address: server.Address, hostKey: keys.host, deployKey: keys.deployPrivate, turnedOn: server.Created}
+	values := serverValues{address: server.Address, keys: keys, turnedOn: server.Created}
 	if err := environment.writeValues(ctx, values, mailpitPassword, stdout); err != nil {
 		return fmt.Errorf("%s is on at %s, but GitHub does not have its values (%w): turn %s on again", environment.name, server.Address, err, environment.name)
 	}
@@ -80,7 +78,7 @@ func confirmOn(ctx context.Context, environment environment, server provider.Ser
 // create creates the server with new keys, waits until it is ready, keeps
 // the keys and gives GitHub its values. A failure after the server was
 // asked for destroys it.
-func create(ctx context.Context, environment environment, servers provider.Provider, mailpitPassword config.Secret, stdout io.Writer) error {
+func create(ctx context.Context, environment environment, theProvider provider.Provider, mailpitPassword config.Secret, stdout io.Writer) error {
 	chosen := environment.choices
 	keys, err := newServerKeys(environment.name)
 	if err != nil {
@@ -102,25 +100,26 @@ func create(ctx context.Context, environment environment, servers provider.Provi
 	fmt.Fprintf(stdout, "Turning %s on: creating the server %s at %s, a %s with %s in %s.\n",
 		environment.name, chosen.ServerName, chosen.Provider, chosen.Size, chosen.SystemImage, chosen.Region)
 
-	server, err := servers.Create(ctx, specification)
+	server, err := theProvider.Create(ctx, specification)
 	if errors.Is(err, provider.ErrNameTaken) {
 		return fmt.Errorf("create the server %s: %w. Another turn-on may be creating it now; when none is, turn %s off and on again",
 			chosen.ServerName, err, environment.name)
 	}
 	if err != nil {
-		return environment.undo(ctx, servers, fmt.Errorf("create the server %s: %w", chosen.ServerName, err))
+		return environment.undo(ctx, theProvider, fmt.Errorf("create the server %s: %w", chosen.ServerName, err))
 	}
 	fmt.Fprintf(stdout, "The server is at %s. Waiting until it answers SSH with its host key and cloud-init has prepared it, for up to %v.\n",
 		server.Address, readinessDeadline)
-	if err := environment.waitUntilReady(ctx, server.Address, keys.login()); err != nil {
-		return environment.undo(ctx, servers, fmt.Errorf("wait until the server is ready: %w", err))
+	login := keys.login()
+	if err := environment.waitUntilReady(ctx, server.Address, login); err != nil {
+		return environment.undo(ctx, theProvider, fmt.Errorf("wait until the server is ready: %w", err))
 	}
-	if err := environment.localCopy().save(server.Address, keys.deployPrivate, keys.hostPublic); err != nil {
-		return environment.undo(ctx, servers, fmt.Errorf("keep the local copy of the deploy key: %w", err))
+	if err := environment.localCopy().save(server.Address, login); err != nil {
+		return environment.undo(ctx, theProvider, fmt.Errorf("keep the local copy of the deploy key: %w", err))
 	}
-	values := serverValues{address: server.Address, hostKey: keys.hostPublic, deployKey: keys.deployPrivate, turnedOn: server.Created}
+	values := serverValues{address: server.Address, keys: login, turnedOn: server.Created}
 	if err := environment.writeValues(ctx, values, mailpitPassword, stdout); err != nil {
-		return environment.undo(ctx, servers, err)
+		return environment.undo(ctx, theProvider, err)
 	}
 	fmt.Fprintf(stdout, "%s is on.\n", environment.title())
 	return report(stdout, environment, server)
@@ -131,23 +130,18 @@ func create(ctx context.Context, environment environment, servers provider.Provi
 func (e environment) waitUntilReady(ctx context.Context, address netip.Addr, keys loginKeys) error {
 	ctx, cancel := context.WithTimeout(ctx, readinessDeadline)
 	defer cancel()
-	return e.outside.readiness.Wait(ctx, sshclient.Target{
-		Address: net.JoinHostPort(address.String(), sshPort),
-		HostKey: keys.host,
-		User:    deployUser,
-		Key:     keys.deploy,
-	})
+	return e.outside.readiness.Wait(ctx, keys.at(address))
 }
 
 // undo destroys what a failed turn-on created, with the deploy key at the
 // provider, takes its values out of GitHub and removes the local copy, then
 // reports the failure. It runs to its end even when a signal cut the
 // turn-on short.
-func (e environment) undo(ctx context.Context, servers provider.Provider, cause error) error {
+func (e environment) undo(ctx context.Context, theProvider provider.Provider, cause error) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), undoDeadline)
 	defer cancel()
 	failed := errors.Join(
-		failedTo("destroy the server", servers.Destroy(ctx, e.choices.ServerName)),
+		failedTo("destroy the server", theProvider.Destroy(ctx, e.choices.ServerName)),
 		e.deleteValues(ctx),
 		failedTo("remove the local copy of the deploy key", e.localCopy().remove()),
 	)
@@ -155,12 +149,4 @@ func (e environment) undo(ctx context.Context, servers provider.Provider, cause 
 		return fmt.Errorf("%w; undoing it failed too (%w): turn %s off", cause, failed, e.name)
 	}
 	return fmt.Errorf("%w; the server was destroyed, and nothing of it is left", cause)
-}
-
-// failedTo names what failed, and is nil when nothing did.
-func failedTo(what string, err error) error {
-	if err == nil {
-		return nil
-	}
-	return fmt.Errorf("%s: %w", what, err)
 }

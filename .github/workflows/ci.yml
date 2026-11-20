@@ -525,9 +525,9 @@ jobs:
         run: |
           echo "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           trap 'docker logout ghcr.io' EXIT
-          for built in api:servers caddy:servers seed:development; do
-            published="ghcr.io/dannilodms/software-factory-manager-${built%%:*}:${GITHUB_SHA}"
-            docker tag "software-factory-manager-${built}" "$published"
+          for image in api caddy seed; do
+            published="ghcr.io/dannilodms/software-factory-manager-${image}:${GITHUB_SHA}"
+            docker tag "software-factory-manager-${image}:servers" "$published"
             docker push --quiet "$published"
           done
 

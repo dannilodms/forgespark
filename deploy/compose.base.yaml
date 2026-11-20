@@ -121,7 +121,7 @@ services:
       - garage-data:/var/lib/garage
     healthcheck:
       # The image has no shell: Garage itself tells whether the bucket exists.
-      test: [CMD, /garage, bucket, info, "${FILE_STORAGE_BUCKET}"]
+      test: [CMD, /garage, bucket, info, "${FILE_STORAGE_BUCKET:?Set FILE_STORAGE_BUCKET, as .env.example does}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -142,9 +142,9 @@ services:
     environment:
       APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN, as .env.example does}
       FILE_STORAGE_REGION: ${FILE_STORAGE_REGION:?Set FILE_STORAGE_REGION, as .env.example does}
-      FILE_STORAGE_BUCKET: ${FILE_STORAGE_BUCKET}
-      FILE_STORAGE_ACCESS_KEY_ID: ${FILE_STORAGE_ACCESS_KEY_ID}
-      FILE_STORAGE_SECRET_ACCESS_KEY: ${FILE_STORAGE_SECRET_ACCESS_KEY}
+      FILE_STORAGE_BUCKET: ${FILE_STORAGE_BUCKET:?Set FILE_STORAGE_BUCKET, as .env.example does}
+      FILE_STORAGE_ACCESS_KEY_ID: ${FILE_STORAGE_ACCESS_KEY_ID:?Set FILE_STORAGE_ACCESS_KEY_ID, as .env.example does}
+      FILE_STORAGE_SECRET_ACCESS_KEY: ${FILE_STORAGE_SECRET_ACCESS_KEY:?Set FILE_STORAGE_SECRET_ACCESS_KEY, as .env.example does}
     logging: *logging
 
   # The e-mail server of development and staging (ADR-0019): it takes every

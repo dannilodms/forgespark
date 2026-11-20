@@ -123,7 +123,7 @@ func onStaging(t *testing.T, upstreams upstreamsOfStaging) stagingSite {
 		return true
 	}, 30*time.Second, 50*time.Millisecond)
 	if !answered {
-		t.Fatalf("Caddy did not answer over HTTPS: %s", site{container: container}.output(t))
+		require.FailNow(t, "Caddy did not answer over HTTPS", site{container: container}.output(t))
 	}
 	return staging
 }
@@ -142,7 +142,7 @@ func clientOfStaging(t *testing.T, container string) *http.Client {
 		return err == nil && authorities.AppendCertsFromPEM(root)
 	}, 30*time.Second, 50*time.Millisecond)
 	if !created {
-		t.Fatalf("Caddy created no local authority: %s", site{container: container}.output(t))
+		require.FailNow(t, "Caddy created no local authority", site{container: container}.output(t))
 	}
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
 	return &http.Client{

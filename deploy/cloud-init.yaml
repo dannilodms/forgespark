@@ -28,7 +28,7 @@ ssh_deletekeys: true
 ssh_genkeytypes: [ed25519]
 ssh_keys:
   ed25519_private: |
-    {{ indent 4 .HostPrivateKey }}
+    {{ indent 4 .HostPrivateKey.Reveal }}
   ed25519_public: "{{ .HostPublicKey }}"
 
 # SSH by key only, as the deploy user: no password, and no root.
@@ -67,6 +67,30 @@ write_files:
     permissions: "0644"
     content: |
       APT::Install-Recommends "false";
+  # The metadata service of the provider, at 169.254.169.254, serves the user
+  # data of the server, which holds the private host key, to whatever asks
+  # from the server. The server itself asks it; a container never does.
+  # Docker sends what a container sends out through the chain DOCKER-USER,
+  # which it creates when it is missing and never changes, so the rule there
+  # holds. The unit puts it there on every boot, after ufw has loaded its
+  # rules and before Docker starts, and Docker starts no container without
+  # it.
+  - path: /etc/systemd/system/containers-without-metadata.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Keep every container from the metadata service of the provider
+      After=ufw.service
+      Before=docker.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=-/usr/sbin/iptables -N DOCKER-USER
+      ExecStart=/usr/sbin/iptables -I DOCKER-USER -d 169.254.169.254/32 -j DROP
+
+      [Install]
+      RequiredBy=docker.service
 
 apt:
   sources:
@@ -172,6 +196,10 @@ runcmd:
   - ufw allow 443/tcp
   - ufw allow 443/udp
   - ufw --force enable
+  # No container reaches the metadata service: Docker started when it was
+  # installed, and the unit is enabled for every boot after this one.
+  - systemctl daemon-reload
+  - systemctl enable --now containers-without-metadata.service
   - rm -f /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_rsa_key.pub /etc/ssh/ssh_host_ecdsa_key /etc/ssh/ssh_host_ecdsa_key.pub
   - sshd -t
   - systemctl try-restart ssh.service

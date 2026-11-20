@@ -24,6 +24,15 @@ func TestTheFirstTurnOnChoosesThePasswordOfMailpitAndKeepsItInTheEnvOfTheMainChe
 	assert.Equal(t, password, world.github.Secrets("staging")["MAILPIT_PASSWORD"])
 }
 
+func TestTheEnvTheFirstTurnOnCreatesIsReachedByItsOwnerAlone(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+
+	world.succeeds("on", "staging")
+
+	assertOwnerAlone(t, filepath.Join(world.directory, ".env"))
+}
+
 func TestTheNextTurnOnReusesThePasswordOfMailpit(t *testing.T) {
 	t.Parallel()
 	world := aWorld(t)

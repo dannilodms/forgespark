@@ -167,7 +167,7 @@ configs:
       rpc_public_addr = "127.0.0.1:3901"
 
       [s3_api]
-      s3_region = "${FILE_STORAGE_REGION}"
+      s3_region = "${FILE_STORAGE_REGION:?Set FILE_STORAGE_REGION, as .env.example does}"
       api_bind_addr = "0.0.0.0:3900"
 
   # Dex with one static client, the API, which may send a person back only to

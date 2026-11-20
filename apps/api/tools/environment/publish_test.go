@@ -50,7 +50,7 @@ func (w *world) readyToPublish() serverKeys {
 		"PULL_REQUEST":     "12",
 		"SERVER_ADDRESS":   "203.0.113.10",
 		"SERVER_HOST_KEY":  knownhosts.Line([]string{"203.0.113.10"}, keys.hostPublic),
-		"DEPLOY_KEY":       strings.TrimRight(string(keys.deployPrivate), "\n"),
+		"DEPLOY_KEY":       strings.TrimRight(keys.deployPrivate.Reveal(), "\n"),
 		"MAILPIT_PASSWORD": mailpitPasswordOfTheTests,
 	}
 	return keys
@@ -76,7 +76,9 @@ func TestAPublishRunsItsStepsOnTheServerInTheirOrder(t *testing.T) {
 		// 5.
 		"run " + compose + " stop api worker",
 		// 6. A volume in use cannot be removed: its container goes first.
-		"run " + compose + " rm --stop --force postgres garage",
+		// Mailpit keeps its e-mails inside its container, so it goes too,
+		// and no login code of an earlier pull request is left.
+		"run " + compose + " rm --stop --force postgres garage mailpit",
 		"run docker volume rm --force software-factory-manager-staging_postgres-data software-factory-manager-staging_garage-data",
 		// 7.
 		"run " + compose + " up --detach --wait postgres garage garage-cors mailpit caddy",
@@ -531,7 +533,7 @@ Every name of .env.example has a value for staging.
 3. Write the variables file, readable by the deploy user alone.
 4. Pull the images of the commit.
 5. Stop the API and the worker.
-6. Remove the volumes of PostgreSQL and Garage.
+6. Remove PostgreSQL, Garage and Mailpit, with their data.
 7. Start PostgreSQL, Garage and its rule, Mailpit and Caddy.
 8. Run the migration, then the seed.
 9. Start the API and the worker.
@@ -560,7 +562,7 @@ func TestAPublishPrintsNoValueAndRunsNoCommandThatCarriesOne(t *testing.T) {
 
 	secrets := map[string]string{
 		"the password of Mailpit":        mailpitPasswordOfTheTests,
-		"the deploy key":                 strings.Split(string(keys.deployPrivate), "\n")[1],
+		"the deploy key":                 strings.Split(keys.deployPrivate.Reveal(), "\n")[1],
 		"the hash of the password":       values["MAILPIT_PASSWORD_HASH"],
 		"the variables file, as written": string(world.server.files["staging/.env"].content),
 	}

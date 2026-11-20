@@ -61,6 +61,7 @@
 - **Concurrency.** The workflow's `cancel-in-progress` is false for a pull request with the label, so that a push never cuts a publish short: its runs wait in turn. One gap is left: removing the label by hand and pushing while that pull request is publishing starts a run without the label, which cancels the publish; the next publish puts staging right.
 - **The job builds the images itself**, with the Task targets the checks use, rather than taking them from the jobs of the checks: no new action is pinned, and no job of the checks pushes or uploads anything.
 - **Where ticket 06 goes** is in its file, under From ticket 05.
+- **After the code review** (2026-11-20): step 6 removes Mailpit too, whose e-mails live in its container, so no login code of an earlier pull request is left (story 29). A test reads each service of `deploy/compose.staging.yaml` that runs the binary or the seed, with what it extends, works out the environment its container receives from the variables file, and loads `config.Load` for each command it runs, its health check's included: a variable the binary requires that its service does not list fails the checks, not a publish (story 30). `derived` takes a value that cannot fail; the hash of the password of Mailpit is a value of its own.
 
 ### What was checked
 

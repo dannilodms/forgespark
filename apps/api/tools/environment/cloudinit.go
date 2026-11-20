@@ -15,9 +15,10 @@ import (
 const cloudInitFile = "deploy/cloud-init.yaml"
 
 // cloudInitValues are what the cloud-init file takes from a turn-on, where
-// its {{ }} are.
+// its {{ }} are. The private host key keeps the type of a secret: the file
+// reveals it where it writes it.
 type cloudInitValues struct {
-	HostPrivateKey  string
+	HostPrivateKey  config.Secret
 	HostPublicKey   string
 	DeployPublicKey string
 }

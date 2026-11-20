@@ -49,8 +49,10 @@ type answer struct {
 	Stderr    string   `json:"stderr"`
 }
 
+// TestMain reads the environment as a command of the binary does, through
+// config.Environment, the one reader of the environment.
 func TestMain(m *testing.M) {
-	if os.Getenv(standInVariable) != "" {
+	if config.Environment()[standInVariable] != "" {
 		os.Exit(standIn())
 	}
 	if err := os.Setenv(standInVariable, "1"); err != nil {

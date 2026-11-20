@@ -59,6 +59,7 @@
 - **Labels**: `environment=<name>` on the server and the key; Find and Destroy select by name and by that label.
 - **Status** dates the server by its creation at the provider and tells its age; ticket 02 adds the pull request.
 - **Dependencies**: `github.com/hetznercloud/hcloud-go/v2 v2.53.0` is new (it brings `prometheus/client_golang` and its own into `go.sum` as indirect requirements, compiled into the tool alone); `golang.org/x/crypto v0.58.0` and `golang.org/x/sys v0.50.0` move from indirect to direct, at the versions they had.
+- **After the code review** (2026-11-20): the token, the password of Mailpit and both private keys stay `config.Secret` until the file, the template (`.HostPrivateKey.Reveal` in `deploy/cloud-init.yaml`) or `gh` that uses each; the deploy key, its text and the host key travel as one `loginKeys`, which gives the SSH target at an address; the unit `containers-without-metadata.service` of the cloud-init file drops, in `DOCKER-USER`, what a container sends to Hetzner's metadata service, which serves the private host key, on every boot after ufw and before Docker (valid for cloud-init 26.2 and `systemd-analyze verify`, in `ubuntu:26.04`; a real server proves it); and "no test calls Hetzner or GitHub" is in Tests of `CODING_STANDARDS.md`.
 
 ### What was checked
 

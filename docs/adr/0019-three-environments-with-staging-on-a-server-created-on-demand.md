@@ -10,7 +10,7 @@ Revised on 2026-11-19, before any server existed: the servers moved from the pip
 
 - **Development runs the tools on the machine.** Go, Vite+ and Task run on Windows, so an agent runs a test without going through Docker. The development Compose file declares every service the code talks to.
 - **Staging shows one pull request.** A pull request with the `staging` label is published to staging once its checks pass, and every later push to it is published again. There is one staging environment: publishing another pull request replaces what was there and takes the label off the one before.
-- **Staging data is the seed.** Every publish to staging recreates the database and the file storage and runs the seed. Nothing from production is ever copied there.
+- **Staging data is the seed.** Every publish to staging recreates the database and the file storage, empties Mailpit and runs the seed. Nothing from production is ever copied there.
 - **Staging is turned on and off by hand.** Turning it on creates its server and turning it off destroys it, both from the maintainer's machine. An agent that opens a pull request for staging asks first, turns staging on, and opens the pull request only once staging is on. Nothing destroys the server by itself: a scheduled check warns when staging has been on for more than 24 hours.
 - **Staging is public, with the real login.** A person logs in through Google, Microsoft or GitHub, or with a login code. The e-mail goes to Mailpit, which has a host name of its own behind a password asked by the browser. The seed creates its users with addresses derived from one mailbox taken from configuration, so the maintainer can log in as any of them.
 - **Production receives `main`.** A merge into `main` is published to production once the pipeline passes. Nothing else publishes there.
@@ -30,7 +30,7 @@ What each environment runs:
 | Caddy, with the web app | container, the web app served by Vite | container, the web app built into its image | container, the web app built into its image |
 | PostgreSQL | container | container, recreated on every publish | container, backed up (ADR-0020) |
 | File storage | Garage | Garage, recreated on every publish | Backblaze B2 (ADR-0020) |
-| E-mail | Mailpit | Mailpit, behind a password | Resend |
+| E-mail | Mailpit | Mailpit, behind a password, emptied on every publish | Resend |
 | Login | Dex, or a login code read from Mailpit | the three providers, or a login code read from Mailpit | the three providers, or a login code sent by Resend |
 | LLM provider | the stand-in | the stand-in, once a feature calls an LLM | the real provider |
 | Telemetry | a Compose profile, off by default | none | none yet (ADR-0012) |
