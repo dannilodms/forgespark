@@ -31,6 +31,7 @@ type GitHub struct {
 	environments map[string]contents
 	labels       map[string]github.Label
 	pullRequests []labelled
+	comments     map[int][]string
 	written      []string
 	unreachable  error
 	setErrs      map[string]error
@@ -42,6 +43,7 @@ func NewGitHub() *GitHub {
 	return &GitHub{
 		environments: map[string]contents{},
 		labels:       map[string]github.Label{},
+		comments:     map[int][]string{},
 		setErrs:      map[string]error{},
 	}
 }
@@ -147,6 +149,22 @@ func (g *GitHub) LabelledPullRequests(_ context.Context, label string) ([]github
 		found = append(found, open.pullRequest)
 	}
 	return found, nil
+}
+
+// CommentOnPullRequest keeps the comment.
+func (g *GitHub) CommentOnPullRequest(_ context.Context, number int, body string) error {
+	if g.unreachable != nil {
+		return g.unreachable
+	}
+	g.written = append(g.written, body)
+	g.comments[number] = append(g.comments[number], body)
+	return nil
+}
+
+// Comments gives the comments of the pull request, in the order they were
+// made.
+func (g *GitHub) Comments(number int) []string {
+	return slices.Clone(g.comments[number])
 }
 
 // Environments gives the names of the environments that exist.

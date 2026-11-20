@@ -1,7 +1,8 @@
 // Package sshclienttest gives a test an SSH server in its own process, on
 // the loopback interface. It answers with the host key the test gives it,
-// lets in one user with one key, and answers each command with the status
-// the test sets, recording every command and what it read on its input.
+// lets in one user with one key, and answers each command with the output
+// and the status the test sets, recording every command and what it read on
+// its input.
 package sshclienttest
 
 import (
@@ -34,6 +35,7 @@ type Server struct {
 
 	mu       sync.Mutex
 	statuses map[string]uint32
+	outputs  map[string]output
 	commands []Command
 	offered  int
 	refusals int
@@ -53,6 +55,7 @@ func NewServer(t testing.TB, hostKey ssh.Signer, user string, authorized ssh.Pub
 		authorized: authorized,
 		listener:   listener,
 		statuses:   map[string]uint32{},
+		outputs:    map[string]output{},
 	}
 	server.config = &ssh.ServerConfig{PublicKeyCallback: server.login}
 	server.config.AddHostKey(hostKey)
@@ -67,6 +70,17 @@ func (s *Server) Answer(command string, status uint32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.statuses[command] = status
+}
+
+// output is what a command prints.
+type output struct{ stdout, stderr string }
+
+// Print makes the command print that on its output and its error output
+// from now on. A command with nothing to print prints nothing.
+func (s *Server) Print(command, stdout, stderr string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.outputs[command] = output{stdout: stdout, stderr: stderr}
 }
 
 // RefuseLogins makes the next logins fail, as a server does before its
@@ -141,7 +155,8 @@ func (s *Server) session(request ssh.NewChannel) {
 	}
 }
 
-// answer runs an exec request and refuses any other.
+// answer runs an exec request and refuses any other: it reads the input to
+// its end, prints and exits as the test said.
 func (s *Server) answer(channel ssh.Channel, request *ssh.Request) {
 	var exec struct{ Command string }
 	if request.Type != "exec" || ssh.Unmarshal(request.Payload, &exec) != nil {
@@ -152,8 +167,10 @@ func (s *Server) answer(channel ssh.Channel, request *ssh.Request) {
 	input, _ := io.ReadAll(channel)
 	s.mu.Lock()
 	s.commands = append(s.commands, Command{Line: exec.Command, Input: input})
-	status := s.statuses[exec.Command]
+	status, printed := s.statuses[exec.Command], s.outputs[exec.Command]
 	s.mu.Unlock()
+	_, _ = io.WriteString(channel, printed.stdout)
+	_, _ = io.WriteString(channel.Stderr(), printed.stderr)
 	_, _ = channel.SendRequest("exit-status", false, binary.BigEndian.AppendUint32(nil, status))
 	channel.Close()
 }

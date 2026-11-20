@@ -1,7 +1,8 @@
 // Package sshclient reaches a server over SSH as its deploy user, trusting
 // only the host key the tool gave the server: a server that answers with
 // another key is refused before the deploy key is offered. Readiness waits
-// until a new server answers and cloud-init has prepared it.
+// until a new server answers and cloud-init has prepared it, and Remote is
+// the server that a publish writes files to and runs commands on.
 package sshclient
 
 import (
@@ -9,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -71,11 +73,25 @@ func hostKeyIs(expected ssh.PublicKey) ssh.HostKeyCallback {
 // Run runs a command on the server and gives the status it exited with.
 // The command carries no value: values travel as the content of a file.
 func Run(ctx context.Context, client *ssh.Client, command string) (int, error) {
+	return runWith(ctx, client, command, streams{})
+}
+
+// streams are what a command reads and where what it prints goes. A nil
+// one reads nothing, or discards what is printed.
+type streams struct {
+	input               io.Reader
+	output, errorOutput io.Writer
+}
+
+// runWith runs a command with those streams. The end of the context closes
+// the connection, which ends the command.
+func runWith(ctx context.Context, client *ssh.Client, command string, with streams) (int, error) {
 	session, err := client.NewSession()
 	if err != nil {
 		return 0, err
 	}
 	defer session.Close()
+	session.Stdin, session.Stdout, session.Stderr = with.input, with.output, with.errorOutput
 	stop := context.AfterFunc(ctx, func() { client.Close() })
 	defer stop()
 	err = session.Run(command)

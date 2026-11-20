@@ -1,9 +1,11 @@
 // Command environment turns an environment of the system on and off from the
-// maintainer's machine, and tells its status. Staging is the one environment
-// it knows: turning it on creates its server at the provider, prepared by
-// deploy/cloud-init.yaml, and turning it off destroys it (ADR-0019). Task
-// runs it as `task staging:on`, `task staging:off` and `task staging:status`.
-// It is built into no image.
+// maintainer's machine, tells its status, and publishes a pull request to
+// it. Staging is the one environment it knows: turning it on creates its
+// server at the provider, prepared by deploy/cloud-init.yaml, and turning it
+// off destroys it (ADR-0019). Task runs it as `task staging:on`,
+// `task staging:off` and `task staging:status`; the pipeline runs the
+// publish, which logs in to the server over SSH and needs no token of the
+// provider. It is built into no image.
 //
 // The choices of an environment's server are in deploy/server.<name>.yaml.
 // The provider is an adapter: Hetzner's, today, whose token is HETZNER_TOKEN,
@@ -26,6 +28,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"time"
 
@@ -50,6 +53,13 @@ Commands:
             Mailpit. When it is off already, do nothing more
   status    Tell whether the environment is on, since when, at which address
             and host names, and which open pull request has its label
+  publish   Publish the images of a commit of a pull request to the server of
+            the environment: write its variables file, start its data again
+            from the seed, start the API and the worker, wait until /up
+            answers, and comment the addresses on the pull request. The
+            pipeline runs it, with these variables: COMMIT and PULL_REQUEST,
+            and SERVER_ADDRESS, SERVER_HOST_KEY, DEPLOY_KEY and
+            MAILPIT_PASSWORD from the GitHub Environment
 
 The one environment is staging. Its choices are in deploy/server.staging.yaml.
 `
@@ -63,9 +73,10 @@ const sshRetryInterval = 5 * time.Second
 type command func(ctx context.Context, environment environment, stdout io.Writer) error
 
 var commands = map[string]command{
-	"on":     turnOn,
-	"off":    turnOff,
-	"status": tellStatus,
+	"on":      turnOn,
+	"off":     turnOff,
+	"status":  tellStatus,
+	"publish": publish,
 }
 
 // adapter is how the tool reaches one provider: the variable that holds its
@@ -93,15 +104,19 @@ type readiness interface {
 
 // outside is what the commands reach beyond their arguments and their
 // environment variables: the directory they start from, the provider,
-// readiness, GitHub and the clock. main gives the real ones; the tests give
-// fakes.
+// readiness, GitHub, the server a publish works on, its app and the clock.
+// main gives the real ones; the tests give fakes.
 type outside struct {
 	directory string
 	// connect reaches the provider an environment names, with its token.
 	connect   func(providerName string, token config.Secret, labels map[string]string) provider.Provider
 	readiness readiness
 	github    github.GitHub
-	now       func() time.Time
+	// reachServer logs in to the server a publish works on. What the
+	// server prints goes to the output.
+	reachServer func(ctx context.Context, target sshclient.Target, output io.Writer) (remoteServer, error)
+	app         appReadiness
+	now         func() time.Time
 }
 
 func main() {
@@ -116,11 +131,22 @@ func main() {
 		connect: func(providerName string, token config.Secret, labels map[string]string) provider.Provider {
 			return adapters[providerName].connect(token, labels)
 		},
-		readiness: sshclient.Readiness{RetryInterval: sshRetryInterval},
-		github:    gh.New(gh.Settings{Executable: gh.Executable, Directory: directory}),
-		now:       time.Now,
+		readiness:   sshclient.Readiness{RetryInterval: sshRetryInterval},
+		github:      gh.New(gh.Settings{Executable: gh.Executable, Directory: directory}),
+		reachServer: openServer,
+		app:         upOverHTTPS{client: &http.Client{Timeout: upAskTimeout}, interval: upRetryInterval},
+		now:         time.Now,
 	}
 	os.Exit(run(shutdown, os.Args[1:], config.Environment(), actual, os.Stdout, os.Stderr))
+}
+
+// openServer logs in to a server over SSH.
+func openServer(ctx context.Context, target sshclient.Target, output io.Writer) (remoteServer, error) {
+	remote, err := sshclient.Open(ctx, target, output)
+	if err != nil {
+		return nil, err
+	}
+	return remote, nil
 }
 
 // run executes one command and returns the exit status of the process: 0
