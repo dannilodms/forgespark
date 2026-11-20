@@ -51,4 +51,4 @@
 
 ### Found, and left for a decision
 
-- **The size limit of the JavaScript** (Enforcement in the frontend rules: measured on the Brotli copies, "numbers set when the deploy is built") is not set: the numbers and the tool are for the maintainer, or for ticket 04. The copies of today: the entry `index-*.js` 122 KB and `form-fields-*.js` 134 KB in Brotli (444 KB and 501 KB minified; Vite warns above 500 KB), the CSS 16 KB.
+- **The size limit of the JavaScript** (Enforcement in the frontend rules: measured on the Brotli copies, "numbers set when the deploy is built") is not set: the numbers and the tool are for the maintainer, or for ticket 04. The copies of today: the entry `index-*.js` 122 KB and `form-fields-*.js` 134 KB in Brotli (444 KB and 501 KB minified; Vite warns above 500 KB), the CSS 16 KB. Settled on 2026-11-20: an effort of its own, `.scratch/javascript-size-limit/issues/01-set-the-size-limit-of-the-javascript.md`, ready for an agent, with these sizes and the numbers and the tool to choose; Deferred in the frontend rules of `CODING_STANDARDS.md` points at it.

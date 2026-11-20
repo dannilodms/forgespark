@@ -292,6 +292,11 @@ jobs:
       - name: Build the web app, and the Caddy image of the servers with it inside
         run: task caddy:image
 
+      # The build that went into the image, in the Chromium of the screen
+      # tests.
+      - name: Open the built app under the Content-Security-Policy of the servers
+        run: task web:csp
+
   # The setup, end to end, in Chromium, through Caddy: the services of
   # development, the API binary on a database that starts empty, and Vite.
   end-to-end:

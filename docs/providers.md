@@ -142,7 +142,7 @@ In production the browser reaches the files at Backblaze's own host name, so the
 
 Nothing is configured there. The certificates are for the host names of staging under `sslip.io`, and, once the domain is registered, for the ones listed in Domain and DNS.
 
-**ZeroSSL.** Caddy asks ZeroSSL when Let's Encrypt refuses a certificate only when it has an address for the account, `ACME_EMAIL` (`deploy/Caddyfile.staging`). Staging gives none yet, so it asks Let's Encrypt alone.
+**ZeroSSL.** Caddy asks ZeroSSL when Let's Encrypt refuses a certificate only when it has an address for the account, `ACME_EMAIL` (`deploy/Caddyfile.staging`). Staging gives none until the domain is registered, so it asks Let's Encrypt alone: a week in which the limit `sslip.io` shares with every user of it runs out leaves staging without a certificate, and the publish's wait for `/up` reports it. The risk ends with the domain, which [the ticket of the domain](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md) records.
 
 ## Resend
 

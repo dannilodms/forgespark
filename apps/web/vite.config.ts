@@ -29,6 +29,20 @@ export default defineConfig({
     // `data:` URL, which the Content-Security-Policy of the servers refuses
     // (Security headers in Delivery, CODING_STANDARDS.md).
     assetsInlineLimit: 0,
+    rolldownOptions: {
+      output: {
+        // Zod tries `new Function` once, when it builds its first object
+        // schema, unless its configuration is `jitless`, and the policy of the
+        // servers refuses it with a violation the browser reports. Zod keeps
+        // its configuration in `globalThis.__zod_globalConfig`, and takes the
+        // one it finds there when it loads. The chunk that builds the schemas
+        // runs before the code of `main.tsx`, so every chunk starts by setting
+        // it, and whichever runs first sets it before any code of Zod
+        // (Security headers in Delivery, CODING_STANDARDS.md). `task web:csp`
+        // proves it.
+        banner: "(globalThis.__zod_globalConfig ??= {}).jitless = true;",
+      },
+    },
   },
   optimizeDeps: {
     // Every source file, so the dependencies a lazy route or a test imports

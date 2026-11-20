@@ -58,8 +58,8 @@
 
 ### Found, and left for a decision
 
-- **Adding any label runs every check again**, some fifteen minutes of runners, free for a public repository. If labels other than `staging` come into use, a cheaper way needs those runs to report no `Checks` at all.
-- **A label added while another pull request's run is under way can be taken off by it**, as above. Comparing when each label was added would settle it, through the events of each pull request, at the price of more calls and a permission more.
+- **Adding any label runs every check again**, some fifteen minutes of runners, free for a public repository. If labels other than `staging` come into use, a cheaper way needs those runs to report no `Checks` at all. Settled on 2026-11-20: accepted, and looked at again when labels other than `staging` come into use; in A label added, in Checks on a pull request of `CODING_STANDARDS.md`.
+- **A label added while another pull request's run is under way can be taken off by it**, as above. Comparing when each label was added would settle it, through the events of each pull request, at the price of more calls and a permission more. Settled on 2026-11-20: accepted, since it is rare with one maintainer and the comment says to add the label again; in The publish of staging, in Publishing of `CODING_STANDARDS.md`.
 
 ### How to try it for real (the last criterion)
 
