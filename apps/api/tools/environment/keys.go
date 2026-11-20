@@ -61,14 +61,17 @@ func newServerKeys(name string) (serverKeys, error) {
 
 // login is what logs in to the server made with these keys.
 func (k serverKeys) login() loginKeys {
-	return loginKeys{deploy: k.deploySigner, host: k.hostPublic}
+	return loginKeys{deploy: k.deploySigner, deployPrivate: k.deployPrivate, host: k.hostPublic}
 }
 
 // loginKeys log in to a server: the deploy key, and the only host key
 // trusted.
 type loginKeys struct {
 	deploy ssh.Signer
-	host   ssh.PublicKey
+	// deployPrivate is the same deploy key in OpenSSH's format, as the
+	// local copy and GitHub keep it.
+	deployPrivate []byte
+	host          ssh.PublicKey
 }
 
 // authorizedLine writes a public key as a line of authorized keys, with no

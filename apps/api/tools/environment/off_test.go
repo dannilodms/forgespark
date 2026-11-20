@@ -16,7 +16,7 @@ func TestTurningStagingOffDestroysItsServerAndRemovesTheLocalCopyOfTheKey(t *tes
 
 	assert.Empty(t, world.provider.Servers())
 	assert.NoDirExists(t, world.localCopy())
-	assert.Equal(t, "Staging is off: the server staging at 203.0.113.10 was destroyed at hetzner, with its address and its deploy key.\n", printed)
+	assert.Equal(t, "Staging is off: the server staging at 203.0.113.10 was destroyed at hetzner, with its address and its deploy key.\nThe GitHub Environment staging keeps only the password of Mailpit.\n", printed)
 }
 
 func TestTurningOffWhenOffSucceedsAndSaysSo(t *testing.T) {
@@ -25,7 +25,7 @@ func TestTurningOffWhenOffSucceedsAndSaysSo(t *testing.T) {
 
 	printed := world.succeeds("off", "staging")
 
-	assert.Equal(t, "Staging was off already: there was no server to destroy.\n", printed)
+	assert.Equal(t, "Staging was off already: there was no server to destroy.\nThe GitHub Environment staging keeps only the password of Mailpit.\n", printed)
 }
 
 func TestATurnOffThatCannotDestroyTheServerFailsAndKeepsTheLocalCopy(t *testing.T) {

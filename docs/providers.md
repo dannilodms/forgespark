@@ -6,13 +6,13 @@ Every outside service this system depends on: why it was chosen, what it costs, 
 
 **Keep it true.** A change made at a provider (a new record, a new bucket, a change of plan) is written here in the same pull request, or right after when the change is made by hand.
 
-Prices were read on the providers' own pages on 2026-11-16, without tax, and Hetzner's from its API on 2026-11-19. Only the GitHub repository and the Hetzner project of staging have been created so far: a value shown as _not created_ is filled in when the resource exists.
+Prices were read on the providers' own pages on 2026-11-16, without tax, and Hetzner's from its API on 2026-11-19. Only the GitHub repository and the Hetzner project of staging have been created by hand so far, and the GitHub Environment and the label of staging are made by the first `task staging:on`: a value shown as _not created_ is filled in when the resource exists.
 
 ## Summary
 
 | Provider | Used for | Environments | Approximate cost | State |
 | --- | --- | --- | --- | --- |
-| [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; environments and the secret `RESEND_TEST_API_KEY` not created yet |
+| [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; the environment `staging` and the label `staging` made by the first `task staging:on`; the environment `production` and the secret `RESEND_TEST_API_KEY` not created yet |
 | [Hetzner Cloud](#hetzner-cloud) | The servers | staging, production | US$ 0.0114 an hour while staging is on; production _not created_ | Project of staging created; its server exists only while staging is on |
 | [Backblaze B2](#backblaze-b2) | Production files, database backups | production, staging (certificates only) | Free under 10 GB, about US$ 0.63 a month at 100 GB | Decided, not created |
 | [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | _not known_ | Registrar not chosen |
@@ -37,7 +37,8 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 | Licence | AGPLv3 |
 | Branch protection on `main` | The `main` ruleset: no direct push, a pull request with a squash merge, no force push, no deletion, and a merge only when the `Checks` check of GitHub Actions has passed |
 | Merge | Squash only; the branch is deleted after the merge |
-| Environments | `staging` and `production`; `production` restricted to `main`. _Not created_ |
+| Environment `staging` | Created by `task staging:on` when it does not exist, with no protection rule and no branch restriction, so that a run of a pull request can use it; an environment that exists is not changed. While staging is on it holds the secrets `DEPLOY_KEY` (the private deploy key of the server) and `MAILPIT_PASSWORD` (the password of Mailpit), and the variables `SERVER_ADDRESS` (the IPv4 address of the server), `SERVER_HOST_KEY` (its host key, as a line of known hosts) and `TURNED_ON_AT` (when the server was created). `task staging:off` deletes all but `MAILPIT_PASSWORD`. What each one holds is in Secrets, in [`CODING_STANDARDS.md`](../CODING_STANDARDS.md) |
+| Environment `production` | Restricted to `main`. _Not created_ |
 | Secret scanning with push protection | On |
 | Dependabot alerts | On. Its automatic pull requests are off |
 | Private vulnerability reporting | On; the way to report is in [`SECURITY.md`](../SECURITY.md) |
@@ -46,7 +47,7 @@ Expected total while the system is small: about € 7 to € 9 a month, plus the
 | Tag protection | A ruleset on the tags that start with `v`: no update and no deletion (ADR-0023). _Not created_ |
 | Releases | Created by the publish workflow, one for each tag, with the notes from `CHANGELOG.md` and no attached file. _None yet_ |
 | Container registry (GHCR) | Public images, tagged with the commit hash. The images of a release also carry its number |
-| Label that creates the staging server | `staging` |
+| Label that publishes a pull request to staging | `staging`, color `FBCA04`, described as "Publish this pull request to staging once its checks pass". Created, or given that description and color, by `task staging:on` |
 | Commit address | The maintainer's `noreply` address |
 | Repository secret `RESEND_TEST_API_KEY` | The key of Resend's test account that the scheduled workflow `resend.yml` gives the tests that call Resend (see Resend). _Not created_: until it exists those tests skip and the run passes |
 

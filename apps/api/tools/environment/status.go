@@ -11,8 +11,8 @@ import (
 	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
 )
 
-// tellStatus tells whether the environment is on, since when, and at which
-// address and host names.
+// tellStatus tells whether the environment is on, since when, at which
+// address and host names, and which open pull request has its label.
 func tellStatus(ctx context.Context, environment environment, stdout io.Writer) error {
 	servers, err := environment.provider()
 	if err != nil {
@@ -25,13 +25,30 @@ func tellStatus(ctx context.Context, environment environment, stdout io.Writer) 
 	}
 	if !found {
 		fmt.Fprintf(stdout, "%s is off.\n", environment.title())
-		return nil
+		return tellPullRequests(ctx, environment, stdout)
 	}
 	fmt.Fprintf(stdout, "%s is on, since %s (%s ago), at %s.\n", environment.title(),
 		server.Created.UTC().Format("2006-01-02 15:04 UTC"), age(environment.outside.now().Sub(server.Created)), server.Address)
-	// Ticket 02 of .scratch/staging: the pull request with the label goes
-	// here.
+	if err := tellPullRequests(ctx, environment, stdout); err != nil {
+		return err
+	}
 	return report(stdout, environment, server)
+}
+
+// tellPullRequests writes the open pull requests that have the label of the
+// environment, or that none has it.
+func tellPullRequests(ctx context.Context, environment environment, stdout io.Writer) error {
+	labelled, err := environment.outside.github.LabelledPullRequests(ctx, environment.name)
+	if err != nil {
+		return fmt.Errorf("find the open pull requests with the label %s on GitHub: %w", environment.name, err)
+	}
+	if len(labelled) == 0 {
+		fmt.Fprintf(stdout, "No open pull request has the %s label.\n", environment.name)
+	}
+	for _, pullRequest := range labelled {
+		fmt.Fprintf(stdout, "Pull request #%d has the %s label: %s, %s\n", pullRequest.Number, environment.name, pullRequest.Title, pullRequest.URL)
+	}
+	return nil
 }
 
 // report writes the host names of the server, and how to log in to it.

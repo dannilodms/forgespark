@@ -74,7 +74,7 @@ func (l localCopy) read() (loginKeys, bool, error) {
 	if err != nil {
 		return loginKeys{}, false, fmt.Errorf("read %s: %w", l.path(knownHostsFile), err)
 	}
-	return loginKeys{deploy: signer, host: hostKey}, true, nil
+	return loginKeys{deploy: signer, deployPrivate: deployKey, host: hostKey}, true, nil
 }
 
 // kept tells whether there is a copy.

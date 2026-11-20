@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
 	"os"
@@ -24,6 +25,30 @@ func valueIn(path, name string) (string, error) {
 		value = assignedIn(line, name, value)
 	}
 	return value, nil
+}
+
+// appendTo writes lines at the end of a `.env`, in the line endings the file
+// uses, and leaves every line before them as it was. A file that does not
+// exist is created, readable by its owner alone.
+func appendTo(path, lines string) error {
+	content, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	newline := "\n"
+	if bytes.Contains(content, []byte("\r\n")) {
+		newline = "\r\n"
+	}
+	lines = strings.ReplaceAll(lines, "\n", newline)
+	if len(content) > 0 && !bytes.HasSuffix(content, []byte("\n")) {
+		lines = newline + lines
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
+	if err != nil {
+		return err
+	}
+	_, err = file.WriteString(lines)
+	return errors.Join(err, file.Close())
 }
 
 // assignedIn gives the value the line sets for the name, or the one before

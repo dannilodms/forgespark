@@ -6,12 +6,45 @@
 
 **Status:** ready-for-agent
 
-- [ ] GitHub is an interface: make sure the environment and the label exist, set and delete a secret or a variable of the environment, and find the open pull request with the label. It has an in-memory implementation for the tests and an adapter that calls `gh`.
-- [ ] The `gh` adapter passes a secret value through standard input, never as an argument. A test against a stand-in executable that records its arguments and its input proves it.
-- [ ] Turning on writes the deploy private key and the password of Mailpit as secrets of `staging`, and the address, the host key as a line of known hosts and the time staging was turned on as variables. Turning on when staging is already on writes them again.
-- [ ] Turning off, and a turn-on that fails after writing, delete the address, the host key, the deploy key and the time. The password of Mailpit stays.
-- [ ] The password of Mailpit is generated the first time staging is turned on and kept in the `.env` of the main checkout, under a name of its own that is not in `.env.example`. The next turn-on reuses it.
-- [ ] The status shows the open pull request that has the `staging` label, or none.
-- [ ] The token of the provider never reaches GitHub: a test checks that nothing written to the fake GitHub holds it.
+- [x] GitHub is an interface: make sure the environment and the label exist, set and delete a secret or a variable of the environment, and find the open pull request with the label. It has an in-memory implementation for the tests and an adapter that calls `gh`.
+- [x] The `gh` adapter passes a secret value through standard input, never as an argument. A test against a stand-in executable that records its arguments and its input proves it.
+- [x] Turning on writes the deploy private key and the password of Mailpit as secrets of `staging`, and the address, the host key as a line of known hosts and the time staging was turned on as variables. Turning on when staging is already on writes them again.
+- [x] Turning off, and a turn-on that fails after writing, delete the address, the host key, the deploy key and the time. The password of Mailpit stays.
+- [x] The password of Mailpit is generated the first time staging is turned on and kept in the `.env` of the main checkout, under a name of its own that is not in `.env.example`. The next turn-on reuses it.
+- [x] The status shows the open pull request that has the `staging` label, or none.
+- [x] The token of the provider never reaches GitHub: a test checks that nothing written to the fake GitHub holds it.
 - [ ] After a real turn-on, `gh secret list --env staging` and `gh variable list --env staging` show the names above. After a real turn-off, only the password of Mailpit is left.
-- [ ] `docs/providers.md` lists the environment `staging`, the label, and the names of its secrets and variables, with no value.
+- [x] `docs/providers.md` lists the environment `staging`, the label, and the names of its secrets and variables, with no value.
+
+## Comments
+
+### What was built
+
+- `apps/api/tools/environment/github`: the interface (`EnsureEnvironment`, `EnsureLabel`, `SetSecret`, `SetVariable`, `DeleteSecret`, `DeleteVariable`, `LabelledPullRequests`), `Label` and `PullRequest`. `github/githubtest` keeps a repository in memory: environments with their secrets and variables, labels, open pull requests with their labels, a record of every name and value it was given (`Written`), and knobs to make it unreachable or to fail setting one name. Like GitHub, it refuses a secret or a variable of an environment that does not exist. `github/gh` is the adapter on the GitHub CLI.
+- `values.go` of the command: the names, the label, `prepareGitHub` (environment and label), `writeValues`, `deleteValues` and the password of Mailpit. `on.go` makes sure of GitHub before it asks the provider for anything, writes the values after the local copy is kept, and on a failure after the server was asked for, `undo` deletes them too; turning on when on writes them again. `off.go` deletes them after destroying the server. `status.go` names the open pull requests with the label, on and off.
+- `dotenv.go` appends to the `.env` of the main checkout: in the line endings the file uses, after a last line with no line end, creating the file when there is none.
+- Records: Commands, Configuration (No file, Example), Servers (Staging on and off, GitHub, The password of Mailpit, Nothing printed), Secrets (Where, What staging holds, Kept twice) and On the maintainer's machine in `CODING_STANDARDS.md`; the GitHub section and its summary row in `docs/providers.md`; the prerequisites (`gh`), Configuration and Deploy in `README.md` and `README.pt-BR.md`; the descriptions of `staging:on`, `staging:off` and `staging:status` in `Taskfile.yml`.
+
+### Decided while building
+
+- **The names** (Secrets in Environments in `CODING_STANDARDS.md`). Secrets `DEPLOY_KEY` and `MAILPIT_PASSWORD`; variables `SERVER_ADDRESS`, `SERVER_HOST_KEY` and `TURNED_ON_AT`. They carry no `STAGING_`, because the GitHub Environment scopes them and the publish job of production can read the same names from its own. In the `.env` of the main checkout, which holds every environment's, the password is `STAGING_MAILPIT_PASSWORD` (`<ENVIRONMENT>_MAILPIT_PASSWORD`).
+- **`TURNED_ON_AT`** is when the server was created at the provider, the time the status shows, in RFC 3339 and UTC (`2026-11-19T14:00:00Z`). Turning on again writes the same time, so the reminder of ticket 07 counts from the first turn-on.
+- **Order.** `SERVER_ADDRESS` is written last and deleted first: a publish takes staging for off while it is empty, so it never sees an address without the keys to reach it.
+- **GitHub first.** The environment and the label are made sure of before the provider is asked for anything, so a `gh` that is missing or not logged in stops the turn-on before it costs. The password of Mailpit is chosen before that too. Turning off destroys the server first, the part that costs, and then deletes the values; when GitHub fails it says to turn staging off again. Turning on when on and GitHub fails keeps the server and says to turn staging on again.
+- **Every value through standard input**, the variables' too: then no value is ever an argument. `gh` reads a value from its input when the input is not a terminal, and takes the line breaks off its end (`bytes.TrimRight(body, "\r\n")` in `pkg/cmd/secret/set/set.go` and `pkg/cmd/variable/set/set.go` of gh v2.104.0), so the deploy key arrives without its last line break.
+- **The repository** is the one `gh` finds from the checkout the command runs in (its remote, or `GH_REPO`); no `--repo` is passed.
+- **The environment** is listed first (`gh api repos/{owner}/{repo}/environments --paginate --jq '.environments[]?.name'`) and created with `gh api --method PUT .../environments/staging` only when it is absent, so what was set on an existing one by hand stays. It is created with no protection rule and no branch restriction.
+- **Deleting** a secret or a variable lists the environment's first and deletes only a listed name: `gh` fails on one that does not exist. With no environment, nothing is deleted and none is created. Names are compared regardless of case, as GitHub does.
+- **The label**: `gh label create staging --description "Publish this pull request to staging once its checks pass" --color FBCA04 --force`, so the tool keeps its description and color.
+- **The password of Mailpit**: `crypto/rand.Text`, 26 characters of base32 (A to Z, 2 to 7), 128 bits, with no `$`, quote or space, so it needs no quoting in `.env`, in a Compose variables file or in a hash for Caddy. It is appended to the `.env` after a comment line; a variable of the process wins over the file, as for the token, since Task loads the `.env` in the main checkout.
+- **The status** lists every open pull request with the label, one line each, or says none has it, also while staging is off.
+- **The stand-in of `gh`** is the test binary itself, run again by the adapter with a variable that `TestMain` reads (the pattern of `os/exec`'s own tests); it records each call and its input in the directory of one test, which is where the adapter runs `gh`, and answers as that directory says.
+
+### What was checked
+
+- `go test -count=1 ./tools/environment/...` on Windows: the commands with the fake GitHub (what the environment holds after on, on again with the values cleared and the clock moved, off, off when off, off with no environment, a failure after writing, a failure before writing, GitHub unreachable on on, off and status, the label), the password of Mailpit (chosen once, reused, kept in the main checkout from a worktree with LF, CR LF and no last line end, a variable of the process winning, not in `.env.example`, a `.env` that cannot be read), the status with and without labelled pull requests, the token in nothing written to GitHub (from the process and from the `.env`), and no command printing the token, the keys or the password. The `gh` adapter against the stand-in (`-count=5`): the exact arguments and input of each call, the secret in no argument, an environment created only when absent, deletions only of what is listed, the pull requests parsed, a failure naming what failed and what `gh` said, and no `gh` on the PATH.
+- `golangci-lint run ./tools/environment/...`, `go run ./tools/guard code`, `go vet` with `GOOS=linux` and `GOOS=darwin`, and `task check:quick`: every step passed but `api:test`, where the eleven packages that create databases failed together on PostgreSQL's connection limit ("too many clients") and the 30-second limit of a new database, with other checkouts testing against the same PostgreSQL; run again alone (`task api:test -- -p 1 <those packages>`), all eleven passed, as Tests in `CODING_STANDARDS.md` says to do.
+
+### Found, and left for a decision
+
+- `gh auth status` lists no scopes for the maintainer's login, the mark of a fine-grained token. If its permissions on this repository do not cover creating an environment (Administration), its secrets and variables (Environments, or Secrets and Variables) and a label (Issues or Pull requests), the first real `task staging:on` stops at "make sure the GitHub Environment staging exists", before creating any server; the token then needs those permissions.

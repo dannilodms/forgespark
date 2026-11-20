@@ -260,7 +260,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | [Dex](https://dexidp.io/) | Container de identidade por trás do provedor de login local, em desenvolvimento e nos testes |
 | [Hetzner Cloud](https://www.hetzner.com/cloud) | O servidor de produção e o servidor de homologação criado sob demanda |
 | [GitHub Actions](https://docs.github.com/actions) | A pipeline: verificações em cada pull request, publicação e testes agendados |
-| [GitHub CLI](https://cli.github.com/) | Como os agentes acessam o GitHub: pull requests, execuções e segredos |
+| [GitHub CLI](https://cli.github.com/) | Como os agentes acessam o GitHub: pull requests, execuções e segredos; e como ligar e desligar a homologação grava no Environment do GitHub da homologação |
 | [Caddy](https://caddyserver.com/) | HTTPS, arquivos estáticos do frontend, proxy reverso para a API, cabeçalhos de segurança e o limite do código de login e do código de configuração |
 | [Docker](https://www.docker.com/) | Empacotamento e execução dos serviços em containers (Docker Compose) |
 | [Task](https://taskfile.dev/) | Executor de tarefas do repositório (desenvolvimento, build, testes, geração de código) |
@@ -278,7 +278,7 @@ As decisões relevantes e difíceis de reverter são registradas como ADRs (Arch
 | Go | 1.27.4 | [go.dev/dl](https://go.dev/dl/) |
 | Vite+ (gerencia Node.js e pnpm) | 1.6.0 | [viteplus.dev](https://viteplus.dev/) |
 | Task | 3.54.0 | [taskfile.dev](https://taskfile.dev/installation/) |
-| GitHub CLI | 2.104.0 | [cli.github.com](https://cli.github.com/). Só para abrir pull requests e consultar a pipeline |
+| GitHub CLI | 2.104.0 | [cli.github.com](https://cli.github.com/). Para abrir pull requests e consultar a pipeline, e para ligar e desligar a homologação, logado como o mantenedor (`gh auth login`) |
 
 Cada mínimo é a versão em uso na máquina do mantenedor, registrada em [`docs/machine-tools.yaml`](docs/machine-tools.yaml). Nenhuma versão anterior foi testada. O Git clona o repositório.
 
@@ -292,7 +292,7 @@ O binário da API lê a configuração apenas de variáveis de ambiente, uma ún
 
 Toda variável está listada no `.env.example` versionado, sem segredos reais.
 
-A ferramenta que liga e desliga a homologação lê uma variável que não está lá, porque ela pertence à máquina do mantenedor e nunca chega a um servidor nem ao GitHub: `HETZNER_TOKEN`, o token de API do projeto de homologação na Hetzner. Ele fica no `.env` do checkout principal, que a ferramenta lê também quando roda em uma worktree (veja Deploy).
+A ferramenta que liga e desliga a homologação lê duas variáveis que não estão lá, porque elas pertencem à máquina do mantenedor e nenhum servidor e nenhuma publicação as lê dali: `HETZNER_TOKEN`, o token de API do projeto de homologação na Hetzner, que nunca chega a um servidor nem ao GitHub, e `STAGING_MAILPIT_PASSWORD`, a senha do Mailpit da homologação. As duas ficam no `.env` do checkout principal, que a ferramenta lê também quando roda em uma worktree. O token é escrito ali pelo mantenedor; a senha, pela ferramenta, na primeira vez que a homologação é ligada (veja Deploy).
 
 | Ambiente | Onde ficam os valores |
 | --- | --- |
@@ -461,12 +461,14 @@ Toda mudança chega à `main` por um pull request, e um merge na `main` é publi
 A homologação é um servidor que só existe enquanto um pull request é experimentado nele, e só custa enquanto está ligada (veja o [`docs/providers.md`](docs/providers.md)). Ela é ligada e desligada à mão, do checkout principal ou de uma worktree dele:
 
 ```sh
-task staging:on      # cria o servidor e espera até ele ficar pronto
-task staging:status  # ligada ou desligada, desde quando, o endereço e os nomes de host
-task staging:off     # destrói o servidor, com o endereço e a chave de deploy
+task staging:on      # cria o servidor, espera até ele ficar pronto e dá ao GitHub o que chega até ele
+task staging:status  # ligada ou desligada, desde quando, o endereço, os nomes de host e o pull request com o rótulo
+task staging:off     # destrói o servidor, com o endereço e a chave de deploy, e os tira do GitHub
 ```
 
-A máquina precisa do `HETZNER_TOKEN` no `.env` do checkout principal: um token de API do projeto `software-factory-manager-staging` da Hetzner, com permissão de leitura e escrita. O `task staging:on` cria o servidor com as escolhas do `deploy/server.staging.yaml`, preparado pelo `deploy/cloud-init.yaml`, e termina quando o servidor responde ao SSH com a chave de host que recebeu e o cloud-init o preparou; quando isso falha, ele destrói o servidor antes de relatar a falha. Ligar a homologação quando ela está ligada, ou desligá-la quando está desligada, não cria nem destrói nada. Nada a desliga sozinho.
+A máquina precisa do `HETZNER_TOKEN` no `.env` do checkout principal: um token de API do projeto `software-factory-manager-staging` da Hetzner, com permissão de leitura e escrita. Ela também precisa do `gh` logado como o mantenedor, com permissão para criar neste repositório um environment, os segredos e as variáveis dele, e um rótulo. O `task staging:on` garante que o Environment `staging` do GitHub e o rótulo `staging` existem, cria o servidor com as escolhas do `deploy/server.staging.yaml`, preparado pelo `deploy/cloud-init.yaml`, e termina quando o servidor responde ao SSH com a chave de host que recebeu, o cloud-init o preparou e o Environment `staging` do GitHub tem o que a pipeline precisa para chegar até ele: o endereço, a chave de host e a chave de deploy do servidor, e a senha do Mailpit. Quando isso falha, ele destrói o servidor e tira esses valores do GitHub antes de relatar a falha. Ligar a homologação quando ela está ligada não cria nada e dá ao GitHub os mesmos valores de novo; desligá-la quando está desligada não destrói nada. Nada a desliga sozinho. O `task staging:off` deixa no GitHub só a senha do Mailpit.
+
+A senha do Mailpit é escolhida na primeira vez que a homologação é ligada e fica no `.env` do checkout principal, como `STAGING_MAILPIT_PASSWORD`: leia-a ali, porque o GitHub nunca devolve um segredo. Toda vez que a homologação é ligada depois disso, ela usa a mesma senha.
 
 Enquanto a homologação está ligada, o checkout principal guarda a chave de deploy dela em `.servers/staging/`, que o git ignora, e `ssh -F .servers/staging/ssh_config staging`, rodado ali, entra no servidor como o usuário de deploy. Os nomes de host dela ficam sob o endereço dela, escrito para o `sslip.io`, o que é provisório: eles mudam a cada vez que a homologação é ligada, e o `task staging:status` os mostra. Publicar um pull request nela, com o rótulo `staging`, vem com o comando de publicação da mesma ferramenta.
 

@@ -30,8 +30,11 @@ func TestNoCommandPrintsASecret(t *testing.T) {
 	record(world.run("off", "staging"))
 	world.readiness.err = errors.New("not ready")
 	record(world.run("on", "staging"))
+	world.readiness.err = nil
+	world.github.FailSettingWith("SERVER_ADDRESS", errors.New("HTTP 502"))
+	record(world.run("on", "staging"))
 
-	secrets := map[string]string{"the token": token}
+	secrets := map[string]string{"the token": token, "the password of Mailpit": world.mailpitPassword(world.directory)}
 	for name, key := range map[string]string{"the deploy key": string(deployKey), "the host key": hostKey} {
 		block, _ := pem.Decode([]byte(key))
 		require.NotNil(t, block)

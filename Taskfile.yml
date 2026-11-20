@@ -138,21 +138,23 @@ tasks:
   # Staging is turned on and off by hand, from the main checkout or a
   # worktree of it, by the tool of the environments (Servers in Environments
   # in CODING_STANDARDS.md). The token of the provider, HETZNER_TOKEN, comes
-  # from the .env of the main checkout.
+  # from the .env of the main checkout, and so does the password of Mailpit,
+  # STAGING_MAILPIT_PASSWORD, which the tool writes there the first time.
+  # The tool writes to GitHub through gh, logged in as the maintainer.
   staging:on:
-    desc: Turn staging on. Creates its server at Hetzner, prepared by deploy/cloud-init.yaml, and waits until it is ready; destroys it when that fails. When staging is on, checks that it answers and creates nothing
+    desc: Turn staging on. Creates its server at Hetzner, prepared by deploy/cloud-init.yaml, waits until it is ready and gives the GitHub Environment staging what reaches it; destroys it when that fails. When staging is on, checks that it answers, gives GitHub its values again and creates nothing
     dir: apps/api
     cmds:
       - go run ./tools/environment on staging
 
   staging:off:
-    desc: Turn staging off. Destroys its server, with its address and its deploy key. When staging is off, does nothing
+    desc: Turn staging off. Destroys its server, with its address and its deploy key, and takes them out of the GitHub Environment staging, which keeps the password of Mailpit. When staging is off, destroys nothing
     dir: apps/api
     cmds:
       - go run ./tools/environment off staging
 
   staging:status:
-    desc: Tell whether staging is on, since when, and at which address and host names
+    desc: Tell whether staging is on, since when, at which address and host names, and which open pull request has the staging label
     dir: apps/api
     cmds:
       - go run ./tools/environment status staging
