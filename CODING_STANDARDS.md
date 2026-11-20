@@ -747,7 +747,7 @@ How a change reaches `main` and the servers. The repository is public, which set
 - **Vulnerabilities.** govulncheck, `pnpm audit` and Trivy on the images run every week.
 - **New versions.** `task outdated` runs every week and its list is kept in one open issue on GitHub. The workflow rewrites the issue, adds a comment when the list changed and closes it when the list is empty. It opens no pull request. The issue is a notice: work is still tracked in `.scratch/` (see [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md)).
 - **Restore test.** Every month (see Backup).
-- **Staging sweep.** Destroys a staging server older than 24 hours.
+- **Staging reminder.** Nothing turns staging off by itself, and the pipeline holds no credential of the provider (see Servers). `staging-reminder.yml` runs every six hours and on a manual trigger, and fails, giving how many hours staging has been on, once `TURNED_ON_AT` is more than 24 hours old; it passes while the variable is empty or recent. It reads that variable of the GitHub Environment `staging` and nothing else (see Secrets), names no secret, and its token has no permission. A variable of an environment reaches only a job that declares the environment, so its job declares `staging` with `deployment: false`, which records no deployment: the history of staging keeps only the publishes. Such a job still waits for required reviewers and a wait timer, and fails at once on a custom protection rule, so `staging` has none of them. A run while the environment does not exist creates it, empty, as `task staging:on` would.
 - **A failure warns.** A scheduled workflow that fails warns the maintainer and blocks no pull request.
 
 ### Publishing
