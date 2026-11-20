@@ -5,21 +5,44 @@ name: CI
 # Rules: Pipeline in CODING_STANDARDS.md.
 
 on:
+  # A label added to a pull request runs the checks again, so that adding
+  # `staging` to one that is open publishes it.
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
   push:
     branches:
       - main
 
 permissions: {}
 
-# A new run of a pull request cancels the run before it, unless the pull
-# request has the `staging` label: that run may be publishing, and a publish
-# that started is never cancelled, or staging is left half-published. The
-# runs of a labelled pull request wait instead: the one running ends, and
-# the newest one waiting runs next.
+# The runs of a pull request are in three kinds of concurrency group:
+# - Without the `staging` label, a new run cancels the run before it.
+# - With the label, a run may be publishing, and a publish that started is
+#   never cancelled, or staging is left half-published. These runs wait for
+#   each other instead: the one running ends, and the newest one waiting
+#   runs next. Adding the label starts one beside the checks in flight
+#   without it, which go on, and cancels the run with it in flight: that is
+#   the run of `opened` when `gh pr create --label staging` opens the pull
+#   request, since gh adds the label just after, and the pull request is
+#   then published once. It is a publish only if the label was taken off by
+#   hand and added again while it published, and the new run publishes
+#   again.
+# - Adding another label runs the checks in a group of its own, so that it
+#   cancels no checks in flight and no publish waiting. It publishes
+#   nothing (see the job `staging`).
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'staging') }}
+  group: >-
+    ci-${{ github.ref }}${{
+    github.event.action == 'labeled' && github.event.label.name != 'staging' && format('-another-label-{0}', github.run_id) ||
+    contains(github.event.pull_request.labels.*.name, 'staging') && '-staging' || '' }}
+  cancel-in-progress: >-
+    ${{ github.event_name == 'pull_request' && (
+    !contains(github.event.pull_request.labels.*.name, 'staging') ||
+    github.event.action == 'labeled' && github.event.label.name == 'staging') }}
 
 env:
   TASK_VERSION: 3.54.0
@@ -385,18 +408,21 @@ jobs:
   # Publishes a pull request of this repository that has the `staging` label
   # to staging, once its checks pass: it builds the three images of the
   # commit, the one the checks tested, pushes them to the GitHub container
-  # registry, and runs the publish of the tool of the environments, which
-  # logs in to the server over SSH, starts staging again from the seed and
-  # comments the addresses on the pull request (Publishing in
-  # CODING_STANDARDS.md). It is not among the jobs that Checks needs, so the
-  # required check does not change. A pull request from a fork never gets
-  # here, and so never gets the secrets of staging.
+  # registry, and runs the publish of the tool of the environments. That
+  # reads the label again, logs in to the server over SSH, starts staging
+  # again from the seed, takes the label off every other open pull request
+  # that has it, with a comment there, and comments the addresses on this one
+  # (Publishing in CODING_STANDARDS.md). It is not among the jobs that Checks
+  # needs, so the required check does not change. A pull request from a fork
+  # never gets here, and so never gets the secrets of staging. Adding another
+  # label to a pull request that has `staging` publishes nothing.
   staging:
     name: Publish to staging
     needs: checks
     if: >-
       ${{ !cancelled() && needs.checks.result == 'success' &&
       github.event_name == 'pull_request' &&
+      (github.event.action != 'labeled' || github.event.label.name == 'staging') &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       contains(github.event.pull_request.labels.*.name, 'staging') }}
     runs-on: ubuntu-24.04
@@ -411,10 +437,16 @@ jobs:
     concurrency:
       group: staging
       cancel-in-progress: false
+    # Writing pull requests is what the publish asks of GitHub: it reads the
+    # open pull requests, comments with `gh pr comment`, which the first
+    # publish proved, and takes the label off through the REST API of
+    # issues, whose documentation names that permission as enough. Should
+    # GitHub answer "Resource not accessible by integration" to the label,
+    # `issues: write` beside it is the change.
     permissions:
       contents: read # to check out the commit
       packages: write # to push its images
-      pull-requests: write # to comment on the pull request
+      pull-requests: write # to comment on pull requests and take the label off them
     env:
       # Each image is one manifest, with no attestation beside it.
       BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
@@ -430,7 +462,7 @@ jobs:
             echo "on=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "::notice title=Staging is off::Nothing was published. Turn staging on with task staging:on, then push to the pull request again."
+          echo "::notice title=Staging is off::Nothing was published. Turn staging on with task staging:on, then push to the pull request again, or take its label off and add it again."
           echo "on=false" >> "$GITHUB_OUTPUT"
 
       # The commit the checks tested: the merge of the pull request into the
@@ -500,7 +532,8 @@ jobs:
           done
 
       # Every value reaches the tool through its environment, never as an
-      # argument. gh comments as the token of this job.
+      # argument. gh reads the labels, takes them off and comments as the
+      # token of this job.
       - name: Publish the commit to staging
         if: ${{ steps.staging.outputs.on == 'true' }}
         working-directory: apps/api

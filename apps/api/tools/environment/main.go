@@ -54,9 +54,11 @@ Commands:
   status    Tell whether the environment is on, since when, at which address
             and host names, and which open pull request has its label
   publish   Publish the images of a commit of a pull request to the server of
-            the environment: write its variables file, start its data again
-            from the seed, start the API and the worker, wait until /up
-            answers, and comment the addresses on the pull request. The
+            the environment, when the pull request is open and has the label
+            of the environment: write its variables file, start its data
+            again from the seed, start the API and the worker, wait until /up
+            answers, take the label off every other open pull request, with a
+            comment there, and comment the addresses on the pull request. The
             pipeline runs it, with these variables: COMMIT and PULL_REQUEST,
             and SERVER_ADDRESS, SERVER_HOST_KEY, DEPLOY_KEY and
             MAILPIT_PASSWORD from the GitHub Environment

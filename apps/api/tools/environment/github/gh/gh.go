@@ -105,22 +105,38 @@ func (g *GitHub) delete(ctx context.Context, kind, environment, name string) err
 	return err
 }
 
-// LabelledPullRequests lists the open pull requests with the label.
+// listedPullRequest is an open pull request, as the list gh is asked for
+// writes it: one object a line.
+type listedPullRequest struct {
+	Number int      `json:"number"`
+	Title  string   `json:"title"`
+	URL    string   `json:"url"`
+	Labels []string `json:"labels"`
+}
+
+// LabelledPullRequests reads GitHub's own list of the open pull requests,
+// page after page, and keeps the ones with the label. `gh pr list --label`
+// would ask GitHub's search, which can still list a pull request whose label
+// came off a moment ago, as the publish before took it off.
 func (g *GitHub) LabelledPullRequests(ctx context.Context, label string) ([]github.PullRequest, error) {
-	listed, err := g.run(ctx, "", "pr", "list", "--label", label, "--state", "open", "--json", "number,title,url")
+	listed, err := g.run(ctx, "", "api", "repos/{owner}/{repo}/pulls?state=open&per_page=100", "--paginate",
+		"--jq", ".[] | {number, title, url: .html_url, labels: [.labels[].name]}")
 	if err != nil {
 		return nil, err
 	}
-	var pullRequests []struct {
-		Number int    `json:"number"`
-		Title  string `json:"title"`
-		URL    string `json:"url"`
+	var open []listedPullRequest
+	decoder := json.NewDecoder(strings.NewReader(listed))
+	for decoder.More() && err == nil {
+		var pullRequest listedPullRequest
+		err = decoder.Decode(&pullRequest)
+		open = append(open, pullRequest)
 	}
-	if err := json.Unmarshal([]byte(listed), &pullRequests); err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("read the pull requests gh listed: %w", err)
 	}
-	found := make([]github.PullRequest, 0, len(pullRequests))
-	for _, pullRequest := range pullRequests {
+	withLabel := slices.DeleteFunc(open, func(pullRequest listedPullRequest) bool { return !containsName(pullRequest.Labels, label) })
+	found := make([]github.PullRequest, 0, len(withLabel))
+	for _, pullRequest := range withLabel {
 		found = append(found, github.PullRequest{Number: pullRequest.Number, Title: pullRequest.Title, URL: pullRequest.URL})
 	}
 	return found, nil
@@ -130,6 +146,14 @@ func (g *GitHub) LabelledPullRequests(ctx context.Context, label string) ([]gith
 func (g *GitHub) CommentOnPullRequest(ctx context.Context, number int, body string) error {
 	_, err := g.run(ctx, body, "pr", "comment", strconv.Itoa(number), "--body-file", "-")
 	return failedTo(fmt.Sprintf("comment on the pull request #%d", number), err)
+}
+
+// RemoveLabel asks the REST API of issues, which serves pull requests too,
+// to take the label off. Its documentation names the permission to write
+// pull requests as enough for the token of a job.
+func (g *GitHub) RemoveLabel(ctx context.Context, number int, label string) error {
+	_, err := g.run(ctx, "", "api", "--method", "DELETE", fmt.Sprintf("repos/{owner}/{repo}/issues/%d/labels/%s", number, label), "--silent")
+	return failedTo(fmt.Sprintf("take the label %s off the pull request #%d", label, number), err)
 }
 
 // environmentExists tells whether the repository has the environment.

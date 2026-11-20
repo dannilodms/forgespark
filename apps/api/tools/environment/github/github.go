@@ -1,10 +1,10 @@
 // Package github names what the tool asks of the GitHub repository of the
 // system: that a GitHub Environment and a label exist, a secret or a
 // variable of an environment set or deleted, the open pull requests that
-// have a label, and a comment on a pull request. The adapter in the package
-// gh calls the GitHub CLI, logged in as the maintainer on the machine and
-// with the token of the job in the pipeline; githubtest keeps everything in
-// memory for the tests of the commands.
+// have a label, a comment on a pull request, and a label taken off one. The
+// adapter in the package gh calls the GitHub CLI, logged in as the
+// maintainer on the machine and with the token of the job in the pipeline;
+// githubtest keeps everything in memory for the tests of the commands.
 package github
 
 import (
@@ -38,6 +38,9 @@ type GitHub interface {
 	// CommentOnPullRequest adds a comment, written in Markdown, to the pull
 	// request with that number.
 	CommentOnPullRequest(ctx context.Context, number int, body string) error
+	// RemoveLabel takes the label off the pull request with that number,
+	// which has it.
+	RemoveLabel(ctx context.Context, number int, label string) error
 }
 
 // Label is a label of the repository's pull requests.
