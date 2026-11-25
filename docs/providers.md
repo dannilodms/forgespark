@@ -15,7 +15,7 @@ Prices were read on the providers' own pages on 2026-11-16, without tax, and Het
 | [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; the environment `staging`, the label `staging` and the packages of the three images created; the environment `production` and the secret `RESEND_TEST_API_KEY` not created yet |
 | [Hetzner Cloud](#hetzner-cloud) | The servers | staging, production | US$ 0.0114 an hour while staging is on; production _not created_ | Project of staging created; its server exists only while staging is on |
 | [Backblaze B2](#backblaze-b2) | Production files, database backups | production | Free under 10 GB, about US$ 0.63 a month at 100 GB | Decided, not created |
-| [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | R$ 96 the first year; R$ 142 a year from the first renewal | `forgespark.dev` registered at GoDaddy, which also hosts its DNS; no record created, and staging not moved to it yet ([the ticket](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md)) |
+| [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | R$ 96 the first year; R$ 142 a year from the first renewal; the DNS free | `forgespark.dev` registered at GoDaddy until 2027-01-23, then at Cloudflare ([ticket 02](../.scratch/domain/issues/02-transfer-the-domain-to-cloudflare-registrar.md)); DNS at Cloudflare; no record created, and staging not moved to it yet ([ticket 01](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md)) |
 | [sslip.io](#sslipio) | Host names of staging until staging moves to the domain | staging | Free | Provisional, nothing to create |
 | [Let's Encrypt](#lets-encrypt) | HTTPS certificates, through Caddy | staging, production | Free | Nothing to create |
 | [Resend](#resend) | Sending e-mail | production | _not checked_ | Decided, not created |
@@ -96,12 +96,16 @@ Expected total while the system is small, from the prices below: about US$ 7.10 
 
 **Why.** The system needs addresses of its own: production needs one, and so does each application that staging and production register with a login provider. The domain is registered, but the host names of staging are still under `sslip.io` (see below). Moving them is [the ticket of the domain](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md), which also decides how the host names of staging follow a server whose address changes each time staging is turned on.
 
-**Cost.** R$ 96 for the first year, paid at registration. R$ 142 a year from the first renewal, GoDaddy's renewal price.
+The DNS is at Cloudflare, which has an API for its records and gives free certificates to the host names it proxies. Whether staging uses either is for the ticket of the domain to decide. Cloudflare Registrar sells `.dev` at cost, so the registration moves there too ([ticket 02](../.scratch/domain/issues/02-transfer-the-domain-to-cloudflare-registrar.md)).
+
+**Cost.** R$ 96 for the first year, paid at registration. R$ 142 a year from the first renewal, GoDaddy's renewal price. After the transfer, Cloudflare's price, about US$ 12.20 a year. Cloudflare's DNS is free, on its Free plan.
 
 | Item | Value |
 | --- | --- |
-| Registrar | GoDaddy, until the registration moves to Cloudflare Registrar, on 2027-01-24 or later ([ticket 02](../.scratch/domain/issues/02-transfer-the-domain-to-cloudflare-registrar.md)). GoDaddy then leaves this list |
-| DNS host | GoDaddy, the registrar's own: name servers `ns25.domaincontrol.com` and `ns26.domaincontrol.com`. Moving it to Cloudflare is the first part of [ticket 02](../.scratch/domain/issues/02-transfer-the-domain-to-cloudflare-registrar.md); not done |
+| Registrar | GoDaddy, until the registration moves to Cloudflare Registrar, planned for 2027-01-23, the 60th day after registration, or the day after if it is refused as too early ([ticket 02](../.scratch/domain/issues/02-transfer-the-domain-to-cloudflare-registrar.md)). GoDaddy then leaves this list |
+| DNS host | Cloudflare, on the Free plan, since 2026-11-25: name servers `henrik.ns.cloudflare.com` and `luciane.ns.cloudflare.com` |
+| Records | None. The records of GoDaddy's parking page were deleted when the DNS moved |
+| DNSSEC | Off. It can be turned on at Cloudflare once the registration is there |
 | Domain | `forgespark.dev` |
 | HTTPS only | `.dev` is on the HSTS preload list, so browsers open every host name under it over HTTPS only |
 
