@@ -250,6 +250,7 @@ Significant, hard-to-reverse decisions are recorded as ADRs (Architecture Decisi
 | [Knip](https://knip.dev/) | Finds unused files, exports and dependencies |
 | [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) | Checks the imports of the app against its dependency rule |
 | [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) | Lets coding agents investigate performance in a real Chrome |
+| [Cloudflare API MCP](https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/) | Lets coding agents read and change the DNS records of the domain |
 | [react-i18next](https://react.i18next.com/) | Interface translations (English, Brazilian Portuguese, Spanish) |
 | [shadcn/ui](https://ui.shadcn.com/) | Base of the design system: component code copied into `apps/web/src/ui`, on [Base UI](https://base-ui.com/) primitives |
 | [Tailwind CSS](https://tailwindcss.com/) | Styling and the design system's style variables (light and dark themes) |
