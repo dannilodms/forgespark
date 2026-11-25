@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
 )
 
 // output collects what the command writes.
@@ -183,7 +183,7 @@ func TestTheSeedFailsWhileAMigrationIsPending(t *testing.T) {
 func TestTheSeedRefusesToRunWithoutTheMailbox(t *testing.T) {
 	var stdout, stderr output
 	environment := map[string]string{
-		"DATABASE_URL": "postgres://api:hunter2@localhost:5432/software_factory",
+		"DATABASE_URL": "postgres://api:hunter2@localhost:5432/forgespark",
 	}
 
 	status := run(context.Background(), nil, environment, &stdout, &stderr)
@@ -198,7 +198,7 @@ func TestTheSeedFailsWhenPostgreSQLDoesNotAnswer(t *testing.T) {
 	var stdout, stderr output
 	environment := map[string]string{
 		// Port 1 of the machine has no PostgreSQL behind it.
-		"DATABASE_URL": "postgres://api:hunter2@127.0.0.1:1/software_factory?sslmode=disable",
+		"DATABASE_URL": "postgres://api:hunter2@127.0.0.1:1/forgespark?sslmode=disable",
 		"SEED_MAILBOX": "seed@fabrica.example",
 	}
 

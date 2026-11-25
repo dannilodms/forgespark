@@ -9,7 +9,7 @@ import (
 
 	"go.yaml.in/yaml/v4"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/report"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/report"
 )
 
 var (
@@ -100,7 +100,7 @@ func judgeService(service *yaml.Node) []report.Finding {
 // Caddy with the built web app or the seed, tagged with one variable of
 // Compose, `${NAME}`, with or without a default or an error after the name:
 // the variable that holds the hash of the commit it was built from.
-var publishedHere = regexp.MustCompile(`^ghcr\.io/dannilodms/software-factory-manager-[a-z]+:\$\{[A-Za-z_][A-Za-z0-9_]*(:?[-?+][^}]*)?\}$`)
+var publishedHere = regexp.MustCompile(`^ghcr\.io/dannilodms/forgespark-[a-z]+:\$\{[A-Za-z_][A-Za-z0-9_]*(:?[-?+][^}]*)?\}$`)
 
 // dockerfile judges the image of every `FROM` and of every `COPY --from`
 // that is not an earlier stage, and what xcaddy builds into Caddy.

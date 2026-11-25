@@ -6,8 +6,8 @@ import (
 	"io"
 	"time"
 
-	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	auditapplication "github.com/dannilodms/forgespark/apps/api/internal/audit/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
 )
 
 // IssueSetupCode issues the setup code that opens the setup. Only the

@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/domain"
 )
 
 // ConfirmUpload checks the object a browser sent to the storage and makes its

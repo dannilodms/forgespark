@@ -12,7 +12,7 @@
 # survives. Caddy mounts its Caddyfile, and being created again costs it
 # nothing.
 
-name: software-factory-manager
+name: forgespark
 
 services:
   postgres:
@@ -33,7 +33,7 @@ services:
       # Caddy with its plugin and no app: Vite serves the app here. The
       # stage `servers` of the same Dockerfile holds the built app.
       target: development
-    image: software-factory-manager-caddy:development
+    image: forgespark-caddy:development
     depends_on:
       # The host name of the files leads to a bucket that has its rule.
       # `up --wait` refuses a step that exited unless a service waits for it.
@@ -88,7 +88,7 @@ services:
     build:
       context: apps/api
       dockerfile: cmd/seed/Dockerfile
-    image: software-factory-manager-seed:development
+    image: forgespark-seed:development
     profiles: [seed]
     # The migrations were applied from the machine, by `task migrate`.
     depends_on:
@@ -144,7 +144,7 @@ services:
     ports:
       - 127.0.0.1:${RIVER_PANEL_PORT:?Set RIVER_PANEL_PORT, as .env.example does}:8080
     environment:
-      DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD}@postgres:5432/software_factory?sslmode=disable
+      DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD}@postgres:5432/forgespark?sslmode=disable
 
 volumes:
   postgres-data:
@@ -198,7 +198,7 @@ configs:
         skipApprovalScreen: true
       staticClients:
         - id: ${LOCAL_LOGIN_PROVIDER_CLIENT_ID}
-          name: My Software Factory Manager
+          name: ForgeSpark
           secret: ${LOCAL_LOGIN_PROVIDER_CLIENT_SECRET}
           redirectURIs:
             - ${APP_ORIGIN}/api/session/login_providers/${LOCAL_LOGIN_PROVIDER_KEY}/callback

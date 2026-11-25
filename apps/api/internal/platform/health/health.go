@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
 )
 
 // Check tells whether the essential parts answer. A nil error means ready.

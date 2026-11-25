@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
 )
 
 func openPool(t *testing.T, connectionURL config.PostgresURL) *pgxpool.Pool {
@@ -72,7 +72,7 @@ func TestTheSchemaCheckFailsWhenTheDatabaseIsAheadOfTheBinary(t *testing.T) {
 func TestThePoolOpensWhilePostgreSQLIsDownAndTheSchemaCheckFails(t *testing.T) {
 	t.Parallel()
 	// Port 1 of the machine has no PostgreSQL behind it.
-	unreachable, err := config.NewPostgresURL("postgres://api:api@127.0.0.1:1/software_factory?sslmode=disable")
+	unreachable, err := config.NewPostgresURL("postgres://api:api@127.0.0.1:1/forgespark?sslmode=disable")
 	require.NoError(t, err)
 	pool := openPool(t, unreachable)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -5,8 +5,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
 )
 
 // SetupStateReader reads the state of the setup from the in-memory

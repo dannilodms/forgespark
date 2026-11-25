@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
 )
 
 var errUnreachable = errors.New("dial tcp 127.0.0.1:1025: connection refused")

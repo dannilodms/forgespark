@@ -1,4 +1,4 @@
-module github.com/dannilodms/software-factory-manager/apps/api/golangci-lint
+module github.com/dannilodms/forgespark/apps/api/golangci-lint
 
 go 1.27.4
 

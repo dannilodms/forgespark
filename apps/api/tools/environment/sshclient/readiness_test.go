@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient/sshclienttest"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/sshclient"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/sshclient/sshclienttest"
 )
 
 // These tests wait for an SSH server that the test starts in its own
@@ -20,7 +20,7 @@ import (
 
 const (
 	cloudInitWait = "cloud-init status --wait"
-	preparedCheck = "test -f /var/lib/software-factory-manager/server-prepared"
+	preparedCheck = "test -f /var/lib/forgespark/server-prepared"
 )
 
 func newSigner(t *testing.T) ssh.Signer {

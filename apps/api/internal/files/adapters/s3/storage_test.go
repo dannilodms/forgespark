@@ -24,9 +24,9 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/s3"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/adapters/s3"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // The s3 adapter against the Garage of development, which `task services`

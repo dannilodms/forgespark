@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	emailapplication "github.com/dannilodms/forgespark/apps/api/internal/email/application"
 )
 
 // OldRecords are what the daily cleanup removes from: the login code

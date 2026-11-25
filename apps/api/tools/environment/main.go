@@ -32,13 +32,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/lifecycle"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github/gh"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider/hetzner"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/lifecycle"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github/gh"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider/hetzner"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/sshclient"
 )
 
 const usage = `Usage: environment <command> <environment>

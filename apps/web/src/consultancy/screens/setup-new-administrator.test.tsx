@@ -78,7 +78,7 @@ async function fillTheAdministrator(screen: Screen) {
 }
 
 /** Where the storage is reached, as the API signs a URL for it. */
-const storageAddress = "http://files.localhost/software-factory-files"
+const storageAddress = "http://files.localhost/forgespark-files"
 
 /** An image drawn in the browser, as a file a person chooses. */
 async function imageFile(name: string) {

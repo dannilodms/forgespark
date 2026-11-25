@@ -12,13 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	filesriver "github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/river"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/application/applicationtest"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/jobs"
+	filesriver "github.com/dannilodms/forgespark/apps/api/internal/files/adapters/river"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/application/applicationtest"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/jobs"
 )
 
 var noon = time.Date(2026, time.November, 17, 12, 0, 0, 0, time.UTC)

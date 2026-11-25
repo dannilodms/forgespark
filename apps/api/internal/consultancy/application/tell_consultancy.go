@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	filesapplication "github.com/dannilodms/forgespark/apps/api/internal/files/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // errNoConsultancy is a failure of the system: nobody logs in before the

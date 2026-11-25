@@ -3,10 +3,10 @@ package application
 import (
 	"context"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
-	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	auditapplication "github.com/dannilodms/forgespark/apps/api/internal/audit/application"
+	consultancyapplication "github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // LogInDependencies are what logging a user in needs: the transactions, the

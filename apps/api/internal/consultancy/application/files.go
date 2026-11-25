@@ -1,7 +1,7 @@
 package application
 
 import (
-	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
+	filesapplication "github.com/dannilodms/forgespark/apps/api/internal/files/application"
 )
 
 // The setup uploads images through the files area. An adapter of this area

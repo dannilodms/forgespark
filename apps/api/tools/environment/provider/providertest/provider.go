@@ -9,7 +9,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider"
 )
 
 // Provider is a provider whose servers live in memory. Each server gets the

@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
 )
 
 // ProviderLinkRepository keeps the provider links in memory, unique on the

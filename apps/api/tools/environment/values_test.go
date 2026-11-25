@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider/providertest"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider/providertest"
 )
 
 // mailpitPasswordLine is the line of the .env of the main checkout that

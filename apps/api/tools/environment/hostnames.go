@@ -6,7 +6,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider"
 )
 
 // report writes the host names of the server, and how to log in to it.

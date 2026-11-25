@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const instrumentationName = "github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
+const instrumentationName = "github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
 
 // Requests wraps the handler of the API with the telemetry of a request. It
 // opens the span of each request, under the trace of an incoming

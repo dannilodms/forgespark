@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/guardtest"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/guardtest"
 )
 
 const goMod = "module example.test/api\n\ngo 1.27.4\n"

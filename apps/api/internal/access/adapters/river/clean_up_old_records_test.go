@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	accessriver "github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/river"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/jobs"
+	accessriver "github.com/dannilodms/forgespark/apps/api/internal/access/adapters/river"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/jobs"
 )
 
 // The job of the daily cleanup names nothing: the River panel and the

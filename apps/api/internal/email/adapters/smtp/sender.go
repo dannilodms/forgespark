@@ -18,7 +18,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
 )
 
 // timeout bounds the connection to the server and each of its answers. A
@@ -52,7 +52,7 @@ func NewSender(settings Settings) *Sender {
 	if provider == nil {
 		provider = noop.NewTracerProvider()
 	}
-	return &Sender{settings: settings, tracer: provider.Tracer("github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/smtp")}
+	return &Sender{settings: settings, tracer: provider.Tracer("github.com/dannilodms/forgespark/apps/api/internal/email/adapters/smtp")}
 }
 
 // Send sends the message, with its plain-text part and its HTML part as two

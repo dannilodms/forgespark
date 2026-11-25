@@ -85,7 +85,7 @@ async function chooseImage(screen: Screen, field: string, file: File) {
 }
 
 /** Where the storage is reached, as the API signs a URL for it. */
-const storageAddress = "http://files.localhost/software-factory-files"
+const storageAddress = "http://files.localhost/forgespark-files"
 
 /** The answer of the API to an upload started for a file. */
 function uploadOf(fileId: string) {

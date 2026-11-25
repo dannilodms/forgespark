@@ -23,8 +23,8 @@ import (
 	"github.com/aws/smithy-go/tracing/smithyoteltracing"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // callTimeout bounds each call to the storage, below the drain deadline of

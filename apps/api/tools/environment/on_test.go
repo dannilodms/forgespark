@@ -13,7 +13,7 @@ import (
 	"go.yaml.in/yaml/v4"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider"
 )
 
 // cloudConfig is the part of a cloud-init file the tests read.

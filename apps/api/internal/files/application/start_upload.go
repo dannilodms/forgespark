@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/domain"
 )
 
 // uploadValidity is how long a signed upload URL works: whoever holds it can

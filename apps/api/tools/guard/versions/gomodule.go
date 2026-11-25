@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/report"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/report"
 )
 
 // directive is how a line of a module file that holds a version is judged.

@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v4"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/sshclient"
 )
 
 // The tests of the committed files of deploy/ that the tool reads: what the
@@ -257,8 +257,8 @@ func defaultOf(operator, text string) string {
 // The images of the binary of the API and of the seed, which deploy/
 // compose.staging.yaml runs.
 const (
-	imageOfTheAPI  = "ghcr.io/dannilodms/software-factory-manager-api"
-	imageOfTheSeed = "ghcr.io/dannilodms/software-factory-manager-seed"
+	imageOfTheAPI  = "ghcr.io/dannilodms/forgespark-api"
+	imageOfTheSeed = "ghcr.io/dannilodms/forgespark-seed"
 )
 
 // commandsOf gives the commands of the binary that the container of the
@@ -328,7 +328,7 @@ func TestTheComposeFileOfStagingDeclaresTheVolumesThePublishRemovesAndTheOnesItK
 	}
 	require.NoError(t, yaml.Unmarshal(content, &file))
 
-	assert.Equal(t, "software-factory-manager-staging", file.Name)
+	assert.Equal(t, "forgespark-staging", file.Name)
 	assert.ElementsMatch(t, append(slices.Clone(recreatedVolumes), "caddy-data", "caddy-config"), slices.Collect(maps.Keys(file.Volumes)),
 		"the publish removes the data of PostgreSQL and Garage and keeps the certificates of Caddy")
 }

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // The longest text each field of the consultancy and of a user takes, in

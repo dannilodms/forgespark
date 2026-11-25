@@ -5,7 +5,7 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
 )
 
 // ConsultancyRepository keeps the consultancy in memory. It stores a copy of

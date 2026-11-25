@@ -3,8 +3,8 @@ package application
 import (
 	"context"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // CheckLoginCode checks the six digits typed in a browser against the login

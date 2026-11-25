@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // Operation is a sensitive operation the audit log records.

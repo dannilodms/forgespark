@@ -32,7 +32,7 @@ const ana: LoggedInUser = {
 }
 
 /** Where the storage is reached, as the API signs a URL for it. */
-const storageAddress = "http://files.localhost/software-factory-files"
+const storageAddress = "http://files.localhost/forgespark-files"
 
 /** A URL the API signed to read an object, for fifteen minutes. */
 function signedURL(key: string, signature = "first") {
@@ -106,9 +106,11 @@ describe("the shell, at a wide width", () => {
   it("shows the mark and the product name, the consultancy, the menu of the user and the work surface", async () => {
     const { screen } = await openTheShell()
 
+    await expect.element(screen.getByText("ForgeSpark")).toBeVisible()
+    // The slogan is for the screens seen before a login, not the work.
     await expect
-      .element(screen.getByText("My Software Factory Manager"))
-      .toBeVisible()
+      .element(screen.getByText("From ideas to execution."))
+      .not.toBeInTheDocument()
     await expect.element(screen.getByText("Example Consultancy")).toBeVisible()
     await expect.element(userMenuButton(screen)).toBeVisible()
     await expect

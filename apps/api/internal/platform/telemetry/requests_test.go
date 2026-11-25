@@ -17,7 +17,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
 )
 
 // served is a handler behind the telemetry of requests, with what it wrote

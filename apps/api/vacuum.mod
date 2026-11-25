@@ -1,4 +1,4 @@
-module github.com/dannilodms/software-factory-manager/apps/api/vacuum
+module github.com/dannilodms/forgespark/apps/api/vacuum
 
 go 1.27.4
 

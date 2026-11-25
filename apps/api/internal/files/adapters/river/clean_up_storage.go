@@ -9,8 +9,8 @@ import (
 
 	"github.com/riverqueue/river"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/jobs"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/jobs"
 )
 
 // cleanUpTimeout is how long one cleanup may run. It lists the whole bucket

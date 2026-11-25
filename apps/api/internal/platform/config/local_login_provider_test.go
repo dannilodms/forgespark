@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // withLocalLoginProvider is the environment of the API with the local login
@@ -18,7 +18,7 @@ func withLocalLoginProvider() map[string]string {
 	environment["LOCAL_LOGIN_PROVIDER_KEY"] = "local"
 	environment["LOCAL_LOGIN_PROVIDER_DISPLAY_NAME"] = "Local login provider"
 	environment["LOCAL_LOGIN_PROVIDER_ISSUER_URL"] = "http://localhost:5556"
-	environment["LOCAL_LOGIN_PROVIDER_CLIENT_ID"] = "software-factory-manager"
+	environment["LOCAL_LOGIN_PROVIDER_CLIENT_ID"] = "forgespark"
 	environment["LOCAL_LOGIN_PROVIDER_CLIENT_SECRET"] = "a-secret-of-the-client"
 	return environment
 }
@@ -36,7 +36,7 @@ func TestTheAPIReadsTheLocalLoginProviderWhenItIsOn(t *testing.T) {
 	assert.Equal(t, "local", loaded.LocalLoginProviderKey.String())
 	assert.Equal(t, "Local login provider", loaded.LocalLoginProviderDisplayName)
 	assert.Equal(t, "http://localhost:5556", loaded.LocalLoginProviderIssuerURL.String())
-	assert.Equal(t, "software-factory-manager", loaded.LocalLoginProviderClientID)
+	assert.Equal(t, "forgespark", loaded.LocalLoginProviderClientID)
 	assert.Equal(t, "a-secret-of-the-client", loaded.LocalLoginProviderClientSecret.Reveal())
 	assert.NotContains(t, fmt.Sprintf("%v %+v %#v", loaded, loaded, loaded), "a-secret-of-the-client")
 }

@@ -19,9 +19,9 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/resend"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/adapters/resend"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // These tests send to a simulated Resend, which answers as the documentation
@@ -144,12 +144,12 @@ func TestTheNameOfTheSenderInPlainLettersIsQuoted(t *testing.T) {
 	t.Parallel()
 	simulated := newSimulatedResend(t)
 	settings := settingsOf(simulated.URL, nil)
-	settings.FromName = "My Software Factory Manager"
+	settings.FromName = "ForgeSpark"
 
 	_, err := resend.NewSender(settings).Send(context.Background(), aMessage())
 
 	require.NoError(t, err)
-	assert.Equal(t, `"My Software Factory Manager" <no-reply@fabrica.example>`, simulated.received(t).body["from"])
+	assert.Equal(t, `"ForgeSpark" <no-reply@fabrica.example>`, simulated.received(t).body["from"])
 }
 
 // Resend answers a failure with its status, a name of the failure and a

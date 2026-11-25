@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
 )
 
 // SetupCodeRepository keeps the setup codes in memory. It stores a copy of

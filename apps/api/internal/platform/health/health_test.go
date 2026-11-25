@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/health"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/health"
 )
 
 // answer mounts liveness and readiness on a server and returns the status and

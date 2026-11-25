@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/audit/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/audit/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
 )
 
 // AuditLog keeps the entries in the audit_log table, where the API role can

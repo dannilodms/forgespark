@@ -12,7 +12,7 @@ import (
 	texttemplate "text/template"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // Template is the kind of an e-mail: what it says. Each template has an HTML

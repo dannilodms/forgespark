@@ -1,4 +1,4 @@
-module github.com/dannilodms/software-factory-manager/apps/api/sqlc
+module github.com/dannilodms/forgespark/apps/api/sqlc
 
 go 1.27.4
 

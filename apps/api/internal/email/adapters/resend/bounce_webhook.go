@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/restapi"
 )
 
 // BounceWebhookPath is where Resend delivers the notices of a bounce: the

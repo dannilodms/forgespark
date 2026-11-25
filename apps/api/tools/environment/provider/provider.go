@@ -11,7 +11,7 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // ErrNameTaken is the answer of Create when the provider already has a

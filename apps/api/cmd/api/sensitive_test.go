@@ -17,21 +17,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/oidc/oidctest"
-	emailpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/postgres"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/resend/resendtest"
-	emailriver "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/river"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/smtp/smtptest"
-	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
-	emailapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application/applicationtest"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/jobs"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry/telemetrytest"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/adapters/oidc/oidctest"
+	emailpostgres "github.com/dannilodms/forgespark/apps/api/internal/email/adapters/postgres"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/adapters/resend/resendtest"
+	emailriver "github.com/dannilodms/forgespark/apps/api/internal/email/adapters/river"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/adapters/smtp/smtptest"
+	emailapplication "github.com/dannilodms/forgespark/apps/api/internal/email/application"
+	emailapplicationtest "github.com/dannilodms/forgespark/apps/api/internal/email/application/applicationtest"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/clock"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/jobs"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry/telemetrytest"
 )
 
 // The test of sensitive values (Telemetry in CODING_STANDARDS.md). It runs
@@ -128,9 +128,9 @@ func TestTheLogsAndTheSpansCarryNothingSensitive(t *testing.T) {
 		"LOG_LEVEL":                   "debug",
 		"OTEL_EXPORTER_OTLP_ENDPOINT": collector.URL,
 		"DATABASE_URL": "postgres://api:" + guarded.add("the password of the API role", "guarded-password-of-the-api-role") +
-			"@127.0.0.1:1/software_factory?sslmode=disable",
+			"@127.0.0.1:1/forgespark?sslmode=disable",
 		"MIGRATION_DATABASE_URL": "postgres://migration:" + guarded.add("the password of the migration role", "guarded-password-of-the-migration-role") +
-			"@127.0.0.1:1/software_factory?sslmode=disable",
+			"@127.0.0.1:1/forgespark?sslmode=disable",
 	})
 	environment["FILE_STORAGE_SECRET_ACCESS_KEY"] = guarded.add("the secret key of the file storage", "guarded-secret-key-of-the-file-storage")
 	withEmailSender(environment)

@@ -16,9 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github/gh"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github/gh"
 )
 
 // The adapter runs a stand-in of gh: this test binary, run again with
@@ -285,17 +285,17 @@ const openPullRequests = "repos/{owner}/{repo}/pulls?state=open&per_page=100"
 func TestTheLabelledPullRequestsAreTheOpenOnesWithTheLabel(t *testing.T) {
 	t.Parallel()
 	fake := newFakeGh(t)
-	fake.answers(0, `{"number":11,"title":"Another change","url":"https://github.com/dannilodms/software-factory-manager/pull/11","labels":["documentation"]}
-{"number":12,"title":"Publish to staging","url":"https://github.com/dannilodms/software-factory-manager/pull/12","labels":["staging"]}
-{"number":13,"title":"Also labelled","url":"https://github.com/dannilodms/software-factory-manager/pull/13","labels":["documentation","Staging"]}
+	fake.answers(0, `{"number":11,"title":"Another change","url":"https://github.com/dannilodms/forgespark/pull/11","labels":["documentation"]}
+{"number":12,"title":"Publish to staging","url":"https://github.com/dannilodms/forgespark/pull/12","labels":["staging"]}
+{"number":13,"title":"Also labelled","url":"https://github.com/dannilodms/forgespark/pull/13","labels":["documentation","Staging"]}
 `, "", "api", openPullRequests)
 
 	found, err := fake.github().LabelledPullRequests(context.Background(), "staging")
 
 	require.NoError(t, err)
 	assert.Equal(t, []github.PullRequest{
-		{Number: 12, Title: "Publish to staging", URL: "https://github.com/dannilodms/software-factory-manager/pull/12"},
-		{Number: 13, Title: "Also labelled", URL: "https://github.com/dannilodms/software-factory-manager/pull/13"},
+		{Number: 12, Title: "Publish to staging", URL: "https://github.com/dannilodms/forgespark/pull/12"},
+		{Number: 13, Title: "Also labelled", URL: "https://github.com/dannilodms/forgespark/pull/13"},
 	}, found, "GitHub compares the names of labels regardless of case")
 	assert.Equal(t, []call{{Arguments: []string{
 		"api", openPullRequests, "--paginate", "--jq", ".[] | {number, title, url: .html_url, labels: [.labels[].name]}",
@@ -306,7 +306,7 @@ func TestNoPullRequestWithTheLabel(t *testing.T) {
 	t.Parallel()
 	for name, listed := range map[string]string{
 		"no open pull request":                    "",
-		"no open pull request that has the label": `{"number":11,"title":"Another change","url":"https://github.com/dannilodms/software-factory-manager/pull/11","labels":[]}` + "\n",
+		"no open pull request that has the label": `{"number":11,"title":"Another change","url":"https://github.com/dannilodms/forgespark/pull/11","labels":[]}` + "\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

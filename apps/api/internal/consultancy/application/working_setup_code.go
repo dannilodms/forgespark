@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
 )
 
 // findWorkingSetupCode reads the setup code a person typed and finds it,

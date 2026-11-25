@@ -6,9 +6,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/restapi"
 )
 
 // sessionPath is the session of the browser that calls.

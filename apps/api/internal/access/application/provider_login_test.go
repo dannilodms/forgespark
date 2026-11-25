@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application/applicationtest"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/application/applicationtest"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	consultancyapplication "github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
 )
 
 // The account of Ana at the local provider, with the e-mail she is

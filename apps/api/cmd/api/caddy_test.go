@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v4"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
 )
 
 // The API behind Caddy, as development runs it (Delivery and Health in
@@ -34,7 +34,7 @@ import (
 
 const (
 	// caddyImage is the image of the Caddy service of compose.yaml.
-	caddyImage = "software-factory-manager-caddy:development"
+	caddyImage = "forgespark-caddy:development"
 	// caddyfile is the Caddyfile of development. The test runs in the
 	// directory of its package: the root of the repository is four up.
 	caddyfile = "../../../../deploy/Caddyfile"
@@ -139,7 +139,7 @@ func behindCaddy(t *testing.T, apiURL string) site {
 	require.NoError(t, err)
 
 	container := docker(t, "run", "--detach", "--rm",
-		"--label", "software-factory-manager.test=caddy",
+		"--label", "forgespark.test=caddy",
 		"--publish", "127.0.0.1::80",
 		"--add-host", "host.docker.internal:host-gateway",
 		"--mount", mountOf(t, caddyfile, "/etc/caddy/Caddyfile"),
@@ -340,7 +340,7 @@ func TestTheReadOfTheSetupAndEveryOtherPathHaveNoLimit(t *testing.T) {
 
 // composeNetwork is the network of the services of compose.yaml, where
 // Garage is reached by the name of its service.
-const composeNetwork = "software-factory-manager_default"
+const composeNetwork = "forgespark_default"
 
 // filesBehindCaddy starts Caddy with the Caddyfile of development on the
 // network of the services, so that the host name of the files leads to the
@@ -349,7 +349,7 @@ const composeNetwork = "software-factory-manager_default"
 func filesBehindCaddy(t *testing.T) string {
 	t.Helper()
 	container := docker(t, "run", "--detach", "--rm",
-		"--label", "software-factory-manager.test=caddy",
+		"--label", "forgespark.test=caddy",
 		"--network", composeNetwork,
 		"--publish", "127.0.0.1::80",
 		"--mount", mountOf(t, caddyfile, "/etc/caddy/Caddyfile"),
@@ -452,7 +452,7 @@ func TestUpAnswersTheStatusOfReadinessWithNoBody(t *testing.T) {
 					"APP_ORIGIN":         appOrigin(),
 					"LOGIN_CODE_KEY":     theLoginCodeKey,
 					// Port 1 of the machine has no PostgreSQL behind it.
-					"DATABASE_URL": "postgres://api:api@127.0.0.1:1/software_factory?sslmode=disable",
+					"DATABASE_URL": "postgres://api:api@127.0.0.1:1/forgespark?sslmode=disable",
 				})
 			},
 			status: http.StatusServiceUnavailable,

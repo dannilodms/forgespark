@@ -8,8 +8,8 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github"
 )
 
 // contents are what a GitHub Environment holds.

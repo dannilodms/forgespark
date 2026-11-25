@@ -3,8 +3,8 @@ package application
 import (
 	"context"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // QueueEmail creates the record of an e-mail and saves the job that delivers

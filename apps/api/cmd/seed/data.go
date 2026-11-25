@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // The consultancy and the administrator the seed registers, as a person would

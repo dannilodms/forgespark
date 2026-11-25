@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/postgres"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/adapters/postgres"
 )
 
 // The store of the sessions removes none that ended: the daily cleanup

@@ -19,8 +19,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ssh/knownhosts"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/sshclient"
 )
 
 // A publish runs as the pipeline runs it, with the variables the job gives
@@ -79,7 +79,7 @@ func TestAPublishRunsItsStepsOnTheServerInTheirOrder(t *testing.T) {
 		// Mailpit keeps its e-mails inside its container, so it goes too,
 		// and no login code of an earlier pull request is left.
 		"run " + compose + " rm --stop --force postgres garage mailpit",
-		"run docker volume rm --force software-factory-manager-staging_postgres-data software-factory-manager-staging_garage-data",
+		"run docker volume rm --force forgespark-staging_postgres-data forgespark-staging_garage-data",
 		// 7.
 		"run " + compose + " up --detach --wait postgres garage garage-cors mailpit caddy",
 		// 8.
@@ -181,13 +181,13 @@ func TestTheVariablesFileHasAStagingValueForEveryNameOfEnvExample(t *testing.T) 
 		"DATABASE_IDLE_IN_TRANSACTION_TIMEOUT": "1m",
 		"HEALTH_CHECK_TIMEOUT":                 "2s",
 		"FILE_STORAGE_REGION":                  "garage",
-		"FILE_STORAGE_BUCKET":                  "software-factory-files",
+		"FILE_STORAGE_BUCKET":                  "forgespark-files",
 		"SEED_MAILBOX":                         "seed@fabrica.example",
 		"WORKER_LIGHT_QUEUE_MAX_JOBS":          "10",
 		"WORKER_HEAVY_QUEUE_MAX_JOBS":          "2",
 		"WORKER_SHUTDOWN_DEADLINE":             "20s",
 		"EMAIL_FROM_ADDRESS":                   "no-reply@fabrica.example",
-		"EMAIL_FROM_NAME":                      "My Software Factory Manager",
+		"EMAIL_FROM_NAME":                      "ForgeSpark",
 		// Deliberately empty: development only, written by the Compose file
 		// of staging, no telemetry, no certificate address yet, no local
 		// login provider, no Resend, the tests.
@@ -256,7 +256,7 @@ func TestThePublishedPullRequestGetsACommentWithTheAddressesOfTheAppAndOfMailpit
 
 // aPullRequest is an open pull request of the repository.
 func aPullRequest(number int, title string) github.PullRequest {
-	return github.PullRequest{Number: number, Title: title, URL: fmt.Sprintf("https://github.com/dannilodms/software-factory-manager/pull/%d", number)}
+	return github.PullRequest{Number: number, Title: title, URL: fmt.Sprintf("https://github.com/dannilodms/forgespark/pull/%d", number)}
 }
 
 // labelledNumbers are the numbers of the open pull requests that have the

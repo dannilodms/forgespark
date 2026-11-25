@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	title = "My Software Factory Manager"
+	title = "ForgeSpark"
 	// The contract carries no version: every consumer ships with the backend
 	// (ADR-0009).
 	version = "unversioned"

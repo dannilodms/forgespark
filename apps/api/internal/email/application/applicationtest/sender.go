@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
 )
 
 // Sender keeps the messages it is handed, as a mailbox that receives them,

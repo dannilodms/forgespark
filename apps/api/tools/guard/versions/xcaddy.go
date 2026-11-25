@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/report"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/report"
 )
 
 // word is one word of a Dockerfile with the line it is on.

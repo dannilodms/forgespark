@@ -3,9 +3,9 @@ package application
 import (
 	"context"
 
-	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	consultancyapplication "github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	filesapplication "github.com/dannilodms/forgespark/apps/api/internal/files/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // TellLoggedInUser tells the app who is logged in: the user it shows in its

@@ -3,7 +3,7 @@ package applicationtest
 import (
 	"context"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
 )
 
 // ConsultancyReader reads the consultancy from the in-memory repository, as

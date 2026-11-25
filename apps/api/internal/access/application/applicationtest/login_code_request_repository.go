@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
 )
 
 // LoginCodeRequestRepository keeps the login code requests in memory. It

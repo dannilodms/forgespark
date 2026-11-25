@@ -1,4 +1,4 @@
-module github.com/dannilodms/software-factory-manager/apps/api/oasdiff
+module github.com/dannilodms/forgespark/apps/api/oasdiff
 
 go 1.27.4
 

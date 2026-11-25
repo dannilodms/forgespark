@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application/applicationtest"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/application/applicationtest"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	consultancyapplication "github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	filesapplication "github.com/dannilodms/forgespark/apps/api/internal/files/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // inTheBrowser is the context of a request of the browser of the test.

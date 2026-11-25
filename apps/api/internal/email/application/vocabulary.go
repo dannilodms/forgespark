@@ -1,6 +1,6 @@
 package application
 
-import "github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
+import "github.com/dannilodms/forgespark/apps/api/internal/email/domain"
 
 // Another domain area imports this package and no other of the e-mail area,
 // so the words it needs to queue an e-mail and to give its content are named

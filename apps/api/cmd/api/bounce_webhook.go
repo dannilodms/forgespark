@@ -5,12 +5,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	emailpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/postgres"
-	emailresend "github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/resend"
-	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	emailpostgres "github.com/dannilodms/forgespark/apps/api/internal/email/adapters/postgres"
+	emailresend "github.com/dannilodms/forgespark/apps/api/internal/email/adapters/resend"
+	emailapplication "github.com/dannilodms/forgespark/apps/api/internal/email/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/clock"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
 )
 
 // mountBounceWebhook registers the webhook that takes the notices of a

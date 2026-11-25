@@ -12,14 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 func validEnvironment() map[string]string {
 	return map[string]string{
 		"API_LISTEN_ADDRESS":             "127.0.0.1:8080",
-		"DATABASE_URL":                   "postgres://api:api-password@localhost:5432/software_factory",
-		"MIGRATION_DATABASE_URL":         "postgres://migration:migration-password@localhost:5432/software_factory",
+		"DATABASE_URL":                   "postgres://api:api-password@localhost:5432/forgespark",
+		"MIGRATION_DATABASE_URL":         "postgres://migration:migration-password@localhost:5432/forgespark",
 		"APP_ORIGIN":                     "https://factory.example.com",
 		"FILE_STORAGE_URL":               "http://garage:3900",
 		"FILE_STORAGE_PUBLIC_URL":        "https://files.factory.example.com",
@@ -39,7 +39,7 @@ func validEnvironment() map[string]string {
 // workerEnvironment is what the worker needs, and nothing else.
 func workerEnvironment() map[string]string {
 	return map[string]string{
-		"DATABASE_URL":       "postgres://api:api-password@localhost:5432/software_factory",
+		"DATABASE_URL":       "postgres://api:api-password@localhost:5432/forgespark",
 		"EMAIL_SENDER":       "smtp",
 		"EMAIL_SMTP_ADDRESS": "mailpit:1025",
 		"EMAIL_FROM_ADDRESS": "no-reply@fabrica.example",
@@ -48,7 +48,7 @@ func workerEnvironment() map[string]string {
 		"FILE_STORAGE_URL":               "http://localhost:3900",
 		"FILE_STORAGE_PUBLIC_URL":        "http://files.localhost",
 		"FILE_STORAGE_REGION":            "garage",
-		"FILE_STORAGE_BUCKET":            "software-factory-files",
+		"FILE_STORAGE_BUCKET":            "forgespark-files",
 		"FILE_STORAGE_ACCESS_KEY_ID":     "GK0123",
 		"FILE_STORAGE_SECRET_ACCESS_KEY": "a-secret-key",
 		// The delivery of a login code computes the code with its key.
@@ -67,7 +67,7 @@ func TestTheMailboxOfTheSeedGivesTheAddressOfEachSeededUser(t *testing.T) {
 
 func TestTheSeedNeedsOnlyTheDatabaseAndTheMailbox(t *testing.T) {
 	_, err := config.Load(config.Seed, map[string]string{
-		"DATABASE_URL": "postgres://api:api-password@localhost:5432/software_factory",
+		"DATABASE_URL": "postgres://api:api-password@localhost:5432/forgespark",
 		"SEED_MAILBOX": "seed@fabrica.example",
 	})
 
@@ -135,7 +135,7 @@ func TestLoadReadsTheEnvironmentIntoTypedValues(t *testing.T) {
 	assert.Equal(t, 5*time.Second, loaded.ShutdownDrainDeadline)
 	assert.Equal(t, slog.LevelDebug, loaded.LogLevel)
 	assert.Equal(t, "http://collector:4318", loaded.TelemetryExportURL.String())
-	assert.Equal(t, "postgres://api:api-password@localhost:5432/software_factory", loaded.DatabaseURL.ConnectionString())
+	assert.Equal(t, "postgres://api:api-password@localhost:5432/forgespark", loaded.DatabaseURL.ConnectionString())
 	assert.Equal(t, int32(4), loaded.DatabasePoolMaxSize)
 	assert.Equal(t, 5*time.Second, loaded.DatabaseStatementTimeout)
 	assert.Equal(t, 2*time.Minute, loaded.DatabaseIdleInTransactionTimeout)
@@ -216,7 +216,7 @@ func TestEachCommandRequiresOnlyTheDatabaseRoleItUses(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = config.Load(config.Migrate, map[string]string{
-		"MIGRATION_DATABASE_URL": "postgres://migration:migration-password@localhost:5432/software_factory",
+		"MIGRATION_DATABASE_URL": "postgres://migration:migration-password@localhost:5432/forgespark",
 	})
 	require.NoError(t, err)
 }
@@ -293,7 +293,7 @@ func TestLoadReportsEveryProblemInOneLine(t *testing.T) {
 
 func TestAnInvalidValueOfAVariableTheCommandDoesNotUseStillStopsIt(t *testing.T) {
 	_, err := config.Load(config.Migrate, map[string]string{
-		"MIGRATION_DATABASE_URL": "postgres://migration:migration-password@localhost:5432/software_factory",
+		"MIGRATION_DATABASE_URL": "postgres://migration:migration-password@localhost:5432/forgespark",
 		"DATABASE_POOL_MAX_SIZE": "plenty",
 	})
 
@@ -361,7 +361,7 @@ func TestTheOriginOfTheAppTellsWhetherItIsServedOverHTTPS(t *testing.T) {
 
 func TestIssueSetupCodeNeedsNeitherTheListenAddressNorTheMigrationRole(t *testing.T) {
 	_, err := config.Load(config.IssueSetupCode, map[string]string{
-		"DATABASE_URL": "postgres://api:api-password@localhost:5432/software_factory",
+		"DATABASE_URL": "postgres://api:api-password@localhost:5432/forgespark",
 		"APP_ORIGIN":   "https://factory.example.com",
 	})
 

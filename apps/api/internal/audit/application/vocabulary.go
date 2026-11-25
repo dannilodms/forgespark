@@ -1,6 +1,6 @@
 package application
 
-import "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/domain"
+import "github.com/dannilodms/forgespark/apps/api/internal/audit/domain"
 
 // Another domain area imports this package and no other of the audit log, so
 // the words it needs to describe an operation are named here.

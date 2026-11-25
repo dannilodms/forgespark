@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // browserKey is the key of the browser a context of a test carries.

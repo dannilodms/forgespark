@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
 )
 
 // A handler of its own is one Huma does not serve: it is registered on the

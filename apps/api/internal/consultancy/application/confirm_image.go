@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
-	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
+	filesapplication "github.com/dannilodms/forgespark/apps/api/internal/files/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // namesAFile answers FileNotFoundError for an identifier that names no file,

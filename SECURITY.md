@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Report a vulnerability in private, through GitHub: open the [Security tab](https://github.com/dannilodms/software-factory-manager/security) of this repository and choose **Report a vulnerability**. The report is visible only to you and to the maintainer.
+Report a vulnerability in private, through GitHub: open the [Security tab](https://github.com/dannilodms/forgespark/security) of this repository and choose **Report a vulnerability**. The report is visible only to you and to the maintainer.
 
 Do not open a public issue or a pull request for a vulnerability. Both are public as soon as they are created.
 

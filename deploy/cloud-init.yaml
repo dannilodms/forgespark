@@ -206,7 +206,7 @@ runcmd:
   - docker version
   - docker compose version
   # The signal that the server is prepared, which the tool waits for.
-  - mkdir -p /var/lib/software-factory-manager
-  - touch /var/lib/software-factory-manager/server-prepared
+  - mkdir -p /var/lib/forgespark
+  - touch /var/lib/forgespark/server-prepared
 
 final_message: "The server is prepared, after $UPTIME seconds."

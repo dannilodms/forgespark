@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
 )
 
 // OpenSetup checks a setup code that a person typed and tells what it opens

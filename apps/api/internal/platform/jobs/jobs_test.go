@@ -18,11 +18,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/jobs"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry/telemetrytest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/jobs"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry/telemetrytest"
 )
 
 // These tests prove what every `adapters/river` package stands on, the first
