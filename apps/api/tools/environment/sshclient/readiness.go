@@ -10,7 +10,7 @@ import (
 
 // PreparedSignal is the file that the cloud-init file writes last, once
 // every step of it succeeded.
-const PreparedSignal = "/var/lib/software-factory-manager/server-prepared"
+const PreparedSignal = "/var/lib/forgespark/server-prepared"
 
 const (
 	// cloudInitWait blocks until cloud-init has finished, and exits 0 when it

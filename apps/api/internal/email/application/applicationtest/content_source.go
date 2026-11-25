@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
 )
 
 // ContentSource gives a fixed content for each reference it was told about,

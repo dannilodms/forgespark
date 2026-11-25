@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/crypto/ssh/knownhosts"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github"
 )
 
 // What the GitHub Environment of an environment holds while it is on: what

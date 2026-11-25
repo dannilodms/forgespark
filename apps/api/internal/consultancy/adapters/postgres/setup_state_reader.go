@@ -7,8 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
 )
 
 // SetupStateReader reads the state of the setup in one query. It builds no

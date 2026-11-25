@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
 )
 
 // BounceNotices keeps the identifiers of the bounce notices taken, in the

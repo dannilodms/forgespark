@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
 )
 
 // ProviderLinkRepository keeps the provider links in the provider_links

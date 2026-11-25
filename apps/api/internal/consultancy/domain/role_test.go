@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // A user acts with the scopes of all their roles (ADR-0026): the

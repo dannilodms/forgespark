@@ -18,7 +18,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/report"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/report"
 )
 
 const pointer = " (Versions in CODING_STANDARDS.md)"

@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/domain"
 )
 
 // FileRepository keeps the files in memory. It stores a copy of what it is

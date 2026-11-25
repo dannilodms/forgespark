@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
 )
 
 // askLockClass is the first number of the key of the advisory lock that holds

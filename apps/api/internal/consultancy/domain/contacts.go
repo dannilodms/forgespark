@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // TelephonePattern is the form of a telephone, as a regular expression: a

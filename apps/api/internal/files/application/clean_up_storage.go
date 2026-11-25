@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/domain"
 )
 
 // CleanUpStorage removes what an upload never confirmed leaves behind: the

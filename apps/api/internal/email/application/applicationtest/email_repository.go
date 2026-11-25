@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
 )
 
 // EmailRepository keeps the e-mails in memory. It stores a copy of what it is

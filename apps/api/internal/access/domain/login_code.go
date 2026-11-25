@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // LoginCodeKeyMinSize is the shortest key a login code is computed with, in

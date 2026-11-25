@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
 )
 
 // DeliverEmail writes a queued e-mail in the language of its recipient, with

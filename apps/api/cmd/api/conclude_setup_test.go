@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
 )
 
 // setupBody is the body of concluding the setup, every field filled in, as a

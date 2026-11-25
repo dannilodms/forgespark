@@ -14,12 +14,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
-	auditapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application/applicationtest"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application/applicationtest"
-	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
-	filesapplicationtest "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application/applicationtest"
+	auditapplication "github.com/dannilodms/forgespark/apps/api/internal/audit/application"
+	auditapplicationtest "github.com/dannilodms/forgespark/apps/api/internal/audit/application/applicationtest"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/application/applicationtest"
+	filesapplication "github.com/dannilodms/forgespark/apps/api/internal/files/application"
+	filesapplicationtest "github.com/dannilodms/forgespark/apps/api/internal/files/application/applicationtest"
 )
 
 var noon = time.Date(2026, time.November, 17, 12, 0, 0, 0, time.UTC)

@@ -11,7 +11,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // EmailID identifies an e-mail record.

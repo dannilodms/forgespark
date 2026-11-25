@@ -15,11 +15,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github/githubtest"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider/providertest"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github/githubtest"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider/providertest"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/sshclient"
 )
 
 // The commands run as the process would, on a checkout written into a

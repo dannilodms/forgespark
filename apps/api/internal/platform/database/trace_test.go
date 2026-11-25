@@ -17,9 +17,9 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
 )
 
 func TestAQueryMadeDuringARequestIsASpanUnderItWithItsSQLTextAndNoParameter(t *testing.T) {

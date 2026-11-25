@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider"
 )
 
 func TestTheStatusOfStagingWhenOff(t *testing.T) {
@@ -60,13 +60,13 @@ func TestTheStatusNamesTheOpenPullRequestWithTheStagingLabel(t *testing.T) {
 	t.Parallel()
 	world := aWorld(t)
 	world.succeeds("on", "staging")
-	world.github.AddPullRequest(github.PullRequest{Number: 11, Title: "Another change", URL: "https://github.com/dannilodms/software-factory-manager/pull/11"}, "documentation")
-	world.github.AddPullRequest(github.PullRequest{Number: 12, Title: "Publish to staging", URL: "https://github.com/dannilodms/software-factory-manager/pull/12"}, "staging")
+	world.github.AddPullRequest(github.PullRequest{Number: 11, Title: "Another change", URL: "https://github.com/dannilodms/forgespark/pull/11"}, "documentation")
+	world.github.AddPullRequest(github.PullRequest{Number: 12, Title: "Publish to staging", URL: "https://github.com/dannilodms/forgespark/pull/12"}, "staging")
 
 	printed := world.succeeds("status", "staging")
 
 	assert.Equal(t, `Staging is on, since 2026-11-19 14:00 UTC (0h00m ago), at 203.0.113.10.
-Pull request #12 has the staging label: Publish to staging, https://github.com/dannilodms/software-factory-manager/pull/12
+Pull request #12 has the staging label: Publish to staging, https://github.com/dannilodms/forgespark/pull/12
   App:    https://app.203-0-113-10.sslip.io
   Files:  https://files.203-0-113-10.sslip.io
   Mail:   https://mail.203-0-113-10.sslip.io
@@ -77,14 +77,14 @@ Pull request #12 has the staging label: Publish to staging, https://github.com/d
 func TestTheStatusWhenOffStillNamesAPullRequestWithTheLabel(t *testing.T) {
 	t.Parallel()
 	world := aWorld(t)
-	world.github.AddPullRequest(github.PullRequest{Number: 12, Title: "Publish to staging", URL: "https://github.com/dannilodms/software-factory-manager/pull/12"}, "staging")
-	world.github.AddPullRequest(github.PullRequest{Number: 13, Title: "Also labelled", URL: "https://github.com/dannilodms/software-factory-manager/pull/13"}, "staging", "documentation")
+	world.github.AddPullRequest(github.PullRequest{Number: 12, Title: "Publish to staging", URL: "https://github.com/dannilodms/forgespark/pull/12"}, "staging")
+	world.github.AddPullRequest(github.PullRequest{Number: 13, Title: "Also labelled", URL: "https://github.com/dannilodms/forgespark/pull/13"}, "staging", "documentation")
 
 	printed := world.succeeds("status", "staging")
 
 	assert.Equal(t, `Staging is off.
-Pull request #12 has the staging label: Publish to staging, https://github.com/dannilodms/software-factory-manager/pull/12
-Pull request #13 has the staging label: Also labelled, https://github.com/dannilodms/software-factory-manager/pull/13
+Pull request #12 has the staging label: Publish to staging, https://github.com/dannilodms/forgespark/pull/12
+Pull request #13 has the staging label: Also labelled, https://github.com/dannilodms/forgespark/pull/13
 `, printed)
 }
 

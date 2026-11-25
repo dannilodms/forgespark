@@ -32,10 +32,10 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 	"golang.org/x/oauth2"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // timeout bounds each call to the provider, from the connection to the last
@@ -109,7 +109,7 @@ func NewLoginProvider(settings Settings) (*LoginProvider, error) {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	tracer := provider.Tracer("github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/oidc")
+	tracer := provider.Tracer("github.com/dannilodms/forgespark/apps/api/internal/access/adapters/oidc")
 	return &LoginProvider{
 		key:      key,
 		settings: settings,

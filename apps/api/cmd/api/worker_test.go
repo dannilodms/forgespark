@@ -16,9 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
-	"github.com/dannilodms/software-factory-manager/apps/api/migrations"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/migrations"
 )
 
 // runningWorker is the worker command, running as the process would, until
@@ -274,7 +274,7 @@ func TestTheWorkerStartsWithResendAsTheSenderAndNoSMTPServer(t *testing.T) {
 func TestTheWorkerRefusesToSendThroughResendWithoutItsKey(t *testing.T) {
 	var stdout, stderr output
 	environment := newStandInStorage(map[string]time.Time{}, false).environment(t, withResend(withEmailSender(map[string]string{
-		"DATABASE_URL": "postgres://api:api@localhost:5432/software_factory",
+		"DATABASE_URL": "postgres://api:api@localhost:5432/forgespark",
 	})))
 	delete(environment, "RESEND_API_KEY")
 
@@ -287,7 +287,7 @@ func TestTheWorkerRefusesToSendThroughResendWithoutItsKey(t *testing.T) {
 func TestTheWorkerRefusesToStartWithAnInvalidQueueLimit(t *testing.T) {
 	var stdout, stderr output
 	environment := newStandInStorage(map[string]time.Time{}, false).environment(t, withEmailSender(map[string]string{
-		"DATABASE_URL":                "postgres://api:api@localhost:5432/software_factory",
+		"DATABASE_URL":                "postgres://api:api@localhost:5432/forgespark",
 		"WORKER_HEAVY_QUEUE_MAX_JOBS": "0",
 	}))
 
@@ -315,7 +315,7 @@ func TestTheWorkerStopsAtOnceWhilePostgreSQLIsDown(t *testing.T) {
 	var stdout, logs output
 	environment := newStandInStorage(map[string]time.Time{}, false).environment(t, withEmailSender(map[string]string{
 		// Port 1 of the machine has no PostgreSQL behind it.
-		"DATABASE_URL": "postgres://api:hunter2@127.0.0.1:1/software_factory?sslmode=disable",
+		"DATABASE_URL": "postgres://api:hunter2@127.0.0.1:1/forgespark?sslmode=disable",
 	}))
 
 	status := run(context.Background(), []string{"worker"}, environment, &stdout, &logs)

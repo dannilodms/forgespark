@@ -1,4 +1,4 @@
-# My Software Factory Manager
+# ForgeSpark
 
 The operational hub of a software consultancy: one place to manage clients, their projects and their software development requests, from first contact to delivery and maintenance.
 

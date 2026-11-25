@@ -1,4 +1,4 @@
-module github.com/dannilodms/software-factory-manager/apps/api/river
+module github.com/dannilodms/forgespark/apps/api/river
 
 go 1.27.4
 

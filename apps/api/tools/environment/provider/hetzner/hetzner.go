@@ -19,8 +19,8 @@ import (
 
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/provider"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider"
 )
 
 // Endpoint is the address of Hetzner Cloud's API.

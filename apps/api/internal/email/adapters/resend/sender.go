@@ -29,9 +29,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // URL is where the API of Resend answers.
@@ -87,7 +87,7 @@ func NewSender(settings Settings) *Sender {
 	return &Sender{
 		settings: settings,
 		client:   &http.Client{Timeout: timeout},
-		tracer:   provider.Tracer("github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/resend"),
+		tracer:   provider.Tracer("github.com/dannilodms/forgespark/apps/api/internal/email/adapters/resend"),
 		server:   server,
 	}
 }

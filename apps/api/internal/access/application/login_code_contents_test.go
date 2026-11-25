@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
+	emailapplication "github.com/dannilodms/forgespark/apps/api/internal/email/application"
 )
 
 // The expected codes were computed apart from this code, with Python's hmac

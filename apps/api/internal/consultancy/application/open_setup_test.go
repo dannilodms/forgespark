@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
 )
 
 func TestAValidSetupCodeOpensTheFirstSetupAndTellsWhenItExpires(t *testing.T) {

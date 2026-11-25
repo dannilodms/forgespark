@@ -31,12 +31,12 @@
 # published port past that firewall, so no other service publishes one:
 # they reach each other on the network of the project.
 
-name: software-factory-manager-staging
+name: forgespark-staging
 
 # The connection of the API role, which the API, the worker and the seed use,
 # and the settings of its pool.
 x-database-of-the-api: &database-of-the-api
-  DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD:?Set POSTGRES_API_PASSWORD, as .env.example does}@postgres:5432/software_factory?sslmode=disable
+  DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD:?Set POSTGRES_API_PASSWORD, as .env.example does}@postgres:5432/forgespark?sslmode=disable
   DATABASE_POOL_MAX_SIZE: ${DATABASE_POOL_MAX_SIZE:-}
   DATABASE_STATEMENT_TIMEOUT: ${DATABASE_STATEMENT_TIMEOUT:-}
   DATABASE_IDLE_IN_TRANSACTION_TIMEOUT: ${DATABASE_IDLE_IN_TRANSACTION_TIMEOUT:-}
@@ -87,7 +87,7 @@ services:
     extends:
       file: compose.base.yaml
       service: caddy
-    image: ghcr.io/dannilodms/software-factory-manager-caddy:${COMMIT:?Set COMMIT, the hash of the commit whose images run}
+    image: ghcr.io/dannilodms/forgespark-caddy:${COMMIT:?Set COMMIT, the hash of the commit whose images run}
     restart: unless-stopped
     depends_on:
       # The host name of the files leads to a bucket that has its rule.
@@ -118,13 +118,13 @@ services:
     extends:
       file: compose.base.yaml
       service: migrate
-    image: ghcr.io/dannilodms/software-factory-manager-api:${COMMIT:?Set COMMIT, the hash of the commit whose images run}
+    image: ghcr.io/dannilodms/forgespark-api:${COMMIT:?Set COMMIT, the hash of the commit whose images run}
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-}
-      MIGRATION_DATABASE_URL: postgres://migration:${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD, as .env.example does}@postgres:5432/software_factory?sslmode=disable
+      MIGRATION_DATABASE_URL: postgres://migration:${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD, as .env.example does}@postgres:5432/forgespark?sslmode=disable
 
   # Fills the empty database with the fictitious consultancy and its users,
   # and exits. It refuses a database with a migration pending.
@@ -132,7 +132,7 @@ services:
     extends:
       file: compose.base.yaml
       service: seed
-    image: ghcr.io/dannilodms/software-factory-manager-seed:${COMMIT:?Set COMMIT, the hash of the commit whose images run}
+    image: ghcr.io/dannilodms/forgespark-seed:${COMMIT:?Set COMMIT, the hash of the commit whose images run}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -142,7 +142,7 @@ services:
     extends:
       file: compose.base.yaml
       service: api
-    image: ghcr.io/dannilodms/software-factory-manager-api:${COMMIT:?Set COMMIT, the hash of the commit whose images run}
+    image: ghcr.io/dannilodms/forgespark-api:${COMMIT:?Set COMMIT, the hash of the commit whose images run}
     restart: unless-stopped
     depends_on:
       migrate:
@@ -166,7 +166,7 @@ services:
     extends:
       file: compose.base.yaml
       service: worker
-    image: ghcr.io/dannilodms/software-factory-manager-api:${COMMIT:?Set COMMIT, the hash of the commit whose images run}
+    image: ghcr.io/dannilodms/forgespark-api:${COMMIT:?Set COMMIT, the hash of the commit whose images run}
     restart: unless-stopped
     depends_on:
       migrate:

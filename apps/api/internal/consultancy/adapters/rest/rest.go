@@ -4,8 +4,8 @@
 package rest
 
 import (
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/restapi"
 )
 
 // UseCases are the use cases of the area that have a REST operation.

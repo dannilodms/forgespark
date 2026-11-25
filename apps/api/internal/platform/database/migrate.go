@@ -14,7 +14,7 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/lock"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // Migrate applies the migrations the database lacks, in order, and returns

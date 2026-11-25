@@ -9,9 +9,9 @@ import (
 
 	riverqueue "github.com/riverqueue/river"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/jobs"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/jobs"
 )
 
 // DeliveryArgs are the arguments of the job that delivers an e-mail.

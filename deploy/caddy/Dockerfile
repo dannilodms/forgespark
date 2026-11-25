@@ -25,6 +25,6 @@ FROM development AS servers
 
 # The repository the image is built from, which links its package in the
 # GitHub container registry to the repository.
-LABEL org.opencontainers.image.source="https://github.com/dannilodms/software-factory-manager"
+LABEL org.opencontainers.image.source="https://github.com/dannilodms/forgespark"
 
 COPY . /srv

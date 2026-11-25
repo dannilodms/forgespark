@@ -27,7 +27,7 @@ services:
       - -c
       - log_error_verbosity=terse
     environment:
-      POSTGRES_DB: software_factory
+      POSTGRES_DB: forgespark
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD, as .env.example does}
       POSTGRES_MIGRATION_PASSWORD: ${POSTGRES_MIGRATION_PASSWORD:?Set POSTGRES_MIGRATION_PASSWORD, as .env.example does}
       POSTGRES_API_PASSWORD: ${POSTGRES_API_PASSWORD:?Set POSTGRES_API_PASSWORD, as .env.example does}
@@ -41,7 +41,7 @@ services:
     healthcheck:
       # Over TCP, because the server that runs the first-start scripts listens
       # on the socket only: the check passes once the roles exist.
-      test: ["CMD-SHELL", "pg_isready --host 127.0.0.1 --username postgres --dbname software_factory"]
+      test: ["CMD-SHELL", "pg_isready --host 127.0.0.1 --username postgres --dbname forgespark"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -98,7 +98,7 @@ services:
   seed:
     environment:
       # The API role, on the network of Compose.
-      DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD:?Set POSTGRES_API_PASSWORD, as .env.example does}@postgres:5432/software_factory?sslmode=disable
+      DATABASE_URL: postgres://api:${POSTGRES_API_PASSWORD:?Set POSTGRES_API_PASSWORD, as .env.example does}@postgres:5432/forgespark?sslmode=disable
       SEED_MAILBOX: ${SEED_MAILBOX:?Set SEED_MAILBOX, as .env.example does}
     logging: *logging
 

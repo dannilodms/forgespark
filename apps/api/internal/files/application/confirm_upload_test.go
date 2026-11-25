@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/application"
 )
 
 // The first bytes of each type of image, as a file of that type starts.

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	emailapplication "github.com/dannilodms/forgespark/apps/api/internal/email/application"
 )
 
 // LoginCodeContents gives the content of the e-mail of a login code when the

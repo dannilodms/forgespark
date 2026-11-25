@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
 )
 
 // The shell of the app: who is logged in, with their photo, and the

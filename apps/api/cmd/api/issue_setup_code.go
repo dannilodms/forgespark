@@ -9,23 +9,23 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	auditpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/adapters/postgres"
-	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
-	consultancypostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/adapters/postgres"
-	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	consultancydomain "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
-	"github.com/dannilodms/software-factory-manager/apps/api/migrations"
+	auditpostgres "github.com/dannilodms/forgespark/apps/api/internal/audit/adapters/postgres"
+	auditapplication "github.com/dannilodms/forgespark/apps/api/internal/audit/application"
+	consultancypostgres "github.com/dannilodms/forgespark/apps/api/internal/consultancy/adapters/postgres"
+	consultancyapplication "github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	consultancydomain "github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/clock"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/migrations"
 )
 
 // setupPath is where the app shows the setup, after its origin.
 const setupPath = "/setup"
 
 // commandTracer names the tracer that opens the span of a command.
-const commandTracer = "github.com/dannilodms/software-factory-manager/apps/api/cmd/api"
+const commandTracer = "github.com/dannilodms/forgespark/apps/api/cmd/api"
 
 // issueSetupCode issues a setup code and prints it, with when it stops
 // working, what it opens and the address of the setup.

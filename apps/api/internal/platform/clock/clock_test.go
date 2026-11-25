@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/clock"
 )
 
 func TestTheSystemClockTellsTheTimeOfTheMachineInUTCToTheMicrosecond(t *testing.T) {

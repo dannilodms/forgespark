@@ -5,11 +5,11 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/identifier"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/restapi"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/identifier"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/restapi"
 )
 
 // The bodies of the setup. Each declares in the contract what a client can

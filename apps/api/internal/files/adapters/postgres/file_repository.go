@@ -11,8 +11,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/files/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
 )
 
 // FileRepository keeps the files in the files table.

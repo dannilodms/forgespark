@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/postgres"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/adapters/postgres"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
 )
 
 func linkOf(t *testing.T, provider, subject string, user domain.UserID) *domain.ProviderLink {

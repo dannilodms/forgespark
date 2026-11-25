@@ -7,7 +7,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // cloudInitFile prepares every server, relative to the root of the

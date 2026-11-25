@@ -93,7 +93,7 @@ func onStaging(t *testing.T, upstreams upstreamsOfStaging) stagingSite {
 	t.Helper()
 	requireCaddyImage(t)
 	container := docker(t, "run", "--detach", "--rm",
-		"--label", "software-factory-manager.test=caddy",
+		"--label", "forgespark.test=caddy",
 		"--publish", "127.0.0.1::80",
 		"--publish", "127.0.0.1::443",
 		"--add-host", "host.docker.internal:host-gateway",
@@ -299,11 +299,11 @@ func TestStagingTheHostNameOfTheFilesLeadsToTheStorage(t *testing.T) {
 	upstreams := standInsForStaging(t)
 	caddy := onStaging(t, upstreams)
 
-	sent := caddy.send(t, http.MethodPut, stagingFiles+"/software-factory-files/uploads/a?X-Amz-Signature=0", map[string]string{"Content-Type": "image/png"}, "an image")
+	sent := caddy.send(t, http.MethodPut, stagingFiles+"/forgespark-files/uploads/a?X-Amz-Signature=0", map[string]string{"Content-Type": "image/png"}, "an image")
 
 	assert.Equal(t, http.StatusNoContent, sent.status)
 	assert.Equal(t, "files.staging.localhost", upstreams.files.hostSeen())
-	assert.Equal(t, "/software-factory-files/uploads/a", upstreams.files.pathSeen())
+	assert.Equal(t, "/forgespark-files/uploads/a", upstreams.files.pathSeen())
 	assert.Empty(t, upstreams.api.pathSeen(), "the files reached the API")
 }
 

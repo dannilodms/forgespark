@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/postgres"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/adapters/postgres"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
 )
 
 // addressOf is the address as the limits keep it, under a key of the test.

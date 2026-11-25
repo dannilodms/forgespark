@@ -7,10 +7,10 @@ import (
 	"io"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	emailapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/email/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	consultancyapplication "github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	emailapplication "github.com/dannilodms/forgespark/apps/api/internal/email/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // LoginCodeDependencies are what the use cases of the login code share: the

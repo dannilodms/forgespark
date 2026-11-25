@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
-	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
+	auditapplication "github.com/dannilodms/forgespark/apps/api/internal/audit/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
+	filesapplication "github.com/dannilodms/forgespark/apps/api/internal/files/application"
 )
 
 // concluded is an installation whose setup was concluded with the first code,

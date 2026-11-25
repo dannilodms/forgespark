@@ -7,8 +7,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/audit/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/audit/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // AuditLog is where entries are kept. Nothing reads it back yet, and nothing

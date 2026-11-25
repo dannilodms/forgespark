@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
 )
 
 // Ask is one ask for a login code as the limits keep it: the digest of the

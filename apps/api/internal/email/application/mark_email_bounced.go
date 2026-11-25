@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
 )
 
 // MarkEmailBounced records a bounce the sender reported: the e-mail it took

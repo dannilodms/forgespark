@@ -19,8 +19,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	accessdomain "github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	accessdomain "github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
 )
 
 // The path where a browser asks for a login code.

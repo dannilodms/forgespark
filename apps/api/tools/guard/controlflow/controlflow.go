@@ -14,8 +14,8 @@ import (
 	"go/token"
 	"path/filepath"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/gosource"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/report"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/gosource"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/report"
 )
 
 const (

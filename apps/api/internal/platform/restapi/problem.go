@@ -11,8 +11,8 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/validation"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
 )
 
 // problemContentType is the media type of every failure (RFC 9457).

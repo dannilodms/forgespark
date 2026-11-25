@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/sshclient"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/sshclient"
 )
 
 // These tests work on a server through an SSH server that the test starts

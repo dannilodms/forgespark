@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/adapters/postgres"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/adapters/postgres"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
 )
 
 var noon = time.Date(2026, time.November, 18, 12, 0, 0, 0, time.UTC)

@@ -3,8 +3,8 @@ package application
 import (
 	"context"
 
-	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	consultancyapplication "github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // FindActor finds who acts in a request: the user logged in to the session of

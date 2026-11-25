@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database/databasetest"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database/databasetest"
 )
 
 func sqlState(t *testing.T, err error) string {
@@ -25,7 +25,7 @@ func sqlState(t *testing.T, err error) string {
 // The connection keeps its secret type until the pool hands it to the driver,
 // so settings printed by mistake show no password.
 func TestTheSettingsOfThePoolPrintNoPassword(t *testing.T) {
-	connection, err := config.NewPostgresURL("postgres://api:a-password-to-hide@localhost:5432/software_factory")
+	connection, err := config.NewPostgresURL("postgres://api:a-password-to-hide@localhost:5432/forgespark")
 	require.NoError(t, err)
 	settings := database.PoolSettings{ConnectionURL: connection, MaxSize: 1}
 

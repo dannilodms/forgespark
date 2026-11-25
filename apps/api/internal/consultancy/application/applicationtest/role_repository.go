@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
 )
 
 // RoleRepository keeps the roles in memory. It stores a copy of what it is

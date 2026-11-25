@@ -27,7 +27,7 @@ FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c
 
 # The repository the image is built from, which links its package in the
 # GitHub container registry to the repository.
-LABEL org.opencontainers.image.source="https://github.com/dannilodms/software-factory-manager"
+LABEL org.opencontainers.image.source="https://github.com/dannilodms/forgespark"
 
 COPY --from=builder /api /api
 ENTRYPOINT ["/api"]

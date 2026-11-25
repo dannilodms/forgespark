@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // Currency is a currency in circulation, by its ISO 4217 code: `BRL`.

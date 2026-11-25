@@ -1,6 +1,6 @@
 package application
 
-import "github.com/dannilodms/software-factory-manager/apps/api/internal/files/domain"
+import "github.com/dannilodms/forgespark/apps/api/internal/files/domain"
 
 // Another domain area imports this package and no other of the files area, so
 // the words it needs to start and to confirm an upload are named here.

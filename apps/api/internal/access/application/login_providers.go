@@ -5,8 +5,8 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // LoginProviders are the login providers turned on by configuration, in the

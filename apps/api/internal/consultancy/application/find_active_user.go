@@ -3,8 +3,8 @@ package application
 import (
 	"context"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // The login of the access area holds a user by identifier, and answers the

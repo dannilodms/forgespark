@@ -10,7 +10,7 @@ package github
 import (
 	"context"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
 )
 
 // GitHub is the repository of the system on GitHub.

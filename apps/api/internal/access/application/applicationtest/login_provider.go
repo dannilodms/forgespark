@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/access/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/access/domain"
 )
 
 // Account is an account at a stand-in login provider: its subject, its

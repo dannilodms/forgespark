@@ -101,7 +101,7 @@ var stagingValues = map[string]value{
 	"FILE_STORAGE_URL":                     deliberatelyEmpty,
 	"FILE_STORAGE_PUBLIC_URL":              derived(func(given publication) string { return "https://" + hostNamesOf(given.address).files }),
 	"FILE_STORAGE_REGION":                  fixed("garage"),
-	"FILE_STORAGE_BUCKET":                  fixed("software-factory-files"),
+	"FILE_STORAGE_BUCKET":                  fixed("forgespark-files"),
 	"FILE_STORAGE_ACCESS_KEY_ID":           random(garageKeyID),
 	"FILE_STORAGE_SECRET_ACCESS_KEY":       random(hexKey),
 
@@ -123,7 +123,7 @@ var stagingValues = map[string]value{
 	"EMAIL_SENDER":                deliberatelyEmpty,
 	"EMAIL_SMTP_ADDRESS":          deliberatelyEmpty,
 	"EMAIL_FROM_ADDRESS":          fixed("no-reply@fabrica.example"),
-	"EMAIL_FROM_NAME":             fixed("My Software Factory Manager"),
+	"EMAIL_FROM_NAME":             fixed("ForgeSpark"),
 
 	// Resend, which only production sends through.
 	"RESEND_API_KEY":        deliberatelyEmpty,

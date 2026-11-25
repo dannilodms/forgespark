@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/controlflow"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/guardtest"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/report"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/controlflow"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/guardtest"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/report"
 )
 
 const nestingMessage = "a second level of nesting: move the inner block into a function of its own (Control flow in CODING_STANDARDS.md)"

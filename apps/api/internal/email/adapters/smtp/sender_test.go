@@ -19,9 +19,9 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/smtp"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/adapters/smtp/smtptest"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/email/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/adapters/smtp"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/adapters/smtp/smtptest"
+	"github.com/dannilodms/forgespark/apps/api/internal/email/domain"
 )
 
 // These tests send to the Mailpit of development, at EMAIL_SMTP_ADDRESS, and

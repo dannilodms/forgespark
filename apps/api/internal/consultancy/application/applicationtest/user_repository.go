@@ -5,8 +5,8 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // UserRepository keeps the users in memory, with their roles. It stores a

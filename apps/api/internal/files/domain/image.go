@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // MaxImageSize is the largest image, in bytes: 2 MiB. Nothing is resized or

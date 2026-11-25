@@ -28,7 +28,7 @@ import (
 	"github.com/riverqueue/rivercontrib/otelriver"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
 )
 
 const (

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/domain"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/kernel"
+	auditapplication "github.com/dannilodms/forgespark/apps/api/internal/audit/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/consultancy/domain"
+	"github.com/dannilodms/forgespark/apps/api/internal/kernel"
 )
 
 // RegisterAdministrator registers a new administrator with a setup code

@@ -7,7 +7,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/audit/application"
 )
 
 // AuditLog keeps the entries in memory, in the order they were recorded.

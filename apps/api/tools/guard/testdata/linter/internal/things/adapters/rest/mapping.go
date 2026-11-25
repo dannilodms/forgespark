@@ -3,7 +3,7 @@
 // struct literal that leaves a field out is rejected.
 package rest
 
-import "github.com/dannilodms/software-factory-manager/apps/api/tools/guard/testdata/linter/internal/things/domain"
+import "github.com/dannilodms/forgespark/apps/api/tools/guard/testdata/linter/internal/things/domain"
 
 // Body is the API type of a thing.
 type Body struct {

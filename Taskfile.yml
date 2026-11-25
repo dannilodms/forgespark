@@ -81,31 +81,31 @@ tasks:
       - go run ./cmd/seed
 
   seed:image:
-    desc: Build the image of the seed, software-factory-manager-seed:servers, which staging runs on every publish, and publish nothing
+    desc: Build the image of the seed, forgespark-seed:servers, which staging runs on every publish, and publish nothing
     cmds:
       # The image staging runs on every publish (Seed in Environments in
       # CODING_STANDARDS.md); the pipeline builds it on every pull request,
       # so a change that breaks its build fails before it is published. The
       # `seed` service of compose.yaml builds the same Dockerfile, under the
       # name of development.
-      - docker build --file apps/api/cmd/seed/Dockerfile --tag software-factory-manager-seed:servers apps/api
+      - docker build --file apps/api/cmd/seed/Dockerfile --tag forgespark-seed:servers apps/api
 
   api:image:
-    desc: Build the image of the API, software-factory-manager-api:servers, which the servers run with each command of the binary, and publish nothing
+    desc: Build the image of the API, forgespark-api:servers, which the servers run with each command of the binary, and publish nothing
     cmds:
       # The pipeline builds it on every pull request, as it builds the image
       # of the seed, so a change that breaks its build fails before it is
       # published (Publishing in CODING_STANDARDS.md).
-      - docker build --file apps/api/cmd/api/Dockerfile --tag software-factory-manager-api:servers apps/api
+      - docker build --file apps/api/cmd/api/Dockerfile --tag forgespark-api:servers apps/api
 
   caddy:image:
-    desc: Build the web app, and the Caddy image of the servers with it inside, software-factory-manager-caddy:servers, and publish nothing
+    desc: Build the web app, and the Caddy image of the servers with it inside, forgespark-caddy:servers, and publish nothing
     cmds:
       # The app is built here every time, so the image never holds an
       # earlier build. The output of the build is the context of the stage
       # `servers`, which copies it whole.
       - task: web:build
-      - docker build --file deploy/caddy/Dockerfile --target servers --tag software-factory-manager-caddy:servers apps/web/dist
+      - docker build --file deploy/caddy/Dockerfile --target servers --tag forgespark-caddy:servers apps/web/dist
 
   api:
     desc: Start the API
@@ -316,14 +316,14 @@ tasks:
       # Created empty for each run, and kept after it so that a failure can
       # be read in it; the next run drops it. The development database is
       # never touched.
-      E2E_DATABASE: software_factory_e2e
+      E2E_DATABASE: forgespark_e2e
       E2E_DATABASE_ADDRESS: localhost:{{.POSTGRES_PORT}}/{{.E2E_DATABASE}}?sslmode=disable
       # The bucket of the test, in the Garage of development. The worker
       # cleans up the bucket it is given, and on the database of the test it
       # would remove what only the development database names, so the test
       # has a bucket of its own. Kept from one run to the next: the worker of
       # each run removes what the runs before it left there a day ago.
-      E2E_FILE_STORAGE_BUCKET: software-factory-e2e-files
+      E2E_FILE_STORAGE_BUCKET: forgespark-e2e-files
     cmds:
       # The limit of Caddy counts every request of the machine together, and
       # keeps them in its memory only. A restart empties it, so the test never

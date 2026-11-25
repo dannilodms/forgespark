@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
-	"github.com/dannilodms/software-factory-manager/apps/api/migrations"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/migrations"
 )
 
 // migrate applies the migrations the database lacks, as the migration role,

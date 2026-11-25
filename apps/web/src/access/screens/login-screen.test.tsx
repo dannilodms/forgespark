@@ -747,6 +747,35 @@ describe("the notices of the login screen", () => {
   })
 })
 
+describe("the header of the login screen", () => {
+  // The slogan is part of the brand, so no language translates it (Brand in
+  // DESIGN.md).
+  it.each(["en-US", "pt-BR", "es"] as const)(
+    "shows the product name and its slogan, in English, in %s",
+    async (language) => {
+      api.use(
+        getTellSetupStateMockHandler({
+          concluded: true,
+          setup_code_waiting: false,
+        }),
+        nobodyIsLoggedIn(),
+        getTellLoginStateMockHandler({ login_providers: [] })
+      )
+
+      const { screen } = await renderApp({
+        at: "/login",
+        languages: [language],
+      })
+
+      const header = screen.getByRole("banner")
+      await expect.element(header).toMatchTextContent("ForgeSpark")
+      await expect
+        .element(header)
+        .toMatchTextContent("From ideas to execution.")
+    }
+  )
+})
+
 describe("the login screen by keyboard", () => {
   it("asks for a code and logs in with the keys alone", async () => {
     api.use(getAskForLoginCodeMockHandler())

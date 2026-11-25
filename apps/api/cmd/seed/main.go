@@ -32,18 +32,18 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	auditpostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/adapters/postgres"
-	auditapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/audit/application"
-	consultancypostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/adapters/postgres"
-	consultancyapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/consultancy/application"
-	filespostgres "github.com/dannilodms/software-factory-manager/apps/api/internal/files/adapters/postgres"
-	filesapplication "github.com/dannilodms/software-factory-manager/apps/api/internal/files/application"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/clock"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/database"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/lifecycle"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
-	"github.com/dannilodms/software-factory-manager/apps/api/migrations"
+	auditpostgres "github.com/dannilodms/forgespark/apps/api/internal/audit/adapters/postgres"
+	auditapplication "github.com/dannilodms/forgespark/apps/api/internal/audit/application"
+	consultancypostgres "github.com/dannilodms/forgespark/apps/api/internal/consultancy/adapters/postgres"
+	consultancyapplication "github.com/dannilodms/forgespark/apps/api/internal/consultancy/application"
+	filespostgres "github.com/dannilodms/forgespark/apps/api/internal/files/adapters/postgres"
+	filesapplication "github.com/dannilodms/forgespark/apps/api/internal/files/application"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/clock"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/database"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/lifecycle"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/migrations"
 )
 
 const usage = `Usage: seed
@@ -56,7 +56,7 @@ The configuration comes from environment variables: see .env.example.
 `
 
 // commandTracer names the tracer that opens the span of the command.
-const commandTracer = "github.com/dannilodms/software-factory-manager/apps/api/cmd/seed"
+const commandTracer = "github.com/dannilodms/forgespark/apps/api/cmd/seed"
 
 func main() {
 	shutdown := lifecycle.ShutdownNotice(lifecycle.Signals(), os.Exit)

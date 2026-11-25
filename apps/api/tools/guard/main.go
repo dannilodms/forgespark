@@ -13,10 +13,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/controlflow"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/imports"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/report"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/guard/versions"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/controlflow"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/imports"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/report"
+	"github.com/dannilodms/forgespark/apps/api/tools/guard/versions"
 )
 
 const usage = `Usage: guard <command> [directory]

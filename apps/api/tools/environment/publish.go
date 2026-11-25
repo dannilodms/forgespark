@@ -18,8 +18,8 @@ import (
 	"go.yaml.in/yaml/v4"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/tools/environment/github"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/tools/environment/github"
 )
 
 // What the pipeline gives a publish, in the variables of its process: the

@@ -4,15 +4,29 @@ import { useTranslation } from "react-i18next"
 /**
  * The logo of the product in the header of the framed pane and of the shell:
  * the mark in `brand` and the product name beside it, in title type (Brand
- * in DESIGN.md). A long name is cut where the header has no room for it.
+ * in DESIGN.md). With `withSlogan`, the slogan goes under the name, in
+ * caption type, as the framed pane shows it. A long name or slogan is cut
+ * where the header has no room for it.
  */
-export function ProductLogo() {
+export function ProductLogo({ withSlogan = false }: { withSlogan?: boolean }) {
   const { t } = useTranslation()
+  const name = (
+    <span className="min-w-0 truncate type-title">{t("productName")}</span>
+  )
 
   return (
     <>
       <BrandMark className="size-7 shrink-0 text-brand" />
-      <span className="min-w-0 truncate type-title">{t("productName")}</span>
+      {withSlogan ? (
+        <span className="flex min-w-0 flex-col">
+          {name}
+          <span className="min-w-0 truncate type-caption text-muted-foreground">
+            {t("productSlogan")}
+          </span>
+        </span>
+      ) : (
+        name
+      )}
     </>
   )
 }

@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/config"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/health"
-	"github.com/dannilodms/software-factory-manager/apps/api/internal/platform/telemetry"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/config"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/health"
+	"github.com/dannilodms/forgespark/apps/api/internal/platform/telemetry"
 )
 
 // probeReadiness asks the API that listens at API_LISTEN_ADDRESS whether it

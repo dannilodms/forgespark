@@ -267,10 +267,13 @@ What makes the style recognisable, beyond the values above.
 
 ## Brand mark
 
+The product is ForgeSpark, one word with two capitals, and its slogan is "From ideas to execution.", with its full stop. Both stay in English in every language of the app: they are the brand, not text to translate.
+
 The mark is a software factory in one solid shape: a building with a sawtooth roof and two chimneys, the code symbol `</>` cut out of its wall, standing on a conveyor belt with three rollers. It is drawn on a 64-unit square.
 
 - The mark has one colour: `brand` on a surface, or `primary-foreground` on a `primary` tile. It follows rule 2.
 - The logo is the mark and the product name. In the app the name is set in title type (`type-title`), in `foreground`, beside the mark in `brand`: `ProductLogo` in `apps/web/src/shared/components/brand-mark.tsx`, whose mark is a copy of `mark.svg`, draws both, in the header of the framed pane and of the shell.
+- The slogan shows on the screens seen before a login: in the header of the framed pane, under the product name, in caption type (`type-caption`), in `muted-foreground`. The shell shows the name alone, because the work needs no slogan.
 - The smallest size of the mark is 16px. The space around it is at least a quarter of its width.
 - The mark is never stretched, rotated, outlined or given a shadow.
 
@@ -285,7 +288,7 @@ The files are in [`docs/design/brand/`](docs/design/brand/). They are the source
 | `apple-touch-icon.png` | The home screen of iOS: 180px, the mark in white on `primary` |
 | `icon-192.png`, `icon-512.png` | The icons of the web app manifest |
 | `icon-maskable-512.png` | The maskable icon of the web app manifest, with the mark inside the safe area |
-| `social-preview.png` | The preview of a shared link and of the repository: 1280 by 640px |
+| `social-preview.png` | The preview of a shared link and of the repository, with the mark, the name and the slogan: 1280 by 640px |
 | `source/` | What the image models returned: the concept of the mark and the background of the preview |
 
 The shape of the mark and the background of the preview came from image models. The mark was then redrawn on the 64-unit square, and the name was set over the background.
@@ -325,7 +328,7 @@ Seven compositions are described here. Two have code, in `apps/web/src/shared/co
 | Side panel | The detail of an item opened from a table, sliding in from the right, over the screen. |
 | Form page | A long form on its own page, in sections. |
 | Form dialog | A dialog with fields, one primary action and a cancel action. It reports a validation error on the field. |
-| Framed pane | The header with the mark and the product name, the frame with one pane in its centre, and a footer that holds the language selector and nothing else. The screens seen before a login: the setup and the login screen. |
+| Framed pane | The header with the mark, the product name and the slogan, the frame with one pane in its centre, and a footer that holds the language selector and nothing else. The screens seen before a login: the setup and the login screen. |
 
 A recipe is added when a second screen needs the same composition.
 
@@ -352,7 +355,7 @@ The code, `AppShell`, draws the recipe cut down to what works, because a control
 
 **Form page.** Sections one under the other, each on two columns: its title and a sentence on the left, its fields on the right, in a grid of six columns where a field takes two, three, four or six. A line of `border` ends each section. A choice between few options with a sentence each is a set of option cards rather than a select. The cancel and the primary action stay at the bottom of the work surface while it scrolls. Under 900px a section is one column.
 
-**Framed pane.** The header and the footer are 56px high, on the frame: the header shows the logo, the mark in `brand` and the product name in title type (`ProductLogo`), and the footer holds the language selector at its end. Between them, the pane is on `card`, with a 1px border, 12px corners and 24px of padding, 32px from 640px up, in the centre of the frame; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. The screen has no theme toggle, no version number and no link to the source code.
+**Framed pane.** The header and the footer are 56px high, on the frame: the header shows the logo, the mark in `brand` and the product name in title type, with the slogan under the name in caption type (`ProductLogo` with `withSlogan`), and the footer holds the language selector at its end. Between them, the pane is on `card`, with a 1px border, 12px corners and 24px of padding, 32px from 640px up, in the centre of the frame; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. The screen has no theme toggle, no version number and no link to the source code.
 
 - The pane has two widths. A screen of few controls, such as the login screen, takes the narrow pane, at most 384px wide. A form, such as the setup, takes the wide pane, at most 720px wide, so that its fields go side by side and the form stays short.
 - In the wide pane the fields go in pairs, or in threes when they are short, such as city, region and postal code. A field with a long value, such as a website, takes the whole line. Where the group of fields is narrower than 512px, they go one under the other.
@@ -363,6 +366,7 @@ The code, `AppShell`, draws the recipe cut down to what works, because a control
 
 ## Known gaps
 
+- The mark still draws the software factory of the product's first name, My Software Factory Manager. A mark for ForgeSpark is drawn in a change of its own, with the files of the brand.
 - The files of the brand in `docs/design/brand/` still carry the blue of the previous style, `#1348dc`, and `logo.svg` sets the name in IBM Plex Sans. They are redrawn in a change of their own; the app draws the mark from `BrandMark`, in `brand`.
 - The frame colour comes from Vibe's tokens, but where monday.com puts it, behind the header and the sidebar, was read from its product, not from documentation.
 - Vibe documents no mono typeface; JetBrains Mono is this project's choice.
