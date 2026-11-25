@@ -6,7 +6,7 @@ Every outside service this system depends on: why it was chosen, what it costs, 
 
 **Keep it true.** A change made at a provider (a new record, a new bucket, a change of plan) is written here in the same pull request, or right after when the change is made by hand.
 
-Prices were read on the providers' own pages on 2026-11-16, without tax, and Hetzner's from its API on 2026-11-19. The GitHub repository and the Hetzner project of staging were created by hand; the GitHub Environment and the label of staging were made by the first `task staging:on`, and the packages of the images by the first publish to staging, on 2026-11-20. A value shown as _not created_ is filled in when the resource exists.
+Prices were read on the providers' own pages on 2026-11-16, without tax, and Hetzner's from its API on 2026-11-19. The domain's are what the maintainer paid GoDaddy and the renewal price GoDaddy gave, both told on 2026-11-25. The GitHub repository and the Hetzner project of staging were created by hand, and the domain registered by hand; the GitHub Environment and the label of staging were made by the first `task staging:on`, and the packages of the images by the first publish to staging, on 2026-11-20. A value shown as _not created_ is filled in when the resource exists.
 
 ## Summary
 
@@ -15,15 +15,15 @@ Prices were read on the providers' own pages on 2026-11-16, without tax, and Het
 | [GitHub](#github) | Repository, pipeline, container images, secrets | all | Free | Repository created and protected; the environment `staging`, the label `staging` and the packages of the three images created; the environment `production` and the secret `RESEND_TEST_API_KEY` not created yet |
 | [Hetzner Cloud](#hetzner-cloud) | The servers | staging, production | US$ 0.0114 an hour while staging is on; production _not created_ | Project of staging created; its server exists only while staging is on |
 | [Backblaze B2](#backblaze-b2) | Production files, database backups | production | Free under 10 GB, about US$ 0.63 a month at 100 GB | Decided, not created |
-| [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | _not known_ | Registrar not chosen; [a ticket](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md) asks the maintainer to register it |
-| [sslip.io](#sslipio) | Host names of staging until the domain exists | staging | Free | Provisional, nothing to create |
+| [Domain and DNS](#domain-and-dns) | The addresses of the system | staging, production | R$ 96 the first year; R$ 142 a year from the first renewal | `forgespark.dev` registered at GoDaddy, which also hosts its DNS; no record created, and staging not moved to it yet ([the ticket](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md)) |
+| [sslip.io](#sslipio) | Host names of staging until staging moves to the domain | staging | Free | Provisional, nothing to create |
 | [Let's Encrypt](#lets-encrypt) | HTTPS certificates, through Caddy | staging, production | Free | Nothing to create |
 | [Resend](#resend) | Sending e-mail | production | _not checked_ | Decided, not created |
 | [Login providers](#login-providers) | Login through Google, Microsoft and GitHub | staging, production | Free | Decided, not created |
 | [LLM provider](#llm-provider) | Calls to language models | production | By use | Not chosen |
 | [Hosted monitor](#hosted-monitor) | Warning when production or a backup stops | production | Free plan intended | Not chosen |
 
-Expected total while the system is small, from the prices below: about US$ 7.10 a month for the production server and its IPv4 address, about US$ 0.27 for each day staging is on, and nothing for Backblaze B2 under 10 GB, plus the domain and what Resend and the LLM provider charge.
+Expected total while the system is small, from the prices below: about US$ 7.10 a month for the production server and its IPv4 address, about US$ 0.27 for each day staging is on, and nothing for Backblaze B2 under 10 GB, plus the domain, R$ 142 a year from its first renewal, and what Resend and the LLM provider charge.
 
 ## GitHub
 
@@ -94,15 +94,16 @@ Expected total while the system is small, from the prices below: about US$ 7.10 
 
 ## Domain and DNS
 
-**Why.** The system needs addresses of its own: production needs one, and so does each application that staging and production register with a login provider. Until the domain is registered, the host names of staging are under `sslip.io` (see below). Registering it is [a ticket for the maintainer](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md), which also decides how the host names of staging follow a server whose address changes each time staging is turned on.
+**Why.** The system needs addresses of its own: production needs one, and so does each application that staging and production register with a login provider. The domain is registered, but the host names of staging are still under `sslip.io` (see below). Moving them is [the ticket of the domain](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md), which also decides how the host names of staging follow a server whose address changes each time staging is turned on.
 
-**Cost.** _Not known_: the yearly fee of the domain.
+**Cost.** R$ 96 for the first year, paid at registration. R$ 142 a year from the first renewal, GoDaddy's renewal price.
 
 | Item | Value |
 | --- | --- |
-| Registrar | _not chosen_ |
-| DNS host | _not chosen_ |
-| Domain | _not registered_ |
+| Registrar | GoDaddy |
+| DNS host | GoDaddy, the registrar's own: name servers `ns25.domaincontrol.com` and `ns26.domaincontrol.com`. The maintainer intends to move it to Cloudflare; not done |
+| Domain | `forgespark.dev` |
+| HTTPS only | `.dev` is on the HSTS preload list, so browsers open every host name under it over HTTPS only |
 
 Records to create:
 
@@ -118,14 +119,14 @@ In production the browser reaches the files at Backblaze's own host name, so the
 
 ## sslip.io
 
-**Why.** It answers DNS for an IPv4 address written into a host name, so `app.203-0-113-10.sslip.io` points to `203.0.113.10` with no account and no record to set. Staging has host names, and so HTTPS, from its first turn-on, before the domain exists (ADR-0019).
+**Why.** It answers DNS for an IPv4 address written into a host name, so `app.203-0-113-10.sslip.io` points to `203.0.113.10` with no account and no record to set. Staging has host names, and so HTTPS, from its first turn-on, before it has host names under the domain (ADR-0019).
 
 **Cost.** Free.
 
-**Provisional.** It goes once the domain is registered, which [a ticket for the maintainer](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md) asks for, and soon:
+**Provisional.** It goes once staging moves to the domain, which [the ticket of the domain](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md) asks for, and soon:
 
 - `sslip.io` is not on the Public Suffix List, so Let's Encrypt counts every certificate under it against one limit shared with everyone who uses it, and that limit has run out in some weeks (see Let's Encrypt).
-- The host names change each time staging is turned on, so no login provider can register them: until the domain exists, staging logs in with a login code only.
+- The host names change each time staging is turned on, so no login provider can register them: until staging moves to the domain, it logs in with a login code only.
 
 | Item | Value |
 | --- | --- |
@@ -140,9 +141,9 @@ In production the browser reaches the files at Backblaze's own host name, so the
 
 **Limit that matters.** No more than five certificates for the same host names in a week. Each staging server has host names of its own, so none asks again for a certificate an earlier one got, and Caddy keeps its certificates in a volume of the server while the server lives (ADR-0019). The limit that can still stop staging is the one `sslip.io` shares with all its users (see sslip.io).
 
-Nothing is configured there. The certificates are for the host names of staging under `sslip.io`, and, once the domain is registered, for the ones listed in Domain and DNS.
+Nothing is configured there. The certificates are for the host names of staging under `sslip.io`, and, once staging moves to the domain, for the ones listed in Domain and DNS.
 
-**ZeroSSL.** Caddy asks ZeroSSL when Let's Encrypt refuses a certificate only when it has an address for the account, `ACME_EMAIL` (`deploy/Caddyfile.staging`). Staging gives none until the domain is registered, so it asks Let's Encrypt alone: a week in which the limit `sslip.io` shares with every user of it runs out leaves staging without a certificate, and the publish's wait for `/up` reports it. The risk ends with the domain, which [the ticket of the domain](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md) records.
+**ZeroSSL.** Caddy asks ZeroSSL when Let's Encrypt refuses a certificate only when it has an address for the account, `ACME_EMAIL` (`deploy/Caddyfile.staging`). Staging gives none until it moves to the domain, so it asks Let's Encrypt alone: a week in which the limit `sslip.io` shares with every user of it runs out leaves staging without a certificate, and the publish's wait for `/up` reports it. The risk ends with the domain, which [the ticket of the domain](../.scratch/domain/issues/01-register-the-domain-and-move-staging-off-sslip-io.md) records.
 
 ## Resend
 
