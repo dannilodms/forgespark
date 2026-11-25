@@ -100,8 +100,8 @@ Expected total while the system is small, from the prices below: about US$ 7.10 
 
 | Item | Value |
 | --- | --- |
-| Registrar | GoDaddy |
-| DNS host | GoDaddy, the registrar's own: name servers `ns25.domaincontrol.com` and `ns26.domaincontrol.com`. The maintainer intends to move it to Cloudflare; not done |
+| Registrar | GoDaddy, until the registration moves to Cloudflare Registrar, on 2027-01-24 or later ([ticket 02](../.scratch/domain/issues/02-transfer-the-domain-to-cloudflare-registrar.md)). GoDaddy then leaves this list |
+| DNS host | GoDaddy, the registrar's own: name servers `ns25.domaincontrol.com` and `ns26.domaincontrol.com`. Moving it to Cloudflare is the first part of [ticket 02](../.scratch/domain/issues/02-transfer-the-domain-to-cloudflare-registrar.md); not done |
 | Domain | `forgespark.dev` |
 | HTTPS only | `.dev` is on the HSTS preload list, so browsers open every host name under it over HTTPS only |
 
