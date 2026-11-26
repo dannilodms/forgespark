@@ -88,7 +88,7 @@ func TestAPublishRunsItsStepsOnTheServerInTheirOrder(t *testing.T) {
 		// 9.
 		"run " + compose + " up --detach --wait --no-deps api worker",
 		// 10.
-		"wait until https://app.203-0-113-10.sslip.io/up answers",
+		"wait until https://app.staging.forgespark.dev/up answers",
 	}, world.journal.entries)
 	assert.True(t, world.server.closed, "the publish logs out")
 }
@@ -169,9 +169,9 @@ func TestTheVariablesFileHasAStagingValueForEveryNameOfEnvExample(t *testing.T) 
 	delete(values, "MAILPIT_PASSWORD_HASH")
 	assert.Equal(t, map[string]string{
 		// Derived from the publish.
-		"APP_ORIGIN":              "https://app.203-0-113-10.sslip.io",
-		"FILE_STORAGE_PUBLIC_URL": "https://files.203-0-113-10.sslip.io",
-		"MAILPIT_PUBLIC_URL":      "https://mail.203-0-113-10.sslip.io",
+		"APP_ORIGIN":              "https://app.staging.forgespark.dev",
+		"FILE_STORAGE_PUBLIC_URL": "https://files.staging.forgespark.dev",
+		"MAILPIT_PUBLIC_URL":      "https://mail.staging.forgespark.dev",
 		"COMMIT":                  publishedCommit,
 		// Fixed.
 		"SHUTDOWN_DRAIN_DEADLINE":              "20s",
@@ -248,8 +248,8 @@ func TestThePublishedPullRequestGetsACommentWithTheAddressesOfTheAppAndOfMailpit
 
 	assert.Equal(t, []string{
 		"Staging shows this pull request, at commit " + publishedCommit + ".\n\n" +
-			"- The app: https://app.203-0-113-10.sslip.io\n" +
-			"- Mailpit: https://mail.203-0-113-10.sslip.io, as the user `maintainer`, with the password `STAGING_MAILPIT_PASSWORD` of the `.env` of the main checkout\n\n" +
+			"- The app: https://app.staging.forgespark.dev\n" +
+			"- Mailpit: https://mail.staging.forgespark.dev, as the user `maintainer`, with the password `STAGING_MAILPIT_PASSWORD` of the `.env` of the main checkout\n\n" +
 			"Its data is the seed's: log in as `seed+admin@fabrica.example` with a login code, which Mailpit receives.\n",
 	}, world.github.Comments(12))
 }
@@ -445,13 +445,13 @@ func TestAnAppThatNeverAnswersFailsThePublishAndGetsNoComment(t *testing.T) {
 	t.Parallel()
 	world := aWorld(t)
 	world.readyToPublish()
-	world.app.err = errors.New("https://app.203-0-113-10.sslip.io/up did not answer 200 in time: it answered 502 Bad Gateway")
+	world.app.err = errors.New("https://app.staging.forgespark.dev/up did not answer 200 in time: it answered 502 Bad Gateway")
 
 	ran := world.run("publish", "staging")
 
 	assert.Equal(t, 1, ran.status)
-	assert.Equal(t, "environment: step 10, wait until https://app.203-0-113-10.sslip.io/up answers, for up to 5m0s: "+
-		"https://app.203-0-113-10.sslip.io/up did not answer 200 in time: it answered 502 Bad Gateway. "+
+	assert.Equal(t, "environment: step 10, wait until https://app.staging.forgespark.dev/up answers, for up to 5m0s: "+
+		"https://app.staging.forgespark.dev/up did not answer 200 in time: it answered 502 Bad Gateway. "+
 		"A new publish starts staging again from the beginning\n", ran.stderr)
 	assert.Empty(t, world.github.Comments(12))
 }
@@ -480,7 +480,7 @@ func TestACommentThatFailsFailsThePublishOnceStagingShowsThePullRequest(t *testi
 	assert.Equal(t, 1, ran.status)
 	assert.Equal(t, "environment: staging shows pull request #12, but it got no comment with the addresses: "+
 		"comment on the pull request #12: gh failed, with exit status 1: HTTP 403\n", ran.stderr)
-	assert.Contains(t, world.journal.entries, "wait until https://app.203-0-113-10.sslip.io/up answers")
+	assert.Contains(t, world.journal.entries, "wait until https://app.staging.forgespark.dev/up answers")
 }
 
 func TestALabelThatDoesNotComeOffFailsThePublishOnceEverythingElseWasTried(t *testing.T) {
@@ -512,9 +512,9 @@ func TestAPublishSaysOffWhichPullRequestsItTookTheLabel(t *testing.T) {
 	printed := world.succeeds("publish", "staging")
 
 	assert.True(t, strings.HasSuffix(printed, "Staging shows pull request #12.\n"+
-		"  App:    https://app.203-0-113-10.sslip.io\n"+
-		"  Files:  https://files.203-0-113-10.sslip.io\n"+
-		"  Mail:   https://mail.203-0-113-10.sslip.io, as the user maintainer\n"+
+		"  App:    https://app.staging.forgespark.dev\n"+
+		"  Files:  https://files.staging.forgespark.dev\n"+
+		"  Mail:   https://mail.staging.forgespark.dev, as the user maintainer\n"+
 		"Took the staging label off pull request #7, with a comment there.\n"+
 		"Commented the addresses on pull request #12.\n"), printed)
 }
@@ -537,11 +537,11 @@ Every name of .env.example has a value for staging.
 7. Start PostgreSQL, Garage and its rule, Mailpit and Caddy.
 8. Run the migration, then the seed.
 9. Start the API and the worker.
-10. Wait until https://app.203-0-113-10.sslip.io/up answers, for up to 5m0s.
+10. Wait until https://app.staging.forgespark.dev/up answers, for up to 5m0s.
 Staging shows pull request #12.
-  App:    https://app.203-0-113-10.sslip.io
-  Files:  https://files.203-0-113-10.sslip.io
-  Mail:   https://mail.203-0-113-10.sslip.io, as the user maintainer
+  App:    https://app.staging.forgespark.dev
+  Files:  https://files.staging.forgespark.dev
+  Mail:   https://mail.staging.forgespark.dev, as the user maintainer
 Commented the addresses on pull request #12.
 `, printed)
 }

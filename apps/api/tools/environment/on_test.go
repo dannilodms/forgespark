@@ -54,14 +54,44 @@ func TestTurningStagingOnCreatesOneServerFromItsCommittedChoices(t *testing.T) {
 	assert.Equal(t, []map[string]string{{"environment": "staging"}}, world.labels, "the provider finds what it created by the labels")
 	assert.Equal(t, `Chose a password for the Mailpit of staging and kept it in `+filepath.Join(world.directory, ".env")+`, as STAGING_MAILPIT_PASSWORD.
 Turning staging on: creating the server staging at hetzner, a cx23 with ubuntu-26.04 in fsn1.
+There was no address kept for staging at hetzner, so a new one is kept now: 203.0.113.10. Set the A records of app.staging.forgespark.dev, files.staging.forgespark.dev and mail.staging.forgespark.dev to it (docs/providers.md, Domain and DNS): until then the host names do not reach the server.
 The server is at 203.0.113.10. Waiting until it answers SSH with its host key and cloud-init has prepared it, for up to 10m0s.
 The GitHub Environment staging has the address, the host key and the deploy key of the server, and the password of Mailpit.
 Staging is on.
-  App:    https://app.203-0-113-10.sslip.io
-  Files:  https://files.203-0-113-10.sslip.io
-  Mail:   https://mail.203-0-113-10.sslip.io
+  App:    https://app.staging.forgespark.dev
+  Files:  https://files.staging.forgespark.dev
+  Mail:   https://mail.staging.forgespark.dev
   SSH:    ssh -F "`+filepath.ToSlash(filepath.Join(world.localCopy(), "ssh_config"))+`" staging
 `, printed)
+}
+
+func TestTurningOnKeepsTheAddressAndTheVolumeOfStagingFromItsCommittedChoices(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+
+	world.succeeds("on", "staging")
+
+	assert.Equal(t, []provider.Keeping{{
+		Name: "staging", Region: "fsn1", VolumeSize: 10, Labels: map[string]string{"environment": "staging"},
+	}}, world.provider.Keepings(), "the address and the volume have the name, the region and the labels of the server")
+	kept, found := world.provider.Kept("staging")
+	require.True(t, found)
+	assert.Equal(t, kept.Address, world.provider.Servers()[0].Address, "the server has the address kept for staging")
+	assert.Contains(t, world.specification().CloudInit.Reveal(), `"`+kept.VolumeDevice+`", /srv/caddy-data, ext4`,
+		"the cloud-init file mounts the volume kept for staging where Caddy keeps its data")
+}
+
+func TestTurningOnAgainAfterOffGivesTheNewServerTheSameAddressAndSaysNothingOfIt(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+	world.succeeds("on", "staging")
+	first := world.provider.Servers()[0].Address
+	world.succeeds("off", "staging")
+
+	printed := world.succeeds("on", "staging")
+
+	assert.Equal(t, first, world.provider.Servers()[0].Address, "the host names reach the new server through the same DNS records")
+	assert.NotContains(t, printed, "Set the A records", "the records point to the address already")
 }
 
 func TestTheServerIsPreparedByTheCloudInitFileWithTheKeysOfTheTurnOn(t *testing.T) {
@@ -141,9 +171,9 @@ func TestTurningOnWhenOnCreatesNothingAndSaysSo(t *testing.T) {
 	assert.Equal(t, `Staging is on already, at 203.0.113.10. Checking that it answers.
 It answers: nothing was created.
 The GitHub Environment staging has the address, the host key and the deploy key of the server, and the password of Mailpit.
-  App:    https://app.203-0-113-10.sslip.io
-  Files:  https://files.203-0-113-10.sslip.io
-  Mail:   https://mail.203-0-113-10.sslip.io
+  App:    https://app.staging.forgespark.dev
+  Files:  https://files.staging.forgespark.dev
+  Mail:   https://mail.staging.forgespark.dev
   SSH:    ssh -F "`+filepath.ToSlash(filepath.Join(world.localCopy(), "ssh_config"))+`" staging
 `, printed)
 	require.Len(t, world.readiness.targets, 2)

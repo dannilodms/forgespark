@@ -2,9 +2,10 @@
 #
 # Prepares every server of the system. The tool in apps/api/tools/environment
 # reads this file when it turns an environment on: it writes the host key it
-# generated and the deploy public key in the places marked for them, as a
-# template of Go's text/template, and hands the result to the provider as the
-# user data of the new server. Nothing on a
+# generated, the deploy public key and the device of the volume the provider
+# keeps for the environment in the places marked for them, as a template of
+# Go's text/template, and hands the result to the provider as the user data
+# of the new server. Nothing on a
 # server is set only by hand: a change made there is written here too. Rules:
 # Servers in Environments of CODING_STANDARDS.md.
 #
@@ -91,6 +92,14 @@ write_files:
 
       [Install]
       RequiredBy=docker.service
+
+# The volume the provider keeps for the environment from one server to the
+# next, which the provider formats with ext4 when it creates it. It holds the
+# data of Caddy, its certificates among them, which the Compose file of the
+# server mounts at /data, so that a new server asks the certificate
+# authority for no certificate an earlier one got.
+mounts:
+  - ["{{ .VolumeDevice }}", /srv/caddy-data, ext4, "defaults,nofail,discard", "0", "0"]
 
 apt:
   sources:
@@ -186,6 +195,9 @@ runcmd:
   # the signal, and the tool destroys the server. The configuration of the
   # provider is not checked, so that a deprecation there fails nothing.
   - cloud-init schema --config-file /var/lib/cloud/instance/cloud-config.txt
+  # Without its volume, Caddy would keep its certificates on the disk of the
+  # server, and lose them with it.
+  - mountpoint --quiet /srv/caddy-data
   - usermod --append --groups docker deploy
   # The firewall inside the server: 22, 80 and 443 in, everything out. SSH is
   # let in before the firewall starts.

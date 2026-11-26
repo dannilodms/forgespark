@@ -32,9 +32,9 @@ func TestTheStatusOfStagingWhenOnTellsSinceWhenAndAtWhichAddressAndHostNames(t *
 
 	assert.Equal(t, `Staging is on, since 2026-11-19 14:00 UTC (26h05m ago), at 203.0.113.10.
 No open pull request has the staging label.
-  App:    https://app.203-0-113-10.sslip.io
-  Files:  https://files.203-0-113-10.sslip.io
-  Mail:   https://mail.203-0-113-10.sslip.io
+  App:    https://app.staging.forgespark.dev
+  Files:  https://files.staging.forgespark.dev
+  Mail:   https://mail.staging.forgespark.dev
   SSH:    ssh -F "`+filepath.ToSlash(filepath.Join(world.localCopy(), "ssh_config"))+`" staging
 `, printed)
 }
@@ -49,9 +49,9 @@ func TestTheStatusOfAStagingTurnedOnFromAnotherMachineSaysThisOneHasNoKey(t *tes
 
 	assert.Equal(t, `Staging is on, since 2026-11-19 09:30 UTC (4h30m ago), at 198.51.100.7.
 No open pull request has the staging label.
-  App:    https://app.198-51-100-7.sslip.io
-  Files:  https://files.198-51-100-7.sslip.io
-  Mail:   https://mail.198-51-100-7.sslip.io
+  App:    https://app.staging.forgespark.dev
+  Files:  https://files.staging.forgespark.dev
+  Mail:   https://mail.staging.forgespark.dev
   SSH:    the main checkout keeps no copy of the deploy key
 `, printed)
 }
@@ -67,9 +67,9 @@ func TestTheStatusNamesTheOpenPullRequestWithTheStagingLabel(t *testing.T) {
 
 	assert.Equal(t, `Staging is on, since 2026-11-19 14:00 UTC (0h00m ago), at 203.0.113.10.
 Pull request #12 has the staging label: Publish to staging, https://github.com/dannilodms/forgespark/pull/12
-  App:    https://app.203-0-113-10.sslip.io
-  Files:  https://files.203-0-113-10.sslip.io
-  Mail:   https://mail.203-0-113-10.sslip.io
+  App:    https://app.staging.forgespark.dev
+  Files:  https://files.staging.forgespark.dev
+  Mail:   https://mail.staging.forgespark.dev
   SSH:    ssh -F "`+filepath.ToSlash(filepath.Join(world.localCopy(), "ssh_config"))+`" staging
 `, printed)
 }

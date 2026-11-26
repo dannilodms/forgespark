@@ -1,10 +1,11 @@
 // Package hetzner is the adapter of Hetzner Cloud, on hcloud-go. Each server
 // gets the deploy public key registered as a key of the project, under the
-// server's name, so that Hetzner sends no root password, and an IPv4 address
-// of its own; destroying the server removes both. Everything it creates
-// carries the labels of the environment, and it finds things by name and by
-// those labels. It creates no firewall at Hetzner: the firewall is inside
-// the server, set by the cloud-init file.
+// server's name, so that Hetzner sends no root password, and the primary IP
+// and the volume kept under the same name. Destroying the server removes the
+// key and leaves the other two, which Hetzner bills while they exist.
+// Everything it creates carries the labels of the environment, and it finds
+// things by name and by those labels. It creates no firewall at Hetzner: the
+// firewall is inside the server, set by the cloud-init file.
 package hetzner
 
 import (
@@ -69,11 +70,125 @@ func selectorOf(labels map[string]string) string {
 	return strings.Join(terms, ",")
 }
 
-// Create registers the deploy key, creates the server with it and waits
-// until Hetzner says the server runs. A key or a server with that name
-// already is provider.ErrNameTaken. When the server cannot be created, the
-// key is removed again.
+// Keep finds the primary IP and the volume with the name and the labels, and
+// creates what is missing in the region: an IPv4 address that Hetzner does
+// not delete with a server, and a volume that Hetzner formats with ext4.
+func (p *Provider) Keep(ctx context.Context, keeping provider.Keeping) (provider.Kept, error) {
+	address, created, err := p.keepAddress(ctx, keeping)
+	if err != nil {
+		return provider.Kept{}, err
+	}
+	volume, err := p.keepVolume(ctx, keeping)
+	if err != nil {
+		return provider.Kept{}, err
+	}
+	ip, valid := netip.AddrFromSlice(address.IP)
+	if !valid {
+		return provider.Kept{}, fmt.Errorf("the address %s has no IPv4 address", address.Name)
+	}
+	return provider.Kept{Address: ip.Unmap(), VolumeDevice: volume.LinuxDevice, NewAddress: created}, nil
+}
+
+// keepAddress gives the kept primary IP, created when there is none, and
+// whether it was created.
+func (p *Provider) keepAddress(ctx context.Context, keeping provider.Keeping) (*hcloud.PrimaryIP, bool, error) {
+	address, found, err := p.keptAddress(ctx, keeping.Name)
+	if err != nil || found {
+		return address, false, err
+	}
+	result, _, err := p.client.PrimaryIP.Create(ctx, hcloud.PrimaryIPCreateOpts{
+		Name:         keeping.Name,
+		Type:         hcloud.PrimaryIPTypeIPv4,
+		AssigneeType: "server",
+		Location:     keeping.Region,
+		AutoDelete:   new(false),
+		Labels:       keeping.Labels,
+	})
+	if err != nil {
+		return nil, false, fmt.Errorf("create the address %s: %w", keeping.Name, named(err))
+	}
+	if err := p.waitFor(ctx, result.Action); err != nil {
+		return nil, false, fmt.Errorf("wait until the address %s is created: %w", keeping.Name, err)
+	}
+	return result.PrimaryIP, true, nil
+}
+
+// keepVolume gives the kept volume, created when there is none.
+func (p *Provider) keepVolume(ctx context.Context, keeping provider.Keeping) (*hcloud.Volume, error) {
+	volume, found, err := p.keptVolume(ctx, keeping.Name)
+	if err != nil || found {
+		return volume, err
+	}
+	result, _, err := p.client.Volume.Create(ctx, hcloud.VolumeCreateOpts{
+		Name:     keeping.Name,
+		Size:     keeping.VolumeSize,
+		Location: &hcloud.Location{Name: keeping.Region},
+		Labels:   keeping.Labels,
+		Format:   new(hcloud.VolumeFormatExt4),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create the volume %s: %w", keeping.Name, named(err))
+	}
+	if err := p.waitFor(ctx, append([]*hcloud.Action{result.Action}, result.NextActions...)...); err != nil {
+		return nil, fmt.Errorf("wait until the volume %s is created: %w", keeping.Name, err)
+	}
+	return result.Volume, nil
+}
+
+// keptAddress gives the primary IP with the name and the labels.
+func (p *Provider) keptAddress(ctx context.Context, name string) (*hcloud.PrimaryIP, bool, error) {
+	addresses, err := p.client.PrimaryIP.AllWithOpts(ctx, hcloud.PrimaryIPListOpts{ListOpts: hcloud.ListOpts{LabelSelector: p.selector}, Name: name})
+	if err != nil {
+		return nil, false, fmt.Errorf("list the addresses: %w", err)
+	}
+	if len(addresses) == 0 {
+		return nil, false, nil
+	}
+	return addresses[0], true, nil
+}
+
+// keptVolume gives the volume with the name and the labels.
+func (p *Provider) keptVolume(ctx context.Context, name string) (*hcloud.Volume, bool, error) {
+	volumes, err := p.client.Volume.AllWithOpts(ctx, hcloud.VolumeListOpts{ListOpts: hcloud.ListOpts{LabelSelector: p.selector}, Name: name})
+	if err != nil {
+		return nil, false, fmt.Errorf("list the volumes: %w", err)
+	}
+	if len(volumes) == 0 {
+		return nil, false, nil
+	}
+	return volumes[0], true, nil
+}
+
+// waitFor waits until the actions end, leaving out the ones Hetzner did not
+// start.
+func (p *Provider) waitFor(ctx context.Context, actions ...*hcloud.Action) error {
+	started := slices.DeleteFunc(actions, func(action *hcloud.Action) bool { return action == nil })
+	if len(started) == 0 {
+		return nil
+	}
+	return p.client.Action.WaitFor(ctx, started...)
+}
+
+// Create finds the primary IP and the volume kept under the name of the
+// server, registers the deploy key, creates the server with the three and
+// waits until Hetzner says the server runs. A key or a server with that
+// name already is provider.ErrNameTaken. When the server cannot be created,
+// the key is removed again.
 func (p *Provider) Create(ctx context.Context, specification provider.Specification) (provider.Server, error) {
+	address, found, err := p.keptAddress(ctx, specification.Name)
+	if err != nil {
+		return provider.Server{}, err
+	}
+	if !found {
+		return provider.Server{}, fmt.Errorf("hetzner keeps no address named %s for the server", specification.Name)
+	}
+	volume, found, err := p.keptVolume(ctx, specification.Name)
+	if err != nil {
+		return provider.Server{}, err
+	}
+	if !found {
+		return provider.Server{}, fmt.Errorf("hetzner keeps no volume named %s for the server", specification.Name)
+	}
 	key, _, err := p.client.SSHKey.Create(ctx, hcloud.SSHKeyCreateOpts{
 		Name:      specification.Name,
 		PublicKey: specification.DeployPublicKey,
@@ -91,7 +206,10 @@ func (p *Provider) Create(ctx context.Context, specification provider.Specificat
 		UserData:         specification.CloudInit.Reveal(),
 		StartAfterCreate: new(true),
 		Labels:           specification.Labels,
-		PublicNet:        &hcloud.ServerCreatePublicNet{EnableIPv4: true, EnableIPv6: false},
+		PublicNet:        &hcloud.ServerCreatePublicNet{EnableIPv4: true, IPv4: address, EnableIPv6: false},
+		// The cloud-init file mounts the volume where Caddy keeps its data.
+		Volumes:   []*hcloud.Volume{volume},
+		Automount: new(false),
 	})
 	if err != nil {
 		_, removeErr := p.client.SSHKey.Delete(context.WithoutCancel(ctx), key)
@@ -134,8 +252,8 @@ func (p *Provider) Find(ctx context.Context, name string) (provider.Server, bool
 }
 
 // Destroy deletes the server with that name and the labels, waits until it
-// is gone, deletes its IPv4 address if Hetzner kept it, and removes the
-// deploy key registered under the name.
+// is gone, and removes the deploy key registered under the name. Hetzner
+// takes the kept primary IP and volume off the server, and keeps them.
 func (p *Provider) Destroy(ctx context.Context, name string) error {
 	servers, err := p.servers(ctx, name)
 	if err != nil {
@@ -163,9 +281,7 @@ func (p *Provider) servers(ctx context.Context, name string) ([]*hcloud.Server, 
 	return servers, nil
 }
 
-// deleteServer deletes a server and then its IPv4 address. Hetzner deletes
-// an address it created with the server, unless it was told to keep it;
-// this one is deleted either way, so that nothing is paid for afterwards.
+// deleteServer deletes a server and waits until it is gone.
 func (p *Provider) deleteServer(ctx context.Context, server *hcloud.Server) error {
 	result, _, err := p.client.Server.DeleteWithResult(ctx, server)
 	if err != nil {
@@ -173,20 +289,6 @@ func (p *Provider) deleteServer(ctx context.Context, server *hcloud.Server) erro
 	}
 	if err := p.client.Action.WaitFor(ctx, result.Action); err != nil {
 		return fmt.Errorf("wait until the server %s is deleted: %w", server.Name, err)
-	}
-	address := server.PublicNet.IPv4.ID
-	if address == 0 {
-		return nil
-	}
-	kept, _, err := p.client.PrimaryIP.GetByID(ctx, address)
-	if err != nil {
-		return fmt.Errorf("look for the address of the server %s: %w", server.Name, err)
-	}
-	if kept == nil {
-		return nil
-	}
-	if _, err := p.client.PrimaryIP.Delete(ctx, kept); err != nil {
-		return fmt.Errorf("delete the address of the server %s: %w", server.Name, err)
 	}
 	return nil
 }

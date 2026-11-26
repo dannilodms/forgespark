@@ -83,10 +83,12 @@ type appReadiness interface {
 }
 
 // publication is what a publish is given: the commit of a pull request, and
-// what reaches the server, its address and the keys that log in to it.
+// what reaches the server, its address and the keys that log in to it; and
+// the host names of the environment, from its choices.
 type publication struct {
 	commit          string
 	pullRequest     int
+	names           hostNames
 	address         netip.Addr
 	keys            loginKeys
 	mailpitPassword config.Secret
@@ -175,7 +177,7 @@ func (e environment) steps(ctx context.Context, server remoteServer, given publi
 	for _, volume := range recreatedVolumes {
 		volumes = append(volumes, project+"_"+volume)
 	}
-	up := "https://" + hostNamesOf(given.address).app + "/up"
+	up := "https://" + given.names.app + "/up"
 	return []step{
 		{"copy the Compose files and the configuration of Caddy", copyFiles},
 		{"write the variables file, readable by the deploy user alone", func() error {
@@ -222,7 +224,7 @@ func inSteps(stdout io.Writer, steps []step) error {
 // with a comment there, and comments the addresses on the one it shows. It
 // tries each of them, and then fails with whatever failed.
 func (e environment) announce(ctx context.Context, given publication, stdout io.Writer) error {
-	names := hostNamesOf(given.address)
+	names := given.names
 	fmt.Fprintf(stdout, "%s shows pull request #%d.\n  App:    https://%s\n  Files:  https://%s\n  Mail:   https://%s, as the user %s\n",
 		e.title(), given.pullRequest, names.app, names.files, names.mail, mailpitUser)
 	failed := errors.Join(
@@ -299,7 +301,7 @@ func (e environment) shownElsewhereComment(shown int) string {
 // publishedComment is the comment of the pull request that the environment
 // shows: the addresses of the app and of Mailpit, and how to log in.
 func (e environment) publishedComment(given publication) string {
-	names := hostNamesOf(given.address)
+	names := given.names
 	return fmt.Sprintf("%s shows this pull request, at commit %s.\n\n"+
 		"- The app: https://%s\n"+
 		"- Mailpit: https://%s, as the user `%s`, with the password `%s` of the `.env` of the main checkout\n\n"+
@@ -347,6 +349,7 @@ func (e environment) publication() (publication, error) {
 	return publication{
 		commit:          commit,
 		pullRequest:     pullRequest,
+		names:           e.hostNames(),
 		address:         address,
 		keys:            loginKeys{deploy: deploy, deployPrivate: deployPrivate, host: hostKey},
 		mailpitPassword: config.NewSecret(e.variables[mailpitPasswordSecret]),

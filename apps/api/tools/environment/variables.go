@@ -27,8 +27,8 @@ func fixed(text string) value {
 	return func(publication) (string, error) { return text, nil }
 }
 
-// derived is derived from what the publish is given: the address of the
-// server or the commit. The hash of the password of Mailpit, which can fail,
+// derived is derived from what the publish is given: the host names of the
+// environment or the commit. The hash of the password of Mailpit, which can fail,
 // is a value of its own, mailpitPasswordHash.
 func derived(from func(publication) string) value {
 	return func(given publication) (string, error) { return from(given), nil }
@@ -76,7 +76,7 @@ var stagingValues = map[string]value{
 	// Caddy holds only the hash.
 	"MAILPIT_SMTP_PORT":     deliberatelyEmpty,
 	"MAILPIT_PORT":          deliberatelyEmpty,
-	"MAILPIT_PUBLIC_URL":    derived(func(given publication) string { return "https://" + hostNamesOf(given.address).mail }),
+	"MAILPIT_PUBLIC_URL":    derived(func(given publication) string { return "https://" + given.names.mail }),
 	"MAILPIT_PASSWORD_HASH": mailpitPasswordHash,
 
 	// Dex, the River panel and Vite, which run in development alone.
@@ -97,9 +97,9 @@ var stagingValues = map[string]value{
 	"DATABASE_STATEMENT_TIMEOUT":           fixed("30s"),
 	"DATABASE_IDLE_IN_TRANSACTION_TIMEOUT": fixed("1m"),
 	"HEALTH_CHECK_TIMEOUT":                 fixed("2s"),
-	"APP_ORIGIN":                           derived(func(given publication) string { return "https://" + hostNamesOf(given.address).app }),
+	"APP_ORIGIN":                           derived(func(given publication) string { return "https://" + given.names.app }),
 	"FILE_STORAGE_URL":                     deliberatelyEmpty,
-	"FILE_STORAGE_PUBLIC_URL":              derived(func(given publication) string { return "https://" + hostNamesOf(given.address).files }),
+	"FILE_STORAGE_PUBLIC_URL":              derived(func(given publication) string { return "https://" + given.names.files }),
 	"FILE_STORAGE_REGION":                  fixed("garage"),
 	"FILE_STORAGE_BUCKET":                  fixed("forgespark-files"),
 	"FILE_STORAGE_ACCESS_KEY_ID":           random(garageKeyID),

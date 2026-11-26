@@ -28,7 +28,7 @@ func tellStatus(ctx context.Context, environment environment, stdout io.Writer) 
 	if err := tellPullRequests(ctx, environment, stdout); err != nil {
 		return err
 	}
-	return report(stdout, environment, server)
+	return report(stdout, environment)
 }
 
 // tellPullRequests writes the open pull requests that have the label of the

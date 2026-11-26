@@ -25,8 +25,15 @@ type choices struct {
 	// SystemImage is the system the server starts from, as the provider
 	// names it.
 	SystemImage string `yaml:"system_image"`
-	// ServerName is the name of the server at the provider.
+	// ServerName is the name of the server at the provider, and of the
+	// address and the volume it keeps for the environment.
 	ServerName string `yaml:"server_name"`
+	// VolumeSize is the size of the volume kept for the environment, in
+	// gigabytes, when the provider creates it.
+	VolumeSize int `yaml:"volume_size"`
+	// Domain is the name under which the environment has its host names:
+	// app., files. and mail. followed by it.
+	Domain string `yaml:"domain"`
 }
 
 // choicesFile is where the choices of an environment are, relative to the
@@ -61,10 +68,14 @@ func (c choices) check(file string) error {
 		{"size", c.Size},
 		{"system_image", c.SystemImage},
 		{"server_name", c.ServerName},
+		{"domain", c.Domain},
 	}
 	empty := slices.IndexFunc(fields, func(field struct{ key, value string }) bool { return field.value == "" })
 	if empty >= 0 {
 		return fmt.Errorf("%s: %s is missing", file, fields[empty].key)
+	}
+	if c.VolumeSize < 1 {
+		return fmt.Errorf("%s: volume_size is missing, or is not a number of gigabytes", file)
 	}
 	if _, known := adapters[c.Provider]; !known {
 		names := slices.Sorted(maps.Keys(adapters))

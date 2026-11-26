@@ -1,7 +1,8 @@
 // Package provider names what the tool asks of the company that rents it
-// its servers: create a server from a specification, find one by its name
-// and destroy one by its name. Hetzner is the one adapter today, in the
-// package hetzner; providertest keeps servers in memory for the tests of the
+// its servers: keep what the servers of an environment share from one to
+// the next, create a server from a specification, find one by its name and
+// destroy one by its name. Hetzner is the one adapter today, in the package
+// hetzner; providertest keeps servers in memory for the tests of the
 // commands.
 package provider
 
@@ -19,17 +20,52 @@ import (
 // creating it at this moment, so nothing of it is destroyed.
 var ErrNameTaken = errors.New("the provider already has a server or a key with this name")
 
-// Provider creates, finds and destroys the servers of one environment.
+// Provider keeps what the servers of one environment share, and creates,
+// finds and destroys them.
 type Provider interface {
-	// Create creates a server and returns once the provider says it is
-	// running. On a failure it leaves nothing of the server behind that it
-	// knows of; Destroy removes the rest.
+	// Keep makes sure the provider keeps, under that name, the IPv4 address
+	// and the volume that every server of the environment gets, and gives
+	// them. It creates only what is missing, and gives what exists as it is.
+	Keep(ctx context.Context, keeping Keeping) (Kept, error)
+	// Create creates a server, with the address and the volume kept under
+	// its name, and returns once the provider says it is running. On a
+	// failure it leaves nothing of the server behind that it knows of;
+	// Destroy removes the rest.
 	Create(ctx context.Context, specification Specification) (Server, error)
 	// Find tells whether a server with that name exists, and gives it.
 	Find(ctx context.Context, name string) (Server, bool, error)
 	// Destroy destroys the server with that name and the deploy key
-	// registered with it. Destroying what does not exist succeeds.
+	// registered with it, and leaves what Keep kept. Destroying what does
+	// not exist succeeds.
 	Destroy(ctx context.Context, name string) error
+}
+
+// Keeping is what Keep keeps, and where.
+type Keeping struct {
+	// Name names the address and the volume, as it names the servers they
+	// go to.
+	Name string
+	// Region is where they are, which is where the servers run: the
+	// provider gives a server only an address and a volume of its region.
+	Region string
+	// VolumeSize is the size of a new volume, in gigabytes.
+	VolumeSize int
+	// Labels mark them, as they mark the servers.
+	Labels map[string]string
+}
+
+// Kept is what the provider keeps for an environment from one server to the
+// next. Turning the environment off destroys neither.
+type Kept struct {
+	// Address is the IPv4 address that every server gets, to which the DNS
+	// records of the host names of the environment point.
+	Address netip.Addr
+	// VolumeDevice is the path of the volume on a server it is attached to,
+	// a block device that has a file system already.
+	VolumeDevice string
+	// NewAddress tells that Keep created the address: the DNS records point
+	// to the one before, and are set again by hand.
+	NewAddress bool
 }
 
 // Specification is what a new server is made of.

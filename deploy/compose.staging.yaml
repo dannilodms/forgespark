@@ -22,9 +22,12 @@
 # The data of PostgreSQL and Garage is in the volumes postgres-data and
 # garage-data, which every publish removes, with their containers, to start
 # from the seed again. Mailpit keeps its e-mails in its container, which
-# every publish removes too. The certificates of Caddy are in caddy-data, which the
-# publish keeps while the server lives: `docker compose down --volumes`
-# would remove it too, and is never run.
+# every publish removes too. The certificates of Caddy are in
+# /srv/caddy-data, where the cloud-init file mounts the volume the provider
+# keeps for staging from one server to the next, so that a new server asks
+# the certificate authority for none an earlier one got. caddy-config is
+# kept while the server lives: `docker compose down --volumes` would remove
+# it, and is never run.
 #
 # Only Caddy publishes ports: 80 and 443 over TCP, and 443 over UDP for
 # HTTP/3, which the firewall of the server lets in too. Docker opens a
@@ -100,8 +103,9 @@ services:
     volumes:
       - ./Caddyfile.staging:/etc/caddy/Caddyfile:ro
       - ./delivery.caddyfile:/etc/caddy/delivery.caddyfile:ro
-      # The certificates and the account at the certificate authorities.
-      - caddy-data:/data
+      # The certificates and the account at the certificate authorities, on
+      # the volume kept for staging.
+      - /srv/caddy-data:/data
       - caddy-config:/config
     environment:
       # Caddy starts the trace of each request and exports nothing: staging
@@ -193,7 +197,6 @@ volumes:
   postgres-data:
   garage-data:
   # Kept while the server lives.
-  caddy-data:
   caddy-config:
 
 # The same configs as in compose.yaml, declared again because `extends`
