@@ -45,6 +45,8 @@ A named composition of components that several screens reuse, such as the app sh
 
 One exception to rules 2 and 3: the mark of a login provider keeps the colours its owner requires. Google forbids a single-colour "G" and asks for it on white, and Microsoft asks that its logo is not altered. GitHub's mark takes the colour of the text.
 
+One exception to rules 2 and 4: on the screens seen before a login, the frame glows in `primary` behind the pane (`frame-glow`, see Framed pane). It is the one place colour decorates, and it marks no action. The maintainer chose it from three backgrounds, on 2026-11-26.
+
 ## Accessibility and layout
 
 - The style meets WCAG AA: 4.5:1 for text, 3:1 for large text, for the boundary of a control and for the focus indicator.
@@ -85,6 +87,7 @@ The names and roles below are the contract. The colour names are those of shadcn
 | `group-blue`, `group-green`, `group-purple`, `group-orange`, `group-gray`, `group-red` (added) | The title of a group. Its strip takes the label colour of the same name. |
 | `label-*` and `label-*-foreground` (added) | The label palette: the fill of a label and the text on it. The same in both themes. |
 | `scrim` (added) | What covers the page behind a dialog or a side panel. |
+| `frame-glow` (added) | The glow of `primary` on the frame of the framed pane, behind its pane. A gradient, the same in both themes. |
 
 ### Colours
 
@@ -125,6 +128,7 @@ What each adjustment had to reach:
 - `input`: 3:1 on the work surface and on the frame. The line of Vibe is 1.7:1, which is enough between areas and not for the border of a field.
 - `brand`: 4.5:1 as a link on every fill of the work surface, including the hover wash and a selected row.
 - `destructive` and the feedback colours: 4.5:1 as a word on the work surface, on the frame and on their subtle background.
+- `frame-glow`: the slogan, in `muted-foreground`, keeps 4.5:1 on the glow where it is nearest it, at every size of window from 320 by 568 to 1920 by 1080. Its ring was 15% of `primary`, which took the slogan to 4.52:1 in light on the smallest phone; at 12% the lowest is 4.64:1, and 6.65:1 in dark.
 
 `selected` is Vibe's `primary-selected`; `accent` is its hover colour; `muted` is its grey background.
 
@@ -264,6 +268,7 @@ What makes the style recognisable, beyond the values above.
 | Primary button | Blue fill that darkens under the pointer; a split button, "New item" plus a chevron, opens the creation of a screen |
 | Headings | Poppins at weight 500 over Figtree |
 | People | Coloured circles with initials |
+| Before the login | The pane over a blue glow, the login set on its centre line |
 
 ## Brand mark
 
@@ -340,9 +345,9 @@ A recipe is added when a second screen needs the same composition.
 
 The code, `AppShell`, draws the recipe cut down to what works, because a control that does nothing is not shown: the header has the mark, the product name and the user menu; the sidebar has the consultancy alone; the work surface holds the screen. The search field and the command palette, the notifications, help, the items of the menu, favourites and the settings are left out until the feature each one opens exists: there is no area of work, no notification and no setting yet. Each arrives with its feature, in the place this recipe gives it.
 
-- The consultancy at the top of the sidebar is its logo, or its initials, in a 32px square with 4px corners, where the whole logo shows, beside its name.
-- The button of the user menu is the photo of the user, or their initials, in a 32px circle. The menu shows them again at 40px, with the name and the e-mail, and one action, logging out, which leads to the login screen with its notice. The menu stays open while the logout is sent, and shows its failure.
-- Initials are the first letters of the first and the last words of the name. They take the `muted` fill for now: the colour of a person's circle comes with the first screen that tells people apart, such as the board table.
+- The consultancy at the top of the sidebar is its logo, 32px high and as wide as its proportions ask up to 96px, three times its height, so a wide wordmark stays legible; or its initials, in a 32px square. Both have 4px corners, and the whole logo shows. Beside it, its name takes two lines at most, then ends in an ellipsis, and the browser shows it whole under the pointer.
+- The button of the user menu is the photo of the user, or their initials, in a 32px circle. The menu shows them again at 40px, with the name and the e-mail, whole: a long one wraps instead of being cut. Then one action, logging out, which leads to the login screen with its notice. The menu stays open while the logout is sent, and shows its failure.
+- Initials are the first letters of the first and the last words of the name, a letter with its accent counting as one. A word with no letter, such as an emoji, gives none, and a generation that ends a name of three words or more is left out: Jr., Sr., II, III, IV, Júnior, Filho, Filha, Neto, Neta, Sobrinho, Sobrinha. "João da Silva Filho" is JS; "João Neto" stays JN. They take the `muted` fill for now: the colour of a person's circle comes with the first screen that tells people apart, such as the board table.
 - The photo and the logo come from the file storage, through URLs that work for 15 minutes; the app reads the user and the consultancy again every ten minutes, and keeps showing an image until the picture of its new URL has loaded, so an image never breaks nor blinks to the initials.
 - The sidebar lies on the frame, below the header, with no line of its own. The work surface keeps 12px from the edge of the window on its left too, while the sidebar is a sheet.
 - The width at which the sidebar becomes a sheet is `--breakpoint-shell`, 960px, whose `shell:` classes the Sidebar of `ui` uses in place of shadcn/ui's `md:` (768px), and `useIsMobile` in `ui/hooks` holds the same width.
@@ -355,12 +360,13 @@ The code, `AppShell`, draws the recipe cut down to what works, because a control
 
 **Form page.** Sections one under the other, each on two columns: its title and a sentence on the left, its fields on the right, in a grid of six columns where a field takes two, three, four or six. A line of `border` ends each section. A choice between few options with a sentence each is a set of option cards rather than a select. The cancel and the primary action stay at the bottom of the work surface while it scrolls. Under 900px a section is one column.
 
-**Framed pane.** The header and the footer are 56px high, on the frame: the header shows the logo, the mark in `brand` and the product name in title type, with the slogan under the name in caption type (`ProductLogo` with `withSlogan`), and the footer holds the language selector at its end. Between them, the pane is on `card`, with a 1px border, 12px corners and 24px of padding, 32px from 640px up, in the centre of the frame; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. The screen has no theme toggle, no version number and no link to the source code.
+**Framed pane.** The header and the footer are 56px high, on the frame: the header shows the logo, the mark in `brand` and the product name in title type, with the slogan under the name in caption type (`ProductLogo` with `withSlogan`), and the footer holds the language selector at its end. Between them, the pane is on `card`, with a 1px border, 12px corners and 24px of padding, 32px from 640px up, in the centre of the frame; at a narrow width it takes the width of the page, less 16px on each side. Its heading is display type. Behind the pane the frame glows: `frame-glow` is an ellipse centred on the page, whose radii are 65% of its width and 60% of its height, with `primary` at 35% in its middle, 12% at 55% of the radii and nothing at their end, so the header and the footer stand on the plain frame. The screen has no theme toggle, no version number and no link to the source code.
 
 - The pane has two widths. A screen of few controls, such as the login screen, takes the narrow pane, at most 384px wide. A form, such as the setup, takes the wide pane, at most 720px wide, so that its fields go side by side and the form stays short.
 - In the wide pane the fields go in pairs, or in threes when they are short, such as city, region and postal code. A field with a long value, such as a website, takes the whole line. Where the group of fields is narrower than 512px, they go one under the other.
-- A step of a form ends on a line above a 1px `border-subtle`: the way back to the step before at the start, when there is one, and the one primary action at the end. On a narrow screen the primary action takes the rest of the line.
-- The login screen is the narrow pane: its heading, the notice it was given, the buttons of the login providers above a divider, absent while no provider is on, then the step of the e-mail or of the login code. A button of a provider is an outline button the width of the pane, "Log in with" and the display name of the provider, one under the other in the order the API gives them; it is a link, because it leaves the app for the provider, and a long name wraps inside it on a narrow screen. The divider is a 1px line in `border` with "or" in its middle, in caption type, in `muted-foreground`. The primary action stays the one of the step. The six digits of a login code are an InputOTP of six boxes, in mono. The way to a new code is a link button under the field, closed for a minute after the last code, with the seconds left in caption type under it.
+- A step of a form ends on a line above a 1px `border-subtle`: the way back to the step before at the start, when there is one, and the one primary action at the end. On a narrow screen the primary action takes the rest of the line. The login stacks them instead: each takes the width of the pane, the primary action above the way back.
+- The login screen is the narrow pane: its heading, the notice it was given, the buttons of the login providers above a divider, absent while no provider is on, then the step of the e-mail or of the login code. A button of a provider is an outline button the width of the pane, "Log in with" and the display name of the provider, one under the other in the order the API gives them; it is a link, because it leaves the app for the provider, and a long name wraps inside it on a narrow screen. The divider is a 1px line in `border` with "or" in its middle, in caption type, in `muted-foreground`. The primary action stays the one of the step. The six digits of a login code are an InputOTP of six boxes, in mono. The way to a new code is a link button under the field, closed for a minute after the last code, with the seconds left in caption type under it, in tabular figures. That line keeps the room of the whole minute from the first second until after the last, so a count that wraps at one number and not at the next, or that ends, never moves the pane and the buttons under the pointer.
+- The login is set on the centre line of the pane: its heading, its sentences, the label and the six boxes of the code, the way to a new code and its seconds are centred. The field of the e-mail and the buttons take the width of the pane. A notice and the problem of a field keep their sign and their text at the start, as everywhere.
 
 **Form dialog.** The fields, then a footer with the cancel action and the primary action. Enter in a field submits. A validation error shows under its field, in the error colour, with a sign and a sentence that says what to do; the field is marked and takes the focus. A dialog that closes keeps nothing of what was typed.
 

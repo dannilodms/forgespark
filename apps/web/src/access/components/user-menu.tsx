@@ -60,9 +60,10 @@ export function UserMenu() {
               imageURL={user.photo_url}
               size="lg"
             />
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate font-medium">{user.name}</span>
-              <span className="truncate type-caption text-muted-foreground">
+            {/* Who is logged in, whole: a long name or e-mail wraps. */}
+            <span className="flex min-w-0 flex-col wrap-anywhere">
+              <span className="font-medium">{user.name}</span>
+              <span className="type-caption text-muted-foreground">
                 {user.email}
               </span>
             </span>

@@ -5,7 +5,8 @@ import { consultancyQuery } from "../data/consultancy"
 
 /**
  * The consultancy at the top of the sidebar of the shell: its logo, or its
- * initials, and its name.
+ * initials, and its name, on two lines at most. A longer name ends in an
+ * ellipsis, and the browser shows it whole under the pointer.
  */
 export function ConsultancyHeading() {
   const { data: consultancy } = useQuery(consultancyQuery)
@@ -21,7 +22,12 @@ export function ConsultancyHeading() {
         imageURL={consultancy.logo_url}
         shape="square"
       />
-      <span className="min-w-0 truncate font-medium">{consultancy.name}</span>
+      <span
+        className="line-clamp-2 min-w-0 font-medium wrap-anywhere"
+        title={consultancy.name}
+      >
+        {consultancy.name}
+      </span>
     </div>
   )
 }

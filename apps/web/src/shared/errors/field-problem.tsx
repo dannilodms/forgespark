@@ -9,7 +9,8 @@ import { useErrorTexts } from "./texts"
 /**
  * What is wrong with a field, under it: a sign and a sentence that says what
  * to do, in the error colour (Form dialog in DESIGN.md). A problem the API
- * answered also shows the trace identifier of the answer, to be passed on.
+ * answered also shows the trace identifier of the answer, to be passed on,
+ * on a line of its own, as the alert of a failure does.
  * The field names it with `aria-describedby={id}`, so it is read with the
  * field.
  */
@@ -30,8 +31,8 @@ export function FieldProblemMessage({
         {ofField(problem)}
         {problem.traceId ? (
           <span className="block text-muted-foreground">
-            {t("errors.traceId")}:{" "}
-            <code className="type-code break-all text-foreground">
+            {t("errors.traceId")}:
+            <code className="block type-code break-all text-foreground">
               {problem.traceId}
             </code>
           </span>

@@ -128,7 +128,7 @@ export function CodeStep({
         <ErrorAlert error={askForLoginCode.error} />
       ) : null}
 
-      <p>
+      <p className="text-center">
         <Trans
           t={t}
           i18nKey="login.code.intro"
@@ -147,12 +147,13 @@ export function CodeStep({
               | undefined
             return (
               <Field data-invalid={problem ? true : undefined}>
-                <FieldLabel htmlFor="login-code">
+                <FieldLabel htmlFor="login-code" className="justify-center">
                   {t("login.code.label")}
                 </FieldLabel>
                 <InputOTP
                   ref={input}
                   id="login-code"
+                  containerClassName="justify-center"
                   maxLength={digits.length}
                   pattern="^[0-9]+$"
                   inputMode="numeric"
@@ -195,6 +196,7 @@ export function CodeStep({
       />
 
       <StepActions
+        stacked
         back={
           <Button type="button" variant="outline" onClick={onBack}>
             {t("login.code.back")}
@@ -222,6 +224,12 @@ export function CodeStep({
 /**
  * The way to a new code: closed for a minute after the last ask, with the
  * seconds left counted under it, then open.
+ *
+ * The line of the seconds keeps the room of the whole minute, in figures of
+ * one width, from the first second until after the last. A count that wraps
+ * at one number and not at the next, or that ends, would change the height
+ * of the step, and the pane, centred in the frame, would move the buttons
+ * under the pointer.
  */
 function NewCode({
   askedAt,
@@ -236,7 +244,7 @@ function NewCode({
   const wait = useSecondsUntil(askedAt + newCodeAfter)
 
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className="flex flex-col items-center gap-1">
       <Button
         type="button"
         variant="link"
@@ -250,14 +258,14 @@ function NewCode({
         ) : null}
         {t("login.code.newCode")}
       </Button>
-      {wait > 0 ? (
-        <p
-          id="login-new-code-wait"
-          className="type-caption text-muted-foreground"
-        >
-          {t("login.code.newCodeIn", { wait })}
+      <div className="grid text-center type-caption text-muted-foreground tabular-nums *:col-start-1 *:row-start-1">
+        <p aria-hidden className="invisible">
+          {t("login.code.newCodeIn", { wait: newCodeAfter / 1000 })}
         </p>
-      ) : null}
+        {wait > 0 ? (
+          <p id="login-new-code-wait">{t("login.code.newCodeIn", { wait })}</p>
+        ) : null}
+      </div>
     </div>
   )
 }
