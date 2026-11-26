@@ -277,7 +277,7 @@ The mark is a nut with a spark: a hexagon with rounded corners, flat at the top 
 - The smallest size of the mark is 16px, where the spark closes to a round hole; from 32px it reads as a spark. The space around it is at least a quarter of its width.
 - The mark is never stretched, rotated, outlined or given a shadow.
 
-The files are in [`docs/design/brand/`](docs/design/brand/). They are the source: an app serves copies of them.
+The files are in [`docs/design/brand/`](docs/design/brand/). They are the source: the web app keeps no copy of them. `apps/web/index.html` names the favicon, the icon of iOS and the web app manifest, and `apps/web/brand-files.ts` serves them at the root of the origin, read from here, with `manifest.webmanifest`, which names the app, its slogan and its three icons.
 
 | File | Use |
 | --- | --- |

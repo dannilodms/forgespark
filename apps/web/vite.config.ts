@@ -6,6 +6,7 @@ import { msw } from "msw/vite"
 import { defineConfig } from "vite-plus"
 import { playwright } from "vite-plus/test/browser-playwright"
 
+import { brandFilesAtTheRoot } from "./brand-files.ts"
 import { brotliCopies } from "./brotli-copies.ts"
 
 // The build, the format, lint and type checks that `vp check` runs, and the
@@ -20,6 +21,9 @@ export default defineConfig({
     // Serves the worker of MSW, which simulates the API in the screen tests.
     // The build emits nothing of it: the app never imports `virtual:msw`.
     msw(),
+    // The favicon, the icons and the manifest, at the root, from the files
+    // of the brand in docs/design/brand.
+    brandFilesAtTheRoot(),
     // The Brotli copies of the build, which Caddy serves on the servers.
     brotliCopies(),
   ],
