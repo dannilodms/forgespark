@@ -468,7 +468,7 @@ Staging is a server that exists only while a pull request is tried on it, and co
 
 ```sh
 task staging:on      # create the server, wait until it is ready, and give GitHub what reaches it
-task staging:status  # on or off, since when, its address, its host names and the labelled pull request
+task staging:status  # on or off, since when, its address, its host names and the labelled pull request; when off, what Hetzner keeps and bills
 task staging:off     # destroy the server and its deploy key, and take its values out of GitHub; its address and its volume stay
 ```
 

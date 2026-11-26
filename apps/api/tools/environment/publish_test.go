@@ -307,7 +307,7 @@ func TestAPullRequestThatLostTheLabelBeforeItsPublishStartedIsNotPublished(t *te
 
 	printed := world.succeeds("publish", "staging")
 
-	assert.Equal(t, "Pull request #12 does not have the staging label any more, so it is not published.\n", printed)
+	assert.Equal(t, "::notice title=Not published::Pull request #12 is closed, or does not have the staging label any more, so it is not published.\n", printed)
 	assert.Empty(t, world.server.targets, "the server was not logged in to")
 	assert.Empty(t, world.journal.entries)
 	assert.Equal(t, []int{14}, world.labelledNumbers(), "the pull request staging shows keeps its label")
@@ -323,7 +323,7 @@ func TestAPullRequestThatWasClosedBeforeItsPublishStartedIsNotPublished(t *testi
 
 	printed := world.succeeds("publish", "staging")
 
-	assert.Equal(t, "Pull request #12 does not have the staging label any more, so it is not published.\n", printed)
+	assert.Equal(t, "::notice title=Not published::Pull request #12 is closed, or does not have the staging label any more, so it is not published.\n", printed)
 	assert.Empty(t, world.server.targets)
 }
 

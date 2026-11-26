@@ -21,6 +21,7 @@ type Provider struct {
 	servers        map[string]provider.Server
 	specifications map[string]provider.Specification
 	kept           map[string]provider.Kept
+	volumeSizes    map[string]int
 	keepings       []provider.Keeping
 	next           netip.Addr
 	createErr      error
@@ -35,6 +36,7 @@ func NewProvider(now func() time.Time) *Provider {
 		servers:        map[string]provider.Server{},
 		specifications: map[string]provider.Specification{},
 		kept:           map[string]provider.Kept{},
+		volumeSizes:    map[string]int{},
 		next:           netip.MustParseAddr("203.0.113.10"),
 	}
 }
@@ -67,7 +69,17 @@ func (p *Provider) Keep(_ context.Context, keeping provider.Keeping) (provider.K
 	kept := provider.Kept{Address: p.next, VolumeDevice: "/dev/disk/by-id/volume-" + keeping.Name, NewAddress: true}
 	p.next = p.next.Next()
 	p.kept[keeping.Name] = kept
+	p.volumeSizes[keeping.Name] = keeping.VolumeSize
 	return kept, nil
+}
+
+// FindKept gives what is kept under the name, and creates nothing.
+func (p *Provider) FindKept(_ context.Context, name string) (provider.Holdings, error) {
+	kept, found := p.kept[name]
+	if !found {
+		return provider.Holdings{}, nil
+	}
+	return provider.Holdings{Address: kept.Address, VolumeSize: p.volumeSizes[name]}, nil
 }
 
 // Create creates a server with the address kept under its name, or answers
