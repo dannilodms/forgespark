@@ -269,12 +269,12 @@ What makes the style recognisable, beyond the values above.
 
 The product is ForgeSpark, one word with two capitals, and its slogan is "From ideas to execution.", with its full stop. Both stay in English in every language of the app: they are the brand, not text to translate.
 
-The mark is a software factory in one solid shape: a building with a sawtooth roof and two chimneys, the code symbol `</>` cut out of its wall, standing on a conveyor belt with three rollers. It is drawn on a 64-unit square.
+The mark is a nut with a spark: a hexagon with rounded corners, flat at the top and the bottom like a nut or a forged part, with a four-pointed spark cut out of its middle. The part is the execution and the spark the idea. It is drawn on a 64-unit square: the hexagon has a radius of 30 units and corners rounded by 6, and the spark is 26 units wide and 34 high.
 
 - The mark has one colour: `brand` on a surface, or `primary-foreground` on a `primary` tile. It follows rule 2.
-- The logo is the mark and the product name. In the app the name is set in title type (`type-title`), in `foreground`, beside the mark in `brand`: `ProductLogo` in `apps/web/src/shared/components/brand-mark.tsx`, whose mark is a copy of `mark.svg`, draws both, in the header of the framed pane and of the shell.
+- The logo is the mark and the product name. In `logo.svg` the name is drawn in Poppins at weight 600, in `foreground`, its capitals 45% as high as the mark. In the app the name is set in title type (`type-title`), in `foreground`, beside the mark in `brand`: `ProductLogo` in `apps/web/src/shared/components/brand-mark.tsx`, whose mark is a copy of `mark.svg`, draws both, in the header of the framed pane and of the shell.
 - The slogan shows on the screens seen before a login: in the header of the framed pane, under the product name, in caption type (`type-caption`), in `muted-foreground`. The shell shows the name alone, because the work needs no slogan.
-- The smallest size of the mark is 16px. The space around it is at least a quarter of its width.
+- The smallest size of the mark is 16px, where the spark closes to a round hole; from 32px it reads as a spark. The space around it is at least a quarter of its width.
 - The mark is never stretched, rotated, outlined or given a shadow.
 
 The files are in [`docs/design/brand/`](docs/design/brand/). They are the source: an app serves copies of them.
@@ -285,13 +285,13 @@ The files are in [`docs/design/brand/`](docs/design/brand/). They are the source
 | `logo.svg`, `logo-on-dark.svg` | The mark and the product name, on a light and on a dark surface |
 | `favicon.svg` | The browser tab. It changes colour with the theme of the browser |
 | `favicon.ico` | The browser tab where an SVG is not accepted: 16, 32 and 48px |
-| `apple-touch-icon.png` | The home screen of iOS: 180px, the mark in white on `primary` |
-| `icon-192.png`, `icon-512.png` | The icons of the web app manifest |
-| `icon-maskable-512.png` | The maskable icon of the web app manifest, with the mark inside the safe area |
-| `social-preview.png` | The preview of a shared link and of the repository, with the mark, the name and the slogan: 1280 by 640px |
-| `source/` | What the image models returned: the concept of the mark and the background of the preview |
+| `apple-touch-icon.png` | The home screen of iOS: 180px, the mark in white on a square of `primary`, which iOS rounds |
+| `icon-192.png`, `icon-512.png` | The icons of the web app manifest: the mark in white on a tile of `primary` with corners of an eighth of its width |
+| `icon-maskable-512.png` | The maskable icon of the web app manifest: the mark in white on `primary` to the edges, inside the safe area |
+| `social-preview.png` | The preview of a shared link and of the repository: `logo-on-dark.svg` and the slogan in Figtree, in `muted-foreground` of the dark theme, over the background, 1280 by 640px |
+| `source/` | What an image model returned for the background of the preview |
 
-The shape of the mark and the background of the preview came from image models. The mark was then redrawn on the 64-unit square, and the name was set over the background.
+The mark was drawn by hand on the 64-unit square; the background of the preview came from an image model. The PNG files and `favicon.ico` are drawn from the path of `mark.svg`, in `primary` and in `brand`, the colours of the current style.
 
 ## Components
 
@@ -366,8 +366,6 @@ The code, `AppShell`, draws the recipe cut down to what works, because a control
 
 ## Known gaps
 
-- The mark still draws the software factory of the product's first name, My Software Factory Manager. A mark for ForgeSpark is drawn in a change of its own, with the files of the brand.
-- The files of the brand in `docs/design/brand/` still carry the blue of the previous style, `#1348dc`, and `logo.svg` sets the name in IBM Plex Sans. They are redrawn in a change of their own; the app draws the mark from `BrandMark`, in `brand`.
 - The frame colour comes from Vibe's tokens, but where monday.com puts it, behind the header and the sidebar, was read from its product, not from documentation.
 - Vibe documents no mono typeface; JetBrains Mono is this project's choice.
 - Hover, focus and active states come from Vibe's CSS. None was seen in motion.

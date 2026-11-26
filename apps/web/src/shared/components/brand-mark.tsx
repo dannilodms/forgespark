@@ -33,15 +33,16 @@ export function ProductLogo({ withSlogan = false }: { withSlogan?: boolean }) {
 
 /**
  * The mark of the product, a copy of `docs/design/brand/mark.svg` in one
- * colour: the current text colour, which the logo sets to `brand`. It is
- * decoration beside the product name, so assistive technology skips it.
+ * colour: the current text colour, which the logo sets to `brand`. The spark
+ * is a hole in the nut, drawn the other way round. It is decoration beside the
+ * product name, so assistive technology skips it.
  */
 function BrandMark(props: ComponentProps<"svg">) {
   return (
     <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false" {...props}>
       <path
         fill="currentColor"
-        d="M8 48L8 13L21 24L21 13L34 24L35.5 24L36.75 3L43.25 3L44.5 24L47 24L48.25 3L54.75 3L56 24L56 48zM21 42.5L23.5 40L19 35.5L23.5 31L21 28.5L14 35.5zM27.25 43.5L31.75 43.5L36.75 27.5L32.25 27.5zM50 35.5L43 28.5L40.5 31L45 35.5L40.5 40L43 42.5zM10 46H54A8 8 0 0 1 54 62H10A8 8 0 0 1 10 46zM9.5 54a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0zM28.5 54a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0zM47.5 54a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0z"
+        d="M59 26.8Q62 32 59 37.2L50 52.78Q47 57.98 41 57.98L23 57.98Q17 57.98 14 52.78L5 37.2Q2 32 5 26.8L14 11.22Q17 6.02 23 6.02L41 6.02Q47 6.02 50 11.22ZM32 15Q28.5 28.5 19 32Q28.5 35.5 32 49Q35.5 35.5 45 32Q35.5 28.5 32 15Z"
       />
     </svg>
   )
