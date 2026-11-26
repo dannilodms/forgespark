@@ -44,13 +44,15 @@ import (
 const usage = `Usage: environment <command> <environment>
 
 Commands:
-  on        Create the server of the environment, wait until it is ready and
-            give its GitHub Environment what reaches it. When it is on
-            already, check that it answers, give GitHub its values again and
-            create nothing
-  off       Destroy the server of the environment and what it had at the
-            provider, and take its values out of GitHub, but the password of
-            Mailpit. When it is off already, do nothing more
+  on        Create the server of the environment, with the address and the
+            volume the provider keeps for it, created the first time, wait
+            until it is ready and give its GitHub Environment what reaches
+            it. When it is on already, check that it answers, give GitHub its
+            values again and create nothing
+  off       Destroy the server of the environment and its deploy key at the
+            provider, which keeps its address and its volume, and take its
+            values out of GitHub, but the password of Mailpit. When it is off
+            already, do nothing more
   status    Tell whether the environment is on, since when, at which address
             and host names, and which open pull request has its label
   publish   Publish the images of a commit of a pull request to the server of

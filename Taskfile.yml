@@ -144,13 +144,13 @@ tasks:
   # STAGING_MAILPIT_PASSWORD, which the tool writes there the first time.
   # The tool writes to GitHub through gh, logged in as the maintainer.
   staging:on:
-    desc: Turn staging on. Creates its server at Hetzner, prepared by deploy/cloud-init.yaml, waits until it is ready and gives the GitHub Environment staging what reaches it; destroys it when that fails. When staging is on, checks that it answers, gives GitHub its values again and creates nothing
+    desc: Turn staging on. Creates its server at Hetzner, with the address and the volume Hetzner keeps for staging, created the first time, prepared by deploy/cloud-init.yaml, waits until it is ready and gives the GitHub Environment staging what reaches it; destroys it when that fails. When staging is on, checks that it answers, gives GitHub its values again and creates nothing
     dir: apps/api
     cmds:
       - go run ./tools/environment on staging
 
   staging:off:
-    desc: Turn staging off. Destroys its server, with its address and its deploy key, and takes them out of the GitHub Environment staging, which keeps the password of Mailpit. When staging is off, destroys nothing
+    desc: Turn staging off. Destroys its server and its deploy key, and takes its values out of the GitHub Environment staging, which keeps the password of Mailpit. Hetzner keeps its address and its volume. When staging is off, destroys nothing
     dir: apps/api
     cmds:
       - go run ./tools/environment off staging

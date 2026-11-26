@@ -72,19 +72,37 @@ func confirmOn(ctx context.Context, environment environment, server provider.Ser
 	if err := environment.writeValues(ctx, values, mailpitPassword, stdout); err != nil {
 		return fmt.Errorf("%s is on at %s, but GitHub does not have its values (%w): turn %s on again", environment.name, server.Address, err, environment.name)
 	}
-	return report(stdout, environment, server)
+	return report(stdout, environment)
 }
 
-// create creates the server with new keys, waits until it is ready, keeps
-// the keys and gives GitHub its values. A failure after the server was
-// asked for destroys it.
+// create makes sure the provider keeps the address and the volume of the
+// environment, creates the server with them and new keys, waits until it is
+// ready, keeps the keys and gives GitHub its values. A failure after the
+// server was asked for destroys it, and leaves the address and the volume.
 func create(ctx context.Context, environment environment, theProvider provider.Provider, mailpitPassword config.Secret, stdout io.Writer) error {
 	chosen := environment.choices
 	keys, err := newServerKeys(environment.name)
 	if err != nil {
 		return fmt.Errorf("generate the keys of the server: %w", err)
 	}
-	cloudInit, err := renderCloudInit(environment.checkout.root, keys)
+	fmt.Fprintf(stdout, "Turning %s on: creating the server %s at %s, a %s with %s in %s.\n",
+		environment.name, chosen.ServerName, chosen.Provider, chosen.Size, chosen.SystemImage, chosen.Region)
+	kept, err := theProvider.Keep(ctx, provider.Keeping{
+		Name:       chosen.ServerName,
+		Region:     chosen.Region,
+		VolumeSize: chosen.VolumeSize,
+		Labels:     environment.labels(),
+	})
+	if err != nil {
+		return fmt.Errorf("keep the address and the volume of %s at %s: %w", environment.name, chosen.Provider, err)
+	}
+	if kept.NewAddress {
+		names := environment.hostNames()
+		fmt.Fprintf(stdout, "There was no address kept for %s at %s, so a new one is kept now: %s. "+
+			"Set the A records of %s, %s and %s to it (docs/providers.md, Domain and DNS): until then the host names do not reach the server.\n",
+			environment.name, chosen.Provider, kept.Address, names.app, names.files, names.mail)
+	}
+	cloudInit, err := renderCloudInit(environment.checkout.root, keys, kept.VolumeDevice)
 	if err != nil {
 		return err
 	}
@@ -97,9 +115,6 @@ func create(ctx context.Context, environment environment, theProvider provider.P
 		DeployPublicKey: keys.deployPublic,
 		Labels:          environment.labels(),
 	}
-	fmt.Fprintf(stdout, "Turning %s on: creating the server %s at %s, a %s with %s in %s.\n",
-		environment.name, chosen.ServerName, chosen.Provider, chosen.Size, chosen.SystemImage, chosen.Region)
-
 	server, err := theProvider.Create(ctx, specification)
 	if errors.Is(err, provider.ErrNameTaken) {
 		return fmt.Errorf("create the server %s: %w. Another turn-on may be creating it now; when none is, turn %s off and on again",
@@ -122,7 +137,7 @@ func create(ctx context.Context, environment environment, theProvider provider.P
 		return environment.undo(ctx, theProvider, err)
 	}
 	fmt.Fprintf(stdout, "%s is on.\n", environment.title())
-	return report(stdout, environment, server)
+	return report(stdout, environment)
 }
 
 // waitUntilReady waits until the server at that address answers SSH with
@@ -135,7 +150,8 @@ func (e environment) waitUntilReady(ctx context.Context, address netip.Addr, key
 
 // undo destroys what a failed turn-on created, with the deploy key at the
 // provider, takes its values out of GitHub and removes the local copy, then
-// reports the failure. It runs to its end even when a signal cut the
+// reports the failure. The address and the volume stay, for the next
+// turn-on. It runs to its end even when a signal cut the
 // turn-on short.
 func (e environment) undo(ctx context.Context, theProvider provider.Provider, cause error) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), undoDeadline)

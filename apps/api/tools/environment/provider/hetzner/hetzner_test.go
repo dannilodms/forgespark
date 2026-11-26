@@ -25,7 +25,7 @@ import (
 )
 
 // These tests reach a simulated Hetzner Cloud, which keeps its SSH keys,
-// servers, primary IPs and actions in memory and answers as the reference
+// servers, primary IPs, volumes and actions in memory and answers as the reference
 // of Hetzner's API says (https://docs.hetzner.cloud/reference/cloud). No
 // test calls Hetzner itself: the first real turn-on does, by hand.
 
@@ -53,11 +53,9 @@ type simulatedHetzner struct {
 	nextID   int64
 	keys     map[int64]map[string]any
 	servers  map[int64]map[string]any
-	// addresses are the primary IPs, by id, with the server they belong to.
-	addresses map[int64]int64
-	// keepsAddresses makes deleting a server keep its primary IP, as Hetzner
-	// does when its auto_delete is off.
-	keepsAddresses bool
+	// addresses are the primary IPs, by id, and volumes the volumes.
+	addresses map[int64]map[string]any
+	volumes   map[int64]map[string]any
 	// refuseServers answers every creation of a server with this error.
 	refuseServers *apiError
 	// failStarts makes every start of a server end in an error.
@@ -76,7 +74,8 @@ func newSimulatedHetzner(t *testing.T) *simulatedHetzner {
 		nextID:    100,
 		keys:      map[int64]map[string]any{},
 		servers:   map[int64]map[string]any{},
-		addresses: map[int64]int64{},
+		addresses: map[int64]map[string]any{},
+		volumes:   map[int64]map[string]any{},
 		actions:   map[int64]string{},
 	}
 	simulated.Server = httptest.NewServer(http.HandlerFunc(simulated.serve))
@@ -125,10 +124,14 @@ func (s *simulatedHetzner) serve(w http.ResponseWriter, r *http.Request) {
 		s.deleteServer(w, id)
 	case "GET actions":
 		s.listActions(w, r)
+	case "POST primary_ips":
+		s.createAddress(w, body)
 	case "GET primary_ips":
-		s.getAddress(w, id)
-	case "DELETE primary_ips":
-		s.deleteAddress(w, id)
+		s.list(w, "primary_ips", s.addresses, r)
+	case "POST volumes":
+		s.createVolume(w, body)
+	case "GET volumes":
+		s.list(w, "volumes", s.volumes, r)
 	default:
 		answerError(w, apiError{http.StatusNotFound, "not_found", "no such route"})
 	}
@@ -195,12 +198,24 @@ func (s *simulatedHetzner) createServer(w http.ResponseWriter, body map[string]a
 		answerError(w, apiError{http.StatusConflict, "uniqueness_error", "server name is already used"})
 		return
 	}
-	id, address := s.id(), s.id()
-	s.addresses[address] = id
+	publicNet, _ := body["public_net"].(map[string]any)
+	addressID, _ := publicNet["ipv4"].(float64)
+	address, found := s.addresses[int64(addressID)]
+	if !found || address["assignee_id"] != nil {
+		answerError(w, apiError{http.StatusUnprocessableEntity, "invalid_input", "primary IP not found or assigned"})
+		return
+	}
+	id := s.id()
+	address["assignee_id"] = id
+	volumes, _ := body["volumes"].([]any)
+	for _, each := range volumes {
+		volumeID, _ := each.(float64)
+		s.volumes[int64(volumeID)]["server"] = id
+	}
 	server := map[string]any{
 		"id": id, "name": body["name"], "status": "initializing", "created": created,
 		"public_net": map[string]any{
-			"ipv4":         map[string]any{"id": address, "ip": "198.51.100.7", "blocked": false, "dns_ptr": "static.7.100.51.198.clients.your-server.de"},
+			"ipv4":         map[string]any{"id": address["id"], "ip": address["ip"], "blocked": false, "dns_ptr": "static.7.100.51.198.clients.your-server.de"},
 			"ipv6":         nil,
 			"floating_ips": []any{},
 			"firewalls":    []any{},
@@ -212,7 +227,7 @@ func (s *simulatedHetzner) createServer(w http.ResponseWriter, body map[string]a
 		"iso":         nil, "rescue_enabled": false, "locked": false, "backup_window": nil,
 		"outgoing_traffic": 0, "ingoing_traffic": 0, "included_traffic": 21990232555520,
 		"protection": map[string]any{"delete": false, "rebuild": false},
-		"labels":     body["labels"], "primary_disk_size": 40, "volumes": []any{}, "load_balancers": []any{},
+		"labels":     body["labels"], "primary_disk_size": 40, "volumes": volumes, "load_balancers": []any{},
 	}
 	s.servers[id] = server
 	answer(w, http.StatusCreated, map[string]any{
@@ -222,6 +237,40 @@ func (s *simulatedHetzner) createServer(w http.ResponseWriter, body map[string]a
 		"root_password": nil,
 	})
 	server["status"] = "running"
+}
+
+// createAddress creates a primary IP that no server has yet.
+func (s *simulatedHetzner) createAddress(w http.ResponseWriter, body map[string]any) {
+	if named(s.addresses, body["name"]) {
+		answerError(w, apiError{http.StatusConflict, "uniqueness_error", "primary IP with the same name already exists"})
+		return
+	}
+	id := s.id()
+	address := map[string]any{
+		"id": id, "ip": "198.51.100.7", "type": body["type"], "name": body["name"], "auto_delete": body["auto_delete"],
+		"assignee_id": nil, "assignee_type": body["assignee_type"], "blocked": false, "created": created, "labels": body["labels"],
+		"protection": map[string]any{"delete": false}, "dns_ptr": []any{}, "location": map[string]any{"id": 1, "name": body["location"]},
+	}
+	s.addresses[id] = address
+	answer(w, http.StatusCreated, map[string]any{"primary_ip": address, "action": nil})
+}
+
+// createVolume creates a volume that no server has yet, which is being
+// formatted until its action is read.
+func (s *simulatedHetzner) createVolume(w http.ResponseWriter, body map[string]any) {
+	if named(s.volumes, body["name"]) {
+		answerError(w, apiError{http.StatusConflict, "uniqueness_error", "volume with the same name already exists"})
+		return
+	}
+	id := s.id()
+	volume := map[string]any{
+		"id": id, "name": body["name"], "size": body["size"], "server": nil, "status": "creating", "created": created,
+		"labels": body["labels"], "format": body["format"], "linux_device": fmt.Sprintf("/dev/disk/by-id/scsi-0HC_Volume_%d", id),
+		"protection": map[string]any{"delete": false}, "location": map[string]any{"id": 1, "name": body["location"]},
+	}
+	s.volumes[id] = volume
+	answer(w, http.StatusCreated, map[string]any{"volume": volume, "action": s.action("create_volume", id, "volume"), "next_actions": []any{}})
+	volume["status"] = "available"
 }
 
 func (s *simulatedHetzner) getServers(w http.ResponseWriter, r *http.Request, id string) {
@@ -245,29 +294,26 @@ func (s *simulatedHetzner) deleteServer(w http.ResponseWriter, id string) {
 		return
 	}
 	delete(s.servers, number)
-	if !s.keepsAddresses {
-		maps.DeleteFunc(s.addresses, func(_, server int64) bool { return server == number })
-	}
+	takeOff(s.addresses, "assignee_id", number)
+	takeOff(s.volumes, "server", number)
 	answer(w, http.StatusOK, map[string]any{"action": s.action("delete_server", number, "server")})
 }
 
-func (s *simulatedHetzner) getAddress(w http.ResponseWriter, id string) {
-	number, _ := strconv.ParseInt(id, 10, 64)
-	if _, found := s.addresses[number]; !found {
-		answerError(w, apiError{http.StatusNotFound, "not_found", "primary IP not found"})
-		return
+// takeOff takes the server off every resource that names it in that field,
+// as Hetzner does with the primary IP and the volumes of a server it
+// deletes.
+func takeOff(resources map[int64]map[string]any, field string, server int64) {
+	for _, resource := range resources {
+		resource[field] = cleared(resource[field], server)
 	}
-	answer(w, http.StatusOK, map[string]any{"primary_ip": map[string]any{
-		"id": number, "ip": "198.51.100.7", "type": "ipv4", "name": "primary_ip-" + id, "auto_delete": false,
-		"assignee_id": nil, "assignee_type": "server", "blocked": false, "created": created, "labels": map[string]any{},
-		"protection": map[string]any{"delete": false}, "dns_ptr": []any{}, "location": map[string]any{"id": 1, "name": "fsn1"},
-	}})
 }
 
-func (s *simulatedHetzner) deleteAddress(w http.ResponseWriter, id string) {
-	number, _ := strconv.ParseInt(id, 10, 64)
-	delete(s.addresses, number)
-	w.WriteHeader(http.StatusNoContent)
+// cleared gives nothing for the server, and any other value as it is.
+func cleared(value any, server int64) any {
+	if value == server {
+		return nil
+	}
+	return value
 }
 
 // list answers a list, filtered by name and by a label selector of
@@ -336,10 +382,53 @@ func (s *simulatedHetzner) sent(method, path string) []request {
 	return slices.DeleteFunc(slices.Clone(s.requests), func(each request) bool { return each.method != method || each.path != path })
 }
 
-func (s *simulatedHetzner) counts() (keys, servers, addresses int) {
+func (s *simulatedHetzner) counts() (keys, servers, addresses, volumes int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return len(s.keys), len(s.servers), len(s.addresses)
+	return len(s.keys), len(s.servers), len(s.addresses), len(s.volumes)
+}
+
+// idOf gives the id of the resource with that name.
+func (s *simulatedHetzner) idOf(resources map[int64]map[string]any, name string) int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return firstID(resources, func(resource map[string]any) bool { return resource["name"] == name })
+}
+
+// actionOf gives the id of the action of that command.
+func (s *simulatedHetzner) actionOf(command string) int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return firstID(s.actions, func(each string) bool { return each == command })
+}
+
+// firstID gives the lowest id whose value matches, or 0 when none does.
+func firstID[V any](values map[int64]V, matches func(V) bool) int64 {
+	ids := slices.Sorted(maps.Keys(values))
+	at := slices.IndexFunc(ids, func(id int64) bool { return matches(values[id]) })
+	if at < 0 {
+		return 0
+	}
+	return ids[at]
+}
+
+// waitedFor tells whether the adapter read the action until it ended.
+func (s *simulatedHetzner) waitedFor(id int64) bool {
+	return slices.ContainsFunc(s.sent(http.MethodGet, "/actions"), func(each request) bool {
+		return slices.Contains(strings.Split(each.query, "&"), fmt.Sprintf("id=%d", id))
+	})
+}
+
+func aKeeping() provider.Keeping {
+	return provider.Keeping{Name: "staging", Region: "fsn1", VolumeSize: 10, Labels: map[string]string{"environment": "staging"}}
+}
+
+// kept makes sure Hetzner keeps the address and the volume of staging.
+func kept(t *testing.T, adapter *hetzner.Provider) provider.Kept {
+	t.Helper()
+	kept, err := adapter.Keep(context.Background(), aKeeping())
+	require.NoError(t, err)
+	return kept
 }
 
 func aSpecification() provider.Specification {
@@ -354,11 +443,61 @@ func aSpecification() provider.Specification {
 	}
 }
 
-func TestCreateRegistersTheDeployKeyAndCreatesTheServerWithIt(t *testing.T) {
+func TestKeepCreatesTheAddressAndTheVolumeTheFirstTime(t *testing.T) {
 	t.Parallel()
 	simulated := newSimulatedHetzner(t)
 
-	server, err := simulated.adapter().Create(context.Background(), aSpecification())
+	kept, err := simulated.adapter().Keep(context.Background(), aKeeping())
+
+	require.NoError(t, err)
+	volume := simulated.idOf(simulated.volumes, "staging")
+	assert.Equal(t, provider.Kept{
+		Address:      netip.MustParseAddr("198.51.100.7"),
+		VolumeDevice: fmt.Sprintf("/dev/disk/by-id/scsi-0HC_Volume_%d", volume),
+		NewAddress:   true,
+	}, kept)
+	addresses := simulated.sent(http.MethodPost, "/primary_ips")
+	require.Len(t, addresses, 1)
+	assert.Equal(t, map[string]any{
+		"name": "staging", "type": "ipv4", "assignee_type": "server", "location": "fsn1", "auto_delete": false,
+		"labels": map[string]any{"environment": "staging"},
+	}, addresses[0].body, "an IPv4 address of the region, which Hetzner keeps when a server is deleted")
+	volumes := simulated.sent(http.MethodPost, "/volumes")
+	require.Len(t, volumes, 1)
+	assert.Equal(t, map[string]any{
+		"name": "staging", "size": float64(10), "location": "fsn1", "format": "ext4",
+		"labels": map[string]any{"environment": "staging"},
+	}, volumes[0].body, "a volume of the region that Hetzner formats with ext4")
+	assert.True(t, simulated.waitedFor(simulated.actionOf("create_volume")), "the volume is given once it is created")
+}
+
+func TestKeepGivesWhatHetznerKeepsAlreadyAndCreatesNothing(t *testing.T) {
+	t.Parallel()
+	simulated := newSimulatedHetzner(t)
+	adapter := simulated.adapter()
+	first := kept(t, adapter)
+
+	again, err := adapter.Keep(context.Background(), aKeeping())
+
+	require.NoError(t, err)
+	assert.Equal(t, first.Address, again.Address)
+	assert.Equal(t, first.VolumeDevice, again.VolumeDevice)
+	assert.False(t, again.NewAddress, "the DNS records point to it already")
+	assert.Len(t, simulated.sent(http.MethodPost, "/primary_ips"), 1)
+	assert.Len(t, simulated.sent(http.MethodPost, "/volumes"), 1)
+	lists := simulated.sent(http.MethodGet, "/primary_ips")
+	require.NotEmpty(t, lists)
+	assert.Contains(t, lists[len(lists)-1].query, "label_selector=environment%3Dstaging")
+	assert.Contains(t, lists[len(lists)-1].query, "name=staging")
+}
+
+func TestCreateRegistersTheDeployKeyAndCreatesTheServerWithItTheAddressAndTheVolume(t *testing.T) {
+	t.Parallel()
+	simulated := newSimulatedHetzner(t)
+	adapter := simulated.adapter()
+	kept(t, adapter)
+
+	server, err := adapter.Create(context.Background(), aSpecification())
 
 	require.NoError(t, err)
 	assert.Equal(t, provider.Server{
@@ -377,25 +516,41 @@ func TestCreateRegistersTheDeployKeyAndCreatesTheServerWithIt(t *testing.T) {
 		"server_type":        "cx23",
 		"image":              "ubuntu-26.04",
 		"location":           "fsn1",
-		"ssh_keys":           []any{float64(101)},
+		"ssh_keys":           []any{float64(simulated.idOf(simulated.keys, "staging"))},
 		"user_data":          "#cloud-config\nssh_pwauth: false\n",
 		"labels":             map[string]any{"environment": "staging"},
 		"start_after_create": true,
-		"public_net":         map[string]any{"enable_ipv4": true, "enable_ipv6": false},
-	}, servers[0].body, "an ordinary IPv4 address, no IPv6, the deploy key so that no root password is e-mailed, and no firewall")
+		"public_net": map[string]any{
+			"enable_ipv4": true, "enable_ipv6": false, "ipv4": float64(simulated.idOf(simulated.addresses, "staging")),
+		},
+		"volumes":   []any{float64(simulated.idOf(simulated.volumes, "staging"))},
+		"automount": false,
+	}, servers[0].body, "the kept address and volume, no IPv6, the deploy key so that no root password is e-mailed, and no firewall; the cloud-init file mounts the volume")
 }
 
-func TestCreateReturnsOnceHetznerSaysTheServerRuns(t *testing.T) {
+func TestCreateWithNothingKeptCreatesNothing(t *testing.T) {
 	t.Parallel()
 	simulated := newSimulatedHetzner(t)
 
 	_, err := simulated.adapter().Create(context.Background(), aSpecification())
 
+	require.ErrorContains(t, err, "hetzner keeps no address named staging for the server")
+	keys, servers, _, _ := simulated.counts()
+	assert.Zero(t, keys)
+	assert.Zero(t, servers)
+}
+
+func TestCreateReturnsOnceHetznerSaysTheServerRuns(t *testing.T) {
+	t.Parallel()
+	simulated := newSimulatedHetzner(t)
+	adapter := simulated.adapter()
+	kept(t, adapter)
+
+	_, err := adapter.Create(context.Background(), aSpecification())
+
 	require.NoError(t, err)
-	polled := simulated.sent(http.MethodGet, "/actions")
-	require.NotEmpty(t, polled)
-	assert.Contains(t, polled[0].query, "id=104", "the creation of the server is waited for")
-	assert.Contains(t, polled[0].query, "id=105", "and its start")
+	assert.True(t, simulated.waitedFor(simulated.actionOf("create_server")), "the creation of the server is waited for")
+	assert.True(t, simulated.waitedFor(simulated.actionOf("start_server")), "and its start")
 }
 
 func TestAServerThatFailsToStartIsAnErrorAndStaysForTheCallerToDestroy(t *testing.T) {
@@ -403,6 +558,7 @@ func TestAServerThatFailsToStartIsAnErrorAndStaysForTheCallerToDestroy(t *testin
 	simulated := newSimulatedHetzner(t)
 	simulated.failStarts = true
 	adapter := simulated.adapter()
+	kept(t, adapter)
 
 	_, err := adapter.Create(context.Background(), aSpecification())
 
@@ -414,27 +570,31 @@ func TestAServerThatCannotBeCreatedLeavesNoKeyBehind(t *testing.T) {
 	t.Parallel()
 	simulated := newSimulatedHetzner(t)
 	simulated.refuseServers = &apiError{http.StatusUnprocessableEntity, "invalid_input", "image ubuntu-26.04 not found"}
+	adapter := simulated.adapter()
+	kept(t, adapter)
 
-	_, err := simulated.adapter().Create(context.Background(), aSpecification())
+	_, err := adapter.Create(context.Background(), aSpecification())
 
 	require.ErrorContains(t, err, "create the server: image ubuntu-26.04 not found")
-	keys, servers, addresses := simulated.counts()
+	keys, servers, addresses, volumes := simulated.counts()
 	assert.Zero(t, keys)
 	assert.Zero(t, servers)
-	assert.Zero(t, addresses)
+	assert.Equal(t, 1, addresses, "the kept address stays")
+	assert.Equal(t, 1, volumes, "and so does the kept volume")
 }
 
 func TestANameInUseIsTheNameTaken(t *testing.T) {
 	t.Parallel()
 	simulated := newSimulatedHetzner(t)
 	adapter := simulated.adapter()
+	kept(t, adapter)
 	_, err := adapter.Create(context.Background(), aSpecification())
 	require.NoError(t, err)
 
 	_, err = adapter.Create(context.Background(), aSpecification())
 
 	require.ErrorIs(t, err, provider.ErrNameTaken)
-	keys, servers, _ := simulated.counts()
+	keys, servers, _, _ := simulated.counts()
 	assert.Equal(t, 1, keys, "the key of the server that exists is left as it is")
 	assert.Equal(t, 1, servers)
 }
@@ -443,6 +603,7 @@ func TestFindGivesTheServerWithTheNameAndTheLabelsOfTheEnvironment(t *testing.T)
 	t.Parallel()
 	simulated := newSimulatedHetzner(t)
 	adapter := simulated.adapter()
+	kept(t, adapter)
 	_, err := adapter.Create(context.Background(), aSpecification())
 	require.NoError(t, err)
 
@@ -460,9 +621,16 @@ func TestFindGivesTheServerWithTheNameAndTheLabelsOfTheEnvironment(t *testing.T)
 func TestFindDoesNotGiveAServerOfTheNameWithoutTheLabels(t *testing.T) {
 	t.Parallel()
 	simulated := newSimulatedHetzner(t)
+	production := hetzner.New(hetzner.Settings{
+		Endpoint: simulated.URL + "/v1", Token: config.NewSecret(token), Labels: map[string]string{"environment": "production"}, PollInterval: time.Millisecond,
+	})
+	keeping := aKeeping()
+	keeping.Labels = map[string]string{"environment": "production"}
+	_, err := production.Keep(context.Background(), keeping)
+	require.NoError(t, err)
 	specification := aSpecification()
 	specification.Labels = map[string]string{"environment": "production"}
-	_, err := simulated.adapter().Create(context.Background(), specification)
+	_, err = production.Create(context.Background(), specification)
 	require.NoError(t, err)
 
 	_, found, err := simulated.adapter().Find(context.Background(), "staging")
@@ -471,28 +639,44 @@ func TestFindDoesNotGiveAServerOfTheNameWithoutTheLabels(t *testing.T) {
 	assert.False(t, found)
 }
 
-func TestDestroyLeavesNothingAtHetzner(t *testing.T) {
+func TestDestroyLeavesOnlyTheKeptAddressAndVolumeAtHetzner(t *testing.T) {
 	t.Parallel()
-	for _, keepsAddresses := range []bool{false, true} {
-		t.Run(fmt.Sprintf("with the address deleted by Hetzner: %v", !keepsAddresses), func(t *testing.T) {
-			t.Parallel()
-			simulated := newSimulatedHetzner(t)
-			simulated.keepsAddresses = keepsAddresses
-			adapter := simulated.adapter()
-			_, err := adapter.Create(context.Background(), aSpecification())
-			require.NoError(t, err)
+	simulated := newSimulatedHetzner(t)
+	adapter := simulated.adapter()
+	kept(t, adapter)
+	_, err := adapter.Create(context.Background(), aSpecification())
+	require.NoError(t, err)
 
-			require.NoError(t, adapter.Destroy(context.Background(), "staging"))
+	require.NoError(t, adapter.Destroy(context.Background(), "staging"))
 
-			keys, servers, addresses := simulated.counts()
-			assert.Zero(t, keys, "the deploy key goes with the server")
-			assert.Zero(t, servers)
-			assert.Zero(t, addresses, "the address goes with the server")
-			_, found, err := adapter.Find(context.Background(), "staging")
-			require.NoError(t, err)
-			assert.False(t, found)
-		})
-	}
+	keys, servers, addresses, volumes := simulated.counts()
+	assert.Zero(t, keys, "the deploy key goes with the server")
+	assert.Zero(t, servers)
+	assert.Equal(t, 1, addresses, "the address stays, for the next server")
+	assert.Equal(t, 1, volumes, "and so does the volume")
+	_, found, err := adapter.Find(context.Background(), "staging")
+	require.NoError(t, err)
+	assert.False(t, found)
+}
+
+func TestTheNextServerGetsTheSameAddressAndVolume(t *testing.T) {
+	t.Parallel()
+	simulated := newSimulatedHetzner(t)
+	adapter := simulated.adapter()
+	first := kept(t, adapter)
+	_, err := adapter.Create(context.Background(), aSpecification())
+	require.NoError(t, err)
+	require.NoError(t, adapter.Destroy(context.Background(), "staging"))
+
+	again := kept(t, adapter)
+	server, err := adapter.Create(context.Background(), aSpecification())
+
+	require.NoError(t, err)
+	assert.Equal(t, first.Address, server.Address)
+	assert.Equal(t, first.VolumeDevice, again.VolumeDevice)
+	servers := simulated.sent(http.MethodPost, "/servers")
+	require.Len(t, servers, 2)
+	assert.Equal(t, servers[0].body["volumes"], servers[1].body["volumes"])
 }
 
 func TestDestroyingWhatDoesNotExistSucceedsAndRemovesAKeyLeftBehind(t *testing.T) {
@@ -505,7 +689,7 @@ func TestDestroyingWhatDoesNotExistSucceedsAndRemovesAKeyLeftBehind(t *testing.T
 
 	require.NoError(t, adapter.Destroy(context.Background(), "staging"))
 
-	keys, _, _ := simulated.counts()
+	keys, _, _, _ := simulated.counts()
 	assert.Zero(t, keys)
 }
 

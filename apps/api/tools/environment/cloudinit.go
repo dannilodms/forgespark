@@ -15,17 +15,20 @@ import (
 const cloudInitFile = "deploy/cloud-init.yaml"
 
 // cloudInitValues are what the cloud-init file takes from a turn-on, where
-// its {{ }} are. The private host key keeps the type of a secret: the file
-// reveals it where it writes it.
+// its {{ }} are: the keys of the server, and the device of the volume the
+// provider keeps for the environment. The private host key keeps the type
+// of a secret: the file reveals it where it writes it.
 type cloudInitValues struct {
 	HostPrivateKey  config.Secret
 	HostPublicKey   string
 	DeployPublicKey string
+	VolumeDevice    string
 }
 
-// renderCloudInit writes the keys of a new server into the cloud-init file
-// of the checkout. The result holds the private host key.
-func renderCloudInit(root string, keys serverKeys) (config.Secret, error) {
+// renderCloudInit writes the keys of a new server, and the device of its
+// volume, into the cloud-init file of the checkout. The result holds the
+// private host key.
+func renderCloudInit(root string, keys serverKeys, volumeDevice string) (config.Secret, error) {
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(cloudInitFile)))
 	if err != nil {
 		return config.Secret{}, err
@@ -41,6 +44,7 @@ func renderCloudInit(root string, keys serverKeys) (config.Secret, error) {
 		HostPrivateKey:  keys.hostPrivate,
 		HostPublicKey:   authorizedLine(keys.hostPublic),
 		DeployPublicKey: keys.deployPublic,
+		VolumeDevice:    volumeDevice,
 	}
 	var rendered strings.Builder
 	if err := file.Execute(&rendered, values); err != nil {

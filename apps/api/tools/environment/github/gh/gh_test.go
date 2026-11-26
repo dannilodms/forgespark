@@ -334,7 +334,7 @@ func TestAListThatIsNotReadableIsAFailure(t *testing.T) {
 func TestACommentGoesToGhThroughItsStandardInput(t *testing.T) {
 	t.Parallel()
 	fake := newFakeGh(t)
-	body := "Staging shows this pull request.\n\n- The app: https://app.203-0-113-10.sslip.io\n"
+	body := "Staging shows this pull request.\n\n- The app: https://app.staging.forgespark.dev\n"
 
 	err := fake.github().CommentOnPullRequest(context.Background(), 12, body)
 

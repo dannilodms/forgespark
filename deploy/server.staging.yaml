@@ -17,5 +17,19 @@ size: cx23
 # (https://docs.hetzner.cloud/changelog). The Docker packages of
 # deploy/cloud-init.yaml are built for this release, and change with it.
 system_image: ubuntu-26.04
-# The name of the server at the provider, and of its deploy key there.
+# The name of the server at the provider, of its deploy key there, and of
+# the address and the volume the provider keeps for staging from one server
+# to the next. The first turn-on creates those two, and turning off leaves
+# them: the address, to which the DNS records of the host names below point,
+# and the volume, which holds the data of Caddy, its certificates among
+# them, so that a new server asks Let's Encrypt for none an earlier one got.
+# Both are billed while they exist, and only Hetzner's console deletes them
+# (docs/providers.md).
 server_name: staging
+# The size of the volume, in gigabytes: the smallest Hetzner sells. The
+# data of Caddy takes a few megabytes of it.
+volume_size: 10
+# The host names of staging are app., files. and mail. followed by this
+# name, under the domain of the system. Their A records, at Cloudflare, point
+# to the address kept for staging (docs/providers.md, Domain and DNS).
+domain: staging.forgespark.dev

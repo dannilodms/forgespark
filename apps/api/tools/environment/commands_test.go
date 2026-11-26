@@ -80,11 +80,15 @@ func TestAnUnknownEnvironmentNamesTheFileItsChoicesWouldBeIn(t *testing.T) {
 
 func TestChoicesThatCannotBeUsedStopTheCommands(t *testing.T) {
 	t.Parallel()
-	valid := "provider: hetzner\nregion: fsn1\nsize: cx23\nsystem_image: ubuntu-26.04\nserver_name: staging\n"
+	valid := "provider: hetzner\nregion: fsn1\nsize: cx23\nsystem_image: ubuntu-26.04\nserver_name: staging\nvolume_size: 10\ndomain: staging.forgespark.dev\n"
 	for name, test := range map[string]struct{ choices, failure string }{
 		"a choice missing": {
 			choices: strings.Replace(valid, "region: fsn1\n", "", 1),
 			failure: "environment: deploy/server.staging.yaml: region is missing\n",
+		},
+		"a volume of no size": {
+			choices: strings.Replace(valid, "volume_size: 10\n", "", 1),
+			failure: "environment: deploy/server.staging.yaml: volume_size is missing, or is not a number of gigabytes\n",
 		},
 		"a provider with no adapter": {
 			choices: strings.Replace(valid, "hetzner", "aws", 1),

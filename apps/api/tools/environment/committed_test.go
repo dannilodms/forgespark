@@ -31,6 +31,7 @@ type committedCloudInit struct {
 	Packages   []any         `yaml:"packages"`
 	RunCmd     []string      `yaml:"runcmd"`
 	WriteFiles []writtenFile `yaml:"write_files"`
+	Mounts     [][]string    `yaml:"mounts"`
 }
 
 // writtenFile is a file the cloud-init file writes on the server.
@@ -139,11 +140,33 @@ func TestTheRenderedCloudInitFileFitsTheUserDataOfAServer(t *testing.T) {
 	keys, err := newServerKeys("staging")
 	require.NoError(t, err)
 
-	rendered, err := renderCloudInit(repository, keys)
+	rendered, err := renderCloudInit(repository, keys, "/dev/disk/by-id/scsi-0HC_Volume_100000001")
 
 	require.NoError(t, err)
 	assert.Less(t, len(rendered.Reveal()), 32*1024, "Hetzner takes 32 KiB of user data")
 	assert.NotContains(t, rendered.Reveal(), "{{")
+	assert.Contains(t, rendered.Reveal(), `"/dev/disk/by-id/scsi-0HC_Volume_100000001", /srv/caddy-data, ext4`, "the volume kept for the environment is mounted")
+}
+
+func TestCaddyOfStagingKeepsItsDataOnTheVolumeTheCloudInitFileMounts(t *testing.T) {
+	t.Parallel()
+	cloudInit := readCommittedCloudInit(t)
+	require.Len(t, cloudInit.Mounts, 1, "the one volume the provider keeps for the environment")
+	mount := cloudInit.Mounts[0]
+	require.GreaterOrEqual(t, len(mount), 3)
+	assert.Equal(t, "{{ .VolumeDevice }}", mount[0], "the device the tool writes in")
+	assert.Equal(t, "ext4", mount[2], "the file system the provider formats a new volume with")
+	assert.Contains(t, cloudInit.RunCmd, "mountpoint --quiet "+mount[1], "a server without its volume is never prepared")
+
+	content, err := os.ReadFile(filepath.Join(repository, "deploy", "compose.staging.yaml"))
+	require.NoError(t, err)
+	var file struct {
+		Services map[string]struct {
+			Volumes []string `yaml:"volumes"`
+		} `yaml:"services"`
+	}
+	require.NoError(t, yaml.Unmarshal(content, &file))
+	assert.Contains(t, file.Services["caddy"].Volumes, mount[1]+":/data", "Caddy keeps its certificates on the volume")
 }
 
 func TestEveryStagingValueIsOfANameOfEnvExample(t *testing.T) {
@@ -329,8 +352,8 @@ func TestTheComposeFileOfStagingDeclaresTheVolumesThePublishRemovesAndTheOnesItK
 	require.NoError(t, yaml.Unmarshal(content, &file))
 
 	assert.Equal(t, "forgespark-staging", file.Name)
-	assert.ElementsMatch(t, append(slices.Clone(recreatedVolumes), "caddy-data", "caddy-config"), slices.Collect(maps.Keys(file.Volumes)),
-		"the publish removes the data of PostgreSQL and Garage and keeps the certificates of Caddy")
+	assert.ElementsMatch(t, append(slices.Clone(recreatedVolumes), "caddy-config"), slices.Collect(maps.Keys(file.Volumes)),
+		"the publish removes the data of PostgreSQL and Garage and keeps the configuration of Caddy; its certificates are on the volume kept for staging")
 }
 
 func TestTheCaddyfileOfStagingAsksForTheUserOfMailpitThatTheCommentNames(t *testing.T) {

@@ -3,15 +3,11 @@ package main
 import (
 	"fmt"
 	"io"
-	"net/netip"
-	"strings"
-
-	"github.com/dannilodms/forgespark/apps/api/tools/environment/provider"
 )
 
 // report writes the host names of the server, and how to log in to it.
-func report(stdout io.Writer, environment environment, server provider.Server) error {
-	names := hostNamesOf(server.Address)
+func report(stdout io.Writer, environment environment) error {
+	names := environment.hostNames()
 	fmt.Fprintf(stdout, "  App:    https://%s\n  Files:  https://%s\n  Mail:   https://%s\n", names.app, names.files, names.mail)
 	kept, err := environment.localCopy().kept()
 	if err != nil {
@@ -25,15 +21,15 @@ func report(stdout io.Writer, environment environment, server provider.Server) e
 	return nil
 }
 
-// hostNames are the host names of a server. Until the domain is registered
-// they are under sslip.io, which answers a name that carries an address with
-// that address (provisional, see docs/providers.md).
+// hostNames are the host names of an environment, under the domain of its
+// choices. Their DNS records point to the address the provider keeps for
+// it, so they stay the same from one server to the next (docs/providers.md).
 type hostNames struct {
 	app, files, mail string
 }
 
-// hostNamesOf writes the address with dashes, as one label of the name.
-func hostNamesOf(address netip.Addr) hostNames {
-	domain := strings.ReplaceAll(address.String(), ".", "-") + ".sslip.io"
+// hostNames gives the host names of the environment.
+func (e environment) hostNames() hostNames {
+	domain := e.choices.Domain
 	return hostNames{app: "app." + domain, files: "files." + domain, mail: "mail." + domain}
 }
