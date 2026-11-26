@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately). It is in a folder of its own so that it outlives the effort of staging, whose folder is removed when that effort ends.
 
-**Status:** ready-for-human
+**Status:** resolved
 
 - [x] The maintainer has chosen a registrar and a DNS host and registered the domain. `docs/providers.md` records them, with the yearly cost.
 - [x] Decided with the maintainer: how staging's host names follow a server whose address changes each time it is turned on. One option is a reserved address with records set once by hand. Another is a DNS host with an API, updated by the tool on the machine, never by the pipeline.
 - [x] Decided with the maintainer: how Caddy's certificate data outlives a staging server once the host names are fixed. Let's Encrypt refuses more than five certificates for the same set of names in a week, and every new server would ask for the same ones. One option is a private bucket, saved before the server is destroyed and restored on the next one, as the first version of ADR-0019 planned. Another is a provider volume moved from one server to the next. Either is done by the tool on the machine, never by the pipeline.
-- [ ] Turning staging off and on again more than five times in a week keeps HTTPS working, without a new certificate for the same names.
+- [x] Turning staging off and on again more than five times in a week keeps HTTPS working, without a new certificate for the same names.
 - [x] Staging's host names are under the domain, and nothing refers to `sslip.io` any more.
 - [x] ADR-0019 no longer calls staging's address provisional.
 
@@ -50,3 +50,19 @@ Outside this folder, `sslip.io` is named only by ADR-0019, among the options it 
 | `mail.staging.forgespark.dev` | `06DAE4B0C4F118E9A07E669D93E56A423417` | 2027-02-24 |
 
 `task staging:off` then destroyed the server and kept the address and the volume, and `task staging:on` created a second server with both, booted at 02:10:59 UTC. Pull request #21 was merged before its second publish, so the second server is published by the next pull request, which records what it served.
+
+### What was built
+
+Staging's host names are under the domain, `app.`, `files.` and `mail.staging.forgespark.dev`, pointing to the address Hetzner keeps for staging, and Caddy keeps its certificates on the volume Hetzner keeps for it (#18). The three DNS records were set at Cloudflare through its MCP. Production's record waits for its server, in Records to create of `docs/providers.md`.
+
+### What was checked
+
+- The second server, published by pull request #22, served the same three certificates as the first, with the same serial numbers and SHA-256 fingerprints, over HTTPS at the three host names: the app with 200 at `/up`, Garage with 403 at `/`, and Mailpit with 401 without its password. Its Caddy logged no `obtaining certificate`, no `certificate obtained successfully` and no new ACME account: it loaded the three certificates from the volume and asked Let's Encrypt for none.
+- The criterion of more than five turn-ons in a week was checked with one turn-off and turn-on, as the maintainer chose: a server that finds the certificates on the volume asks for none, so the sixth turn-on of a week asks for none, as the second did. Let's Encrypt has been asked for one certificate for each host name, on 2026-11-26, valid until 2027-02-24.
+- `task staging:off` after the second server left Hetzner with the address and the volume only, and `task staging:status` reports staging off.
+
+ADR-0019, Servers in Environments of `CODING_STANDARDS.md` and `docs/providers.md` keep the decisions; the joint is marked as proven in the list of joints of `CODING_STANDARDS.md`.
+
+### What was not checked
+
+- The renewal of the certificates, which Caddy starts when a third of their 90 days is left, around 2027-01-25. The first server on after that date renews them onto the volume: one new certificate for each host name, well within the limit.
