@@ -1,6 +1,6 @@
 # Staging, turned on from the maintainer's machine
 
-Status: ready-for-agent
+Status: resolved
 
 The decisions below were taken in the grilling of 2026-11-19 and stand on ADR-0019 (revised that day), ADR-0011 (login), ADR-0017 (files), ADR-0021 (public repository) and the sections Environments, Pipeline, Delivery and Versions of `CODING_STANDARDS.md`. The terms are in `GLOSSARY.md`: staging, publish, seed, login code, local login provider. Do not reopen them.
 
