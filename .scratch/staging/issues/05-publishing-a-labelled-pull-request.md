@@ -81,5 +81,5 @@
 
 ### Found, and left for a decision
 
-- **`ACME_EMAIL`** stays empty, as ticket 04 left it: without an address Caddy asks Let's Encrypt alone, and in a week when the shared limit of `sslip.io` is spent staging gets no certificate, which the wait for `/up` then reports.
-- **Every run of a labelled pull request declares the GitHub Environment `staging`**, so GitHub records a deployment on the pull request even when staging is off and nothing is published.
+- **`ACME_EMAIL`** stays empty, as ticket 04 left it: without an address Caddy asks Let's Encrypt alone, and in a week when the shared limit of `sslip.io` is spent staging gets no certificate, which the wait for `/up` then reports. Settled on 2026-11-20: it stays empty until the domain; see the same item in ticket 04 for where the risk is recorded.
+- **Every run of a labelled pull request declares the GitHub Environment `staging`**, so GitHub records a deployment on the pull request even when staging is off and nothing is published. Settled on 2026-11-20: accepted as it is, since a real publish keeps the link of the app on the pull request; in Staging, in Publishing of `CODING_STANDARDS.md`.

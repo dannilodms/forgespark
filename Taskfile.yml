@@ -273,6 +273,14 @@ tasks:
       # which copies its output into the Caddy image of the servers.
       - vp build
 
+  web:csp:
+    desc: Fail when the built app in apps/web/dist, served with the Content-Security-Policy of the servers, makes Chromium report a violation of it. Run it after task web:build
+    dir: apps/web
+    cmds:
+      # It reads the build it is given rather than building again: the
+      # checks build the app once, through caddy:image.
+      - vp node scripts/csp-violations.mjs
+
   web:generate:
     desc: Generate the API client, its Zod schemas and its simulated responses from apps/api/openapi.yaml, with orval
     dir: apps/web
@@ -431,6 +439,7 @@ tasks:
       # nowhere, as the pipeline builds them.
       - task: api:image
       - task: caddy:image
+      - task: web:csp
       - task: seed:image
       - task: api:test
 
