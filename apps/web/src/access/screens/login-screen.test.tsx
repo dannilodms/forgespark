@@ -1,5 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vite-plus/test"
-import { userEvent } from "vite-plus/test/browser"
+import {
+  afterEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vite-plus/test"
+import { page, userEvent } from "vite-plus/test/browser"
 import type { Locator } from "vite-plus/test/browser"
 
 import {
@@ -106,6 +113,16 @@ function theCodeIsInvalid(attemptsLeft: number) {
       }),
       { once: true }
     )
+  )
+}
+
+/**
+ * The next frame, once React has drawn what a timer changed: neither
+ * `setTimeout` nor `requestAnimationFrame` is among the faked timers.
+ */
+function nextFrame() {
+  return new Promise<void>((resolve) =>
+    setTimeout(() => requestAnimationFrame(() => resolve()), 0)
   )
 }
 
@@ -395,6 +412,55 @@ describe("the step of the code", () => {
     await expect.element(codeField(screen)).toHaveValue("")
     await expect.element(codeField(screen)).not.toHaveAttribute("aria-invalid")
     await expect.element(codeField(screen)).toHaveFocus()
+  })
+
+  // Where the sentence is about as wide as the pane, as in Portuguese on a
+  // computer, it wrapped at some numbers and not at others, and vanished at
+  // the end: the pane, centred in the frame, moved the buttons under the
+  // pointer at those seconds.
+  it("keeps the buttons in place while the seconds count down, and once they end", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] })
+    await page.viewport(1280, 800)
+    onTestFinished(() => page.viewport(414, 896))
+    api.use(
+      getTellSetupStateMockHandler({
+        concluded: true,
+        setup_code_waiting: false,
+      }),
+      nobodyIsLoggedIn(),
+      getTellLoginStateMockHandler({ login_providers: [] }),
+      getAskForLoginCodeMockHandler()
+    )
+    const { screen } = await renderApp({ at: "/login", languages: ["pt-BR"] })
+    await screen
+      .getByRole("textbox", { name: "E-mail" })
+      .fill("ana@consultancy.example")
+    await screen.getByRole("button", { name: "Enviar um código" }).click()
+    const newCode = screen.getByRole("button", {
+      name: "Enviar um novo código",
+    })
+    const logIn = screen.getByRole("button", { name: "Entrar" })
+    await expect
+      .element(newCode)
+      .toHaveAccessibleDescription(
+        "Você pode pedir um novo código em 60 segundos."
+      )
+
+    // Every second from 60 to the end, each drawn before it is measured.
+    const counts = new Set<string>()
+    const tops = new Set<number>()
+    for (let second = 0; second <= 60; second++) {
+      await nextFrame()
+      counts.add(
+        document.getElementById("login-new-code-wait")?.textContent ?? "none"
+      )
+      tops.add(logIn.element().getBoundingClientRect().top)
+      vi.advanceTimersByTime(1_000)
+    }
+
+    await expect.element(newCode).toBeEnabled()
+    expect(counts.size).toBe(61)
+    expect([...tops]).toHaveLength(1)
   })
 
   it("says to wait when a new code meets the limit of codes for the address", async () => {

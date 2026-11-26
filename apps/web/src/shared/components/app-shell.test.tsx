@@ -40,22 +40,23 @@ function signedURL(key: string, signature = "first") {
 }
 
 /** A PNG drawn in the browser, as the storage answers it. */
-async function aPNG() {
-  const canvas = new OffscreenCanvas(48, 48)
+async function aPNG(width: number, height: number) {
+  const canvas = new OffscreenCanvas(width, height)
   const context = canvas.getContext("2d")
   if (context) {
     context.fillStyle = "#0073ea"
-    context.fillRect(0, 0, 48, 48)
+    context.fillRect(0, 0, width, height)
   }
   return (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer()
 }
 
 /**
- * The file storage, which answers every signed URL with an image, as the
- * browser reads it. Returns each URL it was asked for.
+ * The file storage, which answers every signed URL with an image, square
+ * unless told its size, as the browser reads it. Returns each URL it was
+ * asked for.
  */
-async function theStorage() {
-  const image = await aPNG()
+async function theStorage(width = 48, height = width) {
+  const image = await aPNG(width, height)
   const read: string[] = []
   api.use(
     http.get(`${storageAddress}/*`, ({ request }) => {
@@ -152,6 +153,61 @@ describe("the shell, at a wide width", () => {
     await expect.poll(() => imageAt(logo)).not.toBeNull()
     await expect.element(userMenuButton(screen)).not.toMatchTextContent("AE")
     expect(read).toEqual(expect.arrayContaining([photo, logo]))
+  })
+
+  // A wordmark in a square shrinks to a line no one can read.
+  it.for([
+    [48, 48, 32],
+    [96, 48, 64],
+    [300, 60, 96],
+  ])(
+    "shows a logo of %ix%i in a box %ipx wide and 32px high",
+    async ([width, height, shownWidth]) => {
+      await theStorage(width, height)
+      // A URL of its own: the browser keeps the image of a URL it read.
+      const logo = signedURL(
+        "fedcba9876543210fedcba9876543210",
+        `${width}x${height}`
+      )
+
+      await openTheShell(ana, { ...theConsultancy, logo_url: logo })
+
+      await expect
+        .poll(() => imageAt(logo)?.getBoundingClientRect().toJSON())
+        .toMatchObject({ width: shownWidth, height: 32 })
+    }
+  )
+
+  it("shows a long name of the consultancy on two lines, and whole under the pointer", async () => {
+    const name =
+      "Wiśniewska-Kowalczyk Consultoria em Engenharia de Software, Dados e Transformação Digital Ltda."
+
+    const { screen } = await openTheShell(ana, { name })
+
+    const shown = screen.getByText(name)
+    await expect.element(shown).toBeVisible()
+    await expect.element(shown).toHaveAttribute("title", name)
+    // Two lines of the interface type, 24px each.
+    expect(shown.element().getBoundingClientRect().height).toBe(48)
+  })
+
+  it.for([
+    ["João da Silva Filho", "JS"],
+    ["Christopher Alexander Montgomery III", "CM"],
+    ["John Smith Jr.", "JS"],
+    ["João Neto", "JN"],
+    ["Ólafur Darri Ólafsson", "ÓÓ"],
+    ["Ólafur Ólafsson", "ÓÓ"],
+    ["🦊 Fox", "F"],
+    ["  Sam   Lee ", "SL"],
+    ["dana", "D"],
+    ["王秀英", "王"],
+  ])("shows %s as the initials %s", async ([name, initials]) => {
+    const { screen } = await openTheShell({ ...ana, name })
+
+    const button = screen.getByRole("button", { name: /^Menu of / })
+    await expect.element(button).toBeVisible()
+    expect(button.element().textContent).toBe(initials)
   })
 })
 
@@ -263,6 +319,20 @@ describe("the shell, at a narrow width", () => {
     await expect
       .element(screen.getByRole("button", { name: "Open the sidebar" }))
       .not.toBeInTheDocument()
+  })
+
+  it("shows the whole e-mail of the user in the menu, however long", async () => {
+    const email =
+      "bartholomew.fitzgerald@northwind-industries-holdings.example.com"
+    const { screen } = await openTheShell({ ...ana, email })
+
+    await userMenuButton(screen).click()
+
+    const shown = screen.getByRole("menu").getByText(email)
+    await expect.element(shown).toBeVisible()
+    const element = shown.element()
+    expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth)
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(375)
   })
 
   it("has no page wider than the screen", async () => {

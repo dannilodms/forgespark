@@ -34,7 +34,7 @@ export function LoginScreen({
 
   return (
     <FramedPane>
-      <h1 className="type-display">{t("login.heading")}</h1>
+      <h1 className="text-center type-display">{t("login.heading")}</h1>
       <LoginNoticeAlert
         notice={notice}
         refusedEmail={loginState.refused_email}

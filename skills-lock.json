@@ -1,11 +1,27 @@
 {
   "version": 2,
   "skills": {
+    "break-ui": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/break-ui/SKILL.md",
+      "computedHash": "f089f3663e197fb4e106249df70e815a96e3236520a2e1c0919d1694816baca8",
+      "installMode": "copy"
+    },
     "db-core": {
       "source": "TanStack/db",
       "sourceType": "github",
       "skillPath": "packages/db/skills/db-core/SKILL.md",
       "computedHash": "3504491ee5f4b3800670d5a8d47338ebcc645b13dee5af3b955391a0a871fb0a",
+      "installMode": "copy"
+    },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "e1b377ccde1d32743d1d3f7d8626629deb8055c9114d180c184697928cc66cc6",
       "installMode": "copy"
     },
     "react-db": {

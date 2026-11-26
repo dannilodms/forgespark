@@ -12,7 +12,7 @@ import { LanguageSelect } from "./language-select"
  * the Framed pane recipe of DESIGN.md. The pane is narrow for a screen of few
  * controls, such as the login screen, and wide for a form, such as the setup,
  * whose fields go side by side. At a narrow width the pane takes the width of
- * the page.
+ * the page. Behind the pane, the frame glows in `primary`.
  */
 export function FramedPane({
   width = "narrow",
@@ -22,7 +22,7 @@ export function FramedPane({
   children: ReactNode
 }) {
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-svh flex-col bg-background bg-(image:--frame-glow)">
       <header className="flex h-14 shrink-0 items-center gap-2.5 px-4">
         <ProductLogo withSlogan />
       </header>

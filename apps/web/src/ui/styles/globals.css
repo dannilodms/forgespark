@@ -100,6 +100,18 @@
   --shadow-floating: 0 0 0 1px var(--border), 0 6px 20px rgb(0 0 0 / 0.2);
   --shadow-modal: 0 0 0 1px var(--border), 0 15px 50px rgb(0 0 0 / 0.3);
 
+  /*
+   * The glow of `primary` on the frame of the framed pane, behind its pane:
+   * the one place colour decorates (Framed pane in DESIGN.md). It fades out
+   * before the header and the footer, whose text keeps 4.5:1 on it.
+   */
+  --frame-glow: radial-gradient(
+    ellipse 65% 60% at 50% 50%,
+    color-mix(in oklab, var(--primary) 35%, transparent) 0%,
+    color-mix(in oklab, var(--primary) 12%, transparent) 55%,
+    transparent 100%
+  );
+
   /* An overlay opens along this curve. A colour change keeps the default. */
   --ease-overlay: cubic-bezier(0.2, 0.8, 0.2, 1);
 

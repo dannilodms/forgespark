@@ -28,6 +28,8 @@ Read `CODING_STANDARDS.md` before writing or reviewing code under `apps/`, `depl
 
 Read `DESIGN.md` before writing or reviewing interface code under `apps/web`. It holds the rules of the look, the names, roles and values of the style variables, the components and the recipes. A change to any of them updates `DESIGN.md` in the same change.
 
+The skills `emil-design-eng` and `break-ui` come from emilkowalski/skills. `DESIGN.md` outranks them: a value of theirs that differs enters `DESIGN.md` first, with the maintainer's yes. `break-ui` feeds its worst case through the simulated API of the screen tests and shows it in screenshots from them, since ADR-0025 keeps prototype routes and galleries out of the app.
+
 ## Records to keep current
 
 Two files record what lives outside the code. When a task adds, replaces, updates or removes one of the things below, update its file in the same change. The task is done when the file matches what is installed or configured.

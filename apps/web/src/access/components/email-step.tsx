@@ -107,7 +107,7 @@ export function EmailStep({
         </Alert>
       ) : null}
 
-      <p>{t("login.email.intro")}</p>
+      <p className="text-center">{t("login.email.intro")}</p>
 
       <FieldGroup>
         <form.Field name="email">
@@ -124,7 +124,7 @@ export function EmailStep({
         </form.Field>
       </FieldGroup>
 
-      <StepActions>
+      <StepActions stacked>
         <Button type="submit" disabled={sending}>
           {sending ? (
             <LoaderCircleIcon
