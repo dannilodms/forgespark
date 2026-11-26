@@ -54,7 +54,9 @@ Commands:
             values out of GitHub, but the password of Mailpit. When it is off
             already, do nothing more
   status    Tell whether the environment is on, since when, at which address
-            and host names, and which open pull request has its label
+            and host names, and which open pull request has its label. When
+            it is off, tell what the provider keeps for it and bills: its
+            address and its volume
   publish   Publish the images of a commit of a pull request to the server of
             the environment, when the pull request is open and has the label
             of the environment: write its variables file, start its data

@@ -82,11 +82,45 @@ func (p *Provider) Keep(ctx context.Context, keeping provider.Keeping) (provider
 	if err != nil {
 		return provider.Kept{}, err
 	}
+	ip, err := ipv4Of(address)
+	if err != nil {
+		return provider.Kept{}, err
+	}
+	return provider.Kept{Address: ip, VolumeDevice: volume.LinuxDevice, NewAddress: created}, nil
+}
+
+// FindKept gives the primary IP and the volume with the name and the
+// labels, each only if it exists, and creates nothing.
+func (p *Provider) FindKept(ctx context.Context, name string) (provider.Holdings, error) {
+	address, addressFound, err := p.keptAddress(ctx, name)
+	if err != nil {
+		return provider.Holdings{}, err
+	}
+	volume, volumeFound, err := p.keptVolume(ctx, name)
+	if err != nil {
+		return provider.Holdings{}, err
+	}
+	holdings := provider.Holdings{}
+	if volumeFound {
+		holdings.VolumeSize = volume.Size
+	}
+	if !addressFound {
+		return holdings, nil
+	}
+	holdings.Address, err = ipv4Of(address)
+	if err != nil {
+		return provider.Holdings{}, err
+	}
+	return holdings, nil
+}
+
+// ipv4Of gives the IPv4 address of a primary IP.
+func ipv4Of(address *hcloud.PrimaryIP) (netip.Addr, error) {
 	ip, valid := netip.AddrFromSlice(address.IP)
 	if !valid {
-		return provider.Kept{}, fmt.Errorf("the address %s has no IPv4 address", address.Name)
+		return netip.Addr{}, fmt.Errorf("the address %s has no IPv4 address", address.Name)
 	}
-	return provider.Kept{Address: ip.Unmap(), VolumeDevice: volume.LinuxDevice, NewAddress: created}, nil
+	return ip.Unmap(), nil
 }
 
 // keepAddress gives the kept primary IP, created when there is none, and

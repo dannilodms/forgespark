@@ -1,7 +1,7 @@
 // Package provider names what the tool asks of the company that rents it
 // its servers: keep what the servers of an environment share from one to
-// the next, create a server from a specification, find one by its name and
-// destroy one by its name. Hetzner is the one adapter today, in the package
+// the next, tell what it keeps, create a server from a specification, find
+// one by its name and destroy one by its name. Hetzner is the one adapter today, in the package
 // hetzner; providertest keeps servers in memory for the tests of the
 // commands.
 package provider
@@ -27,6 +27,9 @@ type Provider interface {
 	// and the volume that every server of the environment gets, and gives
 	// them. It creates only what is missing, and gives what exists as it is.
 	Keep(ctx context.Context, keeping Keeping) (Kept, error)
+	// FindKept gives what the provider keeps under that name, the address
+	// and the volume, each only if it exists, and creates nothing.
+	FindKept(ctx context.Context, name string) (Holdings, error)
 	// Create creates a server, with the address and the volume kept under
 	// its name, and returns once the provider says it is running. On a
 	// failure it leaves nothing of the server behind that it knows of;
@@ -66,6 +69,18 @@ type Kept struct {
 	// NewAddress tells that Keep created the address: the DNS records point
 	// to the one before, and are set again by hand.
 	NewAddress bool
+}
+
+// Holdings is what the provider keeps under the name of an environment, as
+// FindKept reads it. The provider bills both while they exist, also while
+// the environment is off.
+type Holdings struct {
+	// Address is the kept IPv4 address. It is the zero netip.Addr, which is
+	// not valid, when none is kept.
+	Address netip.Addr
+	// VolumeSize is the size of the kept volume, in gigabytes. It is zero
+	// when none is kept.
+	VolumeSize int
 }
 
 // Specification is what a new server is made of.

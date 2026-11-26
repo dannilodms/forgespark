@@ -156,7 +156,7 @@ tasks:
       - go run ./tools/environment off staging
 
   staging:status:
-    desc: Tell whether staging is on, since when, at which address and host names, and which open pull request has the staging label
+    desc: Tell whether staging is on, since when, at which address and host names, and which open pull request has the staging label. When it is off, tell the address and the volume Hetzner keeps for it and bills
     dir: apps/api
     cmds:
       - go run ./tools/environment status staging

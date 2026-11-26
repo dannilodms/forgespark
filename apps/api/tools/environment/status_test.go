@@ -19,7 +19,21 @@ func TestTheStatusOfStagingWhenOff(t *testing.T) {
 
 	printed := world.succeeds("status", "staging")
 
-	assert.Equal(t, "Staging is off.\nNo open pull request has the staging label.\n", printed)
+	assert.Equal(t, "Staging is off.\nNothing is kept at hetzner: the next turn-on creates an address and a volume.\nNo open pull request has the staging label.\n", printed)
+}
+
+func TestTheStatusOfStagingTurnedOffTellsTheAddressAndTheVolumeTheProviderKeeps(t *testing.T) {
+	t.Parallel()
+	world := aWorld(t)
+	world.succeeds("on", "staging")
+	world.succeeds("off", "staging")
+
+	printed := world.succeeds("status", "staging")
+
+	assert.Equal(t, `Staging is off.
+Kept at hetzner for the next turn-on, and billed until deleted: the address 203.0.113.10 and a volume of 10 GB.
+No open pull request has the staging label.
+`, printed)
 }
 
 func TestTheStatusOfStagingWhenOnTellsSinceWhenAndAtWhichAddressAndHostNames(t *testing.T) {
@@ -83,6 +97,7 @@ func TestTheStatusWhenOffStillNamesAPullRequestWithTheLabel(t *testing.T) {
 	printed := world.succeeds("status", "staging")
 
 	assert.Equal(t, `Staging is off.
+Nothing is kept at hetzner: the next turn-on creates an address and a volume.
 Pull request #12 has the staging label: Publish to staging, https://github.com/dannilodms/forgespark/pull/12
 Pull request #13 has the staging label: Also labelled, https://github.com/dannilodms/forgespark/pull/13
 `, printed)
@@ -96,6 +111,6 @@ func TestAStatusThatCannotReachGitHubSaysSoAfterWhatItKnows(t *testing.T) {
 	ran := world.run("status", "staging")
 
 	assert.Equal(t, 1, ran.status)
-	assert.Equal(t, "Staging is off.\n", ran.stdout)
+	assert.Equal(t, "Staging is off.\nNothing is kept at hetzner: the next turn-on creates an address and a volume.\n", ran.stdout)
 	assert.Equal(t, "environment: find the open pull requests with the label staging on GitHub: gh is not logged in\n", ran.stderr)
 }

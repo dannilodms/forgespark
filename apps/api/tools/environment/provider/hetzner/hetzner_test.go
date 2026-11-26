@@ -659,6 +659,38 @@ func TestDestroyLeavesOnlyTheKeptAddressAndVolumeAtHetzner(t *testing.T) {
 	assert.False(t, found)
 }
 
+func TestFindKeptGivesTheAddressAndTheVolumeLeftAfterTheServerIsDestroyed(t *testing.T) {
+	t.Parallel()
+	simulated := newSimulatedHetzner(t)
+	adapter := simulated.adapter()
+	kept(t, adapter)
+	_, err := adapter.Create(context.Background(), aSpecification())
+	require.NoError(t, err)
+	require.NoError(t, adapter.Destroy(context.Background(), "staging"))
+
+	holdings, err := adapter.FindKept(context.Background(), "staging")
+
+	require.NoError(t, err)
+	assert.Equal(t, provider.Holdings{Address: netip.MustParseAddr("198.51.100.7"), VolumeSize: 10}, holdings)
+	lists := simulated.sent(http.MethodGet, "/volumes")
+	require.NotEmpty(t, lists)
+	assert.Contains(t, lists[len(lists)-1].query, "label_selector=environment%3Dstaging")
+	assert.Contains(t, lists[len(lists)-1].query, "name=staging")
+}
+
+func TestFindKeptWithNothingKeptGivesNothingAndCreatesNothing(t *testing.T) {
+	t.Parallel()
+	simulated := newSimulatedHetzner(t)
+
+	holdings, err := simulated.adapter().FindKept(context.Background(), "staging")
+
+	require.NoError(t, err)
+	assert.Equal(t, provider.Holdings{}, holdings)
+	assert.False(t, holdings.Address.IsValid())
+	assert.Empty(t, simulated.sent(http.MethodPost, "/primary_ips"))
+	assert.Empty(t, simulated.sent(http.MethodPost, "/volumes"))
+}
+
 func TestTheNextServerGetsTheSameAddressAndVolume(t *testing.T) {
 	t.Parallel()
 	simulated := newSimulatedHetzner(t)

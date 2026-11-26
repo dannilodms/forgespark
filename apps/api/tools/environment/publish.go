@@ -116,7 +116,10 @@ type step struct {
 //
 // The label of the environment says which pull request it shows, and is
 // read again first: a pull request that lost it, or was closed, since the
-// event that started the run is not published.
+// event that started the run is not published. The list of open pull
+// requests tells neither from the other, so the line names both. It is a
+// notice of GitHub Actions, the one place the publish runs, so that the run
+// shows it beside its conclusion, which is still a success.
 func publish(ctx context.Context, environment environment, stdout io.Writer) error {
 	given, err := environment.publication()
 	if err != nil {
@@ -127,7 +130,7 @@ func publish(ctx context.Context, environment environment, stdout io.Writer) err
 		return err
 	}
 	if !labelled {
-		fmt.Fprintf(stdout, "Pull request #%d does not have the %s label any more, so it is not published.\n", given.pullRequest, environment.name)
+		fmt.Fprintf(stdout, "::notice title=Not published::Pull request #%d is closed, or does not have the %s label any more, so it is not published.\n", given.pullRequest, environment.name)
 		return nil
 	}
 	variables, err := environment.variablesFile(given)
