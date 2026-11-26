@@ -45,10 +45,12 @@ export default defineConfig({
     actionTimeout: 2 * 60_000,
   },
   // The login continues on the database the setup leaves: its administrator
-  // is the person Dex knows. It runs only once the setup passed.
+  // is the person Dex knows. It runs only once the setup passed. The files of
+  // the brand need neither.
   projects: [
     { name: "setup", testMatch: /setup\.spec\.ts$/ },
     { name: "login", testMatch: /login\.spec\.ts$/, dependencies: ["setup"] },
+    { name: "brand", testMatch: /brand\.spec\.ts$/ },
   ],
   // Each of the API and Vite is ready once Caddy reaches it. A server already
   // listening there, such as one of `task dev`, fails the run instead of

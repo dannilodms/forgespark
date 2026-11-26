@@ -115,8 +115,9 @@
 # The built web app, from the folder of the Caddy image of the servers, /srv,
 # for every path the site of the app does not forward to the API. Vite writes
 # every file of the build but index.html under /assets/, with a hash of its
-# content in its name, and the app has no folder of files copied as they are:
-# a file there never changes, and every other one is revalidated, so a
+# content in its name, and the app has no folder of files copied as they are,
+# but the favicon, the icons and the manifest of the brand, at the root: a
+# file under /assets/ never changes, and every other one is revalidated, so a
 # publish shows on the next load. A path that is no file is a route of the
 # app, answered with index.html. A file under /assets/ that does not exist is
 # a 404, not the app. Each header is set as the response leaves, so that a

@@ -8,8 +8,9 @@ import type { Plugin } from "vite-plus"
 const compress = promisify(brotliCompress)
 
 // The text files of the build, which get a Brotli copy: JavaScript, CSS,
-// HTML, SVG and JSON. A font is compressed already.
-const textFile = /\.(js|css|html|svg|json)$/
+// HTML, SVG, JSON and the web app manifest. A font, an image and an icon are
+// compressed already.
+const textFile = /\.(js|css|html|svg|json|webmanifest)$/
 
 // Writes a Brotli copy (`.br`) beside each text file of the build, once the
 // build has written every file, at the highest quality: it is done once, and
