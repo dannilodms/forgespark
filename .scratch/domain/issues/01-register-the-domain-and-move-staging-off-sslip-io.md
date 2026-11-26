@@ -38,3 +38,15 @@ The address, `167.233.239.56`, and the volume were created on 2026-11-25 through
 The three A records were created at Cloudflare through the Cloudflare MCP, at the maintainer's request: `app.staging.forgespark.dev`, `files.staging.forgespark.dev` and `mail.staging.forgespark.dev`, each pointing to `167.233.239.56`, DNS only, with Cloudflare's automatic TTL. They resolve to that address at `cloudflare-dns.com` and at `dns.google`. They are the only records of the zone, as Domain and DNS in `docs/providers.md` records them.
 
 Outside this folder, `sslip.io` is named only by ADR-0019, among the options it considered, as the second version of the decision.
+
+### The real run, first server (2026-11-26)
+
+`task staging:on` created a server that got the address `167.233.239.56` and the volume, mounted at `/srv/caddy-data` and empty but for `lost+found`. Pull request #21 was published to it. Caddy obtained three certificates from Let's Encrypt (issuer `YE2`), one for each host name, and kept them on the volume, under `/data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/`. Each host name answered over HTTPS: the app with 200 at `/up`, Garage with 403 at `/`, and Mailpit with 401 without its password. The certificates it served:
+
+| Host name | Serial number | Valid until |
+| --- | --- | --- |
+| `app.staging.forgespark.dev` | `06541E455558020C838ECCABE757FA2A4F22` | 2027-02-24 |
+| `files.staging.forgespark.dev` | `0622A37070A004B82010253AD9E7A7CEE87D` | 2027-02-24 |
+| `mail.staging.forgespark.dev` | `06DAE4B0C4F118E9A07E669D93E56A423417` | 2027-02-24 |
+
+`task staging:off` then destroyed the server and kept the address and the volume, and `task staging:on` created a second server with both, booted at 02:10:59 UTC. Pull request #21 was merged before its second publish, so the second server is published by the next pull request, which records what it served.
